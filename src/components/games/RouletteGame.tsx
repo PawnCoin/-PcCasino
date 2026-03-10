@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { ArrowLeft, Info, Volume2, VolumeX, Settings } from 'lucide-react';
+import { ArrowLeft, Info, Volume2, VolumeX, Settings, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -24,13 +24,27 @@ interface PlacedBet {
   payout: number;
 }
 
-const CHIP_VALUES = [1, 5, 10, 25, 100];
+interface BetHistoryEntry {
+  type: string;
+  numbers: number[];
+  amount: number;
+  payout: number;
+}
+
+interface ResultOverlay {
+  type: 'win' | 'loss';
+  amount: number;
+  number: number;
+}
+
+const CHIP_VALUES = [1, 5, 10, 25, 50, 100, 500, 1000, 5000, 10000];
 
 const WHEEL_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-const SEGMENT_ANGLE = (Math.PI * 2) / 37;
 
 const isRed = (num: number) => RED_NUMBERS.includes(num);
+
+const IDLE_SPEED = 5;
 
 const rouletteRules = {
   objective: 'Predict where the ball will land on the spinning wheel.',
@@ -102,27 +116,119 @@ function HistoryPanel({ history }: { history: number[] }) {
   );
 }
 
-function BetChipIndicator({ amount }: { amount: number }) {
-  const chipColor = amount >= 100 ? '#333' : amount >= 25 ? '#388e3c' : amount >= 10 ? '#1976d2' : amount >= 5 ? '#d32f2f' : '#e0e0e0';
-  const textColor = amount >= 100 || amount >= 10 ? '#fff' : amount >= 5 ? '#fff' : '#333';
+function BetChipStack({ amount, chipCount }: { amount: number; chipCount: number }) {
+  const stackCount = Math.min(chipCount || 1, 5);
+
+  return (
+    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10" style={{ animation: 'rouletteChipDrop 0.3s ease-out forwards' }}>
+      {Array.from({ length: stackCount }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-full flex items-center justify-center font-bold border-2 absolute"
+          style={{
+            width: '22px',
+            height: '22px',
+            background: getChipColor(amount),
+            borderColor: 'rgba(212,175,55,0.7)',
+            color: amount >= 100 || amount >= 10 ? '#fff' : amount >= 5 ? '#fff' : '#333',
+            fontSize: '7px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+            top: `${-i * 3}px`,
+            left: `${i * 1}px`,
+            zIndex: stackCount - i,
+          }}
+        >
+          {i === 0 ? formatChipAmount(amount) : ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function getChipColor(amount: number): string {
+  if (amount >= 10000) return 'radial-gradient(circle at 35% 30%, #AB47BC, #7B1FA2)';
+  if (amount >= 5000) return 'radial-gradient(circle at 35% 30%, #8D6E63, #6D4C41)';
+  if (amount >= 1000) return 'radial-gradient(circle at 35% 30%, #D0D0D0, #B0B0B0)';
+  if (amount >= 500) return 'radial-gradient(circle at 35% 30%, #F4D03F, #D4AF37)';
+  if (amount >= 100) return 'radial-gradient(circle at 35% 30%, #555, #333)';
+  if (amount >= 50) return 'radial-gradient(circle at 35% 30%, #ffb74d, #f57c00)';
+  if (amount >= 25) return 'radial-gradient(circle at 35% 30%, #66bb6a, #388e3c)';
+  if (amount >= 10) return 'radial-gradient(circle at 35% 30%, #42a5f5, #1976d2)';
+  if (amount >= 5) return 'radial-gradient(circle at 35% 30%, #ef5350, #d32f2f)';
+  return 'radial-gradient(circle at 35% 30%, #f5f5f5, #e0e0e0)';
+}
+
+function formatChipAmount(amount: number): string {
+  if (amount >= 10000) return `${amount / 1000}K`;
+  if (amount >= 1000) return `${amount / 1000}K`;
+  return amount.toString();
+}
+
+function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  const isWin = result.type === 'win';
+  const numberColor = result.number === 0 ? '#15803d' : isRed(result.number) ? '#dc2626' : '#aaa';
+
   return (
     <div
-      className="absolute -top-2 left-1/2 -translate-x-1/2 z-10"
-      style={{ animation: 'rouletteChipDrop 0.3s ease-out forwards' }}
+      className="fixed inset-0 z-[200] flex items-center justify-center"
+      style={{
+        background: isWin
+          ? 'radial-gradient(ellipse at center, rgba(34,197,94,0.15) 0%, rgba(0,0,0,0.85) 70%)'
+          : 'radial-gradient(ellipse at center, rgba(220,38,38,0.12) 0%, rgba(0,0,0,0.85) 70%)',
+        animation: 'resultOverlayIn 0.5s ease-out forwards',
+      }}
+      onClick={onDismiss}
     >
-      <div
-        className="rounded-full flex items-center justify-center font-bold border-2"
-        style={{
-          width: '20px',
-          height: '20px',
-          background: `radial-gradient(circle at 35% 30%, ${chipColor}, ${chipColor}dd)`,
-          borderColor: 'rgba(212,175,55,0.7)',
-          color: textColor,
-          fontSize: '7px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
-        }}
-      >
-        {amount}
+      <div className="text-center" style={{ animation: 'resultContentIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards' }}>
+        <div
+          className="text-6xl font-bold mb-3"
+          style={{
+            fontFamily: "'Playfair Display', serif",
+            color: isWin ? '#43A047' : '#dc2626',
+            textShadow: `0 0 40px ${isWin ? 'rgba(67,160,71,0.6)' : 'rgba(220,38,38,0.6)'}, 0 0 80px ${isWin ? 'rgba(67,160,71,0.3)' : 'rgba(220,38,38,0.3)'}`,
+            letterSpacing: '0.05em',
+          }}
+        >
+          {isWin ? 'YOU WIN!' : 'YOU LOST!'}
+        </div>
+
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+            style={{
+              background: result.number === 0
+                ? 'linear-gradient(145deg, #1fa34a, #15803d)'
+                : isRed(result.number)
+                  ? 'linear-gradient(145deg, #e53935, #b71c1c)'
+                  : 'linear-gradient(145deg, #2a2a2a, #111)',
+              border: '2px solid rgba(212,175,55,0.6)',
+              color: '#fff',
+              boxShadow: `0 0 20px ${numberColor}44`,
+            }}
+          >
+            {result.number}
+          </div>
+          <div style={{ color: numberColor }} className="text-sm font-bold uppercase tracking-wider">
+            {result.number === 0 ? 'GREEN' : isRed(result.number) ? 'RED' : 'BLACK'}
+          </div>
+        </div>
+
+        <div
+          className="text-4xl font-bold"
+          style={{
+            color: isWin ? '#D4AF37' : '#666',
+            textShadow: isWin ? '0 0 20px rgba(212,175,55,0.4)' : 'none',
+          }}
+        >
+          {isWin ? `+${result.amount.toLocaleString()}` : `-${result.amount.toLocaleString()}`} $Pc
+        </div>
+
+        <div className="text-xs text-gray-500 mt-4 tracking-wider">TAP TO CONTINUE</div>
       </div>
     </div>
   );
@@ -131,26 +237,28 @@ function BetChipIndicator({ amount }: { amount: number }) {
 export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProps) {
   const [selectedChip, setSelectedChip] = useState(10);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
+  const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
   const [lastBets, setLastBets] = useState<PlacedBet[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [wheelRotation, setWheelRotation] = useState(0);
-  const [ballAngle, setBallAngle] = useState(0);
-  const [ballRadius, setBallRadius] = useState(2.45);
+  const [currentSpeed, setCurrentSpeed] = useState(IDLE_SPEED);
+  const [ballDropped, setBallDropped] = useState(false);
   const [winningNumber, setWinningNumber] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [message, setMessage] = useState('Place your bets!');
   const [useLaPartage, setUseLaPartage] = useState(true);
   const [history, setHistory] = useState<number[]>([]);
-  const [winFlash, setWinFlash] = useState(false);
-  const [loseFlash, setLoseFlash] = useState(false);
+  const [resultOverlay, setResultOverlay] = useState<ResultOverlay | null>(null);
   const [lastWin, setLastWin] = useState(0);
 
-  const animRef = useRef<number | null>(null);
   const pendingSpinRef = useRef(false);
-  const ballClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   const pendingTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const winningNumRef = useRef<number>(0);
+  const chipScrollRef = useRef<HTMLDivElement>(null);
+  const placedBetsRef = useRef<PlacedBet[]>([]);
+  placedBetsRef.current = placedBets;
   const { isMuted, toggleMute, playSound } = useSoundEffects();
   const { announceBetsOpen, announceNoMoreBets, announceResult, announceWin, announceLoss } = useRouletteVoice();
 
@@ -158,6 +266,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
 
   const safeTimeout = useCallback((fn: () => void, ms: number) => {
     const id = setTimeout(() => {
+      pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(t => t !== id);
       if (mountedRef.current) fn();
     }, ms);
     pendingTimeoutsRef.current.push(id);
@@ -169,8 +278,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
     announceBetsOpen();
     return () => {
       mountedRef.current = false;
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-      if (ballClickTimeoutRef.current) clearTimeout(ballClickTimeoutRef.current);
+      if (clickIntervalRef.current) clearInterval(clickIntervalRef.current);
       pendingTimeoutsRef.current.forEach(id => clearTimeout(id));
     };
   }, []);
@@ -191,16 +299,42 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
     } else {
       setPlacedBets(prev => [...prev, { type, numbers, amount: selectedChip, payout }]);
     }
+    setBetHistory(prev => [...prev, { type, numbers, amount: selectedChip, payout }]);
     playSound('chipPlace');
     setMessage(`Bet ${selectedChip} $Pc on ${type}`);
     setWinningNumber(null);
     setLastWin(0);
+    setResultOverlay(null);
   }, [isSpinning, selectedChip, placedBets, onBet, playSound]);
+
+  const undoBet = useCallback(() => {
+    if (isSpinning || betHistory.length === 0) return;
+    const lastEntry = betHistory[betHistory.length - 1];
+
+    onWin(lastEntry.amount);
+
+    setPlacedBets(prev => {
+      const idx = prev.findIndex(b => b.type === lastEntry.type);
+      if (idx < 0) return prev;
+      const newBets = [...prev];
+      if (newBets[idx].amount <= lastEntry.amount) {
+        newBets.splice(idx, 1);
+      } else {
+        newBets[idx] = { ...newBets[idx], amount: newBets[idx].amount - lastEntry.amount };
+      }
+      return newBets;
+    });
+
+    setBetHistory(prev => prev.slice(0, -1));
+    playSound('clear');
+    setMessage('Last bet undone');
+  }, [isSpinning, betHistory, onWin, playSound]);
 
   const clearBets = useCallback(() => {
     if (isSpinning) return;
     placedBets.forEach(bet => onWin(bet.amount));
     setPlacedBets([]);
+    setBetHistory([]);
     setMessage('Bets cleared');
     playSound('clear');
   }, [isSpinning, placedBets, onWin, playSound]);
@@ -221,11 +355,92 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
       return;
     }
     setPlacedBets(affordable);
+    setBetHistory(affordable.map(b => ({ type: b.type, numbers: b.numbers, amount: b.amount, payout: b.payout })));
     setWinningNumber(null);
     setLastWin(0);
+    setResultOverlay(null);
     playSound('chipPlace');
     setMessage(`Repeated bet: ${totalDeducted} $Pc`);
   }, [isSpinning, lastBets, onBet, playSound]);
+
+  const finishSpin = useCallback((number: number) => {
+    setHistory(prev => [number, ...prev.slice(0, 19)]);
+    announceResult(number, isRed(number));
+
+    const betsSnapshot = placedBetsRef.current;
+
+    safeTimeout(() => {
+      if (!mountedRef.current) return;
+
+      let totalWinAmount = 0;
+      let laPartageRefund = 0;
+      const isZero = number === 0;
+
+      betsSnapshot.forEach(bet => {
+        let won = false;
+        let winAmount = 0;
+
+        if (bet.type === number.toString()) {
+          won = true; winAmount = bet.amount * (bet.payout + 1);
+        } else if (bet.type === 'red' && isRed(number)) {
+          won = true; winAmount = bet.amount * 2;
+        } else if (bet.type === 'black' && !isRed(number) && number !== 0) {
+          won = true; winAmount = bet.amount * 2;
+        } else if (bet.type === 'even' && number !== 0 && number % 2 === 0) {
+          won = true; winAmount = bet.amount * 2;
+        } else if (bet.type === 'odd' && number !== 0 && number % 2 === 1) {
+          won = true; winAmount = bet.amount * 2;
+        } else if (bet.type === 'low' && number >= 1 && number <= 18) {
+          won = true; winAmount = bet.amount * 2;
+        } else if (bet.type === 'high' && number >= 19 && number <= 36) {
+          won = true; winAmount = bet.amount * 2;
+        } else if (bet.type === '1st12' && number >= 1 && number <= 12) {
+          won = true; winAmount = bet.amount * 3;
+        } else if (bet.type === '2nd12' && number >= 13 && number <= 24) {
+          won = true; winAmount = bet.amount * 3;
+        } else if (bet.type === '3rd12' && number >= 25 && number <= 36) {
+          won = true; winAmount = bet.amount * 3;
+        } else if (bet.type === 'col1' && number % 3 === 1 && number !== 0) {
+          won = true; winAmount = bet.amount * 3;
+        } else if (bet.type === 'col2' && number % 3 === 2) {
+          won = true; winAmount = bet.amount * 3;
+        } else if (bet.type === 'col3' && number % 3 === 0 && number !== 0) {
+          won = true; winAmount = bet.amount * 3;
+        }
+
+        if (won) totalWinAmount += winAmount;
+        else if (isZero && bet.payout === 1 && useLaPartage) {
+          laPartageRefund += bet.amount / 2;
+        }
+      });
+
+      if (laPartageRefund > 0) totalWinAmount += laPartageRefund;
+
+      setLastBets([...betsSnapshot]);
+
+      const totalBetAmount = betsSnapshot.reduce((sum, b) => sum + b.amount, 0);
+
+      if (totalWinAmount > 0) {
+        onWin(totalWinAmount);
+        setLastWin(totalWinAmount);
+        setMessage(laPartageRefund > 0
+          ? `Zero! La Partage: ${laPartageRefund} $Pc returned!`
+          : `Number ${number}! You won ${totalWinAmount} $Pc!`
+        );
+        playSound('win');
+        announceWin(totalWinAmount);
+        setResultOverlay({ type: 'win', amount: totalWinAmount, number });
+      } else {
+        setMessage(`Number ${number}. Better luck next time!`);
+        playSound('lose');
+        announceLoss();
+        setResultOverlay({ type: 'loss', amount: totalBetAmount, number });
+      }
+
+      setPlacedBets([]);
+      setBetHistory([]);
+    }, 3000);
+  }, [useLaPartage, onWin, playSound, announceResult, announceWin, announceLoss, safeTimeout]);
 
   const spin = useCallback(() => {
     if (isSpinning || placedBets.length === 0) return;
@@ -234,145 +449,80 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
     setMessage('No more bets!');
     setWinningNumber(null);
     setLastWin(0);
+    setBallDropped(false);
+    setResultOverlay(null);
 
     playSound('noMoreBets');
     announceNoMoreBets();
 
+    const winningNum = WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
+    winningNumRef.current = winningNum;
+
     safeTimeout(() => {
-      playSound('wheelTick');
-    }, 600);
-
-    let clickDelay = 100;
-    let clickCount = 0;
-    const scheduleBallClick = () => {
-      ballClickTimeoutRef.current = setTimeout(() => {
-        if (!mountedRef.current) return;
-        playSound('ballClick');
-        clickCount++;
-        if (clickCount < 22) {
-          clickDelay = Math.min(clickDelay + 20, 500);
-          scheduleBallClick();
-        }
-      }, clickDelay);
-    };
-    scheduleBallClick();
-
-    const winningIndex = Math.floor(Math.random() * WHEEL_NUMBERS.length);
-    const winningNum = WHEEL_NUMBERS[winningIndex];
-
-    const extraSpins = 4 + Math.floor(Math.random() * 3);
-    const wheelDelta = extraSpins * 360 + (winningIndex * (360 / 37));
-    const ballDelta = -(extraSpins * 2 * Math.PI + winningIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2);
-
-    const duration = 6000;
-    const startTime = Date.now();
-    const startWheelRot = wheelRotation;
-    const startBallAngle = ballAngle;
-    const targetWheelRot = startWheelRot + wheelDelta;
-    const targetBallAngle = startBallAngle + ballDelta;
-    const startBallRadius = 2.45;
-    const endBallRadius = 1.95;
-
-    const animate = () => {
       if (!mountedRef.current) return;
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeOut = 1 - Math.pow(1 - progress, 4);
+      setCurrentSpeed(15);
+      playSound('wheelTick');
+    }, 200);
 
-      setWheelRotation(startWheelRot + (targetWheelRot - startWheelRot) * easeOut);
-      setBallAngle(startBallAngle + (targetBallAngle - startBallAngle) * easeOut);
-      setBallRadius(startBallRadius + (endBallRadius - startBallRadius) * easeOut);
-
-      if (progress < 1) {
-        animRef.current = requestAnimationFrame(animate);
-      } else {
-        if (ballClickTimeoutRef.current) clearTimeout(ballClickTimeoutRef.current);
-        playSound('ballLand');
-        safeTimeout(() => finishSpin(winningNum), 500);
-      }
-    };
-
-    animRef.current = requestAnimationFrame(animate);
-  }, [isSpinning, placedBets, wheelRotation, ballAngle, playSound, announceNoMoreBets, safeTimeout]);
-
-  const finishSpin = (number: number) => {
-    setWinningNumber(number);
-    setIsSpinning(false);
-    setHistory(prev => [number, ...prev.slice(0, 19)]);
-
-    announceResult(number, isRed(number));
-
-    let totalWinAmount = 0;
-    let laPartageRefund = 0;
-    const isZero = number === 0;
-
-    placedBets.forEach(bet => {
-      let won = false;
-      let winAmount = 0;
-
-      if (bet.type === number.toString()) {
-        won = true; winAmount = bet.amount * (bet.payout + 1);
-      } else if (bet.type === 'red' && isRed(number)) {
-        won = true; winAmount = bet.amount * 2;
-      } else if (bet.type === 'black' && !isRed(number) && number !== 0) {
-        won = true; winAmount = bet.amount * 2;
-      } else if (bet.type === 'even' && number !== 0 && number % 2 === 0) {
-        won = true; winAmount = bet.amount * 2;
-      } else if (bet.type === 'odd' && number !== 0 && number % 2 === 1) {
-        won = true; winAmount = bet.amount * 2;
-      } else if (bet.type === 'low' && number >= 1 && number <= 18) {
-        won = true; winAmount = bet.amount * 2;
-      } else if (bet.type === 'high' && number >= 19 && number <= 36) {
-        won = true; winAmount = bet.amount * 2;
-      } else if (bet.type === '1st12' && number >= 1 && number <= 12) {
-        won = true; winAmount = bet.amount * 3;
-      } else if (bet.type === '2nd12' && number >= 13 && number <= 24) {
-        won = true; winAmount = bet.amount * 3;
-      } else if (bet.type === '3rd12' && number >= 25 && number <= 36) {
-        won = true; winAmount = bet.amount * 3;
-      } else if (bet.type === 'col1' && number % 3 === 1 && number !== 0) {
-        won = true; winAmount = bet.amount * 3;
-      } else if (bet.type === 'col2' && number % 3 === 2) {
-        won = true; winAmount = bet.amount * 3;
-      } else if (bet.type === 'col3' && number % 3 === 0 && number !== 0) {
-        won = true; winAmount = bet.amount * 3;
-      }
-
-      if (won) totalWinAmount += winAmount;
-      else if (isZero && bet.payout === 1 && useLaPartage) {
-        laPartageRefund += bet.amount / 2;
-      }
-    });
-
-    if (laPartageRefund > 0) totalWinAmount += laPartageRefund;
-
-    setLastBets([...placedBets]);
-
-    if (totalWinAmount > 0) {
-      onWin(totalWinAmount);
-      setLastWin(totalWinAmount);
-      setMessage(laPartageRefund > 0
-        ? `Zero! La Partage: ${laPartageRefund} $Pc returned!`
-        : `Number ${number}! You won ${totalWinAmount} $Pc!`
-      );
-      playSound('win');
-      safeTimeout(() => announceWin(totalWinAmount), 1200);
-      setWinFlash(true);
-      safeTimeout(() => setWinFlash(false), 1500);
-    } else {
-      setMessage(`Number ${number}. Better luck next time!`);
-      playSound('lose');
-      safeTimeout(() => announceLoss(), 1200);
-      setLoseFlash(true);
-      safeTimeout(() => setLoseFlash(false), 1200);
-    }
-
-    setPlacedBets([]);
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(75); }, 2000);
 
     safeTimeout(() => {
-      announceBetsOpen();
+      if (!mountedRef.current) return;
+      setCurrentSpeed(145);
+      playSound('ballClick');
     }, 3000);
-  };
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(240); }, 3500);
+
+    safeTimeout(() => {
+      if (!mountedRef.current) return;
+      clickIntervalRef.current = setInterval(() => {
+        if (mountedRef.current) playSound('ballClick');
+      }, 280);
+    }, 3500);
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(245); }, 4700);
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(265); }, 6700);
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(245); }, 10500);
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(240); }, 12000);
+
+    safeTimeout(() => {
+      if (!mountedRef.current) return;
+      setCurrentSpeed(145);
+      setBallDropped(true);
+      setWinningNumber(winningNum);
+      if (clickIntervalRef.current) {
+        clearInterval(clickIntervalRef.current);
+        clickIntervalRef.current = null;
+      }
+      playSound('ballLand');
+    }, 13500);
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(75); }, 15300);
+
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(55); }, 16000);
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(38); }, 16800);
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(25); }, 17500);
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(15); }, 18200);
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(10); }, 19000);
+    safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(7); }, 19500);
+
+    safeTimeout(() => {
+      if (!mountedRef.current) return;
+      setCurrentSpeed(IDLE_SPEED);
+      finishSpin(winningNum);
+    }, 20300);
+  }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin]);
+
+  const dismissResult = useCallback(() => {
+    setResultOverlay(null);
+    setIsSpinning(false);
+    setMessage('Place your bets!');
+    announceBetsOpen();
+  }, [announceBetsOpen]);
 
   useEffect(() => {
     if (pendingSpinRef.current && placedBets.length > 0 && !isSpinning) {
@@ -394,14 +544,23 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
     }
     pendingSpinRef.current = true;
     setPlacedBets(affordable);
+    setBetHistory(affordable.map(b => ({ type: b.type, numbers: b.numbers, amount: b.amount, payout: b.payout })));
     setWinningNumber(null);
     setLastWin(0);
+    setResultOverlay(null);
   }, [isSpinning, lastBets, onBet, playSound]);
 
-  const getBetAmount = (type: string) => {
-    const bet = placedBets.find(b => b.type === type);
-    return bet?.amount || 0;
-  };
+  const betAmountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    placedBets.forEach(b => { map[b.type] = b.amount; });
+    return map;
+  }, [placedBets]);
+
+  const betHistoryCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    betHistory.forEach(h => { map[h.type] = (map[h.type] || 0) + 1; });
+    return map;
+  }, [betHistory]);
 
   return (
     <div
@@ -416,19 +575,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
           60% { transform: translateX(-50%) translateY(2px) scale(1.05); opacity: 1; }
           100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
         }
-        @keyframes rouletteFlash {
-          0% { opacity: 0; }
-          20% { opacity: 0.3; }
-          100% { opacity: 0; }
-        }
-        @keyframes rouletteLoseShake {
-          0%, 100% { transform: translateX(0); }
-          10% { transform: translateX(-3px); }
-          20% { transform: translateX(3px); }
-          30% { transform: translateX(-2px); }
-          40% { transform: translateX(2px); }
-          50% { transform: translateX(0); }
-        }
         @keyframes rouletteWinGlow {
           0%, 100% { box-shadow: 0 0 6px rgba(212,175,55,0.4); }
           50% { box-shadow: 0 0 16px rgba(212,175,55,0.8), 0 0 30px rgba(212,175,55,0.3); }
@@ -437,18 +583,34 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
           0% { filter: brightness(0.9); }
           100% { filter: brightness(1.3); }
         }
+        @keyframes resultOverlayIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes resultContentIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
         .roulette-cell:hover {
           filter: brightness(1.35) !important;
           box-shadow: 0 0 10px rgba(212,175,55,0.5) !important;
           z-index: 5;
         }
+        .chip-scroll::-webkit-scrollbar {
+          height: 4px;
+        }
+        .chip-scroll::-webkit-scrollbar-track {
+          background: rgba(0,0,0,0.3);
+          border-radius: 2px;
+        }
+        .chip-scroll::-webkit-scrollbar-thumb {
+          background: rgba(212,175,55,0.4);
+          border-radius: 2px;
+        }
       `}</style>
 
-      {winFlash && (
-        <div className="fixed inset-0 z-[100] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, rgba(34,197,94,0.25) 0%, transparent 70%)', animation: 'rouletteFlash 1.5s ease-out forwards' }} />
-      )}
-      {loseFlash && (
-        <div className="fixed inset-0 z-[100] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, rgba(220,38,38,0.2) 0%, transparent 70%)', animation: 'rouletteFlash 1.2s ease-out forwards' }} />
+      {resultOverlay && (
+        <ResultOverlayDisplay result={resultOverlay} onDismiss={dismissResult} />
       )}
 
       {/* Header */}
@@ -538,10 +700,8 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
             >
               <Suspense fallback={null}>
                 <RouletteWheel3D
-                  rotation={wheelRotation}
-                  ballAngle={ballAngle}
-                  ballRadius={ballRadius}
-                  isSpinning={isSpinning}
+                  targetSpeed={currentSpeed}
+                  ballDropped={ballDropped}
                   winningNumber={winningNumber}
                 />
               </Suspense>
@@ -554,7 +714,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
           </div>
 
           {/* Winning number overlay */}
-          {winningNumber !== null && !isSpinning && (
+          {winningNumber !== null && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
               <div
                 className="px-5 py-2 rounded-xl flex items-center gap-3"
@@ -597,10 +757,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         </div>
 
         {/* Betting table */}
-        <div
-          className="flex-1 overflow-auto px-2 pb-1 min-h-0"
-          style={{ animation: loseFlash ? 'rouletteLoseShake 0.6s ease-out' : undefined }}
-        >
+        <div className="flex-1 overflow-auto px-2 pb-1 min-h-0">
           <div className="max-w-3xl mx-auto">
             <div
               className="rounded-xl p-3 relative"
@@ -637,14 +794,14 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                   }}
                 >
                   0
-                  {getBetAmount('0') > 0 && <BetChipIndicator amount={getBetAmount('0')} />}
+                  {(betAmountMap['0'] || 0) > 0 && <BetChipStack amount={betAmountMap['0']} chipCount={betHistoryCountMap['0'] || 1} />}
                 </button>
 
                 {/* Number grid */}
                 <div className="grid grid-cols-12 flex-1 gap-[2px]">
                   {GRID_NUMBERS.flat().map((num) => {
                     const numRed = isRed(num);
-                    const betAmt = getBetAmount(num.toString());
+                    const betAmt = betAmountMap[num.toString()] || 0;
                     const isWinner = winningNumber === num;
 
                     return (
@@ -664,7 +821,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                         }}
                       >
                         {num}
-                        {betAmt > 0 && <BetChipIndicator amount={betAmt} />}
+                        {betAmt > 0 && <BetChipStack amount={betAmt} chipCount={betHistoryCountMap[num.toString()] || 1} />}
                       </button>
                     );
                   })}
@@ -689,7 +846,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                       }}
                     >
                       2:1
-                      {getBetAmount(type) > 0 && <BetChipIndicator amount={getBetAmount(type)} />}
+                      {(betAmountMap[type] || 0) > 0 && <BetChipStack amount={betAmountMap[type]} chipCount={betHistoryCountMap[type] || 1} />}
                     </button>
                   ))}
                 </div>
@@ -713,7 +870,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                     }}
                   >
                     {label}
-                    {getBetAmount(type) > 0 && <BetChipIndicator amount={getBetAmount(type)} />}
+                    {(betAmountMap[type] || 0) > 0 && <BetChipStack amount={betAmountMap[type]} chipCount={betHistoryCountMap[type] || 1} />}
                   </button>
                 ))}
               </div>
@@ -739,7 +896,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                     }}
                   >
                     {label}
-                    {getBetAmount(type) > 0 && <BetChipIndicator amount={getBetAmount(type)} />}
+                    {(betAmountMap[type] || 0) > 0 && <BetChipStack amount={betAmountMap[type]} chipCount={betHistoryCountMap[type] || 1} />}
                   </button>
                 ))}
               </div>
@@ -758,28 +915,46 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         }}
       >
         <div className="max-w-4xl mx-auto px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            {/* Chips */}
-            <div className="flex gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            {/* Chips - scrollable */}
+            <div
+              ref={chipScrollRef}
+              className="flex gap-1 overflow-x-auto chip-scroll"
+              style={{ maxWidth: '320px', paddingBottom: '2px' }}
+            >
               {CHIP_VALUES.map(value => (
-                <PokerChip
-                  key={value}
-                  amount={value}
-                  size="sm"
-                  selected={selectedChip === value}
-                  onClick={() => setSelectedChip(value)}
-                />
+                <div key={value} className="flex-shrink-0">
+                  <PokerChip
+                    amount={value}
+                    size="sm"
+                    selected={selectedChip === value}
+                    onClick={() => setSelectedChip(value)}
+                  />
+                </div>
               ))}
             </div>
 
             {/* Total */}
             <div className="text-center flex-shrink-0 px-2">
               <div className="text-[8px] text-gray-500 uppercase tracking-wider">Bet</div>
-              <div className="text-base font-bold text-[#D4AF37]">{totalBet} $Pc</div>
+              <div className="text-base font-bold text-[#D4AF37]">{totalBet.toLocaleString()} $Pc</div>
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-1">
+              <Button
+                onClick={undoBet}
+                disabled={isSpinning || betHistory.length === 0}
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
+                style={{
+                  background: isSpinning || betHistory.length === 0 ? '#333' : 'linear-gradient(145deg, #F57C00, #E65100)',
+                  boxShadow: isSpinning || betHistory.length === 0 ? 'none' : '0 3px 8px rgba(245,124,0,0.3)',
+                  color: isSpinning || betHistory.length === 0 ? '#666' : '#fff',
+                }}
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </Button>
+
               <Button
                 onClick={() => spin()}
                 disabled={isSpinning || placedBets.length === 0}
@@ -796,20 +971,20 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               <Button
                 onClick={repeatAndSpin}
                 disabled={isSpinning || lastBets.length === 0}
-                className="px-3 py-2.5 rounded-lg font-bold text-[10px]"
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
                 style={{
                   background: isSpinning || lastBets.length === 0 ? '#333' : 'linear-gradient(145deg, #1E88E5, #1565C0)',
                   boxShadow: isSpinning || lastBets.length === 0 ? 'none' : '0 3px 8px rgba(30,136,229,0.3)',
                   color: isSpinning || lastBets.length === 0 ? '#666' : '#fff',
                 }}
               >
-                REPEAT & SPIN
+                RE+SPIN
               </Button>
 
               <Button
                 onClick={repeatBet}
                 disabled={isSpinning || lastBets.length === 0}
-                className="px-3 py-2.5 rounded-lg font-bold text-[10px]"
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
                 style={{
                   background: isSpinning || lastBets.length === 0 ? '#333' : 'linear-gradient(145deg, #D4AF37, #B8860B)',
                   boxShadow: isSpinning || lastBets.length === 0 ? 'none' : '0 3px 8px rgba(212,175,55,0.3)',
@@ -822,7 +997,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               <Button
                 onClick={clearBets}
                 disabled={isSpinning || placedBets.length === 0}
-                className="px-3 py-2.5 rounded-lg font-bold text-[10px]"
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
                 style={{
                   background: isSpinning || placedBets.length === 0 ? '#333' : 'linear-gradient(145deg, #B71C1C, #8B0000)',
                   boxShadow: isSpinning || placedBets.length === 0 ? 'none' : '0 3px 8px rgba(183,28,28,0.3)',

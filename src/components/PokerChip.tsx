@@ -16,6 +16,7 @@ const chipColors: Record<number, { base: string; dark: string; light: string; ed
   500: { base: '#D4AF37', dark: '#B8860B', light: '#F4D03F', edge: '#8B6914', text: '#4a3c00' },
   1000: { base: '#B0B0B0', dark: '#808080', light: '#D0D0D0', edge: '#ffffff', text: '#333' },
   5000: { base: '#6D4C41', dark: '#3E2723', light: '#8D6E63', edge: '#D4AF37', text: '#D4AF37' },
+  10000: { base: '#7B1FA2', dark: '#4A148C', light: '#AB47BC', edge: '#E1BEE7', text: '#fff' },
 };
 
 export function PokerChip({ amount, size = 'md', onClick, selected, className = '' }: PokerChipProps) {

@@ -221,58 +221,102 @@ function CenterHub() {
   );
 }
 
-function Ball({ ballAngle, ballRadius, isSpinning }: { ballAngle: number; ballRadius: number; isSpinning: boolean }) {
-  const ballRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.PointLight>(null);
-
-  useFrame(() => {
-    if (!ballRef.current) return;
-    const x = Math.cos(ballAngle) * ballRadius;
-    const z = Math.sin(ballAngle) * ballRadius;
-    const y = isSpinning ? 0.42 : 0.34;
-    ballRef.current.position.set(x, y, z);
-    if (glowRef.current) {
-      glowRef.current.position.set(x, y + 0.15, z);
-    }
-  });
-
-  return (
-    <>
-      <mesh ref={ballRef} castShadow>
-        <sphereGeometry args={[0.09, 16, 16]} />
-        <meshStandardMaterial
-          color="#f5f5f5"
-          metalness={0.7}
-          roughness={0.05}
-          emissive="#ffffff"
-          emissiveIntensity={0.15}
-        />
-      </mesh>
-      <pointLight ref={glowRef} color="#ffffff" intensity={0.5} distance={1.5} decay={2} />
-    </>
-  );
-}
-
 interface RouletteWheel3DProps {
-  rotation: number;
-  ballAngle: number;
-  ballRadius: number;
-  isSpinning: boolean;
+  targetSpeed: number;
+  ballDropped: boolean;
   winningNumber: number | null;
 }
 
 export default function RouletteWheel3D({
-  rotation,
-  ballAngle,
-  ballRadius,
-  isSpinning,
+  targetSpeed,
+  ballDropped,
   winningNumber,
 }: RouletteWheel3DProps) {
   const wheelGroupRef = useRef<THREE.Group>(null);
+  const ballRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.PointLight>(null);
 
-  useFrame(() => {
-    if (!wheelGroupRef.current) return;
-    wheelGroupRef.current.rotation.y = (rotation * Math.PI) / 180;
+  const wheelRotRef = useRef(0);
+  const ballAngleRef = useRef(Math.random() * Math.PI * 2);
+  const currentSpeedRef = useRef(0);
+  const ballRadiusRef = useRef(2.45);
+  const ballYRef = useRef(0.42);
+  const dropTransitionRef = useRef(0);
+  const prevBallDroppedRef = useRef(false);
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+
+    const targetSpeedRad = (targetSpeed * Math.PI) / 180;
+    const lerpRate = targetSpeedRad > currentSpeedRef.current ? 3.5 : 2.5;
+    currentSpeedRef.current += (targetSpeedRad - currentSpeedRef.current) * Math.min(dt * lerpRate, 1);
+
+    wheelRotRef.current += currentSpeedRef.current * dt;
+
+    if (wheelGroupRef.current) {
+      wheelGroupRef.current.rotation.y = wheelRotRef.current;
+    }
+
+    if (ballRef.current) {
+      if (!ballDropped) {
+        if (prevBallDroppedRef.current) {
+          dropTransitionRef.current = 0;
+        }
+
+        ballAngleRef.current -= currentSpeedRef.current * 3 * dt;
+        ballRadiusRef.current += (2.45 - ballRadiusRef.current) * Math.min(dt * 3, 1);
+        ballYRef.current += (0.42 - ballYRef.current) * Math.min(dt * 3, 1);
+
+        const x = Math.cos(ballAngleRef.current) * ballRadiusRef.current;
+        const z = Math.sin(ballAngleRef.current) * ballRadiusRef.current;
+        ballRef.current.position.set(x, ballYRef.current, z);
+      } else if (winningNumber !== null) {
+        if (!prevBallDroppedRef.current) {
+          dropTransitionRef.current = 0;
+        }
+        dropTransitionRef.current = Math.min(dropTransitionRef.current + dt, 1.0);
+
+        const t = Math.min(dropTransitionRef.current / 0.8, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+
+        const pocketIdx = WHEEL_NUMBERS.indexOf(winningNumber);
+        const pocketAngle = pocketIdx * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
+        const targetAngle = wheelRotRef.current + pocketAngle;
+        const targetRadius = 1.95;
+        const targetY = 0.34;
+
+        if (t < 0.3) {
+          const bounceProgress = t / 0.3;
+          const bounceEase = 1 - Math.pow(1 - bounceProgress, 2);
+          const midRadius = 2.45 + (2.15 - 2.45) * bounceEase;
+          ballRadiusRef.current = midRadius;
+          ballAngleRef.current += (targetAngle - ballAngleRef.current) * Math.min(dt * 8, 1);
+          ballYRef.current += (0.38 - ballYRef.current) * Math.min(dt * 6, 1);
+        } else {
+          ballAngleRef.current = targetAngle;
+          const settleT = (t - 0.3) / 0.7;
+          const settleEase = 1 - Math.pow(1 - settleT, 2);
+          ballRadiusRef.current += (targetRadius - ballRadiusRef.current) * Math.min(dt * 5, 1);
+          ballYRef.current += (targetY - ballYRef.current) * Math.min(dt * 5, 1);
+
+          if (settleT < 0.5) {
+            const wobble = Math.sin(settleT * Math.PI * 4) * 0.02 * (1 - settleT);
+            ballRadiusRef.current += wobble;
+          }
+        }
+
+        const x = Math.cos(ballAngleRef.current) * ballRadiusRef.current;
+        const z = Math.sin(ballAngleRef.current) * ballRadiusRef.current;
+        ballRef.current.position.set(x, ballYRef.current, z);
+      }
+
+      if (glowRef.current && ballRef.current) {
+        glowRef.current.position.copy(ballRef.current.position);
+        glowRef.current.position.y += 0.15;
+      }
+    }
+
+    prevBallDroppedRef.current = ballDropped;
   });
 
   return (
@@ -303,7 +347,17 @@ export default function RouletteWheel3D({
         <CenterHub />
       </group>
 
-      <Ball ballAngle={ballAngle} ballRadius={ballRadius} isSpinning={isSpinning} />
+      <mesh ref={ballRef} castShadow>
+        <sphereGeometry args={[0.1, 16, 16]} />
+        <meshStandardMaterial
+          color="#f5f5f5"
+          metalness={0.7}
+          roughness={0.05}
+          emissive="#ffffff"
+          emissiveIntensity={0.2}
+        />
+      </mesh>
+      <pointLight ref={glowRef} color="#ffffff" intensity={0.6} distance={1.5} decay={2} />
     </group>
   );
 }

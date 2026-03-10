@@ -49,10 +49,10 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 │   │   ├── games/
 │   │   │   ├── CasinoEnvironment.tsx # Casino room wrapper (ceiling lights, columns, dust particles, floor reflections)
 │   │   │   ├── GameViewport.tsx      # 3D casino environment (Three.js)
-│   │   │   ├── RouletteWheel3D.tsx   # True 3D roulette wheel (React Three Fiber): metallic rim, 37 colored pockets, gold hub, ball track, spinning ball, spot/point lighting
+│   │   │   ├── RouletteWheel3D.tsx   # True 3D roulette wheel (R3F): speed-based animation (targetSpeed prop), wheel+ball rotate opposite directions (ball 3x faster), ball drops into pocket with bounce, idle rotation, metallic rim, 37 pockets, gold hub
 │   │   │   ├── PokerGame.tsx         # Leather rail, 3D cards, pot chip stacks, action timer bars
 │   │   │   ├── BlackjackGame.tsx     # Wood rail, glossy 3D cards, dealer nameplate, card shoe, win/bust animations
-│   │   │   ├── RouletteGame.tsx      # 3D R3F wheel (top), credit + history overlays, green felt betting table (0, 3×12 grid, 2:1 columns, dozens, outside bets), bottom bar (chips, bet, SPIN/REPEAT/CLEAR), roulette sounds (ballClick, wheelTick, noMoreBets, ballLand) + dealer voice (place bets, no more bets, number/color, win/loss), La Partage
+│   │   │   ├── RouletteGame.tsx      # Unity-matching 11-phase spin (~20s), expanded chips [1-10K] with scrollable selector + UNDO, visual chip stacking, 3s post-spin delay + YOU WIN!/LOST overlay, green felt betting table, La Partage, sounds + voice
 │   │   │   ├── CrapsGame.tsx         # 80px beveled dice, tumble animation, ON/OFF puck, padded rail
 │   │   │   ├── Spanish21Game.tsx     # Neon side bet circles (gold/purple/emerald), starburst bonus wins
 │   │   │   ├── SpadesGame.tsx        # Fan spread cards, trick animations, metallic scoreboard
