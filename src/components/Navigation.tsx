@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { UnifiedUser } from '@/types';
@@ -15,7 +15,6 @@ interface NavigationProps {
   onShowRewards: () => void;
   onShowFinancial?: () => void;
   onShowCardDeck?: () => void;
-  onShowCommandCenter?: () => void;
 }
 
 export function Navigation({ 
@@ -28,8 +27,7 @@ export function Navigation({
   onShowHistory, 
   onShowRewards,
   onShowFinancial,
-  onShowCardDeck,
-  onShowCommandCenter
+  onShowCardDeck
 }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -116,20 +114,6 @@ export function Navigation({
                 </TooltipContent>
               </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    onClick={onShowCommandCenter}
-                    className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium flex items-center gap-1"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    Command Center
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Dashboard, stats & Pawn Coin hub</p>
-                </TooltipContent>
-              </Tooltip>
             </div>
 
             {/* Right Side */}
@@ -258,14 +242,6 @@ export function Navigation({
                           <span className="text-sm">Card Decks</span>
                         </button>
 
-                        <button
-                          onClick={() => { onShowCommandCenter?.(); setShowUserDropdown(false); }}
-                          className="w-full p-3 flex items-center gap-3 text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-colors"
-                        >
-                          <LayoutDashboard className="w-4 h-4" />
-                          <span className="text-sm">Command Center</span>
-                        </button>
-
                         {!user?.walletAddress && (
                           <button
                             onClick={() => { onConnectWallet(); setShowUserDropdown(false); }}
@@ -366,13 +342,6 @@ export function Navigation({
                   Rewards
                 </button>
                 
-                <button 
-                  onClick={() => { onShowCommandCenter?.(); setIsMenuOpen(false); }}
-                  className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#D4AF37] transition-colors text-left flex items-center gap-2"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Command Center
-                </button>
                 {isAuthenticated && (
                   <>
                     <button 

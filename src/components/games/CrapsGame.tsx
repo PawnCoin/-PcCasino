@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { CasinoEnvironment } from './CasinoEnvironment';
 
 interface CrapsGameProps {
   balance: number;
@@ -77,18 +78,18 @@ interface RealisticDice3DProps {
   position: { x: number; y: number };
   isRolling: boolean;
   diceId: number;
+  glowColor?: string;
 }
 
-function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice3DProps) {
-  // Calculate final rotation to show the correct face
+function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: RealisticDice3DProps) {
   const getFaceRotation = (faceValue: number): { x: number; y: number } => {
     const faceRotations: Record<number, { x: number; y: number }> = {
-      1: { x: 0, y: 0 },      // Front
-      6: { x: 180, y: 0 },    // Back
-      2: { x: 0, y: -90 },    // Right
-      5: { x: 0, y: 90 },     // Left
-      3: { x: -90, y: 0 },    // Top
-      4: { x: 90, y: 0 },     // Bottom
+      1: { x: 0, y: 0 },
+      6: { x: 180, y: 0 },
+      2: { x: 0, y: -90 },
+      5: { x: 0, y: 90 },
+      3: { x: -90, y: 0 },
+      4: { x: 90, y: 0 },
     };
     return faceRotations[faceValue] || { x: 0, y: 0 };
   };
@@ -100,15 +101,18 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
     z: rotation.z,
   };
 
+  const DICE_SIZE = 80;
+  const HALF = DICE_SIZE / 2;
+
   return (
     <div
       className="absolute"
       style={{
-        width: '70px',
-        height: '70px',
+        width: `${DICE_SIZE}px`,
+        height: `${DICE_SIZE}px`,
         left: `${position.x}px`,
         top: `${position.y}px`,
-        perspective: '1000px',
+        perspective: '1200px',
         transformStyle: 'preserve-3d',
         transition: isRolling ? 'none' : 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         zIndex: 10,
@@ -139,7 +143,7 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
             border: '1px solid rgba(0,0,0,0.08)',
-            transform: 'translateZ(35px)',
+            transform: `translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
         >
@@ -169,7 +173,7 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
             border: '1px solid rgba(0,0,0,0.08)',
-            transform: 'rotateY(180deg) translateZ(35px)',
+            transform: `rotateY(180deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
         >
@@ -205,7 +209,7 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
             border: '1px solid rgba(0,0,0,0.08)',
-            transform: 'rotateY(90deg) translateZ(35px)',
+            transform: `rotateY(90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
         >
@@ -242,7 +246,7 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
             border: '1px solid rgba(0,0,0,0.08)',
-            transform: 'rotateY(-90deg) translateZ(35px)',
+            transform: `rotateY(-90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
         >
@@ -300,7 +304,7 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
             border: '1px solid rgba(0,0,0,0.08)',
-            transform: 'rotateX(90deg) translateZ(35px)',
+            transform: `rotateX(90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
         >
@@ -344,7 +348,7 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
             border: '1px solid rgba(0,0,0,0.08)',
-            transform: 'rotateX(-90deg) translateZ(35px)',
+            transform: `rotateX(-90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
         >
@@ -383,48 +387,83 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
       <div
         className="absolute inset-0 rounded-xl pointer-events-none"
         style={{
-          width: '70px',
-          height: '70px',
+          width: `${DICE_SIZE}px`,
+          height: `${DICE_SIZE}px`,
           left: `${position.x}px`,
           top: `${position.y}px`,
           background: 'transparent',
           boxShadow: `
-            inset 2px 2px 4px rgba(255,255,255,0.35),
-            inset -2px -2px 4px rgba(0,0,0,0.25),
-            inset 0 0 8px rgba(212,175,55,0.15)
+            inset 3px 3px 6px rgba(255,255,255,0.4),
+            inset -3px -3px 6px rgba(0,0,0,0.3),
+            inset 0 0 12px rgba(212,175,55,0.2),
+            0 0 15px rgba(255,255,255,0.05)
           `,
-          borderRadius: '12px',
+          borderRadius: '14px',
           zIndex: 11,
           transition: isRolling ? 'none' : 'all 0.4s ease',
         }}
       />
 
-      {/* Translucent glow layer during roll */}
+      {/* Translucent inner glow */}
+      <div
+        className="absolute rounded-xl pointer-events-none"
+        style={{
+          width: `${DICE_SIZE}px`,
+          height: `${DICE_SIZE}px`,
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          background: isRolling
+            ? 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 60%)'
+            : 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 50%)',
+          borderRadius: '14px',
+          zIndex: 12,
+          transition: isRolling ? 'none' : 'all 0.4s ease',
+        }}
+      />
+
+      {/* Glow layer during roll */}
       {isRolling && (
         <div
           className="absolute rounded-xl pointer-events-none"
           style={{
-            width: '90px',
-            height: '90px',
-            left: `${position.x - 10}px`,
-            top: `${position.y - 10}px`,
+            width: `${DICE_SIZE + 30}px`,
+            height: `${DICE_SIZE + 30}px`,
+            left: `${position.x - 15}px`,
+            top: `${position.y - 15}px`,
             background: 'radial-gradient(circle, rgba(212,175,55,0.3) 0%, rgba(212,175,55,0.1) 40%, transparent 70%)',
-            filter: 'blur(8px)',
+            filter: 'blur(10px)',
             zIndex: 9,
             animation: 'pulse 0.3s ease-in-out infinite alternate',
           }}
         />
       )}
 
+      {/* Win/loss glow around dice */}
+      {glowColor && !isRolling && (
+        <div
+          className="absolute rounded-xl pointer-events-none"
+          style={{
+            width: `${DICE_SIZE + 20}px`,
+            height: `${DICE_SIZE + 20}px`,
+            left: `${position.x - 10}px`,
+            top: `${position.y - 10}px`,
+            boxShadow: `0 0 20px ${glowColor}, 0 0 40px ${glowColor}`,
+            borderRadius: '14px',
+            zIndex: 8,
+            animation: 'pulse 1s ease-in-out infinite alternate',
+          }}
+        />
+      )}
+
       {/* Dynamic dice shadow */}
       <div
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full transition-all"
+        className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full transition-all"
         style={{
-          width: isRolling ? '50px' : '60px',
-          height: isRolling ? '10px' : '12px',
-          background: 'radial-gradient(ellipse, rgba(0,0,0,0.6), transparent 70%)',
+          width: isRolling ? '55px' : '70px',
+          height: isRolling ? '12px' : '14px',
+          background: 'radial-gradient(ellipse, rgba(0,0,0,0.7), transparent 70%)',
           filter: 'blur(6px)',
-          opacity: isRolling ? 0.5 : 0.8,
+          opacity: isRolling ? 0.4 : 0.9,
           transition: 'all 0.1s ease-out',
         }}
       />
@@ -442,6 +481,9 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
   const [showRules, setShowRules] = useState(false);
   const [message, setMessage] = useState('Place your bets and roll!');
   const [rollHistory, setRollHistory] = useState<number[]>([]);
+  const [winFlash, setWinFlash] = useState(false);
+  const [loseFlash, setLoseFlash] = useState(false);
+  const [winText, setWinText] = useState('');
   
   // 3D dice animation state
   const [dice1Rotation, setDice1Rotation] = useState({ x: 0, y: 0, z: 0 });
@@ -782,6 +824,12 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
     if (totalWin > 0) {
       onWin(totalWin);
       setMessage(prev => `${prev} You won ${totalWin} $Pc!`);
+      setWinFlash(true);
+      setWinText(`+${totalWin} $Pc`);
+      setTimeout(() => { setWinFlash(false); setWinText(''); }, 2000);
+    } else if (total === 7 && gamePhase === 'point') {
+      setLoseFlash(true);
+      setTimeout(() => setLoseFlash(false), 1500);
     }
 
     setIsRolling(false);
@@ -798,6 +846,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
   };
 
   return (
+    <CasinoEnvironment gameType="craps">
     <div 
       className="min-h-screen"
       style={{
@@ -870,135 +919,186 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
         </div>
       </nav>
 
+      {/* Win/Loss Flash Overlays */}
+      {winFlash && (
+        <div className="fixed inset-0 z-[100] pointer-events-none" style={{
+          background: 'radial-gradient(circle, rgba(67,160,71,0.3) 0%, transparent 70%)',
+          animation: 'craps-win-flash 2s ease-out forwards',
+        }}>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-5xl font-bold font-casino text-[#D4AF37] animate-bounce" style={{
+              textShadow: '0 0 30px rgba(212,175,55,0.8), 0 0 60px rgba(212,175,55,0.4)',
+            }}>
+              {winText}
+            </div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div style={{
+              width: '200px',
+              height: '200px',
+              border: '3px solid rgba(212,175,55,0.6)',
+              borderRadius: '50%',
+              animation: 'craps-ring-expand 1.5s ease-out forwards',
+            }} />
+          </div>
+        </div>
+      )}
+      {loseFlash && (
+        <div className="fixed inset-0 z-[100] pointer-events-none" style={{
+          background: 'radial-gradient(circle, rgba(183,28,28,0.3) 0%, transparent 70%)',
+          animation: 'craps-lose-flash 1.5s ease-out forwards',
+        }}>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-4xl font-bold font-casino text-[#EF5350]" style={{
+              textShadow: '0 0 20px rgba(239,83,80,0.8)',
+              animation: 'craps-shake 0.5s ease-out',
+            }}>
+              SEVEN OUT!
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Game Area */}
       <div className="pt-14 min-h-screen flex flex-col lg:flex-row">
         {/* Left Side - 3D Dice Table */}
         <div className="flex-1 p-6 flex flex-col items-center justify-center">
-          {/* Phase Indicator */}
-          <div className="mb-4 text-center">
-            <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider">
-              {gamePhase === 'comeout' ? 'COME OUT ROLL' : 'POINT PHASE'}
-            </div>
-            {point && (
-              <div 
-                className="text-4xl font-bold text-[#D4AF37]"
-                style={{ textShadow: '0 0 20px rgba(212,175,55,0.5)' }}
-              >
-                POINT: {point}
+          {/* Phase Indicator + Point Marker Puck */}
+          <div className="mb-4 text-center flex items-center gap-4 justify-center">
+            <div>
+              <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider">
+                {gamePhase === 'comeout' ? 'COME OUT ROLL' : 'POINT PHASE'}
               </div>
-            )}
+              {point && (
+                <div 
+                  className="text-4xl font-bold text-[#D4AF37]"
+                  style={{ textShadow: '0 0 20px rgba(212,175,55,0.5)' }}
+                >
+                  POINT: {point}
+                </div>
+              )}
+            </div>
+            {/* ON/OFF Point Puck */}
+            <div style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '50%',
+              background: point
+                ? 'radial-gradient(circle at 35% 35%, #ffffff 0%, #e0e0e0 40%, #b0b0b0 100%)'
+                : 'radial-gradient(circle at 35% 35%, #444 0%, #222 40%, #111 100%)',
+              boxShadow: point
+                ? '0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.2), 0 0 15px rgba(255,255,255,0.2)'
+                : '0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(100,100,100,0.3), inset 0 -2px 4px rgba(0,0,0,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 900,
+              fontSize: '14px',
+              color: point ? '#111' : '#666',
+              fontFamily: "'Orbitron', sans-serif",
+              letterSpacing: '1px',
+              border: point ? '3px solid rgba(212,175,55,0.5)' : '3px solid rgba(80,80,80,0.5)',
+              transition: 'all 0.4s ease',
+            }}>
+              {point ? 'ON' : 'OFF'}
+            </div>
           </div>
 
           {/* 3D Craps Table with Rolling Dice */}
           <div 
             ref={tableRef}
-            className="relative w-full max-w-md h-80 mb-6 rounded-2xl overflow-hidden"
+            className="relative w-full max-w-md h-80 mb-6 rounded-2xl overflow-hidden wood-rail"
             style={{
-              background: `
-                linear-gradient(145deg, 
-                  #1B5E20 0%, 
-                  #0D3312 50%, 
-                  #1B5E20 100%
-                )
-              `,
               boxShadow: `
                 0 20px 60px rgba(0,0,0,0.8),
-                inset 0 2px 4px rgba(255,255,255,0.05),
+                inset 0 0 0 12px transparent,
                 0 0 0 3px rgba(212,175,55,0.6),
-                0 0 0 5px #5D4037,
-                0 0 0 8px rgba(212,175,55,0.3),
-                0 0 0 10px #3E2723,
                 0 0 20px rgba(212,175,55,0.15)
+                ${winFlash ? ', 0 0 40px rgba(67,160,71,0.5), 0 0 80px rgba(67,160,71,0.3)' : ''}
+                ${loseFlash ? ', 0 0 40px rgba(183,28,28,0.5)' : ''}
               `,
               perspective: '1000px',
+              transition: 'box-shadow 0.3s ease',
             }}
           >
-            {/* Gold rail highlight - top */}
-            <div className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none" style={{
-              background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
-              zIndex: 20,
-            }} />
-            {/* Gold rail highlight - bottom */}
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none" style={{
-              background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
-              zIndex: 20,
-            }} />
-            {/* Gold rail highlight - left */}
-            <div className="absolute top-0 bottom-0 left-0 w-[3px] pointer-events-none" style={{
-              background: 'linear-gradient(180deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
-              zIndex: 20,
-            }} />
-            {/* Gold rail highlight - right */}
-            <div className="absolute top-0 bottom-0 right-0 w-[3px] pointer-events-none" style={{
-              background: 'linear-gradient(180deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
-              zIndex: 20,
+            {/* Premium felt surface */}
+            <div className="absolute inset-[12px] rounded-xl premium-felt" style={{
+              boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
             }} />
 
-            {/* Table felt texture - original */}
-            <div 
-              className="absolute inset-0 opacity-30"
-              style={{
-                backgroundImage: `
-                  repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 2px,
-                    rgba(0,0,0,0.1) 2px,
-                    rgba(0,0,0,0.1) 4px
-                  )
-                `,
-              }}
-            />
+            {/* Gold stitching inner border */}
+            <div className="absolute pointer-events-none" style={{
+              inset: '14px',
+              border: '1.5px dashed rgba(212,175,55,0.35)',
+              borderRadius: '10px',
+              zIndex: 3,
+            }} />
 
-            {/* Enhanced felt texture overlay - woven pattern */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage: `
-                  repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 1px,
-                    rgba(0,0,0,0.04) 1px,
-                    rgba(0,0,0,0.04) 2px
-                  ),
-                  repeating-linear-gradient(
-                    90deg,
-                    transparent,
-                    transparent 1px,
-                    rgba(0,0,0,0.04) 1px,
-                    rgba(0,0,0,0.04) 2px
-                  ),
-                  radial-gradient(ellipse at 30% 40%, rgba(39,119,52,0.15) 0%, transparent 60%),
-                  radial-gradient(ellipse at 70% 60%, rgba(27,94,32,0.1) 0%, transparent 50%)
-                `,
-                opacity: 0.8,
-                zIndex: 1,
-              }}
-            />
+            {/* Padded rail top edge */}
+            <div className="absolute top-0 left-0 right-0 h-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(180deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderBottom: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -1px 3px rgba(0,0,0,0.3)',
+              borderRadius: '16px 16px 0 0',
+              zIndex: 20,
+            }} />
+            {/* Padded rail bottom edge */}
+            <div className="absolute bottom-0 left-0 right-0 h-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(0deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderTop: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset 0 -2px 4px rgba(255,255,255,0.15), inset 0 1px 3px rgba(0,0,0,0.3)',
+              borderRadius: '0 0 16px 16px',
+              zIndex: 20,
+            }} />
+            {/* Padded rail left edge */}
+            <div className="absolute top-[12px] bottom-[12px] left-0 w-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(90deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderRight: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset 2px 0 4px rgba(255,255,255,0.15), inset -1px 0 3px rgba(0,0,0,0.3)',
+              zIndex: 20,
+            }} />
+            {/* Padded rail right edge */}
+            <div className="absolute top-[12px] bottom-[12px] right-0 w-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(270deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderLeft: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset -2px 0 4px rgba(255,255,255,0.15), inset 1px 0 3px rgba(0,0,0,0.3)',
+              zIndex: 20,
+            }} />
 
             {/* Spotlight tracking animation that follows dice */}
             <div
               className="absolute pointer-events-none"
               style={{
-                width: '200px',
-                height: '200px',
+                width: '220px',
+                height: '220px',
                 left: `${spotlightPos.x}%`,
                 top: `${spotlightPos.y}%`,
                 transform: 'translate(-50%, -50%)',
-                background: `radial-gradient(circle, rgba(255,255,220,${isRolling ? 0.15 : 0.08}) 0%, rgba(212,175,55,${isRolling ? 0.08 : 0.03}) 40%, transparent 70%)`,
+                background: `radial-gradient(circle, rgba(255,255,220,${isRolling ? 0.18 : 0.1}) 0%, rgba(212,175,55,${isRolling ? 0.1 : 0.04}) 40%, transparent 70%)`,
                 transition: isRolling ? 'left 0.05s linear, top 0.05s linear' : 'all 0.5s ease-out',
                 zIndex: 2,
                 filter: 'blur(2px)',
               }}
             />
 
-            {/* Table markings */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[#D4AF37]/40 text-xs font-bold tracking-widest">
-              PASS LINE
+            {/* Color-coded table markings */}
+            <div className="absolute top-[16px] left-[16px] right-[16px] h-[24px] rounded-t-lg pointer-events-none" style={{
+              background: 'rgba(46,125,50,0.3)',
+              border: '1px solid rgba(67,160,71,0.4)',
+              zIndex: 3,
+            }}>
+              <div className="text-center text-[#66BB6A] text-[10px] font-bold tracking-[3px] leading-[24px]">
+                PASS LINE
+              </div>
             </div>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[#D4AF37]/40 text-xs font-bold tracking-widest">
-              DON'T PASS BAR
+            <div className="absolute bottom-[16px] left-[16px] right-[16px] h-[24px] rounded-b-lg pointer-events-none" style={{
+              background: 'rgba(183,28,28,0.2)',
+              border: '1px solid rgba(183,28,28,0.4)',
+              zIndex: 3,
+            }}>
+              <div className="text-center text-[#EF5350] text-[10px] font-bold tracking-[3px] leading-[24px]">
+                DON'T PASS BAR
+              </div>
             </div>
 
             {/* 3D Dice */}
@@ -1008,6 +1108,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
               position={dice1Position}
               isRolling={isRolling}
               diceId={1}
+              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? 'rgba(183,28,28,0.5)' : undefined}
             />
             <RealisticDice3D
               value={dice[1]}
@@ -1015,6 +1116,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
               position={dice2Position}
               isRolling={isRolling}
               diceId={2}
+              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? 'rgba(183,28,28,0.5)' : undefined}
             />
 
             {/* Dice total display */}
@@ -1096,7 +1198,9 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
         </div>
 
         {/* Right Side - Betting Table */}
-        <div className="flex-1 p-6 bg-black/50 border-l border-[#5D4037]/30 overflow-y-auto">
+        <div className="flex-1 p-6 border-l border-[#5D4037]/30 overflow-y-auto" style={{
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(13,51,18,0.3) 50%, rgba(0,0,0,0.7) 100%)',
+        }}>
           <div className="max-w-lg mx-auto">
             {/* Pass/Don't Pass */}
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1325,5 +1429,6 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
         </DialogContent>
       </Dialog>
     </div>
+    </CasinoEnvironment>
   );
 }

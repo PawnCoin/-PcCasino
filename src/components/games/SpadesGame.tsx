@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
-import GameViewport from '@/components/games/GameViewport';
+import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import type { Card } from '@/types';
 
 interface SpadesGameProps {
@@ -15,7 +15,6 @@ interface SpadesGameProps {
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 }
 
-// Worldwide Spades Rules
 const spadesRules = {
   objective: 'Be the first partnership to reach 500 points by winning tricks and accurately predicting how many tricks you will win.',
   deck: [
@@ -79,6 +78,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
   const [currentTrick, setCurrentTrick] = useState<Trick>({ cards: [], winner: null });
   const [tricks, setTricks] = useState<Trick[]>([]);
   const [spadesBroken, setSpadesBroken] = useState(false);
+  const [showSpadesBroken, setShowSpadesBroken] = useState(false);
   const [selectedChip, setSelectedChip] = useState(25);
   const [currentBet, setCurrentBet] = useState(0);
   const [tableChips, setTableChips] = useState<{ amount: number; count: number }[]>([]);
@@ -88,9 +88,17 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
   const [teamScore, setTeamScore] = useState({ you: 0, opponent: 0 });
   const [bags, setBags] = useState({ you: 0, opponent: 0 });
   const [round, setRound] = useState(1);
+  const [trickWinner, setTrickWinner] = useState<string | null>(null);
+  const [winFlash, setWinFlash] = useState(false);
+  const [loseFlash, setLoseFlash] = useState(false);
 
   const yourPlayer = players.find(p => p.id === 'you')!;
   const yourPartner = players.find(p => p.id === 'p3')!;
+
+  const triggerSpadesBroken = () => {
+    setShowSpadesBroken(true);
+    setTimeout(() => setShowSpadesBroken(false), 1500);
+  };
 
   const addChipToBet = (amount: number) => {
     if (currentBet + amount > balance) {
@@ -183,8 +191,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
       }
     }
     
-    if (card.suit === 'spades') {
+    if (card.suit === 'spades' && !spadesBroken) {
       setSpadesBroken(true);
+      triggerSpadesBroken();
     }
     
     const newPlayers = [...players];
@@ -246,8 +255,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
       currentTrickCards.push({ player: player.id, card: cardToPlay });
       setCurrentTrick({ cards: currentTrickCards, winner: null });
       
-      if (cardToPlay.suit === 'spades') {
+      if (cardToPlay.suit === 'spades' && !spadesBroken) {
         setSpadesBroken(true);
+        triggerSpadesBroken();
       }
       
       nextPlayer++;
@@ -282,6 +292,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     const winnerIndex = newPlayers.findIndex(p => p.id === winner);
     newPlayers[winnerIndex].tricks++;
     setPlayers(newPlayers);
+    
+    setTrickWinner(winner);
+    setTimeout(() => setTrickWinner(null), 1200);
     
     setTricks(prev => [...prev, { cards: trickCards, winner }]);
     setCurrentTrick({ cards: [], winner: null });
@@ -341,8 +354,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
       if (won) {
         onWin(currentBet * 2);
         setMessage(`You won the game! +${currentBet * 2} $Pc`);
+        setWinFlash(true);
+        setTimeout(() => setWinFlash(false), 2000);
       } else {
         setMessage('Opponents won the game. Better luck next time!');
+        setLoseFlash(true);
+        setTimeout(() => setLoseFlash(false), 1500);
       }
       setGamePhase('betting');
       setCurrentBet(0);
@@ -358,7 +375,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     }
   };
 
-  const renderCard = (card: Card, onClick?: () => void, small = false) => {
+  const renderCard = (card: Card, onClick?: () => void, small = false, fanIndex?: number, fanTotal?: number) => {
     const suitSymbols: Record<string, string> = {
       hearts: '♥',
       diamonds: '♦',
@@ -366,17 +383,31 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
       spades: '♠',
     };
 
+    const hasFan = fanIndex !== undefined && fanTotal !== undefined;
+    const fanRotation = hasFan ? (fanIndex - (fanTotal - 1) / 2) * 4 : 0;
+    const fanTranslateY = hasFan ? Math.abs(fanIndex - (fanTotal - 1) / 2) * 6 : 0;
+
     return (
-      <div className="perspective-[600px]" style={{ perspective: '600px' }}>
+      <div
+        className="perspective-[600px]"
+        style={{
+          perspective: '600px',
+          transform: hasFan ? `rotate(${fanRotation}deg) translateY(${fanTranslateY}px)` : undefined,
+          transformOrigin: 'bottom center',
+          transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          zIndex: hasFan ? fanIndex : undefined,
+        }}
+      >
         <button
           onClick={onClick}
           disabled={!onClick}
-          className={`playing-card ${card.isRed ? 'red' : 'black'} ${onClick ? 'hover:-translate-y-2 hover:shadow-[0_0_12px_rgba(212,175,55,0.4)] cursor-pointer' : ''} transition-all duration-300`}
+          className={`premium-card ${card.isRed ? 'red' : 'black'} relative flex flex-col items-center justify-center gap-0.5 ${onClick ? 'hover:-translate-y-4 hover:scale-110 hover:shadow-[0_0_20px_rgba(212,175,55,0.5)] cursor-pointer hover:z-50' : ''} transition-all duration-300`}
           style={{
-            width: small ? '50px' : '60px',
-            height: small ? '70px' : '84px',
+            width: small ? '50px' : '70px',
+            height: small ? '70px' : '98px',
             animation: 'spadesCardFlip 0.4s ease-out forwards',
             transformStyle: 'preserve-3d',
+            color: card.isRed ? '#c62828' : '#212121',
           }}
         >
           <span className={`font-bold ${small ? 'text-lg' : 'text-xl'}`}>{card.rank}</span>
@@ -413,359 +444,554 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     );
   };
 
+  const playerPositionMap: Record<string, number> = { 'you': 0, 'p2': 1, 'p3': 2, 'p4': 3 };
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <style>{`
-        @keyframes spadesCardFlip {
-          0% { transform: rotateY(90deg) scale(0.8); opacity: 0; }
-          60% { transform: rotateY(-5deg) scale(1.02); opacity: 1; }
-          100% { transform: rotateY(0deg) scale(1); opacity: 1; }
-        }
-        @keyframes spadesSlideIn0 {
-          0% { transform: translate(-50%, 40px); opacity: 0; }
-          100% { transform: translate(-50%, 0); opacity: 1; }
-        }
-        @keyframes spadesSlideIn1 {
-          0% { transform: translate(-40px, -50%); opacity: 0; }
-          100% { transform: translate(0, -50%); opacity: 1; }
-        }
-        @keyframes spadesSlideIn2 {
-          0% { transform: translate(-50%, -40px); opacity: 0; }
-          100% { transform: translate(-50%, 0); opacity: 1; }
-        }
-        @keyframes spadesSlideIn3 {
-          0% { transform: translate(40px, -50%); opacity: 0; }
-          100% { transform: translate(0, -50%); opacity: 1; }
-        }
-      `}</style>
-      {/* Header */}
-      <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-casino font-bold text-[#D4AF37]">SPADES</span>
-          </button>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 text-sm relative px-4 py-1 rounded-lg border border-[#D4AF37]/40"
-              style={{
-                background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(192,192,192,0.05) 50%, rgba(212,175,55,0.08) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(212,175,55,0.2), inset 0 -1px 0 rgba(212,175,55,0.1), 0 0 10px rgba(212,175,55,0.1)',
-              }}
-            >
-              <div className="absolute inset-0 rounded-lg pointer-events-none" style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)',
-              }} />
-              <div className="text-center">
-                <div className="text-[#C0C0C0] text-xs">Your Team</div>
-                <div className="font-bold text-[#43A047]">{teamScore.you}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-[#C0C0C0] text-xs">Bags</div>
-                <div className="font-bold text-[#D4AF37]">{bags.you}</div>
-              </div>
-              <div className="w-px h-8 bg-[#5D4037]/50" />
-              <div className="text-center">
-                <div className="text-[#C0C0C0] text-xs">Opponents</div>
-                <div className="font-bold text-[#B71C1C]">{teamScore.opponent}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-1 rounded-full balance-display">
-              <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
-              <span className="font-bold text-[#D4AF37]">
-                {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </span>
-              <span className="text-xs text-gray-400">$Pc</span>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)}>
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-              <Info className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </nav>
+    <CasinoEnvironment gameType="spades">
+      <div className="min-h-screen bg-[#0a0a0a]">
+        <style>{`
+          @keyframes spadesCardFlip {
+            0% { transform: rotateY(90deg) scale(0.8); opacity: 0; }
+            60% { transform: rotateY(-5deg) scale(1.02); opacity: 1; }
+            100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+          }
+          @keyframes spadesSlideIn0 {
+            0% { transform: translateY(60px) rotate(5deg); opacity: 0; }
+            100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          }
+          @keyframes spadesSlideIn1 {
+            0% { transform: translateX(60px) rotate(-5deg); opacity: 0; }
+            100% { transform: translateX(0) rotate(0deg); opacity: 1; }
+          }
+          @keyframes spadesSlideIn2 {
+            0% { transform: translateY(-60px) rotate(-5deg); opacity: 0; }
+            100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          }
+          @keyframes spadesSlideIn3 {
+            0% { transform: translateX(-60px) rotate(5deg); opacity: 0; }
+            100% { transform: translateX(0) rotate(0deg); opacity: 1; }
+          }
+          @keyframes spadesBrokenFlash {
+            0% { transform: scale(0.3); opacity: 0; }
+            30% { transform: scale(1.3); opacity: 1; }
+            60% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+          }
+          @keyframes trickWinGlow {
+            0% { box-shadow: 0 0 10px rgba(212,175,55,0.3); }
+            50% { box-shadow: 0 0 40px rgba(212,175,55,0.8), 0 0 80px rgba(212,175,55,0.4); }
+            100% { box-shadow: 0 0 10px rgba(212,175,55,0.3); }
+          }
+          @keyframes winCelebration {
+            0% { box-shadow: inset 0 0 0 rgba(67,160,71,0); }
+            30% { box-shadow: inset 0 0 120px rgba(67,160,71,0.3); }
+            100% { box-shadow: inset 0 0 0 rgba(67,160,71,0); }
+          }
+          @keyframes loseShake {
+            0%, 100% { transform: translateX(0); }
+            10%, 50%, 90% { transform: translateX(-4px); }
+            30%, 70% { transform: translateX(4px); }
+          }
+          @keyframes scoreRollUp {
+            0% { transform: translateY(10px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+        `}</style>
 
-      {/* Luxury 3D Background Layer */}
-      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
-        <GameViewport gameId="spades" />
-      </div>
-
-      {/* Game Area */}
-      <div className="pt-14 min-h-screen flex flex-col p-4 relative z-10">
-        {/* Vegas Style Table */}
-        <div className="flex-1 relative rounded-2xl border-8 border-[#5D4037] overflow-hidden"
-          style={{
-            background: 'radial-gradient(ellipse at center, #2E7D32 0%, #1B5E20 50%, #0D3312 100%)'
-          }}
-        >
-          {/* Felt texture */}
-          <div className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-            }}
-          />
-          
-          {/* Wood trim inner */}
-          <div className="absolute inset-2 border-2 border-[#8B6914]/60 rounded-xl pointer-events-none" />
-
-          {/* Top Player */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2">
-            <div className="absolute -inset-6 rounded-full bg-[#D4AF37]/8 blur-xl pointer-events-none" />
-            <div className="text-center relative">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[2].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]`}>
-                {players[2].avatar}
-              </div>
-              <div className="text-sm font-medium text-white">{players[2].name}</div>
-              <div className="text-xs text-[#C0C0C0]">
-                Bid: {players[2].bid ?? '?'} | Tricks: {players[2].tricks}
-              </div>
-              <div className="flex gap-1 mt-1 justify-center">
-                {players[2].hand.map((_, i) => renderCardBack(28, 40, `top${i}`))}
-              </div>
-            </div>
-          </div>
-
-          {/* Left Player */}
-          <div className="absolute left-4 top-1/2 -translate-y-1/2">
-            <div className="absolute -inset-6 rounded-full bg-[#D4AF37]/8 blur-xl pointer-events-none" />
-            <div className="text-center relative">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[3].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]`}>
-                {players[3].avatar}
-              </div>
-              <div className="text-sm font-medium text-white">{players[3].name}</div>
-              <div className="text-xs text-[#C0C0C0]">
-                Bid: {players[3].bid ?? '?'} | Tricks: {players[3].tricks}
-              </div>
-              <div className="flex gap-1 mt-1 justify-center">
-                {players[3].hand.map((_, i) => renderCardBack(28, 40, `left${i}`))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Player */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <div className="absolute -inset-6 rounded-full bg-[#D4AF37]/8 blur-xl pointer-events-none" />
-            <div className="text-center relative">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[1].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]`}>
-                {players[1].avatar}
-              </div>
-              <div className="text-sm font-medium text-white">{players[1].name}</div>
-              <div className="text-xs text-[#C0C0C0]">
-                Bid: {players[1].bid ?? '?'} | Tricks: {players[1].tricks}
-              </div>
-              <div className="flex gap-1 mt-1 justify-center">
-                {players[1].hand.map((_, i) => renderCardBack(28, 40, `right${i}`))}
-              </div>
-            </div>
-          </div>
-
-          {/* Trick Area - Center */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56">
-            {/* Table markings */}
-            <div className="absolute inset-0 border-2 border-dashed border-[#D4AF37]/20 rounded-full" />
+        <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
+          <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-casino font-bold text-[#D4AF37]">SPADES</span>
+            </button>
             
-            {/* Current Trick Cards — with slide-in animation */}
-            {currentTrick.cards.map((play, i) => {
-              const positions = [
-                'bottom-0 left-1/2 -translate-x-1/2',
-                'left-0 top-1/2 -translate-y-1/2',
-                'top-0 left-1/2 -translate-x-1/2',
-                'right-0 top-1/2 -translate-y-1/2',
-              ];
-              return (
-                <div
-                  key={`trick-${i}-${play.card.suit}-${play.card.rank}`}
-                  className={`absolute ${positions[i]} transition-all duration-500 ease-out`}
-                  style={{
-                    animation: `spadesSlideIn${i} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
-                  }}
-                >
-                  <div className="drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]">
-                    {renderCard(play.card, undefined, true)}
-                  </div>
-                </div>
-              );
-            })}
-            
-            {/* Center Info */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-black/60 px-3 py-2 rounded-xl border border-[#D4AF37]/30">
-              <div className="text-xs text-[#C0C0C0]">Trick {tricks.length + 1}/13</div>
-              {spadesBroken && <div className="text-xs text-[#D4AF37]">♠ Broken</div>}
-            </div>
-          </div>
-
-          {/* Your Area - Bottom */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-            <div className="absolute -inset-8 rounded-full bg-[#D4AF37]/10 blur-2xl pointer-events-none" />
-            <div className="relative">
-              <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${yourPlayer.color} flex items-center justify-center font-bold text-lg mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.4)]`}>
-                {yourPlayer.avatar}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-1 rounded-full balance-display">
+                <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
+                <span className="font-bold text-[#D4AF37]">
+                  {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+                <span className="text-xs text-gray-400">$Pc</span>
               </div>
-              <div className="font-medium text-white text-center">{yourPlayer.name}</div>
-              <div className="text-sm text-[#C0C0C0] text-center">
-                Bid: {yourPlayer.bid ?? '?'} | Tricks: {yourPlayer.tricks}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Message */}
-        {message && (
-          <div className="text-center my-3">
-            <div className="inline-block px-6 py-3 rounded-full bg-black/80 text-[#D4AF37] border border-[#D4AF37]/40 font-bold">
-              {message}
-            </div>
-          </div>
-        )}
-
-        {/* Controls */}
-        <div className="bg-black/90 border-t-2 border-[#5D4037] p-4 rounded-xl mt-2">
-          {gamePhase === 'betting' && (
-            <div className="max-w-2xl mx-auto">
-              {/* Chip Selection */}
-              <div className="text-center text-[#C0C0C0] text-sm mb-2">SELECT CHIP VALUE</div>
-              <div className="flex justify-center gap-2 flex-wrap mb-4">
-                {CHIP_VALUES.map(amount => (
-                  <PokerChip
-                    key={amount}
-                    amount={amount}
-                    size="md"
-                    selected={selectedChip === amount}
-                    onClick={() => setSelectedChip(amount)}
-                  />
-                ))}
-              </div>
-
-              {/* Betting Area */}
-              <div className="flex items-center justify-center gap-8 mb-4">
-                <div className="text-center">
-                  <div className="text-[#C0C0C0] text-xs mb-1">CURRENT BET</div>
-                  <div className="text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
-                </div>
-
-                <button
-                  onClick={() => addChipToBet(selectedChip)}
-                  className="relative w-24 h-24 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center"
-                >
-                  {tableChips.length > 0 ? (
-                    <div className="relative">
-                      {tableChips.map((chip, i) => (
-                        <div key={i} className="absolute" style={{ 
-                          transform: `translate(${Math.sin(i * 0.5) * 5}px, ${-i * 4}px)`,
-                          zIndex: tableChips.length - i 
-                        }}>
-                          <ChipStack amount={chip.amount} count={chip.count} size="sm" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-[#D4AF37]/50 text-sm">CLICK TO BET</span>
-                  )}
-                </button>
-
-                <button
-                  onClick={clearBet}
-                  disabled={currentBet === 0}
-                  className="px-4 py-2 rounded-lg bg-[#B71C1C]/80 hover:bg-[#B71C1C] text-white text-sm font-bold disabled:opacity-30"
-                >
-                  CLEAR
-                </button>
-              </div>
-
-              <Button 
-                onClick={startGame} 
-                className="w-full btn-primary py-5 text-xl font-bold"
-                disabled={currentBet === 0}
-              >
-                START GAME
+              <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)}>
+                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                <Info className="w-5 h-5" />
               </Button>
             </div>
-          )}
+          </div>
+        </nav>
 
-          {gamePhase === 'bidding' && (
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="text-[#C0C0C0] mb-2">How many tricks will you win? (0-13)</div>
-              <div className="flex gap-2 justify-center flex-wrap">
-                {Array.from({ length: 14 }, (_, i) => i).map(bid => (
-                  <button
-                    key={bid}
-                    onClick={() => placeBid(bid)}
-                    className="w-10 h-10 rounded-lg bg-[#5D4037]/50 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-black font-bold transition-colors border border-[#D4AF37]/30"
+        <div className="pt-14 min-h-screen flex flex-col p-4 relative z-10">
+          <div className="flex gap-4 flex-1">
+            <div
+              className="flex-1 relative rounded-full overflow-hidden"
+              style={{
+                animation: winFlash ? 'winCelebration 1.5s ease-out' : loseFlash ? 'loseShake 0.5s ease-out' : undefined,
+                minHeight: '500px',
+              }}
+            >
+              <div className="absolute inset-0 rounded-full wood-rail" style={{ borderRadius: '50%' }} />
+
+              <div
+                className="absolute inset-[16px] rounded-full premium-felt"
+                style={{ borderRadius: '50%' }}
+              />
+
+              <div
+                className="absolute inset-[16px] rounded-full pointer-events-none"
+                style={{
+                  borderRadius: '50%',
+                  background: 'radial-gradient(ellipse at 40% 35%, rgba(255,255,255,0.06) 0%, transparent 60%)',
+                }}
+              />
+
+              <div
+                className="absolute inset-[28px] rounded-full pointer-events-none"
+                style={{
+                  borderRadius: '50%',
+                  border: '1.5px solid rgba(212,175,55,0.2)',
+                  boxShadow: 'inset 0 0 40px rgba(0,0,0,0.3)',
+                }}
+              />
+
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
+                <div className="text-center relative">
+                  <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${players[2].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)]`}>
+                    {players[2].avatar}
+                  </div>
+                  <div className="px-3 py-0.5 rounded-full bg-black/70 border border-[#D4AF37]/30 backdrop-blur-sm">
+                    <div className="text-sm font-medium text-white">{players[2].name}</div>
+                    <div className="text-xs text-[#C0C0C0]">
+                      Bid: {players[2].bid ?? '?'} | Won: {players[2].tricks}
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 mt-1 justify-center">
+                    {players[2].hand.map((_, i) => renderCardBack(22, 32, `top${i}`))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute left-8 top-1/2 -translate-y-1/2 z-10">
+                <div className="text-center relative">
+                  <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${players[3].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)]`}>
+                    {players[3].avatar}
+                  </div>
+                  <div className="px-3 py-0.5 rounded-full bg-black/70 border border-[#D4AF37]/30 backdrop-blur-sm">
+                    <div className="text-sm font-medium text-white">{players[3].name}</div>
+                    <div className="text-xs text-[#C0C0C0]">
+                      Bid: {players[3].bid ?? '?'} | Won: {players[3].tricks}
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 mt-1 justify-center">
+                    {players[3].hand.slice(0, 6).map((_, i) => renderCardBack(22, 32, `left${i}`))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute right-8 top-1/2 -translate-y-1/2 z-10">
+                <div className="text-center relative">
+                  <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${players[1].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)]`}>
+                    {players[1].avatar}
+                  </div>
+                  <div className="px-3 py-0.5 rounded-full bg-black/70 border border-[#D4AF37]/30 backdrop-blur-sm">
+                    <div className="text-sm font-medium text-white">{players[1].name}</div>
+                    <div className="text-xs text-[#C0C0C0]">
+                      Bid: {players[1].bid ?? '?'} | Won: {players[1].tricks}
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 mt-1 justify-center">
+                    {players[1].hand.slice(0, 6).map((_, i) => renderCardBack(22, 32, `right${i}`))}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 z-10"
+                style={{
+                  animation: trickWinner ? 'trickWinGlow 1s ease-in-out' : undefined,
+                }}
+              >
+                <div className="absolute inset-0 border-2 border-dashed border-[#D4AF37]/15 rounded-full" />
+                <div
+                  className="absolute inset-0 rounded-full pointer-events-none"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(212,175,55,0.05) 0%, transparent 70%)',
+                  }}
+                />
+                
+                {currentTrick.cards.map((play, i) => {
+                  const pIdx = playerPositionMap[play.player] ?? 0;
+                  const positions = [
+                    { bottom: '10px', left: '50%', transform: 'translateX(-50%)' },
+                    { right: '10px', top: '50%', transform: 'translateY(-50%)' },
+                    { top: '10px', left: '50%', transform: 'translateX(-50%)' },
+                    { left: '10px', top: '50%', transform: 'translateY(-50%)' },
+                  ];
+                  return (
+                    <div
+                      key={`trick-${i}-${play.card.suit}-${play.card.rank}`}
+                      className="absolute transition-all duration-500 ease-out"
+                      style={{
+                        ...positions[pIdx],
+                        animation: `spadesSlideIn${pIdx} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
+                      }}
+                    >
+                      <div
+                        className="drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]"
+                        style={{
+                          filter: trickWinner === play.player ? 'drop-shadow(0 0 12px rgba(212,175,55,0.8))' : undefined,
+                        }}
+                      >
+                        {renderCard(play.card, undefined, true)}
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-black/70 px-3 py-1.5 rounded-xl border border-[#D4AF37]/30 backdrop-blur-sm">
+                  <div className="text-xs text-[#C0C0C0]">Trick {tricks.length + 1}/13</div>
+                  {spadesBroken && <div className="text-xs text-[#D4AF37] font-bold">♠ Broken</div>}
+                </div>
+              </div>
+
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+                <div className="relative">
+                  <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${yourPlayer.color} flex items-center justify-center font-bold text-lg mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.4)]`}>
+                    {yourPlayer.avatar}
+                  </div>
+                  <div className="px-4 py-0.5 rounded-full bg-black/70 border border-[#D4AF37]/30 backdrop-blur-sm text-center">
+                    <div className="font-medium text-white">{yourPlayer.name}</div>
+                    <div className="text-sm text-[#C0C0C0]">
+                      Bid: {yourPlayer.bid ?? '?'} | Won: {yourPlayer.tricks}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {showSpadesBroken && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                  <div
+                    className="text-9xl"
+                    style={{
+                      animation: 'spadesBrokenFlash 1.5s ease-out forwards',
+                      textShadow: '0 0 40px rgba(212,175,55,0.8), 0 0 80px rgba(212,175,55,0.4)',
+                      color: '#D4AF37',
+                    }}
                   >
-                    {bid}
-                  </button>
-                ))}
+                    ♠
+                  </div>
+                </div>
+              )}
+
+              {winFlash && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                  <div
+                    className="text-6xl font-casino font-bold text-[#43A047]"
+                    style={{
+                      animation: 'spadesBrokenFlash 1.5s ease-out forwards',
+                      textShadow: '0 0 30px rgba(67,160,71,0.8), 0 0 60px rgba(67,160,71,0.4)',
+                    }}
+                  >
+                    WIN!
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="w-56 flex flex-col gap-3 shrink-0"
+              style={{
+                background: 'linear-gradient(180deg, rgba(15,15,20,0.95) 0%, rgba(10,10,15,0.98) 100%)',
+                border: '2px solid rgba(212,175,55,0.4)',
+                borderRadius: '16px',
+                padding: '16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+              }}
+            >
+              <div className="text-center">
+                <div
+                  className="font-casino text-lg tracking-wider"
+                  style={{
+                    background: 'linear-gradient(135deg, #D4AF37, #FFD700, #B8860B)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  SCOREBOARD
+                </div>
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mt-1" />
+              </div>
+
+              <div className="text-center">
+                <div className="text-xs text-[#C0C0C0] uppercase tracking-wide mb-1">Round</div>
+                <div
+                  className="text-3xl font-bold text-[#D4AF37]"
+                  style={{ animation: 'scoreRollUp 0.4s ease-out' }}
+                >
+                  {round}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div
+                  className="rounded-xl p-3"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(67,160,71,0.15) 0%, rgba(46,125,50,0.1) 100%)',
+                    border: '1px solid rgba(67,160,71,0.3)',
+                  }}
+                >
+                  <div className="text-xs text-[#43A047] uppercase tracking-wide font-bold mb-1">Your Team</div>
+                  <div className="flex items-baseline justify-between">
+                    <div
+                      className="text-3xl font-bold text-[#43A047]"
+                      style={{ animation: 'scoreRollUp 0.4s ease-out' }}
+                      key={`ys-${teamScore.you}`}
+                    >
+                      {teamScore.you}
+                    </div>
+                    <div className="text-xs text-[#C0C0C0]">
+                      <span className="text-[#D4AF37]">{bags.you}</span> bags
+                    </div>
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    <div className="text-xs text-[#C0C0C0]">You: {yourPlayer.bid ?? '-'}</div>
+                    <div className="text-xs text-[#C0C0C0]">| P3: {players[2].bid ?? '-'}</div>
+                  </div>
+                </div>
+
+                <div
+                  className="rounded-xl p-3"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(183,28,28,0.15) 0%, rgba(139,0,0,0.1) 100%)',
+                    border: '1px solid rgba(183,28,28,0.3)',
+                  }}
+                >
+                  <div className="text-xs text-[#B71C1C] uppercase tracking-wide font-bold mb-1">Opponents</div>
+                  <div className="flex items-baseline justify-between">
+                    <div
+                      className="text-3xl font-bold text-[#B71C1C]"
+                      style={{ animation: 'scoreRollUp 0.4s ease-out' }}
+                      key={`os-${teamScore.opponent}`}
+                    >
+                      {teamScore.opponent}
+                    </div>
+                    <div className="text-xs text-[#C0C0C0]">
+                      <span className="text-[#D4AF37]">{bags.opponent}</span> bags
+                    </div>
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    <div className="text-xs text-[#C0C0C0]">P2: {players[1].bid ?? '-'}</div>
+                    <div className="text-xs text-[#C0C0C0]">| P4: {players[3].bid ?? '-'}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full h-px bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent" />
+
+              <div className="text-center">
+                <div className="text-xs text-[#C0C0C0] uppercase tracking-wide mb-1">Tricks Won</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-[#43A047]">
+                    <span className="font-bold text-lg">{yourPlayer.tricks + yourPartner.tricks}</span>
+                    <span className="text-[#C0C0C0] text-xs"> / {(yourPlayer.bid || 0) + (yourPartner.bid || 0)}</span>
+                  </div>
+                  <div className="text-[#B71C1C]">
+                    <span className="font-bold text-lg">{players[1].tricks + players[3].tricks}</span>
+                    <span className="text-[#C0C0C0] text-xs"> / {(players[1].bid || 0) + (players[3].bid || 0)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center mt-1">
+                <div className="text-xs text-[#C0C0C0]/60">Goal: 500 pts</div>
+                <div className="w-full h-2 rounded-full bg-black/50 mt-1 overflow-hidden border border-[#D4AF37]/20">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${Math.min(100, (teamScore.you / 500) * 100)}%`,
+                      background: 'linear-gradient(90deg, #43A047, #66BB6A)',
+                    }}
+                  />
+                </div>
+                <div className="w-full h-2 rounded-full bg-black/50 mt-1 overflow-hidden border border-[#B71C1C]/20">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${Math.min(100, (teamScore.opponent / 500) * 100)}%`,
+                      background: 'linear-gradient(90deg, #B71C1C, #E53935)',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {message && (
+            <div className="text-center my-3">
+              <div className="inline-block px-6 py-3 rounded-full bg-black/80 text-[#D4AF37] border border-[#D4AF37]/40 font-bold backdrop-blur-sm shadow-[0_0_20px_rgba(212,175,55,0.15)]">
+                {message}
               </div>
             </div>
           )}
 
-          {gamePhase === 'playing' && (
-            <div className="flex justify-center gap-2 flex-wrap">
-              {yourPlayer.hand.map((card, i) => (
-                <div key={i}>
-                  {renderCard(card, () => playCard(i))}
+          <div
+            className="border-t-2 p-4 rounded-xl mt-2"
+            style={{
+              background: 'linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(5,5,5,0.98) 100%)',
+              borderColor: 'rgba(93,64,55,0.6)',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.4)',
+            }}
+          >
+            {gamePhase === 'betting' && (
+              <div className="max-w-2xl mx-auto">
+                <div className="text-center text-[#C0C0C0] text-sm mb-2 uppercase tracking-wider">Select Chip Value</div>
+                <div className="flex justify-center gap-2 flex-wrap mb-4">
+                  {CHIP_VALUES.map(amount => (
+                    <PokerChip
+                      key={amount}
+                      amount={amount}
+                      size="md"
+                      selected={selectedChip === amount}
+                      onClick={() => setSelectedChip(amount)}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Rules Dialog */}
-      <Dialog open={showRules} onOpenChange={setShowRules}>
-        <DialogContent className="max-w-2xl glass-panel-strong max-h-[80vh] overflow-y-auto border-[#5D4037]/30">
-          <DialogHeader>
-            <DialogTitle className="font-casino text-2xl text-gradient-gold">
-              Spades Rules
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6 text-sm">
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Objective</h3>
-              <p className="text-gray-300">{spadesRules.objective}</p>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">The Deck</h3>
-              <ul className="space-y-1 text-gray-300">
-                {spadesRules.deck.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-[#D4AF37]">•</span>
-                    {item}
-                  </li>
+                <div className="flex items-center justify-center gap-8 mb-4">
+                  <div className="text-center">
+                    <div className="text-[#C0C0C0] text-xs mb-1">CURRENT BET</div>
+                    <div className="text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
+                  </div>
+
+                  <button
+                    onClick={() => addChipToBet(selectedChip)}
+                    className="relative w-24 h-24 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center hover:shadow-[0_0_25px_rgba(212,175,55,0.3)]"
+                  >
+                    {tableChips.length > 0 ? (
+                      <div className="relative">
+                        {tableChips.map((chip, i) => (
+                          <div key={i} className="absolute" style={{ 
+                            transform: `translate(${Math.sin(i * 0.5) * 5}px, ${-i * 4}px)`,
+                            zIndex: tableChips.length - i 
+                          }}>
+                            <ChipStack amount={chip.amount} count={chip.count} size="sm" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-[#D4AF37]/50 text-sm">CLICK TO BET</span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={clearBet}
+                    disabled={currentBet === 0}
+                    className="px-4 py-2 rounded-lg bg-[#B71C1C]/80 hover:bg-[#B71C1C] text-white text-sm font-bold disabled:opacity-30"
+                  >
+                    CLEAR
+                  </button>
+                </div>
+
+                <Button 
+                  onClick={startGame} 
+                  className="w-full btn-primary py-5 text-xl font-bold"
+                  disabled={currentBet === 0}
+                >
+                  START GAME
+                </Button>
+              </div>
+            )}
+
+            {gamePhase === 'bidding' && (
+              <div className="max-w-2xl mx-auto text-center">
+                <div className="text-[#C0C0C0] mb-2">How many tricks will you win? (0-13)</div>
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {Array.from({ length: 14 }, (_, i) => i).map(bid => (
+                    <button
+                      key={bid}
+                      onClick={() => placeBid(bid)}
+                      className="w-10 h-10 rounded-lg bg-[#5D4037]/50 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-black font-bold transition-all border border-[#D4AF37]/30 hover:scale-110 hover:shadow-[0_0_15px_rgba(212,175,55,0.4)]"
+                    >
+                      {bid}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {gamePhase === 'playing' && (
+              <div className="flex justify-center items-end gap-0 flex-wrap py-2" style={{ minHeight: '120px' }}>
+                {yourPlayer.hand.map((card, i) => (
+                  <div
+                    key={`hand-${card.suit}-${card.rank}`}
+                    style={{
+                      marginLeft: i === 0 ? 0 : '-12px',
+                    }}
+                  >
+                    {renderCard(card, () => playCard(i), false, i, yourPlayer.hand.length)}
+                  </div>
                 ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Gameplay</h3>
-              <ul className="space-y-1 text-gray-300">
-                {spadesRules.gameplay.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-[#D4AF37] font-bold">{i + 1}.</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Scoring</h3>
-              <ul className="space-y-1 text-gray-300">
-                {spadesRules.scoring.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-[#D4AF37]">•</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+              </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        <Dialog open={showRules} onOpenChange={setShowRules}>
+          <DialogContent className="max-w-2xl glass-panel-strong max-h-[80vh] overflow-y-auto border-[#5D4037]/30">
+            <DialogHeader>
+              <DialogTitle className="font-casino text-2xl text-gradient-gold">
+                Spades Rules
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6 text-sm">
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Objective</h3>
+                <p className="text-gray-300">{spadesRules.objective}</p>
+              </div>
+              
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">The Deck</h3>
+                <ul className="space-y-1 text-gray-300">
+                  {spadesRules.deck.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-[#D4AF37]">•</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Gameplay</h3>
+                <ul className="space-y-1 text-gray-300">
+                  {spadesRules.gameplay.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-[#D4AF37] font-bold">{i + 1}.</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Scoring</h3>
+                <ul className="space-y-1 text-gray-300">
+                  {spadesRules.scoring.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-[#D4AF37]">•</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </CasinoEnvironment>
   );
 }

@@ -3,7 +3,7 @@ import { ArrowLeft, Info, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
-import GameViewport from '@/components/games/GameViewport';
+import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import type { Card } from '@/types';
 
 interface Spanish21GameProps {
@@ -176,6 +176,11 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
   const [celebrationMessage, setCelebrationMessage] = useState('');
   const [cardDealAnim, setCardDealAnim] = useState(false);
   const [chipEntranceAnim, setChipEntranceAnim] = useState<string | null>(null);
+  const [showBonusStarburst, setShowBonusStarburst] = useState(false);
+  const [bonusMultiplier, setBonusMultiplier] = useState('');
+  const [showBustEffect, setShowBustEffect] = useState(false);
+  const [showWinFlash, setShowWinFlash] = useState(false);
+  const [sideBetCelebration, setSideBetCelebration] = useState<string | null>(null);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -247,7 +252,10 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     const sideBetWins = results.reduce((sum, r) => sum + r.win, 0);
     if (sideBetWins > 0) {
       onWin(sideBetWins);
-      triggerCelebration(`Side Bet Win! +${sideBetWins} $Pc`);
+      const topResult = results.reduce((best, r) => r.win > best.win ? r : best, results[0]);
+      setSideBetCelebration(topResult.name);
+      setTimeout(() => setSideBetCelebration(null), 3000);
+      triggerCelebration(`${topResult.name} Win! +${sideBetWins} $Pc`);
     }
     
     // Check for insurance/even money
@@ -350,7 +358,9 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     const handValue = calculateHandValue(newHands[currentHandIndex].cards);
     
     if (handValue.value > 21) {
-      setMessage('Bust!');
+      setMessage('BUST!');
+      setShowBustEffect(true);
+      setTimeout(() => setShowBustEffect(false), 1200);
       newHands[currentHandIndex].isComplete = true;
       setPlayerHands(newHands);
       
@@ -498,12 +508,19 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     if (totalWin > 0) {
       onWin(totalWin);
       setMessage(`You win! +${totalWin} $Pc`);
-      const hasSpecial21 = playerHands.some(hand => {
+      setShowWinFlash(true);
+      setTimeout(() => setShowWinFlash(false), 1500);
+      const special21Hand = playerHands.find(hand => {
         const hv = calculateHandValue(hand.cards);
         return hv.value === 21 && hand.cards.length >= 5;
       });
-      if (hasSpecial21) {
-        triggerCelebration(`🎰 Special 21 Bonus! +${totalWin} $Pc`);
+      if (special21Hand) {
+        const cardCount = special21Hand.cards.length;
+        const multiplierText = cardCount >= 7 ? '7+ CARD 21 — 3:1 BONUS!' : cardCount === 6 ? '6 CARD 21 — 2:1 BONUS!' : '5 CARD 21 — BONUS!';
+        setBonusMultiplier(multiplierText);
+        setShowBonusStarburst(true);
+        setTimeout(() => setShowBonusStarburst(false), 3500);
+        triggerCelebration(`🎰 ${multiplierText} +${totalWin} $Pc`);
       } else if (totalWin >= anteBet * 3) {
         triggerCelebration(`Big Win! +${totalWin} $Pc`);
       }
@@ -570,16 +587,20 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
       return (
         <div
           key={key}
-          className="playing-card rounded-lg overflow-hidden"
+          className="premium-card rounded-lg overflow-hidden"
           style={{ 
+            width: '90px',
+            height: '126px',
             background: `url(${backStyle.image}) center/cover`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4)',
           }}
         />
       );
     }
     
-    return <div key={key} className="playing-card playing-card-back" />;
+    return (
+      <div key={key} className="playing-card playing-card-back" style={{ width: '90px', height: '126px' }} />
+    );
   };
 
   const renderCard = (card: Card, index: number, hidden = false) => {
@@ -592,19 +613,27 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     };
 
     return (
-      <div key={index} className={`playing-card ${card.isRed ? 'red' : 'black'}`}
+      <div key={index} className={`premium-card card-hover-lift ${card.isRed ? 'text-red-700' : 'text-gray-900'}`}
         style={{
-          animation: cardDealAnim ? `card-slide-in 0.5s ease-out ${index * 0.15}s both` : undefined,
-          boxShadow: '0 4px 15px rgba(0,0,0,0.4), 0 0 5px rgba(212,175,55,0.1)',
+          width: '90px',
+          height: '126px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: cardDealAnim ? `sp21-card-deal 0.6s ease-out ${index * 0.2}s both` : undefined,
+          cursor: 'default',
+          perspective: '600px',
         }}
       >
-        <span className="text-2xl font-bold">{card.rank}</span>
-        <span className="text-3xl">{suitSymbols[card.suit]}</span>
+        <span className="text-2xl font-bold leading-none">{card.rank}</span>
+        <span className="text-3xl leading-none">{suitSymbols[card.suit]}</span>
       </div>
     );
   };
 
   return (
+    <CasinoEnvironment gameType="spanish21">
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
@@ -631,11 +660,6 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
           </div>
         </div>
       </nav>
-
-      {/* Enhanced 3D Background Layer */}
-      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
-        <GameViewport gameId="spanish21" />
-      </div>
 
       {/* Celebration Particle Burst Overlay */}
       {showCelebration && (
@@ -672,25 +696,105 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
         </div>
       )}
 
+      {/* Bust Effect Overlay */}
+      {showBustEffect && (
+        <div className="fixed inset-0 z-[55] pointer-events-none">
+          <div className="absolute inset-0 sp21-bust-flash" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-7xl font-black text-red-500 sp21-bust-slam" style={{ textShadow: '0 0 40px rgba(183,28,28,0.8), 0 4px 8px rgba(0,0,0,0.6)' }}>
+            BUST!
+          </div>
+        </div>
+      )}
+
+      {/* Win Flash Overlay */}
+      {showWinFlash && (
+        <div className="fixed inset-0 z-[55] pointer-events-none">
+          <div className="absolute inset-0 sp21-win-flash" />
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            {[0, 1, 2].map(ring => (
+              <div key={ring} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#D4AF37] sp21-win-ring" style={{ animationDelay: `${ring * 0.3}s` }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bonus Starburst Overlay */}
+      {showBonusStarburst && (
+        <div className="fixed inset-0 z-[58] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          {Array.from({ length: 16 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute sp21-starburst-ray"
+              style={{
+                width: '4px',
+                height: '200px',
+                background: `linear-gradient(to top, transparent, ${i % 2 === 0 ? '#D4AF37' : '#FFD700'})`,
+                left: '50%',
+                top: '50%',
+                transformOrigin: 'bottom center',
+                transform: `rotate(${i * 22.5}deg) translateY(-100%)`,
+                opacity: 0,
+                animationDelay: `${i * 0.05}s`,
+              }}
+            />
+          ))}
+          <div className="relative z-10 px-12 py-8 rounded-3xl sp21-bonus-text" style={{
+            background: 'linear-gradient(135deg, #D4AF37, #FFD700, #D4AF37)',
+            boxShadow: '0 0 80px rgba(212,175,55,0.9), 0 0 160px rgba(212,175,55,0.4)',
+          }}>
+            <div className="text-black font-black text-4xl text-center">{bonusMultiplier}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Side Bet Celebration Overlay */}
+      {sideBetCelebration && (
+        <div className="fixed inset-0 z-[56] pointer-events-none flex items-center justify-center">
+          {sideBetCelebration === '3 Card Poker' && (
+            <div className="flex gap-4 sp21-side-fan">
+              {['♠', '♥', '♦'].map((s, i) => (
+                <div key={i} className="w-20 h-28 premium-card flex items-center justify-center text-4xl" style={{
+                  transform: `rotate(${(i - 1) * 15}deg)`,
+                  animationDelay: `${i * 0.15}s`,
+                  color: i === 1 ? '#c62828' : i === 2 ? '#c62828' : '#212121',
+                }}>
+                  {s}
+                </div>
+              ))}
+            </div>
+          )}
+          {sideBetCelebration === 'Match The Dealer' && (
+            <div className="sp21-match-glow text-5xl font-black text-purple-400" style={{ textShadow: '0 0 40px rgba(155,89,182,0.8)' }}>
+              MATCH!
+            </div>
+          )}
+          {sideBetCelebration === 'Perfect Pair' && (
+            <div className="sp21-pair-glow text-5xl font-black text-emerald-400" style={{ textShadow: '0 0 40px rgba(16,185,129,0.8)' }}>
+              PERFECT PAIR!
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Game Area */}
       <div className="pt-14 min-h-screen flex flex-col p-4 relative z-10">
-        {/* Vegas Style Table */}
-        <div className="flex-1 rounded-3xl border-8 border-[#5D4037] shadow-2xl relative overflow-hidden"
-          style={{ background: 'radial-gradient(ellipse at center, #2E7D32 0%, #1B5E20 40%, #0D3312 100%)' }}
+        {/* Vegas Style Table with Wood Rail */}
+        <div className="flex-1 rounded-3xl wood-rail relative overflow-hidden"
+          style={{ padding: '12px' }}
         >
-          {/* Felt texture */}
-          <div className="absolute inset-0 opacity-30"
+          <div className="absolute inset-[12px] rounded-2xl premium-felt" />
+
+          {/* Casino spotlight cone - dramatic overhead light */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-60 pointer-events-none z-[1]"
             style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.25) 0%, rgba(212,175,55,0.08) 40%, transparent 70%)',
+              filter: 'blur(1px)',
             }}
           />
-          
-          <div className="absolute inset-2 border-2 border-[#8B6914]/60 rounded-2xl pointer-events-none" />
-
-          {/* Dealer area spotlight cone */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 pointer-events-none"
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-60 h-32 pointer-events-none z-[1]"
             style={{
-              background: 'radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.15) 0%, transparent 70%)',
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06) 0%, transparent 60%)',
             }}
           />
 
@@ -704,73 +808,76 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
             <div className="text-[#D4AF37]/20 text-xs tracking-[0.5em] uppercase">Spanish 21 • Player Always Wins on 21</div>
           </div>
 
-          {/* Side Bet Areas - Top */}
+          {/* Side Bet Areas - Large Neon Circles */}
           {gameState === 'betting' && (
-            <div className="absolute top-4 left-0 right-0 flex justify-center gap-4">
-              {/* 3 Card Poker */}
+            <div className="absolute top-4 left-0 right-0 flex justify-center gap-6 z-10">
+              {/* 3 Card Poker - Gold Neon */}
               <button
                 onClick={() => addToSideBet('threeCardPoker', selectedChip)}
-                className="group relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                className="group relative w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-300 hover:scale-110"
                 style={{
+                  background: 'radial-gradient(circle, rgba(20,15,5,0.9) 0%, rgba(10,8,2,0.95) 100%)',
+                  border: `3px solid ${sideBets.threeCardPoker > 0 ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.4)'}`,
                   boxShadow: sideBets.threeCardPoker > 0
-                    ? '0 0 20px rgba(212,175,55,0.5), 0 0 40px rgba(212,175,55,0.2), inset 0 0 15px rgba(212,175,55,0.1)'
-                    : '0 0 10px rgba(212,175,55,0.1)',
+                    ? '0 0 25px rgba(212,175,55,0.7), 0 0 50px rgba(212,175,55,0.3), inset 0 0 20px rgba(212,175,55,0.15)'
+                    : '0 0 12px rgba(212,175,55,0.2), inset 0 0 8px rgba(212,175,55,0.05)',
+                  animation: sideBets.threeCardPoker > 0 ? 'sp21-neon-pulse-gold 2s ease-in-out infinite' : undefined,
                 }}
               >
-                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ boxShadow: '0 0 25px rgba(212,175,55,0.4), 0 0 50px rgba(212,175,55,0.15)' }}
-                />
-                <div className="text-[#D4AF37] font-bold text-sm">3 CARD POKER</div>
-                <div className="text-[10px] text-[#C0C0C0]">Min $2, Max = Ante</div>
-                <div className="text-[#D4AF37] font-bold mt-1">{sideBets.threeCardPoker} $Pc</div>
+                <div className="text-[#D4AF37] font-black text-xs tracking-wider">3 CARD</div>
+                <div className="text-[#FFD700] font-black text-xs">POKER</div>
+                <div className="text-[9px] text-[#C0C0C0] mt-0.5">Min $2</div>
+                <div className="text-[#D4AF37] font-bold text-sm mt-0.5">{sideBets.threeCardPoker > 0 ? `${sideBets.threeCardPoker}` : ''}</div>
                 {sideBets.threeCardPoker > 0 && (
-                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'threeCardPoker' ? 'animate-bounce scale-125' : ''}`}>
+                  <div className={`absolute -top-4 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'threeCardPoker' ? 'animate-bounce scale-125' : ''}`}>
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(sideBets.threeCardPoker / selectedChip))} size="sm" />
                   </div>
                 )}
               </button>
 
-              {/* Match The Dealer */}
+              {/* Match The Dealer - Purple Neon */}
               <button
                 onClick={() => addToSideBet('matchTheDealer', selectedChip)}
-                className="group relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                className="group relative w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-300 hover:scale-110"
                 style={{
+                  background: 'radial-gradient(circle, rgba(20,5,25,0.9) 0%, rgba(10,2,15,0.95) 100%)',
+                  border: `3px solid ${sideBets.matchTheDealer > 0 ? 'rgba(155,89,182,0.9)' : 'rgba(155,89,182,0.4)'}`,
                   boxShadow: sideBets.matchTheDealer > 0
-                    ? '0 0 20px rgba(155,89,182,0.5), 0 0 40px rgba(155,89,182,0.2), inset 0 0 15px rgba(155,89,182,0.1)'
-                    : '0 0 10px rgba(155,89,182,0.1)',
+                    ? '0 0 25px rgba(155,89,182,0.7), 0 0 50px rgba(155,89,182,0.3), inset 0 0 20px rgba(155,89,182,0.15)'
+                    : '0 0 12px rgba(155,89,182,0.2), inset 0 0 8px rgba(155,89,182,0.05)',
+                  animation: sideBets.matchTheDealer > 0 ? 'sp21-neon-pulse-purple 2s ease-in-out infinite' : undefined,
                 }}
               >
-                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ boxShadow: '0 0 25px rgba(155,89,182,0.4), 0 0 50px rgba(155,89,182,0.15)' }}
-                />
-                <div className="text-[#D4AF37] font-bold text-sm">MATCH THE DEALER</div>
-                <div className="text-[10px] text-[#C0C0C0]">Min $2, Max = Ante</div>
-                <div className="text-[#D4AF37] font-bold mt-1">{sideBets.matchTheDealer} $Pc</div>
+                <div className="text-purple-300 font-black text-xs tracking-wider">MATCH</div>
+                <div className="text-purple-200 font-black text-xs">DEALER</div>
+                <div className="text-[9px] text-[#C0C0C0] mt-0.5">Min $2</div>
+                <div className="text-purple-300 font-bold text-sm mt-0.5">{sideBets.matchTheDealer > 0 ? `${sideBets.matchTheDealer}` : ''}</div>
                 {sideBets.matchTheDealer > 0 && (
-                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'matchTheDealer' ? 'animate-bounce scale-125' : ''}`}>
+                  <div className={`absolute -top-4 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'matchTheDealer' ? 'animate-bounce scale-125' : ''}`}>
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(sideBets.matchTheDealer / selectedChip))} size="sm" />
                   </div>
                 )}
               </button>
 
-              {/* Perfect Pair */}
+              {/* Perfect Pair - Emerald Neon */}
               <button
                 onClick={() => addToSideBet('perfectPair', selectedChip)}
-                className="group relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                className="group relative w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-300 hover:scale-110"
                 style={{
+                  background: 'radial-gradient(circle, rgba(5,20,15,0.9) 0%, rgba(2,10,8,0.95) 100%)',
+                  border: `3px solid ${sideBets.perfectPair > 0 ? 'rgba(16,185,129,0.9)' : 'rgba(16,185,129,0.4)'}`,
                   boxShadow: sideBets.perfectPair > 0
-                    ? '0 0 20px rgba(52,152,219,0.5), 0 0 40px rgba(52,152,219,0.2), inset 0 0 15px rgba(52,152,219,0.1)'
-                    : '0 0 10px rgba(52,152,219,0.1)',
+                    ? '0 0 25px rgba(16,185,129,0.7), 0 0 50px rgba(16,185,129,0.3), inset 0 0 20px rgba(16,185,129,0.15)'
+                    : '0 0 12px rgba(16,185,129,0.2), inset 0 0 8px rgba(16,185,129,0.05)',
+                  animation: sideBets.perfectPair > 0 ? 'sp21-neon-pulse-emerald 2s ease-in-out infinite' : undefined,
                 }}
               >
-                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ boxShadow: '0 0 25px rgba(52,152,219,0.4), 0 0 50px rgba(52,152,219,0.15)' }}
-                />
-                <div className="text-[#D4AF37] font-bold text-sm">PERFECT PAIR</div>
-                <div className="text-[10px] text-[#C0C0C0]">Min $2, Max = Ante</div>
-                <div className="text-[#D4AF37] font-bold mt-1">{sideBets.perfectPair} $Pc</div>
+                <div className="text-emerald-300 font-black text-xs tracking-wider">PERFECT</div>
+                <div className="text-emerald-200 font-black text-xs">PAIR</div>
+                <div className="text-[9px] text-[#C0C0C0] mt-0.5">Min $2</div>
+                <div className="text-emerald-300 font-bold text-sm mt-0.5">{sideBets.perfectPair > 0 ? `${sideBets.perfectPair}` : ''}</div>
                 {sideBets.perfectPair > 0 && (
-                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'perfectPair' ? 'animate-bounce scale-125' : ''}`}>
+                  <div className={`absolute -top-4 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'perfectPair' ? 'animate-bounce scale-125' : ''}`}>
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(sideBets.perfectPair / selectedChip))} size="sm" />
                   </div>
                 )}
@@ -791,18 +898,36 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
             </div>
           )}
 
+          {/* Card Shoe Visual */}
+          <div className="absolute top-20 right-8 w-24 h-16 rounded-lg z-10 pointer-events-none"
+            style={{
+              background: 'linear-gradient(135deg, #2a1f14 0%, #1a1208 100%)',
+              border: '2px solid rgba(93,64,55,0.6)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.05)',
+            }}
+          >
+            <div className="absolute inset-1 rounded" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1) 0%, transparent 100%)' }} />
+            <div className="absolute -left-1 top-2 w-2 h-12 rounded-sm" style={{ background: 'linear-gradient(180deg, #f0f0f0, #d0d0d0, #b0b0b0)' }} />
+          </div>
+
           {/* Dealer */}
           <div className="relative z-10 flex flex-col items-center justify-start pt-24"
             style={{ filter: 'drop-shadow(0 0 10px rgba(212,175,55,0.15))' }}
           >
-            <div className="text-center mb-2">
-              <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider font-bold" style={{ textShadow: '0 0 10px rgba(192,192,192,0.3)' }}>DEALER</div>
-              <div className="text-xl font-bold text-white bg-black/40 px-4 py-1 rounded-full">
+            <div className="text-center mb-3">
+              <div className="inline-block px-6 py-1 rounded-lg mb-2" style={{
+                background: 'linear-gradient(135deg, #2a2015 0%, #1a1008 100%)',
+                border: '2px solid rgba(212,175,55,0.5)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5), 0 0 15px rgba(212,175,55,0.2)',
+              }}>
+                <span className="text-sm text-[#D4AF37] tracking-[0.3em] font-black" style={{ textShadow: '0 0 10px rgba(212,175,55,0.5)' }}>DEALER</span>
+              </div>
+              <div className="text-xl font-bold text-white bg-black/60 px-5 py-1.5 rounded-full border border-[#D4AF37]/30">
                 {showDealerCard ? calculateHandValue(dealerHand).value : '?'}
               </div>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               {dealerHand.map((card, i) => renderCard(card, i, i === 1 && !showDealerCard))}
             </div>
           </div>
@@ -848,27 +973,43 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
           )}
 
           {/* Player Hands */}
-          <div className="absolute bottom-36 left-0 right-0 flex justify-center gap-4 z-10">
+          <div className="absolute bottom-36 left-0 right-0 flex justify-center gap-6 z-10">
             {playerHands.map((hand, handIndex) => {
               const handValue = calculateHandValue(hand.cards);
+              const isActive = handIndex === currentHandIndex && gameState === 'player';
               return (
                 <div 
                   key={handIndex} 
                   className={`flex flex-col items-center transition-all duration-300 ${
-                    handIndex === currentHandIndex && gameState === 'player' ? 'scale-110' : 'opacity-70'
+                    isActive ? 'scale-110' : 'opacity-70'
                   }`}
+                  style={{
+                    filter: isActive ? 'drop-shadow(0 0 15px rgba(212,175,55,0.3))' : undefined,
+                  }}
                 >
-                  <div className="flex gap-1 mb-2">
+                  {isActive && (
+                    <div className="absolute -inset-4 rounded-2xl border border-[#D4AF37]/30 pointer-events-none" style={{
+                      boxShadow: '0 0 20px rgba(212,175,55,0.15)',
+                    }} />
+                  )}
+                  <div className="flex gap-2 mb-2">
                     {hand.cards.map((card, i) => renderCard(card, i))}
                   </div>
-                  <div className={`text-lg font-bold px-3 py-1 rounded-full ${
-                    handValue.value > 21 ? 'bg-[#B71C1C] text-white' : 'bg-black/60 text-[#D4AF37]'
+                  <div className={`text-lg font-bold px-4 py-1.5 rounded-full border ${
+                    handValue.value > 21 
+                      ? 'bg-[#B71C1C]/90 text-white border-red-600/50' 
+                      : handValue.value === 21
+                        ? 'bg-[#2E7D32]/90 text-[#FFD700] border-[#43A047]/50'
+                        : 'bg-black/70 text-[#D4AF37] border-[#D4AF37]/30'
                   }`}>
                     {handValue.value}
                     {handValue.isSoft && ' Soft'}
-                    {handValue.isBlackjack && ' ♠'}
+                    {handValue.isBlackjack && ' ♠ BJ!'}
                   </div>
-                  <div className="text-[#D4AF37] text-sm font-bold mt-1">{hand.bet} $Pc</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="w-3 h-3 rounded-full premium-chip" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', transform: 'scale(0.7)' }} />
+                    <span className="text-[#D4AF37] text-sm font-bold">{hand.bet} $Pc</span>
+                  </div>
                 </div>
               );
             })}
@@ -876,7 +1017,9 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
         </div>
 
         {/* Controls Area */}
-        <div className="bg-black/90 border-t-2 border-[#5D4037] p-4 mt-2 rounded-xl">
+        <div className="bg-black/90 border-t-2 border-[#5D4037] p-4 mt-2 rounded-xl" style={{
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(212,175,55,0.1)',
+        }}>
           {gameState === 'betting' && (
             <div className="max-w-4xl mx-auto">
               {/* Chip Selection */}
@@ -1011,17 +1154,109 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
 
       {/* Card & Chip Animation Styles */}
       <style>{`
-        @keyframes card-slide-in {
-          0% { transform: translateY(-80px) rotateX(40deg) scale(0.7); opacity: 0; }
-          100% { transform: translateY(0) rotateX(0deg) scale(1); opacity: 1; }
+        @keyframes sp21-card-deal {
+          0% { 
+            transform: perspective(600px) translateX(200px) translateY(-80px) rotateY(-90deg) scale(0.5); 
+            opacity: 0; 
+            filter: blur(3px);
+          }
+          60% { 
+            transform: perspective(600px) translateX(-5px) translateY(5px) rotateY(8deg) scale(1.02); 
+            opacity: 1; 
+            filter: blur(0);
+          }
+          100% { 
+            transform: perspective(600px) translateX(0) translateY(0) rotateY(0deg) scale(1); 
+            opacity: 1;
+          }
         }
-        @keyframes neon-pulse {
-          0%, 100% { box-shadow: 0 0 15px rgba(212,175,55,0.4), 0 0 30px rgba(212,175,55,0.2); }
-          50% { box-shadow: 0 0 25px rgba(212,175,55,0.6), 0 0 50px rgba(212,175,55,0.3); }
+        .card-hover-lift:hover {
+          transform: translateY(-8px) scale(1.05) !important;
+          box-shadow: 0 16px 40px rgba(0,0,0,0.7), 0 0 20px rgba(212,175,55,0.3) !important;
+          z-index: 10;
         }
-        @keyframes metallic-sheen {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
+        @keyframes sp21-neon-pulse-gold {
+          0%, 100% { box-shadow: 0 0 15px rgba(212,175,55,0.4), 0 0 30px rgba(212,175,55,0.2), inset 0 0 12px rgba(212,175,55,0.1); }
+          50% { box-shadow: 0 0 30px rgba(212,175,55,0.8), 0 0 60px rgba(212,175,55,0.4), inset 0 0 25px rgba(212,175,55,0.2); }
+        }
+        @keyframes sp21-neon-pulse-purple {
+          0%, 100% { box-shadow: 0 0 15px rgba(155,89,182,0.4), 0 0 30px rgba(155,89,182,0.2), inset 0 0 12px rgba(155,89,182,0.1); }
+          50% { box-shadow: 0 0 30px rgba(155,89,182,0.8), 0 0 60px rgba(155,89,182,0.4), inset 0 0 25px rgba(155,89,182,0.2); }
+        }
+        @keyframes sp21-neon-pulse-emerald {
+          0%, 100% { box-shadow: 0 0 15px rgba(16,185,129,0.4), 0 0 30px rgba(16,185,129,0.2), inset 0 0 12px rgba(16,185,129,0.1); }
+          50% { box-shadow: 0 0 30px rgba(16,185,129,0.8), 0 0 60px rgba(16,185,129,0.4), inset 0 0 25px rgba(16,185,129,0.2); }
+        }
+        .sp21-bust-flash {
+          animation: sp21-bust-anim 1.2s ease-out forwards;
+        }
+        @keyframes sp21-bust-anim {
+          0% { background: rgba(183,28,28,0.4); }
+          20% { background: rgba(183,28,28,0.6); }
+          100% { background: transparent; }
+        }
+        .sp21-bust-slam {
+          animation: sp21-slam 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        @keyframes sp21-slam {
+          0% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+          30% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          50% { transform: translate(-50%, -48%) scale(1.1); }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+        .sp21-win-flash {
+          animation: sp21-win-anim 1.5s ease-out forwards;
+        }
+        @keyframes sp21-win-anim {
+          0% { background: rgba(46,125,50,0.3); }
+          30% { background: rgba(46,125,50,0.5); }
+          100% { background: transparent; }
+        }
+        .sp21-win-ring {
+          animation: sp21-ring-expand 1.5s ease-out forwards;
+          width: 20px;
+          height: 20px;
+        }
+        @keyframes sp21-ring-expand {
+          0% { width: 20px; height: 20px; opacity: 1; border-color: rgba(212,175,55,0.9); }
+          100% { width: 400px; height: 400px; opacity: 0; border-color: rgba(212,175,55,0); }
+        }
+        .sp21-starburst-ray {
+          animation: sp21-ray-burst 1s ease-out forwards;
+        }
+        @keyframes sp21-ray-burst {
+          0% { opacity: 0; height: 0; }
+          30% { opacity: 1; height: 250px; }
+          100% { opacity: 0; height: 350px; }
+        }
+        .sp21-bonus-text {
+          animation: sp21-bonus-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes sp21-bonus-entrance {
+          0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .sp21-side-fan {
+          animation: sp21-fan-in 0.8s ease-out forwards;
+        }
+        @keyframes sp21-fan-in {
+          0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+          60% { transform: scale(1.1) rotate(5deg); opacity: 1; }
+          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .sp21-match-glow {
+          animation: sp21-glow-pulse 2s ease-in-out infinite;
+        }
+        @keyframes sp21-glow-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.1); opacity: 1; }
+        }
+        .sp21-pair-glow {
+          animation: sp21-pair-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes sp21-pair-pulse {
+          0%, 100% { transform: scale(1) rotate(-2deg); opacity: 0.8; }
+          50% { transform: scale(1.15) rotate(2deg); opacity: 1; }
         }
       `}</style>
 
@@ -1097,5 +1332,6 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
         </DialogContent>
       </Dialog>
     </div>
+    </CasinoEnvironment>
   );
 }

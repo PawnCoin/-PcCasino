@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 
 interface RouletteGameProps {
   balance: number;
@@ -89,7 +90,7 @@ function VegasRouletteWheel({
 
       {/* Main 3D Wheel Container with dramatic tilt */}
       <div 
-        className="relative w-80 h-80 md:w-[440px] md:h-[440px]"
+        className="relative w-80 h-80 md:w-[500px] md:h-[500px]"
         style={{
           transform: 'rotateX(35deg) rotateY(-5deg) translateZ(80px)',
           transformStyle: 'preserve-3d',
@@ -441,26 +442,46 @@ function VegasRouletteWheel({
         />
       </div>
 
-      {/* === ADDED: Metallic Chrome Highlight Layer on Wheel Rim === */}
+      {/* Metallic Chrome Highlight Layer on Wheel Rim */}
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
-          inset: '-12px',
+          inset: '-16px',
           background: `conic-gradient(
             from 0deg,
             rgba(255,255,255,0.0) 0deg,
-            rgba(255,255,255,0.25) 30deg,
-            rgba(200,220,255,0.4) 60deg,
-            rgba(255,255,255,0.1) 90deg,
+            rgba(255,255,255,0.35) 25deg,
+            rgba(220,235,255,0.55) 55deg,
+            rgba(255,255,255,0.15) 85deg,
             rgba(255,255,255,0.0) 120deg,
-            rgba(200,220,255,0.15) 180deg,
-            rgba(255,255,255,0.3) 240deg,
-            rgba(200,220,255,0.05) 300deg,
+            rgba(220,235,255,0.25) 170deg,
+            rgba(255,255,255,0.45) 230deg,
+            rgba(220,235,255,0.1) 290deg,
             rgba(255,255,255,0.0) 360deg
           )`,
-          mask: 'radial-gradient(circle, transparent 68%, black 70%, black 76%, transparent 78%)',
-          WebkitMask: 'radial-gradient(circle, transparent 68%, black 70%, black 76%, transparent 78%)',
+          mask: 'radial-gradient(circle, transparent 66%, black 68%, black 77%, transparent 79%)',
+          WebkitMask: 'radial-gradient(circle, transparent 66%, black 68%, black 77%, transparent 79%)',
           transform: 'rotateX(35deg) rotateY(-5deg) translateZ(82px)',
+          mixBlendMode: 'screen',
+        }}
+      />
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          inset: '-8px',
+          background: `conic-gradient(
+            from 120deg,
+            transparent 0deg,
+            rgba(255,255,255,0.2) 40deg,
+            rgba(200,220,255,0.35) 80deg,
+            transparent 120deg,
+            rgba(255,255,255,0.15) 200deg,
+            rgba(200,220,255,0.25) 260deg,
+            transparent 300deg
+          )`,
+          mask: 'radial-gradient(circle, transparent 70%, black 72%, black 75%, transparent 77%)',
+          WebkitMask: 'radial-gradient(circle, transparent 70%, black 72%, black 75%, transparent 77%)',
+          transform: 'rotateX(35deg) rotateY(-5deg) translateZ(84px)',
           mixBlendMode: 'screen',
         }}
       />
@@ -728,19 +749,34 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
     if (totalWin > 0) {
       onWin(totalWin);
       if (!laPartageRefund) setMessage(`Number ${number}! You won ${totalWin} $Pc!`);
+      triggerWinFlash();
     } else {
       setMessage(`Number ${number}. Better luck next time!`);
+      triggerLoseFlash();
     }
 
     setPlacedBets([]);
   };
+
+  const [winFlash, setWinFlash] = useState(false);
+  const [loseFlash, setLoseFlash] = useState(false);
 
   const getBetChips = (type: string) => {
     const bet = placedBets.find(b => b.type === type);
     return bet?.chips || [];
   };
 
+  const triggerWinFlash = () => {
+    setWinFlash(true);
+    setTimeout(() => setWinFlash(false), 1500);
+  };
+  const triggerLoseFlash = () => {
+    setLoseFlash(true);
+    setTimeout(() => setLoseFlash(false), 1200);
+  };
+
   return (
+    <CasinoEnvironment gameType="roulette">
     <div 
       className="min-h-screen"
       style={{
@@ -749,7 +785,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         `,
       }}
     >
-      {/* === ADDED: Neon pulse keyframes for winning number === */}
       <style>{`
         @keyframes neonPulse {
           0% { opacity: 0.85; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8)) brightness(0.9); }
@@ -760,7 +795,65 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
           50% { opacity: 0.6; }
           100% { opacity: 0.3; }
         }
+        @keyframes rouletteChipDrop {
+          0% { transform: translateX(-50%) translateY(-30px) scale(0.5); opacity: 0; }
+          60% { transform: translateX(-50%) translateY(4px) scale(1.1); opacity: 1; }
+          80% { transform: translateX(-50%) translateY(-2px) scale(0.95); }
+          100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes rouletteExpandRing {
+          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+        }
+        @keyframes rouletteWinFlash {
+          0% { opacity: 0; }
+          20% { opacity: 0.25; }
+          100% { opacity: 0; }
+        }
+        @keyframes rouletteLoseShake {
+          0%, 100% { transform: translateX(0); }
+          10% { transform: translateX(-4px); }
+          20% { transform: translateX(4px); }
+          30% { transform: translateX(-3px); }
+          40% { transform: translateX(3px); }
+          50% { transform: translateX(-2px); }
+          60% { transform: translateX(2px); }
+          70% { transform: translateX(0); }
+        }
+        @keyframes rouletteCellPulse {
+          0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1), 0 0 8px rgba(212,175,55,0.2); }
+          50% { box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1), 0 0 16px rgba(212,175,55,0.5); }
+        }
+        @keyframes rouletteWinCellGlow {
+          0% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+          50% { box-shadow: 0 0 25px currentColor, 0 0 50px currentColor, 0 0 80px currentColor; }
+          100% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+        }
+        .roulette-chip-drop {
+          animation: rouletteChipDrop 0.4s ease-out forwards;
+        }
+        .roulette-cell-active {
+          animation: rouletteCellPulse 2s ease-in-out infinite;
+        }
+        .roulette-win-flash {
+          animation: rouletteWinFlash 1.5s ease-out forwards;
+        }
+        .roulette-lose-shake {
+          animation: rouletteLoseShake 0.6s ease-out;
+        }
+        .roulette-number-cell:hover {
+          filter: brightness(1.4) !important;
+          box-shadow: 0 0 15px rgba(212,175,55,0.6), inset 0 1px 1px rgba(255,255,255,0.2) !important;
+          z-index: 5;
+        }
       `}</style>
+
+      {winFlash && (
+        <div className="fixed inset-0 z-[100] pointer-events-none roulette-win-flash" style={{ background: 'radial-gradient(ellipse at center, rgba(34,197,94,0.3) 0%, transparent 70%)' }} />
+      )}
+      {loseFlash && (
+        <div className="fixed inset-0 z-[100] pointer-events-none roulette-win-flash" style={{ background: 'radial-gradient(ellipse at center, rgba(220,38,38,0.25) 0%, transparent 70%)' }} />
+      )}
       {/* Header */}
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -859,9 +952,22 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               isSpinning={isSpinning}
             />
             
-            {/* === ENHANCED: Neon-Lit Winning Number Display Overlay === */}
             {winningNumber !== null && (
-              <div className="absolute -bottom-28 left-1/2 -translate-x-1/2 text-center">
+              <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 text-center">
+                <div
+                  className="absolute top-1/2 left-1/2 w-20 h-20 rounded-full pointer-events-none"
+                  style={{
+                    border: `3px solid ${isRed(winningNumber) ? 'rgba(220,38,38,0.8)' : winningNumber === 0 ? 'rgba(21,128,61,0.8)' : 'rgba(212,175,55,0.8)'}`,
+                    animation: 'rouletteExpandRing 1.5s ease-out infinite',
+                  }}
+                />
+                <div
+                  className="absolute top-1/2 left-1/2 w-16 h-16 rounded-full pointer-events-none"
+                  style={{
+                    border: `2px solid ${isRed(winningNumber) ? 'rgba(220,38,38,0.5)' : winningNumber === 0 ? 'rgba(21,128,61,0.5)' : 'rgba(212,175,55,0.5)'}`,
+                    animation: 'rouletteExpandRing 1.5s ease-out 0.3s infinite',
+                  }}
+                />
                 <div
                   className="relative px-8 py-4 rounded-2xl"
                   style={{
@@ -926,7 +1032,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         </div>
 
         {/* Vegas Style Betting Table */}
-        <div className="flex-1 p-4">
+        <div className={`flex-1 p-4 ${loseFlash ? 'roulette-lose-shake' : ''}`}>
           {/* Chip Selection */}
           <div className="mb-4">
             <div className="text-center text-[#C0C0C0] text-sm mb-2 tracking-wider">SELECT CHIP VALUE</div>
@@ -954,14 +1060,14 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               }}
             />
             <div 
-              className="inline-block p-4 rounded-lg relative"
+              className="inline-block p-5 rounded-xl relative premium-felt"
               style={{
-                background: 'linear-gradient(145deg, #1B5E20, #0D3312, #1B5E20)',
                 boxShadow: `
                   0 20px 60px rgba(0,0,0,0.8),
                   inset 0 2px 4px rgba(255,255,255,0.05),
-                  0 0 0 8px #5D4037,
-                  0 0 0 10px #3E2723,
+                  0 0 0 10px #5D4037,
+                  0 0 0 12px #3E2723,
+                  0 0 0 14px rgba(212,175,55,0.4),
                   0 0 40px rgba(27,94,32,0.15),
                   0 0 80px rgba(212,175,55,0.08)
                 `,
@@ -989,29 +1095,34 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                 </button>
 
                 {/* Number grid - 3 rows */}
-                <div className="grid grid-cols-12 gap-1 ml-1">
+                <div className="grid grid-cols-12 ml-1" style={{ gap: '2px', backgroundImage: 'linear-gradient(to right, rgba(212,175,55,0.5) 1px, transparent 1px), linear-gradient(to bottom, rgba(212,175,55,0.5) 1px, transparent 1px)', backgroundSize: 'calc(100%/12) calc(100%/3)', padding: '1px' }}>
                   {[3,6,9,12,15,18,21,24,27,30,33,36,2,5,8,11,14,17,20,23,26,29,32,35,1,4,7,10,13,16,19,22,25,28,31,34].map((num) => {
                     const isNumRed = isRed(num);
                     const chips = getBetChips(num.toString());
+                    const hasBet = chips.length > 0;
+                    const isWinner = winningNumber === num;
                     
                     return (
                       <button
                         key={num}
                         onClick={() => placeNumberBet(num, 35)}
-                        className="relative w-9 h-8 md:w-10 md:h-9 rounded flex items-center justify-center font-bold text-sm transition-all hover:scale-110"
+                        className={`roulette-number-cell relative w-9 h-8 md:w-10 md:h-9 rounded flex items-center justify-center font-bold text-sm transition-all ${hasBet ? 'roulette-cell-active' : ''}`}
                         style={{
                           background: isNumRed 
                             ? 'linear-gradient(145deg, #dc2626, #991b1b)' 
                             : 'linear-gradient(145deg, #1f2937, #000000)',
-                          border: '1px solid rgba(212,175,55,0.4)',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1)',
+                          border: `1px solid ${isWinner ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.5)'}`,
+                          boxShadow: isWinner
+                            ? '0 0 20px rgba(212,175,55,0.8), 0 0 40px rgba(212,175,55,0.4), inset 0 1px 1px rgba(255,255,255,0.2)'
+                            : '0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1)',
                           color: 'white',
                           textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          animation: isWinner ? 'rouletteWinCellGlow 1.5s ease-in-out infinite' : undefined,
                         }}
                       >
                         {num}
                         {chips.length > 0 && (
-                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
+                          <div className="absolute -top-2 left-1/2 z-10 roulette-chip-drop">
                             <ChipStack amount={chips[0]?.amount || 10} count={chips[0]?.count || 1} size="sm" />
                           </div>
                         )}
@@ -1043,7 +1154,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                       >
                         {label}
                         {chips.length > 0 && (
-                          <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                          <div className="absolute -top-2 left-1/2 roulette-chip-drop">
                             <ChipStack amount={chips[0]?.amount || 10} count={1} size="sm" />
                           </div>
                         )}
@@ -1066,17 +1177,17 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                     <button
                       key={type}
                       onClick={() => placeOutsideBet(type, nums, 2)}
-                      className="relative flex-1 h-10 rounded flex items-center justify-center font-bold text-sm"
+                      className="relative flex-1 h-10 rounded flex items-center justify-center font-bold text-sm transition-all hover:brightness-125"
                       style={{
                         background: 'linear-gradient(145deg, #5D4037, #3E2723)',
-                        border: '1px solid rgba(212,175,55,0.4)',
+                        border: '1px solid rgba(212,175,55,0.5)',
                         color: '#D4AF37',
                         textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                       }}
                     >
                       {label}
                       {chips.length > 0 && (
-                        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                        <div className="absolute -top-2 left-1/2 roulette-chip-drop">
                           <ChipStack amount={chips[0]?.amount || 10} count={1} size="sm" />
                         </div>
                       )}
@@ -1101,21 +1212,21 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                     <button
                       key={type}
                       onClick={() => placeOutsideBet(type, nums, 1)}
-                      className="relative flex-1 h-10 rounded flex items-center justify-center font-bold text-xs transition-all hover:scale-105"
+                      className={`relative flex-1 h-10 rounded flex items-center justify-center font-bold text-xs transition-all hover:scale-105 hover:brightness-125 ${chips.length > 0 ? 'roulette-cell-active' : ''}`}
                       style={{
                         background: redBtn 
                           ? 'linear-gradient(145deg, #dc2626, #991b1b)' 
                           : blackBtn 
                             ? 'linear-gradient(145deg, #1f2937, #000000)' 
                             : 'linear-gradient(145deg, #5D4037, #3E2723)',
-                        border: '1px solid rgba(212,175,55,0.4)',
+                        border: '1px solid rgba(212,175,55,0.5)',
                         color: redBtn || blackBtn ? 'white' : '#D4AF37',
                         textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                       }}
                     >
                       {label}
                       {chips.length > 0 && (
-                        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                        <div className="absolute -top-2 left-1/2 roulette-chip-drop">
                           <ChipStack amount={chips[0]?.amount || 10} count={1} size="sm" />
                         </div>
                       )}
@@ -1221,5 +1332,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         </DialogContent>
       </Dialog>
     </div>
+    </CasinoEnvironment>
   );
 }
