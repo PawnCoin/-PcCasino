@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Info, Volume2, VolumeX, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -379,6 +379,43 @@ function RealisticDice3D({ value, rotation, position, isRolling }: RealisticDice
         </div>
       </div>
 
+      {/* Beveled edge highlight overlay */}
+      <div
+        className="absolute inset-0 rounded-xl pointer-events-none"
+        style={{
+          width: '70px',
+          height: '70px',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          background: 'transparent',
+          boxShadow: `
+            inset 2px 2px 4px rgba(255,255,255,0.35),
+            inset -2px -2px 4px rgba(0,0,0,0.25),
+            inset 0 0 8px rgba(212,175,55,0.15)
+          `,
+          borderRadius: '12px',
+          zIndex: 11,
+          transition: isRolling ? 'none' : 'all 0.4s ease',
+        }}
+      />
+
+      {/* Translucent glow layer during roll */}
+      {isRolling && (
+        <div
+          className="absolute rounded-xl pointer-events-none"
+          style={{
+            width: '90px',
+            height: '90px',
+            left: `${position.x - 10}px`,
+            top: `${position.y - 10}px`,
+            background: 'radial-gradient(circle, rgba(212,175,55,0.3) 0%, rgba(212,175,55,0.1) 40%, transparent 70%)',
+            filter: 'blur(8px)',
+            zIndex: 9,
+            animation: 'pulse 0.3s ease-in-out infinite alternate',
+          }}
+        />
+      )}
+
       {/* Dynamic dice shadow */}
       <div
         className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full transition-all"
@@ -412,8 +449,26 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
   const [dice1Position, setDice1Position] = useState({ x: 80, y: 100 });
   const [dice2Position, setDice2Position] = useState({ x: 200, y: 100 });
   
+  const [spotlightPos, setSpotlightPos] = useState({ x: 50, y: 50 });
+  
   const { isMuted, toggleMute, playSound } = useSoundEffects();
   const tableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isRolling) {
+      const midX = (dice1Position.x + dice2Position.x) / 2;
+      const midY = (dice1Position.y + dice2Position.y) / 2;
+      const pctX = Math.min(100, Math.max(0, (midX / 400) * 100));
+      const pctY = Math.min(100, Math.max(0, (midY / 320) * 100));
+      setSpotlightPos({ x: pctX, y: pctY });
+    } else {
+      const midX = (dice1Position.x + dice2Position.x) / 2;
+      const midY = (dice1Position.y + dice2Position.y) / 2;
+      const pctX = Math.min(100, Math.max(0, (midX / 400) * 100));
+      const pctY = Math.min(100, Math.max(0, (midY / 320) * 100));
+      setSpotlightPos({ x: pctX, y: pctY });
+    }
+  }, [dice1Position, dice2Position, isRolling]);
 
   const totalBet = bets.reduce((sum, b) => sum + b.amount, 0);
   const diceTotal = dice[0] + dice[1];
@@ -849,13 +904,37 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
               boxShadow: `
                 0 20px 60px rgba(0,0,0,0.8),
                 inset 0 2px 4px rgba(255,255,255,0.05),
-                0 0 0 8px #5D4037,
-                0 0 0 10px #3E2723
+                0 0 0 3px rgba(212,175,55,0.6),
+                0 0 0 5px #5D4037,
+                0 0 0 8px rgba(212,175,55,0.3),
+                0 0 0 10px #3E2723,
+                0 0 20px rgba(212,175,55,0.15)
               `,
               perspective: '1000px',
             }}
           >
-            {/* Table felt texture */}
+            {/* Gold rail highlight - top */}
+            <div className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none" style={{
+              background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
+              zIndex: 20,
+            }} />
+            {/* Gold rail highlight - bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none" style={{
+              background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
+              zIndex: 20,
+            }} />
+            {/* Gold rail highlight - left */}
+            <div className="absolute top-0 bottom-0 left-0 w-[3px] pointer-events-none" style={{
+              background: 'linear-gradient(180deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
+              zIndex: 20,
+            }} />
+            {/* Gold rail highlight - right */}
+            <div className="absolute top-0 bottom-0 right-0 w-[3px] pointer-events-none" style={{
+              background: 'linear-gradient(180deg, transparent, rgba(212,175,55,0.7) 20%, rgba(255,223,100,0.9) 50%, rgba(212,175,55,0.7) 80%, transparent)',
+              zIndex: 20,
+            }} />
+
+            {/* Table felt texture - original */}
             <div 
               className="absolute inset-0 opacity-30"
               style={{
@@ -868,6 +947,49 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
                     rgba(0,0,0,0.1) 4px
                   )
                 `,
+              }}
+            />
+
+            {/* Enhanced felt texture overlay - woven pattern */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `
+                  repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 1px,
+                    rgba(0,0,0,0.04) 1px,
+                    rgba(0,0,0,0.04) 2px
+                  ),
+                  repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 1px,
+                    rgba(0,0,0,0.04) 1px,
+                    rgba(0,0,0,0.04) 2px
+                  ),
+                  radial-gradient(ellipse at 30% 40%, rgba(39,119,52,0.15) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 60%, rgba(27,94,32,0.1) 0%, transparent 50%)
+                `,
+                opacity: 0.8,
+                zIndex: 1,
+              }}
+            />
+
+            {/* Spotlight tracking animation that follows dice */}
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                width: '200px',
+                height: '200px',
+                left: `${spotlightPos.x}%`,
+                top: `${spotlightPos.y}%`,
+                transform: 'translate(-50%, -50%)',
+                background: `radial-gradient(circle, rgba(255,255,220,${isRolling ? 0.15 : 0.08}) 0%, rgba(212,175,55,${isRolling ? 0.08 : 0.03}) 40%, transparent 70%)`,
+                transition: isRolling ? 'left 0.05s linear, top 0.05s linear' : 'all 0.5s ease-out',
+                zIndex: 2,
+                filter: 'blur(2px)',
               }}
             />
 

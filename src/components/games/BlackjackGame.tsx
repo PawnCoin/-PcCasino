@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createDeck, shuffleDeck, calculateBlackjackValue, isBlackjack } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
+import GameViewport from '@/components/games/GameViewport';
 import type { Card } from '@/types';
 
 interface BlackjackGameProps {
@@ -308,6 +309,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
       <div
         key={index}
         className={`playing-card ${card.isRed ? 'red' : 'black'}`}
+        style={{
+          animation: `bjCardDealIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) ${index * 0.15}s both`,
+        }}
       >
         <span className="text-2xl font-bold">{card.rank}</span>
         <span className="text-3xl">{suitSymbols[card.suit]}</span>
@@ -381,8 +385,13 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
         </div>
       </nav>
 
+      {/* Enhanced 3D Background Layer */}
+      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
+        <GameViewport gameId="blackjack" />
+      </div>
+
       {/* Game Area */}
-      <div className="pt-14 min-h-screen flex flex-col p-4">
+      <div className="pt-14 min-h-screen flex flex-col p-4 relative z-10">
         {/* Table Surface - Vegas Style */}
         <div className="flex-1 rounded-3xl border-8 border-[#5D4037] shadow-2xl relative overflow-hidden"
           style={{
@@ -416,13 +425,21 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
               <img src="/logos/pc-logo.png" alt="$Pc" className="w-32 h-32" />
             </div>
             
-            {/* Player betting boxes */}
+            {/* Player betting boxes with glow effects */}
             <div className="absolute bottom-24 flex gap-8">
               {playerHands.map((_, idx) => (
                 <div key={idx} className="relative">
+                  {(idx === currentHandIndex && gameState === 'playing') && (
+                    <div className="absolute -inset-2 rounded-xl animate-pulse pointer-events-none"
+                      style={{
+                        background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.25) 0%, transparent 70%)',
+                        filter: 'blur(6px)',
+                      }}
+                    />
+                  )}
                   <div className={`w-24 h-16 border-2 border-dashed rounded-lg ${
                     idx === currentHandIndex && gameState === 'playing' 
-                      ? 'border-[#D4AF37] bg-[#D4AF37]/10' 
+                      ? 'border-[#D4AF37] bg-[#D4AF37]/10 shadow-[0_0_20px_rgba(212,175,55,0.3)]' 
                       : 'border-[#D4AF37]/30'
                   }`}>
                     <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-[#C0C0C0]">
@@ -443,6 +460,14 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
               ))}
             </div>
           </div>
+
+          {/* Spotlight cone effect on dealer area */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-48 pointer-events-none z-[5]"
+            style={{
+              background: 'conic-gradient(from 180deg at 50% 0%, transparent 30%, rgba(212,175,55,0.06) 45%, rgba(212,175,55,0.12) 50%, rgba(212,175,55,0.06) 55%, transparent 70%)',
+              filter: 'blur(8px)',
+            }}
+          />
 
           {/* Dealer */}
           <div className="relative z-10 flex flex-col items-center justify-start pt-6">
@@ -495,18 +520,19 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
         <div className="bg-black/90 border-t-2 border-[#5D4037] p-4 mt-2 rounded-xl">
           {gameState === 'betting' && (
             <div className="max-w-4xl mx-auto">
-              {/* Chip Selection */}
+              {/* Chip Selection with metallic sheen */}
               <div className="mb-4">
                 <div className="text-center text-[#C0C0C0] text-sm mb-2">SELECT CHIP VALUE</div>
                 <div className="flex justify-center gap-2 flex-wrap">
                   {CHIP_VALUES.map(amount => (
-                    <PokerChip
-                      key={amount}
-                      amount={amount}
-                      size="md"
-                      selected={selectedChip === amount}
-                      onClick={() => setSelectedChip(amount)}
-                    />
+                    <div key={amount} className="bj-chip-sheen rounded-full">
+                      <PokerChip
+                        amount={amount}
+                        size="md"
+                        selected={selectedChip === amount}
+                        onClick={() => setSelectedChip(amount)}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -519,10 +545,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
                   <div className="text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
                 </div>
 
-                {/* Bet Circle */}
+                {/* Bet Circle with glow */}
                 <button
                   onClick={() => addChipToBet(selectedChip)}
-                  className="relative w-28 h-28 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center"
+                  className="relative w-28 h-28 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.2)] hover:shadow-[0_0_40px_rgba(212,175,55,0.4)]"
                 >
                   {tableChips.length > 0 ? (
                     <div className="relative">

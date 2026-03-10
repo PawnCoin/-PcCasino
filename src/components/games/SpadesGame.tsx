@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
+import GameViewport from '@/components/games/GameViewport';
 import type { Card } from '@/types';
 
 interface SpadesGameProps {
@@ -366,15 +367,22 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     };
 
     return (
-      <button
-        onClick={onClick}
-        disabled={!onClick}
-        className={`playing-card ${card.isRed ? 'red' : 'black'} ${onClick ? 'hover:-translate-y-2 cursor-pointer' : ''} transition-transform`}
-        style={{ width: small ? '50px' : '60px', height: small ? '70px' : '84px' }}
-      >
-        <span className={`font-bold ${small ? 'text-lg' : 'text-xl'}`}>{card.rank}</span>
-        <span className={small ? 'text-2xl' : 'text-3xl'}>{suitSymbols[card.suit]}</span>
-      </button>
+      <div className="perspective-[600px]" style={{ perspective: '600px' }}>
+        <button
+          onClick={onClick}
+          disabled={!onClick}
+          className={`playing-card ${card.isRed ? 'red' : 'black'} ${onClick ? 'hover:-translate-y-2 hover:shadow-[0_0_12px_rgba(212,175,55,0.4)] cursor-pointer' : ''} transition-all duration-300`}
+          style={{
+            width: small ? '50px' : '60px',
+            height: small ? '70px' : '84px',
+            animation: 'spadesCardFlip 0.4s ease-out forwards',
+            transformStyle: 'preserve-3d',
+          }}
+        >
+          <span className={`font-bold ${small ? 'text-lg' : 'text-xl'}`}>{card.rank}</span>
+          <span className={small ? 'text-2xl' : 'text-3xl'}>{suitSymbols[card.suit]}</span>
+        </button>
+      </div>
     );
   };
 
@@ -407,6 +415,29 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
+      <style>{`
+        @keyframes spadesCardFlip {
+          0% { transform: rotateY(90deg) scale(0.8); opacity: 0; }
+          60% { transform: rotateY(-5deg) scale(1.02); opacity: 1; }
+          100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+        }
+        @keyframes spadesSlideIn0 {
+          0% { transform: translate(-50%, 40px); opacity: 0; }
+          100% { transform: translate(-50%, 0); opacity: 1; }
+        }
+        @keyframes spadesSlideIn1 {
+          0% { transform: translate(-40px, -50%); opacity: 0; }
+          100% { transform: translate(0, -50%); opacity: 1; }
+        }
+        @keyframes spadesSlideIn2 {
+          0% { transform: translate(-50%, -40px); opacity: 0; }
+          100% { transform: translate(-50%, 0); opacity: 1; }
+        }
+        @keyframes spadesSlideIn3 {
+          0% { transform: translate(40px, -50%); opacity: 0; }
+          100% { transform: translate(0, -50%); opacity: 1; }
+        }
+      `}</style>
       {/* Header */}
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -416,7 +447,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
           </button>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-4 text-sm relative px-4 py-1 rounded-lg border border-[#D4AF37]/40"
+              style={{
+                background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(192,192,192,0.05) 50%, rgba(212,175,55,0.08) 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(212,175,55,0.2), inset 0 -1px 0 rgba(212,175,55,0.1), 0 0 10px rgba(212,175,55,0.1)',
+              }}
+            >
+              <div className="absolute inset-0 rounded-lg pointer-events-none" style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)',
+              }} />
               <div className="text-center">
                 <div className="text-[#C0C0C0] text-xs">Your Team</div>
                 <div className="font-bold text-[#43A047]">{teamScore.you}</div>
@@ -448,8 +487,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
         </div>
       </nav>
 
+      {/* Luxury 3D Background Layer */}
+      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
+        <GameViewport gameId="spades" />
+      </div>
+
       {/* Game Area */}
-      <div className="pt-14 min-h-screen flex flex-col p-4">
+      <div className="pt-14 min-h-screen flex flex-col p-4 relative z-10">
         {/* Vegas Style Table */}
         <div className="flex-1 relative rounded-2xl border-8 border-[#5D4037] overflow-hidden"
           style={{
@@ -468,8 +512,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
           {/* Top Player */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2">
-            <div className="text-center">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[2].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37]`}>
+            <div className="absolute -inset-6 rounded-full bg-[#D4AF37]/8 blur-xl pointer-events-none" />
+            <div className="text-center relative">
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[2].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]`}>
                 {players[2].avatar}
               </div>
               <div className="text-sm font-medium text-white">{players[2].name}</div>
@@ -484,8 +529,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
           {/* Left Player */}
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
-            <div className="text-center">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[3].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37]`}>
+            <div className="absolute -inset-6 rounded-full bg-[#D4AF37]/8 blur-xl pointer-events-none" />
+            <div className="text-center relative">
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[3].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]`}>
                 {players[3].avatar}
               </div>
               <div className="text-sm font-medium text-white">{players[3].name}</div>
@@ -500,8 +546,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
           {/* Right Player */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <div className="text-center">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[1].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37]`}>
+            <div className="absolute -inset-6 rounded-full bg-[#D4AF37]/8 blur-xl pointer-events-none" />
+            <div className="text-center relative">
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${players[1].color} flex items-center justify-center font-bold mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]`}>
                 {players[1].avatar}
               </div>
               <div className="text-sm font-medium text-white">{players[1].name}</div>
@@ -519,7 +566,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
             {/* Table markings */}
             <div className="absolute inset-0 border-2 border-dashed border-[#D4AF37]/20 rounded-full" />
             
-            {/* Current Trick Cards */}
+            {/* Current Trick Cards — with slide-in animation */}
             {currentTrick.cards.map((play, i) => {
               const positions = [
                 'bottom-0 left-1/2 -translate-x-1/2',
@@ -528,8 +575,16 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                 'right-0 top-1/2 -translate-y-1/2',
               ];
               return (
-                <div key={i} className={`absolute ${positions[i]}`}>
-                  {renderCard(play.card, undefined, true)}
+                <div
+                  key={`trick-${i}-${play.card.suit}-${play.card.rank}`}
+                  className={`absolute ${positions[i]} transition-all duration-500 ease-out`}
+                  style={{
+                    animation: `spadesSlideIn${i} 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
+                  }}
+                >
+                  <div className="drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]">
+                    {renderCard(play.card, undefined, true)}
+                  </div>
                 </div>
               );
             })}
@@ -543,12 +598,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
           {/* Your Area - Bottom */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-            <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${yourPlayer.color} flex items-center justify-center font-bold text-lg mb-1 mx-auto border-2 border-[#D4AF37]`}>
-              {yourPlayer.avatar}
-            </div>
-            <div className="font-medium text-white text-center">{yourPlayer.name}</div>
-            <div className="text-sm text-[#C0C0C0] text-center">
-              Bid: {yourPlayer.bid ?? '?'} | Tricks: {yourPlayer.tricks}
+            <div className="absolute -inset-8 rounded-full bg-[#D4AF37]/10 blur-2xl pointer-events-none" />
+            <div className="relative">
+              <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${yourPlayer.color} flex items-center justify-center font-bold text-lg mb-1 mx-auto border-2 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.4)]`}>
+                {yourPlayer.avatar}
+              </div>
+              <div className="font-medium text-white text-center">{yourPlayer.name}</div>
+              <div className="text-sm text-[#C0C0C0] text-center">
+                Bid: {yourPlayer.bid ?? '?'} | Tricks: {yourPlayer.tricks}
+              </div>
             </div>
           </div>
         </div>

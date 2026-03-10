@@ -19,7 +19,9 @@ import { RouletteGame } from '@/components/games/RouletteGame';
 import { CrapsGame } from '@/components/games/CrapsGame';
 import { Spanish21Game } from '@/components/games/Spanish21Game';
 import { SpadesGame } from '@/components/games/SpadesGame';
+import { SlotsGame } from '@/components/games/SlotsGame';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
+import { CommandCenter } from '@/components/CommandCenter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,7 +42,7 @@ function App() {
   const [user, setUser] = useState<UnifiedUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  const [currentView, setCurrentView] = useState<'lobby' | GameType>('lobby');
+  const [currentView, setCurrentView] = useState<'lobby' | 'command-center' | GameType>('lobby');
   const [showAuth, setShowAuth] = useState(false);
   const [, setShowWalletModal] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
@@ -316,6 +318,23 @@ function App() {
             cardBackStyle={getCardBackStyle()}
           />
         );
+      case 'slots':
+        return (
+          <SlotsGame
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+          />
+        );
+      case 'command-center':
+        return (
+          <CommandCenter
+            balance={user?.balance || 0}
+            transactions={transactions}
+            onBack={() => setCurrentView('lobby')}
+          />
+        );
       default:
         return (
           <>
@@ -399,7 +418,7 @@ function App() {
         }}
       />
       
-      {currentView === 'lobby' && (
+      {(currentView === 'lobby' || currentView === 'command-center') && (
         <Navigation
           user={user}
           isAuthenticated={isAuthenticated}
@@ -411,6 +430,7 @@ function App() {
           onShowRewards={() => setShowRewards(true)}
           onShowFinancial={() => setShowFinancial(true)}
           onShowCardDeck={() => setShowCardDeck(true)}
+          onShowCommandCenter={() => setCurrentView('command-center')}
         />
       )}
 

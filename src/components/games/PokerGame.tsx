@@ -10,6 +10,7 @@ import { PokerChip, ChipStack } from '@/components/PokerChip';
 import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import GameViewport from '@/components/games/GameViewport';
 import type { Card } from '@/types';
 
 interface PokerGameProps {
@@ -35,17 +36,33 @@ const handRankings: Record<string, string> = {
   high_card: 'High Card',
 };
 
-// Animated chip component
+function SpotlightRing({ className = '' }: { className?: string }) {
+  return (
+    <div
+      className={`absolute rounded-full pointer-events-none ${className}`}
+      style={{
+        width: '120%',
+        height: '120%',
+        top: '-10%',
+        left: '-10%',
+        background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.15) 0%, rgba(212,175,55,0.05) 40%, transparent 70%)',
+        boxShadow: '0 0 30px rgba(212,175,55,0.1), inset 0 0 20px rgba(212,175,55,0.05)',
+        animation: 'spotlightPulse 3s ease-in-out infinite',
+      }}
+    />
+  );
+}
+
 function AnimatedChipFly({ amount, onComplete }: { amount: number; onComplete: () => void }) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [opacity, setOpacity] = useState(1);
   const [scale, setScale] = useState(1);
+  const [trail, setTrail] = useState<{ x: number; y: number; id: number }[]>([]);
+  const trailIdRef = useRef(0);
 
   useEffect(() => {
-    // Start from chip selection area (bottom center)
     const startX = window.innerWidth / 2;
     const startY = window.innerHeight - 100;
-    // End at pot area (center of table)
     const endX = window.innerWidth / 2;
     const endY = window.innerHeight / 2 - 50;
 
@@ -53,16 +70,22 @@ function AnimatedChipFly({ amount, onComplete }: { amount: number; onComplete: (
 
     const duration = 400;
     const startTime = Date.now();
+    let lastTrailTime = 0;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easeOut = 1 - Math.pow(1 - progress, 3);
 
-      setPosition({
-        x: startX + (endX - startX) * easeOut,
-        y: startY + (endY - startY) * easeOut,
-      });
+      const newX = startX + (endX - startX) * easeOut;
+      const newY = startY + (endY - startY) * easeOut;
+      setPosition({ x: newX, y: newY });
+
+      if (elapsed - lastTrailTime > 30 && progress < 0.85) {
+        lastTrailTime = elapsed;
+        trailIdRef.current += 1;
+        setTrail(prev => [...prev.slice(-8), { x: newX, y: newY, id: trailIdRef.current }]);
+      }
 
       if (progress < 0.5) {
         setScale(1 + Math.sin(progress * Math.PI) * 0.3);
@@ -94,21 +117,39 @@ function AnimatedChipFly({ amount, onComplete }: { amount: number; onComplete: (
   };
 
   return (
-    <div
-      className={`fixed z-50 w-12 h-12 rounded-full bg-gradient-to-br ${chipColors[amount] || chipColors[5]} border-2 border-white/30 flex flex-col items-center justify-center pointer-events-none`}
-      style={{
-        left: position.x,
-        top: position.y,
-        transform: `translate(-50%, -50%) scale(${scale})`,
-        opacity,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.3)',
-      }}
-    >
-      <div className="absolute inset-2 rounded-full border border-dashed border-white/40" />
-      <span className="text-[7px] font-bold text-white/80">$Pc</span>
-      <span className="text-[9px] font-bold text-white">{amount}</span>
-      <div className="absolute top-1 left-1 w-3 h-3 rounded-full bg-white/30" />
-    </div>
+    <>
+      {trail.map((t, i) => (
+        <div
+          key={t.id}
+          className="fixed z-49 rounded-full pointer-events-none"
+          style={{
+            left: t.x,
+            top: t.y,
+            width: `${6 + i}px`,
+            height: `${6 + i}px`,
+            transform: 'translate(-50%, -50%)',
+            background: `radial-gradient(circle, rgba(212,175,55,${0.3 + i * 0.05}), transparent)`,
+            boxShadow: `0 0 ${4 + i * 2}px rgba(212,175,55,${0.2 + i * 0.03})`,
+            animation: 'trailFade 0.4s ease-out forwards',
+          }}
+        />
+      ))}
+      <div
+        className={`fixed z-50 w-12 h-12 rounded-full bg-gradient-to-br ${chipColors[amount] || chipColors[5]} border-2 border-white/30 flex flex-col items-center justify-center pointer-events-none`}
+        style={{
+          left: position.x,
+          top: position.y,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          opacity,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.3), 0 0 15px rgba(212,175,55,0.4)',
+        }}
+      >
+        <div className="absolute inset-2 rounded-full border border-dashed border-white/40" />
+        <span className="text-[7px] font-bold text-white/80">$Pc</span>
+        <span className="text-[9px] font-bold text-white">{amount}</span>
+        <div className="absolute top-1 left-1 w-3 h-3 rounded-full bg-white/30" />
+      </div>
+    </>
   );
 }
 
@@ -349,13 +390,34 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      {/* Flying chips animation */}
+    <div className="min-h-screen bg-[#0a0a0a] relative">
+      <style>{`
+        @keyframes spotlightPulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        @keyframes trailFade {
+          0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+        }
+        @keyframes potGlow {
+          0%, 100% { box-shadow: 0 0 20px rgba(212,175,55,0.3), 0 0 40px rgba(212,175,55,0.1); }
+          50% { box-shadow: 0 0 30px rgba(212,175,55,0.5), 0 0 60px rgba(212,175,55,0.2), 0 0 80px rgba(212,175,55,0.1); }
+        }
+        @keyframes metallicShine {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+      `}</style>
+
+      <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
+        <GameViewport gameId="poker" />
+      </div>
+
       {flyingChips.map((amount, i) => (
         <AnimatedChipFly key={`${amount}-${i}-${Date.now()}`} amount={amount} onComplete={() => {}} />
       ))}
 
-      {/* Hand Analyzer - Only visible to player */}
       <PokerHandAnalyzer 
         holeCards={playerHand} 
         communityCards={communityCards} 
@@ -468,7 +530,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
       </nav>
 
       {/* Game Area */}
-      <div className="pt-14 min-h-screen flex flex-col">
+      <div className="pt-14 min-h-screen flex flex-col relative z-10">
         {/* Vegas Style Poker Table */}
         <div className="flex-1 relative p-4">
           {/* Table Surface */}
@@ -508,8 +570,14 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
               </div>
             </div>
 
-            {/* POT - Center */}
-            <div className="absolute top-[25%] left-1/2 -translate-x-1/2 text-center">
+            {/* POT - Center with golden glow pulse */}
+            <div
+              className="absolute top-[25%] left-1/2 -translate-x-1/2 text-center rounded-2xl px-6 py-3"
+              style={{
+                animation: pot > 0 ? 'potGlow 2s ease-in-out infinite' : 'none',
+                background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, transparent 70%)',
+              }}
+            >
               <div className="text-xs text-[#C0C0C0] tracking-widest mb-1">POT</div>
               <div className="text-3xl font-bold text-[#D4AF37] gold-text">{pot.toLocaleString()}</div>
               <div className="text-xs text-[#C0C0C0]">$Pc</div>
@@ -548,7 +616,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
 
             {/* Opponent - Top */}
             <div className="absolute top-[8%] left-1/2 -translate-x-1/2">
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center relative">
+                <SpotlightRing />
                 <div className="flex gap-1 mb-2">
                   <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
                   <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
@@ -564,12 +633,26 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     <PokerChip amount={opponents[0].bet} size="sm" />
                   </div>
                 )}
+                <div
+                  className="mt-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-wider"
+                  style={{
+                    background: 'linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 50%, #3a3a3a 100%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'metallicShine 3s linear infinite',
+                    border: '1px solid rgba(212,175,55,0.4)',
+                    color: '#D4AF37',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.1)',
+                  }}
+                >
+                  BB
+                </div>
               </div>
             </div>
 
             {/* Opponent - Left */}
             <div className="absolute top-[35%] left-[5%]">
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center relative">
+                <SpotlightRing />
                 <div className="flex gap-1 mb-2">
                   <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
                   <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
@@ -585,12 +668,26 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     <PokerChip amount={opponents[1].bet} size="sm" />
                   </div>
                 )}
+                <div
+                  className="mt-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-wider"
+                  style={{
+                    background: 'linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 50%, #3a3a3a 100%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'metallicShine 3s linear infinite',
+                    border: '1px solid rgba(212,175,55,0.4)',
+                    color: '#D4AF37',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.1)',
+                  }}
+                >
+                  SB
+                </div>
               </div>
             </div>
 
             {/* Opponent - Right */}
             <div className="absolute top-[35%] right-[5%]">
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center relative">
+                <SpotlightRing />
                 <div className="flex gap-1 mb-2">
                   <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
                   <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
@@ -610,8 +707,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
             </div>
 
             {/* Player Area - Bottom */}
-            <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-full max-w-md">
-              {/* Message */}
+            <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-full max-w-md relative">
+              <SpotlightRing />
               {message && (
                 <div className="text-center mb-3">
                   <span className="px-4 py-2 bg-black/70 rounded-full text-sm text-[#D4AF37] border border-[#D4AF37]/30">
@@ -651,6 +748,20 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                   isActive={true}
                   showTalkButton={true}
                 />
+                <div
+                  className="ml-2 w-7 h-7 rounded-full flex items-center justify-center text-[8px] font-bold"
+                  style={{
+                    background: 'linear-gradient(135deg, #e8e8e8 0%, #a0a0a0 30%, #ffffff 50%, #a0a0a0 70%, #e8e8e8 100%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'metallicShine 4s linear infinite',
+                    border: '2px solid rgba(212,175,55,0.6)',
+                    color: '#1a1a1a',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.8)',
+                    textShadow: '0 1px 1px rgba(255,255,255,0.5)',
+                  }}
+                >
+                  D
+                </div>
               </div>
             </div>
           </div>

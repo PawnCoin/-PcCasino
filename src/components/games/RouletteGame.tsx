@@ -441,6 +441,81 @@ function VegasRouletteWheel({
         />
       </div>
 
+      {/* === ADDED: Metallic Chrome Highlight Layer on Wheel Rim === */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          inset: '-12px',
+          background: `conic-gradient(
+            from 0deg,
+            rgba(255,255,255,0.0) 0deg,
+            rgba(255,255,255,0.25) 30deg,
+            rgba(200,220,255,0.4) 60deg,
+            rgba(255,255,255,0.1) 90deg,
+            rgba(255,255,255,0.0) 120deg,
+            rgba(200,220,255,0.15) 180deg,
+            rgba(255,255,255,0.3) 240deg,
+            rgba(200,220,255,0.05) 300deg,
+            rgba(255,255,255,0.0) 360deg
+          )`,
+          mask: 'radial-gradient(circle, transparent 68%, black 70%, black 76%, transparent 78%)',
+          WebkitMask: 'radial-gradient(circle, transparent 68%, black 70%, black 76%, transparent 78%)',
+          transform: 'rotateX(35deg) rotateY(-5deg) translateZ(82px)',
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* === ADDED: Ball Glow Trail === */}
+      {isSpinning && (
+        <>
+          <div
+            className="absolute w-8 h-8 rounded-full z-30 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(212,175,55,0.3) 40%, transparent 70%)',
+              top: '10%',
+              left: '50%',
+              transform: `translateX(-50%) rotate(${ballRotation}deg)`,
+              transformOrigin: '0 160px',
+              filter: 'blur(6px)',
+            }}
+          />
+          <div
+            className="absolute w-12 h-12 rounded-full z-29 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(212,175,55,0.4) 0%, rgba(212,175,55,0.1) 40%, transparent 70%)',
+              top: '8%',
+              left: '49%',
+              transform: `translateX(-50%) rotate(${ballRotation + 8}deg)`,
+              transformOrigin: '0 165px',
+              filter: 'blur(12px)',
+            }}
+          />
+          <div
+            className="absolute w-10 h-10 rounded-full z-28 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)',
+              top: '9%',
+              left: '49.5%',
+              transform: `translateX(-50%) rotate(${ballRotation + 16}deg)`,
+              transformOrigin: '0 163px',
+              filter: 'blur(18px)',
+            }}
+          />
+        </>
+      )}
+
+      {/* === ADDED: Spotlight with Dynamic Shadow During Spin === */}
+      {isSpinning && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(ellipse at ${50 + Math.sin(ballRotation * 0.02) * 15}% ${50 + Math.cos(ballRotation * 0.02) * 15}%, rgba(255,255,255,0.08) 0%, transparent 50%)`,
+            transform: 'scale(1.2)',
+            animation: 'pulse 2s ease-in-out infinite',
+          }}
+        />
+      )}
+
       {/* Ambient glow effect */}
       <div 
         className="absolute inset-0 rounded-full pointer-events-none"
@@ -674,6 +749,18 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         `,
       }}
     >
+      {/* === ADDED: Neon pulse keyframes for winning number === */}
+      <style>{`
+        @keyframes neonPulse {
+          0% { opacity: 0.85; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8)) brightness(0.9); }
+          100% { opacity: 1; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8)) brightness(1.2); }
+        }
+        @keyframes spotlightSweep {
+          0% { opacity: 0.3; }
+          50% { opacity: 0.6; }
+          100% { opacity: 0.3; }
+        }
+      `}</style>
       {/* Header */}
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -756,32 +843,83 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         {/* 3D Roulette Wheel */}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="relative">
+            {/* === ADDED: Spotlight Cone Effect During Spin === */}
+            {isSpinning && (
+              <div
+                className="absolute -inset-16 pointer-events-none z-0"
+                style={{
+                  background: 'radial-gradient(ellipse at 50% 30%, rgba(212,175,55,0.12) 0%, rgba(255,255,255,0.04) 30%, transparent 60%)',
+                  animation: 'spotlightSweep 2s ease-in-out infinite',
+                }}
+              />
+            )}
             <VegasRouletteWheel 
               rotation={wheelRotation}
               ballRotation={ballRotation}
               isSpinning={isSpinning}
             />
             
-            {/* Winning Number Display */}
+            {/* === ENHANCED: Neon-Lit Winning Number Display Overlay === */}
             {winningNumber !== null && (
-              <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 text-center">
-                <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider">WINNING NUMBER</div>
-                <div 
-                  className={`text-6xl font-bold ${
-                    isRed(winningNumber) ? 'text-[#dc2626]' : 
-                    winningNumber === 0 ? 'text-[#15803d]' : 
-                    'text-gray-400'
-                  }`}
-                  style={{ 
-                    textShadow: '0 0 30px rgba(0,0,0,0.9), 0 0 60px currentColor',
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8))'
+              <div className="absolute -bottom-28 left-1/2 -translate-x-1/2 text-center">
+                <div
+                  className="relative px-8 py-4 rounded-2xl"
+                  style={{
+                    background: 'linear-gradient(145deg, rgba(0,0,0,0.9), rgba(20,20,30,0.95))',
+                    border: `2px solid ${
+                      isRed(winningNumber) ? 'rgba(220,38,38,0.8)' :
+                      winningNumber === 0 ? 'rgba(21,128,61,0.8)' :
+                      'rgba(156,163,175,0.6)'
+                    }`,
+                    boxShadow: `
+                      0 0 20px ${
+                        isRed(winningNumber) ? 'rgba(220,38,38,0.4)' :
+                        winningNumber === 0 ? 'rgba(21,128,61,0.4)' :
+                        'rgba(156,163,175,0.3)'
+                      },
+                      0 0 60px ${
+                        isRed(winningNumber) ? 'rgba(220,38,38,0.2)' :
+                        winningNumber === 0 ? 'rgba(21,128,61,0.2)' :
+                        'rgba(156,163,175,0.1)'
+                      },
+                      inset 0 0 30px rgba(0,0,0,0.5)
+                    `,
                   }}
                 >
-                  {winningNumber}
+                  <div
+                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                    style={{
+                      background: `radial-gradient(ellipse at center, ${
+                        isRed(winningNumber) ? 'rgba(220,38,38,0.15)' :
+                        winningNumber === 0 ? 'rgba(21,128,61,0.15)' :
+                        'rgba(156,163,175,0.1)'
+                      } 0%, transparent 70%)`,
+                    }}
+                  />
+                  <div className="text-sm text-[#C0C0C0] mb-1 tracking-[0.3em] uppercase" style={{ textShadow: '0 0 10px rgba(192,192,192,0.5)' }}>WINNING NUMBER</div>
+                  <div
+                    className={`text-7xl font-bold ${
+                      isRed(winningNumber) ? 'text-[#dc2626]' :
+                      winningNumber === 0 ? 'text-[#15803d]' :
+                      'text-gray-300'
+                    }`}
+                    style={{
+                      textShadow: `
+                        0 0 10px currentColor,
+                        0 0 30px currentColor,
+                        0 0 60px currentColor,
+                        0 0 90px currentColor
+                      `,
+                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8))',
+                      animation: 'neonPulse 1.5s ease-in-out infinite alternate',
+                    }}
+                  >
+                    {winningNumber}
+                  </div>
+                  {isRed(winningNumber) && <div className="text-sm text-[#dc2626] font-bold tracking-[0.3em]" style={{ textShadow: '0 0 15px rgba(220,38,38,0.6)' }}>RED</div>}
+                  {!isRed(winningNumber) && winningNumber !== 0 && <div className="text-sm text-gray-400 font-bold tracking-[0.3em]" style={{ textShadow: '0 0 15px rgba(156,163,175,0.4)' }}>BLACK</div>}
+                  {winningNumber === 0 && <div className="text-sm text-[#15803d] font-bold tracking-[0.3em]" style={{ textShadow: '0 0 15px rgba(21,128,61,0.6)' }}>GREEN</div>}
                 </div>
-                {isRed(winningNumber) && <div className="text-sm text-[#dc2626] font-bold tracking-wider">RED</div>}
-                {!isRed(winningNumber) && winningNumber !== 0 && <div className="text-sm text-gray-400 font-bold tracking-wider">BLACK</div>}
-                {winningNumber === 0 && <div className="text-sm text-[#15803d] font-bold tracking-wider">GREEN</div>}
               </div>
             )}
           </div>
@@ -806,16 +944,26 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
           </div>
 
           {/* 3D Betting Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {/* === ADDED: Subtle Ambient Glow Around Betting Board === */}
+            <div
+              className="absolute -inset-4 pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, rgba(27,94,32,0.06) 30%, transparent 70%)',
+                filter: 'blur(20px)',
+              }}
+            />
             <div 
-              className="inline-block p-4 rounded-lg"
+              className="inline-block p-4 rounded-lg relative"
               style={{
                 background: 'linear-gradient(145deg, #1B5E20, #0D3312, #1B5E20)',
                 boxShadow: `
                   0 20px 60px rgba(0,0,0,0.8),
                   inset 0 2px 4px rgba(255,255,255,0.05),
                   0 0 0 8px #5D4037,
-                  0 0 0 10px #3E2723
+                  0 0 0 10px #3E2723,
+                  0 0 40px rgba(27,94,32,0.15),
+                  0 0 80px rgba(212,175,55,0.08)
                 `,
               }}
             >

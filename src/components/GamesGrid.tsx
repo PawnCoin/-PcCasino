@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { GameType } from '@/types';
 
 interface GameCard {
@@ -92,16 +93,128 @@ const badgeStyles: Record<string, string> = {
   JACKPOT: 'bg-[#C2185B]/40 text-[#F06292] border-[#C2185B]/60 shadow-[0_0_15px_rgba(194,24,87,0.5)]',
 };
 
+const badgeGlowAnimation: Record<string, string> = {
+  LIVE: 'animate-badge-glow-green',
+  HOT: 'animate-badge-glow-red',
+  NEW: 'animate-badge-glow-blue',
+  CLASSIC: 'animate-badge-glow-gold',
+  JACKPOT: 'animate-badge-glow-pink',
+};
+
 interface GamesGridProps {
   onSelectGame: (game: GameType) => void;
 }
 
-export function GamesGrid({ onSelectGame }: GamesGridProps) {
+function ParticleBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    const particles: { x: number; y: number; vx: number; vy: number; size: number; alpha: number; color: string }[] = [];
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const colors = ['rgba(212,175,55,', 'rgba(255,215,0,', 'rgba(192,192,192,'];
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: -Math.random() * 0.4 - 0.1,
+        size: Math.random() * 2 + 0.5,
+        alpha: Math.random() * 0.4 + 0.1,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha += (Math.random() - 0.5) * 0.01;
+        p.alpha = Math.max(0.05, Math.min(0.5, p.alpha));
+
+        if (p.y < -10) p.y = canvas.height + 10;
+        if (p.x < -10) p.x = canvas.width + 10;
+        if (p.x > canvas.width + 10) p.x = -10;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${p.alpha})`;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${p.alpha * 0.2})`;
+        ctx.fill();
+      }
+      animId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
   return (
-    <section id="games-section" className="px-4 pb-12">
-      <div className="max-w-7xl mx-auto">
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ zIndex: 0 }}
+    />
+  );
+}
+
+export function GamesGrid({ onSelectGame }: GamesGridProps) {
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, gameId: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setMousePos({ x, y });
+    setHoveredCard(gameId);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredCard(null);
+    setMousePos({ x: 0.5, y: 0.5 });
+  };
+
+  const getCardTransform = (gameId: string) => {
+    if (hoveredCard !== gameId) return 'rotateX(5deg)';
+    const rotateY = (mousePos.x - 0.5) * 20;
+    const rotateX = (0.5 - mousePos.y) * 15 + 5;
+    return `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.03)`;
+  };
+
+  const getSpotlightGradient = (gameId: string) => {
+    if (hoveredCard !== gameId) return 'none';
+    const x = mousePos.x * 100;
+    const y = mousePos.y * 100;
+    return `radial-gradient(circle at ${x}% ${y}%, rgba(212,175,55,0.15) 0%, transparent 60%)`;
+  };
+
+  return (
+    <section id="games-section" className="px-4 pb-12 relative">
+      <ParticleBackground />
+      <div className="max-w-7xl mx-auto relative" style={{ zIndex: 1 }}>
         <h2 
-          className="font-casino text-3xl font-bold mb-8 flex items-center gap-3 text-[#D4AF37]"
+          className="font-casino text-3xl font-bold mb-8 flex items-center gap-3 metallic-gold-text"
           style={{ textShadow: '0 0 20px rgba(212,175,55,0.5), 0 2px 4px rgba(0,0,0,0.8)' }}
         >
           <div 
@@ -118,12 +231,14 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {games.map((game) => (
+          {games.map((game, index) => (
             <div
               key={game.id}
               onClick={() => onSelectGame(game.id)}
-              className="group relative cursor-pointer z-10"
-              style={{ perspective: '1200px' }}
+              onMouseMove={(e) => handleMouseMove(e, game.id)}
+              onMouseLeave={handleMouseLeave}
+              className="group relative cursor-pointer z-10 game-card-entrance"
+              style={{ perspective: '1200px', animationDelay: `${index * 80}ms` }}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -132,15 +247,13 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                 }
               }}
             >
-              {/* 3D Card Container with depth */}
               <div 
                 className="relative transition-all duration-500 transform-gpu"
                 style={{ 
                   transformStyle: 'preserve-3d',
-                  transform: 'rotateX(5deg)',
+                  transform: getCardTransform(game.id),
                 }}
               >
-                {/* Floating shadow */}
                 <div 
                   className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[90%] h-8 rounded-full opacity-40 group-hover:opacity-60 transition-opacity"
                   style={{ 
@@ -150,7 +263,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                   }}
                 />
 
-                {/* Gold Glow Effect */}
                 <div 
                   className="absolute -inset-1 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"
                   style={{ 
@@ -160,7 +272,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                   }}
                 />
                 
-                {/* Main Card - 3D depth */}
                 <div 
                   className="relative rounded-2xl overflow-hidden transition-all duration-500 group-hover:translate-y-[-12px]"
                   style={{ 
@@ -175,7 +286,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                     transform: 'translateZ(0)'
                   }}
                 >
-                  {/* Top metallic edge */}
                   <div 
                     className="absolute top-0 left-0 right-0 h-1"
                     style={{ 
@@ -183,7 +293,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                     }}
                   />
 
-                  {/* Game Image with 3D depth */}
                   <div className="relative h-44 overflow-hidden">
                     <img 
                       src={game.image} 
@@ -193,7 +302,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                         filter: 'brightness(0.85) contrast(1.1)',
                       }}
                     />
-                    {/* Top shine effect */}
                     <div 
                       className="absolute inset-0"
                       style={{ 
@@ -201,17 +309,20 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                       }}
                     />
                     
-                    {/* Bottom gradient fade */}
                     <div 
                       className="absolute inset-0"
                       style={{ 
                         background: 'linear-gradient(to top, #0a0a0a 0%, transparent 50%)'
                       }}
                     />
+
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                      style={{ background: getSpotlightGradient(game.id) }}
+                    />
                     
-                    {/* 3D Badge */}
                     <span 
-                      className={`absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs font-bold border backdrop-blur-sm transition-all duration-300 group-hover:scale-110 ${badgeStyles[game.badge]}`}
+                      className={`absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs font-bold border backdrop-blur-sm transition-all duration-300 group-hover:scale-110 ${badgeStyles[game.badge]} ${badgeGlowAnimation[game.badge]}`}
                       style={{ 
                         boxShadow: '0 4px 15px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
                         textShadow: '0 1px 2px rgba(0,0,0,0.8)'
@@ -221,9 +332,7 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                     </span>
                   </div>
 
-                  {/* Content with 3D depth */}
                   <div className="p-5 relative">
-                    {/* Title with gold glow */}
                     <h3 
                       className="font-casino text-xl font-bold mb-2 text-white group-hover:text-[#D4AF37] transition-all duration-300"
                       style={{ 
@@ -236,7 +345,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                       {game.description}
                     </p>
 
-                    {/* Footer with metallic look */}
                     <div 
                       className="flex items-center justify-between text-sm pt-4 border-t border-[#5D4037]/40"
                       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
@@ -257,7 +365,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                     </div>
                   </div>
 
-                  {/* Hover overlay shine */}
                   <div 
                     className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                     style={{ 
@@ -265,7 +372,6 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                     }}
                   />
 
-                  {/* Bottom metallic edge on hover */}
                   <div 
                     className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                     style={{ 

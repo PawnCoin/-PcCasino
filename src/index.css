@@ -423,7 +423,57 @@
   .animate-deal-card {
     animation: deal-card 0.5s ease-out forwards;
   }
-  
+
+  @keyframes bjCardDealIn {
+    0% {
+      transform: perspective(600px) translateY(-80px) translateX(40px) rotateY(-30deg) scale(0.7);
+      opacity: 0;
+      filter: blur(2px);
+    }
+    60% {
+      transform: perspective(600px) translateY(5px) translateX(-2px) rotateY(3deg) scale(1.02);
+      opacity: 1;
+      filter: blur(0);
+    }
+    100% {
+      transform: perspective(600px) translateY(0) translateX(0) rotateY(0deg) scale(1);
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+
+  @keyframes bjMetallicSheen {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .bj-chip-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bj-chip-sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.12) 45%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0.12) 55%,
+      transparent 70%
+    );
+    background-size: 200% 100%;
+    animation: bjMetallicSheen 3s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
   /* Scrollbar styling - Gold */
   ::-webkit-scrollbar {
     width: 8px;
@@ -517,5 +567,86 @@
       rgba(27, 94, 32, 0.4) 0%, 
       rgba(13, 51, 18, 0.6) 100%
     );
+  }
+
+  .metallic-gold-text {
+    background: linear-gradient(
+      135deg,
+      #B8860B 0%,
+      #D4AF37 20%,
+      #FFD700 40%,
+      #FFF8DC 50%,
+      #FFD700 60%,
+      #D4AF37 80%,
+      #B8860B 100%
+    );
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: metallic-shimmer 4s ease-in-out infinite;
+  }
+
+  @keyframes metallic-shimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes badge-glow-green {
+    0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 8px rgba(67,160,71,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 20px rgba(67,160,71,0.8), 0 0 35px rgba(67,160,71,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+  @keyframes badge-glow-red {
+    0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 8px rgba(183,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 20px rgba(183,28,28,0.8), 0 0 35px rgba(183,28,28,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+  @keyframes badge-glow-blue {
+    0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 8px rgba(30,136,229,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 20px rgba(30,136,229,0.8), 0 0 35px rgba(30,136,229,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+  @keyframes badge-glow-gold {
+    0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 8px rgba(212,175,55,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 20px rgba(212,175,55,0.8), 0 0 35px rgba(212,175,55,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+  @keyframes badge-glow-pink {
+    0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 8px rgba(194,24,87,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 20px rgba(194,24,87,0.8), 0 0 35px rgba(194,24,87,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+
+  .animate-badge-glow-green { animation: badge-glow-green 2s ease-in-out infinite; }
+  .animate-badge-glow-red { animation: badge-glow-red 2s ease-in-out infinite; }
+  .animate-badge-glow-blue { animation: badge-glow-blue 2s ease-in-out infinite; }
+  .animate-badge-glow-gold { animation: badge-glow-gold 2s ease-in-out infinite; }
+  .animate-badge-glow-pink { animation: badge-glow-pink 2s ease-in-out infinite; }
+
+  @keyframes game-card-entrance {
+    0% {
+      opacity: 0;
+      transform: translateY(30px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .game-card-entrance {
+    animation: game-card-entrance 0.6s ease-out both;
+  }
+
+  @keyframes lobby-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .lobby-fade-in {
+    animation: lobby-fade-in 0.7s ease-out both;
   }
 }

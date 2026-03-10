@@ -3,6 +3,7 @@ import { ArrowLeft, Info, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
+import GameViewport from '@/components/games/GameViewport';
 import type { Card } from '@/types';
 
 interface Spanish21GameProps {
@@ -171,6 +172,10 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
   const [message, setMessage] = useState('Place your Ante bet and optional side bets');
   const [showDealerCard, setShowDealerCard] = useState(false);
   const [sideBetResults, setSideBetResults] = useState<{ name: string; win: number }[]>([]);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState('');
+  const [cardDealAnim, setCardDealAnim] = useState(false);
+  const [chipEntranceAnim, setChipEntranceAnim] = useState<string | null>(null);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -236,11 +241,13 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     }
     
     setSideBetResults(results);
+    setCardDealAnim(true);
+    setTimeout(() => setCardDealAnim(false), 800);
     
-    // Pay side bet wins immediately
     const sideBetWins = results.reduce((sum, r) => sum + r.win, 0);
     if (sideBetWins > 0) {
       onWin(sideBetWins);
+      triggerCelebration(`Side Bet Win! +${sideBetWins} $Pc`);
     }
     
     // Check for insurance/even money
@@ -491,6 +498,15 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     if (totalWin > 0) {
       onWin(totalWin);
       setMessage(`You win! +${totalWin} $Pc`);
+      const hasSpecial21 = playerHands.some(hand => {
+        const hv = calculateHandValue(hand.cards);
+        return hv.value === 21 && hand.cards.length >= 5;
+      });
+      if (hasSpecial21) {
+        triggerCelebration(`🎰 Special 21 Bonus! +${totalWin} $Pc`);
+      } else if (totalWin >= anteBet * 3) {
+        triggerCelebration(`Big Win! +${totalWin} $Pc`);
+      }
     } else {
       setMessage('Dealer wins.');
     }
@@ -512,6 +528,12 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
   useEffect(() => {
     initDeck();
   }, [initDeck]);
+
+  const triggerCelebration = (msg: string) => {
+    setCelebrationMessage(msg);
+    setShowCelebration(true);
+    setTimeout(() => setShowCelebration(false), 3000);
+  };
 
   const addToAnte = (amount: number) => {
     if (anteBet + amount > balance) {
@@ -537,6 +559,8 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
       return;
     }
     setSideBets(prev => ({ ...prev, [type]: prev[type] + amount }));
+    setChipEntranceAnim(type);
+    setTimeout(() => setChipEntranceAnim(null), 500);
   };
 
   const renderCardBack = (key?: number | string) => {
@@ -568,7 +592,12 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
     };
 
     return (
-      <div key={index} className={`playing-card ${card.isRed ? 'red' : 'black'}`}>
+      <div key={index} className={`playing-card ${card.isRed ? 'red' : 'black'}`}
+        style={{
+          animation: cardDealAnim ? `card-slide-in 0.5s ease-out ${index * 0.15}s both` : undefined,
+          boxShadow: '0 4px 15px rgba(0,0,0,0.4), 0 0 5px rgba(212,175,55,0.1)',
+        }}
+      >
         <span className="text-2xl font-bold">{card.rank}</span>
         <span className="text-3xl">{suitSymbols[card.suit]}</span>
       </div>
@@ -603,8 +632,48 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
         </div>
       </nav>
 
+      {/* Enhanced 3D Background Layer */}
+      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
+        <GameViewport gameId="spanish21" />
+      </div>
+
+      {/* Celebration Particle Burst Overlay */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 animate-pulse" style={{ animationDuration: '0.3s' }} />
+          {Array.from({ length: 40 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-3 h-3 rounded-full"
+              style={{
+                background: ['#D4AF37', '#FFD700', '#ff6b35', '#9b59b6', '#3498db', '#e74c3c'][i % 6],
+                left: '50%',
+                top: '50%',
+                boxShadow: `0 0 8px ${['#D4AF37', '#FFD700', '#ff6b35', '#9b59b6', '#3498db', '#e74c3c'][i % 6]}`,
+                animation: `particle-burst-${i % 8} 2s ease-out forwards`,
+                opacity: 0,
+              }}
+            />
+          ))}
+          <div className="relative z-10 px-10 py-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] via-[#FFD700] to-[#D4AF37] text-black font-bold text-2xl shadow-[0_0_60px_rgba(212,175,55,0.8)] animate-bounce">
+            {celebrationMessage}
+          </div>
+          <style>{`
+            ${Array.from({ length: 8 }).map((_, i) => `
+              @keyframes particle-burst-${i} {
+                0% { transform: translate(0, 0) scale(0); opacity: 1; }
+                100% { 
+                  transform: translate(${Math.cos(i * Math.PI / 4) * 300}px, ${Math.sin(i * Math.PI / 4) * 300}px) scale(1.5); 
+                  opacity: 0; 
+                }
+              }
+            `).join('')}
+          `}</style>
+        </div>
+      )}
+
       {/* Game Area */}
-      <div className="pt-14 min-h-screen flex flex-col p-4">
+      <div className="pt-14 min-h-screen flex flex-col p-4 relative z-10">
         {/* Vegas Style Table */}
         <div className="flex-1 rounded-3xl border-8 border-[#5D4037] shadow-2xl relative overflow-hidden"
           style={{ background: 'radial-gradient(ellipse at center, #2E7D32 0%, #1B5E20 40%, #0D3312 100%)' }}
@@ -618,19 +687,44 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
           
           <div className="absolute inset-2 border-2 border-[#8B6914]/60 rounded-2xl pointer-events-none" />
 
+          {/* Dealer area spotlight cone */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.15) 0%, transparent 70%)',
+            }}
+          />
+
+          {/* Center logo watermark */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10 pointer-events-none">
+            <img src="/logos/pc-logo.png" alt="$Pc" className="w-32 h-32" />
+          </div>
+
+          {/* Insurance line marking */}
+          <div className="absolute top-32 w-full flex justify-center pointer-events-none">
+            <div className="text-[#D4AF37]/20 text-xs tracking-[0.5em] uppercase">Spanish 21 • Player Always Wins on 21</div>
+          </div>
+
           {/* Side Bet Areas - Top */}
           {gameState === 'betting' && (
             <div className="absolute top-4 left-0 right-0 flex justify-center gap-4">
               {/* 3 Card Poker */}
               <button
                 onClick={() => addToSideBet('threeCardPoker', selectedChip)}
-                className="relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                className="group relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                style={{
+                  boxShadow: sideBets.threeCardPoker > 0
+                    ? '0 0 20px rgba(212,175,55,0.5), 0 0 40px rgba(212,175,55,0.2), inset 0 0 15px rgba(212,175,55,0.1)'
+                    : '0 0 10px rgba(212,175,55,0.1)',
+                }}
               >
+                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ boxShadow: '0 0 25px rgba(212,175,55,0.4), 0 0 50px rgba(212,175,55,0.15)' }}
+                />
                 <div className="text-[#D4AF37] font-bold text-sm">3 CARD POKER</div>
                 <div className="text-[10px] text-[#C0C0C0]">Min $2, Max = Ante</div>
                 <div className="text-[#D4AF37] font-bold mt-1">{sideBets.threeCardPoker} $Pc</div>
                 {sideBets.threeCardPoker > 0 && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'threeCardPoker' ? 'animate-bounce scale-125' : ''}`}>
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(sideBets.threeCardPoker / selectedChip))} size="sm" />
                   </div>
                 )}
@@ -639,13 +733,21 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
               {/* Match The Dealer */}
               <button
                 onClick={() => addToSideBet('matchTheDealer', selectedChip)}
-                className="relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                className="group relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                style={{
+                  boxShadow: sideBets.matchTheDealer > 0
+                    ? '0 0 20px rgba(155,89,182,0.5), 0 0 40px rgba(155,89,182,0.2), inset 0 0 15px rgba(155,89,182,0.1)'
+                    : '0 0 10px rgba(155,89,182,0.1)',
+                }}
               >
+                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ boxShadow: '0 0 25px rgba(155,89,182,0.4), 0 0 50px rgba(155,89,182,0.15)' }}
+                />
                 <div className="text-[#D4AF37] font-bold text-sm">MATCH THE DEALER</div>
                 <div className="text-[10px] text-[#C0C0C0]">Min $2, Max = Ante</div>
                 <div className="text-[#D4AF37] font-bold mt-1">{sideBets.matchTheDealer} $Pc</div>
                 {sideBets.matchTheDealer > 0 && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'matchTheDealer' ? 'animate-bounce scale-125' : ''}`}>
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(sideBets.matchTheDealer / selectedChip))} size="sm" />
                   </div>
                 )}
@@ -654,13 +756,21 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
               {/* Perfect Pair */}
               <button
                 onClick={() => addToSideBet('perfectPair', selectedChip)}
-                className="relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                className="group relative p-4 rounded-xl border-2 border-dashed border-[#D4AF37]/50 bg-black/40 hover:border-[#D4AF37] transition-all"
+                style={{
+                  boxShadow: sideBets.perfectPair > 0
+                    ? '0 0 20px rgba(52,152,219,0.5), 0 0 40px rgba(52,152,219,0.2), inset 0 0 15px rgba(52,152,219,0.1)'
+                    : '0 0 10px rgba(52,152,219,0.1)',
+                }}
               >
+                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ boxShadow: '0 0 25px rgba(52,152,219,0.4), 0 0 50px rgba(52,152,219,0.15)' }}
+                />
                 <div className="text-[#D4AF37] font-bold text-sm">PERFECT PAIR</div>
                 <div className="text-[10px] text-[#C0C0C0]">Min $2, Max = Ante</div>
                 <div className="text-[#D4AF37] font-bold mt-1">{sideBets.perfectPair} $Pc</div>
                 {sideBets.perfectPair > 0 && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-500 ${chipEntranceAnim === 'perfectPair' ? 'animate-bounce scale-125' : ''}`}>
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(sideBets.perfectPair / selectedChip))} size="sm" />
                   </div>
                 )}
@@ -670,9 +780,11 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
 
           {/* Side Bet Results */}
           {sideBetResults.length > 0 && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 flex gap-2">
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 flex gap-2 z-20">
               {sideBetResults.map((result, i) => (
-                <div key={i} className="px-3 py-1 rounded-full bg-[#D4AF37] text-black font-bold text-sm">
+                <div key={i} className="px-3 py-1 rounded-full bg-gradient-to-r from-[#D4AF37] via-[#FFD700] to-[#D4AF37] text-black font-bold text-sm animate-pulse"
+                  style={{ boxShadow: '0 0 20px rgba(212,175,55,0.6), 0 0 40px rgba(212,175,55,0.3)' }}
+                >
                   {result.name}: +{result.win} $Pc
                 </div>
               ))}
@@ -680,9 +792,11 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
           )}
 
           {/* Dealer */}
-          <div className="relative z-10 flex flex-col items-center justify-start pt-24">
+          <div className="relative z-10 flex flex-col items-center justify-start pt-24"
+            style={{ filter: 'drop-shadow(0 0 10px rgba(212,175,55,0.15))' }}
+          >
             <div className="text-center mb-2">
-              <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider font-bold">DEALER</div>
+              <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider font-bold" style={{ textShadow: '0 0 10px rgba(192,192,192,0.3)' }}>DEALER</div>
               <div className="text-xl font-bold text-white bg-black/40 px-4 py-1 rounded-full">
                 {showDealerCard ? calculateHandValue(dealerHand).value : '?'}
               </div>
@@ -789,6 +903,12 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
                 <button
                   onClick={() => addToAnte(selectedChip)}
                   className="relative w-28 h-28 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center"
+                  style={{
+                    boxShadow: anteBet > 0
+                      ? '0 0 20px rgba(212,175,55,0.4), 0 0 40px rgba(212,175,55,0.2), inset 0 0 20px rgba(212,175,55,0.1)'
+                      : '0 0 10px rgba(212,175,55,0.1)',
+                    animation: anteBet > 0 ? 'neon-pulse 2s ease-in-out infinite' : undefined,
+                  }}
                 >
                   {anteBet > 0 ? (
                     <ChipStack amount={selectedChip} count={Math.max(1, Math.floor(anteBet / selectedChip))} size="md" />
@@ -888,6 +1008,22 @@ export function Spanish21Game({ balance, onBack, onBet, onWin, cardBackStyle }: 
           )}
         </div>
       </div>
+
+      {/* Card & Chip Animation Styles */}
+      <style>{`
+        @keyframes card-slide-in {
+          0% { transform: translateY(-80px) rotateX(40deg) scale(0.7); opacity: 0; }
+          100% { transform: translateY(0) rotateX(0deg) scale(1); opacity: 1; }
+        }
+        @keyframes neon-pulse {
+          0%, 100% { box-shadow: 0 0 15px rgba(212,175,55,0.4), 0 0 30px rgba(212,175,55,0.2); }
+          50% { box-shadow: 0 0 25px rgba(212,175,55,0.6), 0 0 50px rgba(212,175,55,0.3); }
+        }
+        @keyframes metallic-sheen {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+      `}</style>
 
       {/* Rules Dialog */}
       <Dialog open={showRules} onOpenChange={setShowRules}>

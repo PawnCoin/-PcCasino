@@ -29,16 +29,14 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
   return (
     <section className="relative pt-24 pb-12 px-4">
       <div className="max-w-7xl mx-auto relative z-10">
-        {/* Main Hero */}
         <div 
-          className="relative mb-12 rounded-3xl overflow-hidden border border-[#D4AF37]/40"
+          className="relative mb-12 rounded-3xl overflow-hidden border border-[#D4AF37]/40 lobby-fade-in"
           style={{ 
             boxShadow: '0 25px 80px rgba(0,0,0,0.8), 0 0 60px rgba(212,175,55,0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/70 to-black/90" />
           
-          {/* Inner glow */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#D4AF37]/5 via-transparent to-[#D4AF37]/5" />
           
           <div className="relative p-8 md:p-16 text-center">
@@ -53,7 +51,7 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
             <h1 className="font-casino text-4xl md:text-6xl lg:text-7xl font-black mb-6">
               <span className="text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">THE FUTURE OF</span>
               <br />
-              <span className="text-gradient-gold drop-shadow-[0_4px_15px_rgba(212,175,55,0.5)]">GAMING</span>
+              <span className="metallic-gold-text drop-shadow-[0_4px_15px_rgba(212,175,55,0.5)]" style={{ fontSize: 'inherit', WebkitTextFillColor: 'transparent' }}>GAMING</span>
             </h1>
             
             <p className="text-xl text-[#C0C0C0] mb-8 max-w-2xl mx-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
@@ -61,9 +59,7 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
               Sports, Casino Games. Experience professional-grade gaming with worldwide rules.
             </p>
             
-            {/* Buttons - Equal Width */}
             <div className="flex flex-wrap justify-center gap-4">
-              {/* Start Playing Button */}
               <Button
                 onClick={onScrollToGames}
                 className="btn-primary px-8 py-6 rounded-full font-bold text-lg flex items-center justify-center gap-2 min-w-[220px]"
@@ -73,7 +69,6 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
                 START PLAYING
               </Button>
               
-              {/* $PcPay Button - Compact button, large logo */}
               <button
                 onClick={onOpenDeposit}
                 className="relative px-2 py-1 rounded-full font-bold transition-all hover:scale-105 overflow-hidden group flex items-center justify-center"
@@ -91,17 +86,15 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
                   className="h-20 w-auto object-contain max-w-[180px]"
                   style={{ transform: 'scale(1.3)' }}
                 />
-                {/* Shine effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Live Stats Ticker */}
         <div 
-          className="mb-12 overflow-hidden rounded-2xl border border-[#D4AF37]/30"
-          style={{ boxShadow: '0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          className="mb-12 overflow-hidden rounded-2xl border border-[#D4AF37]/30 lobby-fade-in"
+          style={{ boxShadow: '0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)', animationDelay: '150ms' }}
         >
           <div className="flex items-center py-4 px-6 bg-gradient-to-r from-[#1B5E20]/30 via-[#1B5E20]/20 to-[#1B5E20]/30 backdrop-blur-xl">
             <span className="text-sm font-bold text-[#D4AF37] mr-6 flex items-center gap-2">
@@ -131,14 +124,13 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
             { icon: TrendingUp, label: 'Deposit', sublabel: 'Add $Pc to play', color: 'green' },
             { icon: TrendingUp, label: 'Withdraw', sublabel: 'Cash out winnings', color: 'red' },
             { icon: Users, label: 'Refer Friends', sublabel: 'Earn bonuses', color: 'blue' },
             { icon: Trophy, label: 'Tournaments', sublabel: 'Compete & win', color: 'yellow' },
-          ].map((action) => {
+          ].map((action, index) => {
             const Icon = action.icon;
             const colorClasses: Record<string, string> = {
               green: 'from-[#43A047]/30 to-[#2E7D32]/30 text-[#66BB6A] border-[#43A047]/50 shadow-[0_0_20px_rgba(67,160,71,0.2)]',
@@ -150,10 +142,9 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
             return (
               <button
                 key={action.label}
-                className={`relative p-5 rounded-xl bg-gradient-to-br ${colorClasses[action.color]} border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-[0_10px_30px_rgba(0,0,0,0.4)] group overflow-hidden`}
-                style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 5px 20px rgba(0,0,0,0.3)' }}
+                className={`relative p-5 rounded-xl bg-gradient-to-br ${colorClasses[action.color]} border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-[0_10px_30px_rgba(0,0,0,0.4)] group overflow-hidden lobby-fade-in`}
+                style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 5px 20px rgba(0,0,0,0.3)', animationDelay: `${300 + index * 80}ms` }}
               >
-                {/* Shine effect */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 
                 <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorClasses[action.color]} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform border border-white/10`}>
