@@ -598,12 +598,12 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
 
         {/* Betting table */}
         <div
-          className={`flex-1 overflow-auto px-3 pb-1 min-h-0 ${loseFlash ? '' : ''}`}
+          className="flex-1 overflow-auto px-2 pb-1 min-h-0"
           style={{ animation: loseFlash ? 'rouletteLoseShake 0.6s ease-out' : undefined }}
         >
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             <div
-              className="rounded-xl p-2.5 relative"
+              className="rounded-xl p-3 relative"
               style={{
                 background: `
                   repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.006) 1px, transparent 2px, transparent 3px),
@@ -624,15 +624,15 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                 {/* Zero */}
                 <button
                   onClick={() => placeBet('0', [0], 35)}
-                  className="roulette-cell relative flex items-center justify-center font-bold text-lg transition-all flex-shrink-0"
+                  className="roulette-cell relative flex items-center justify-center font-bold text-xl transition-all flex-shrink-0"
                   style={{
-                    width: '36px',
-                    borderRadius: '5px',
-                    background: 'linear-gradient(145deg, #15803d, #0D5A12)',
-                    border: winningNumber === 0 ? '2px solid #D4AF37' : '1.5px solid rgba(212,175,55,0.35)',
-                    boxShadow: winningNumber === 0 ? '0 0 12px rgba(212,175,55,0.5)' : '0 2px 6px rgba(0,0,0,0.3)',
+                    width: '42px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(145deg, #1fa34a, #15803d)',
+                    border: winningNumber === 0 ? '2.5px solid #D4AF37' : '1.5px solid rgba(212,175,55,0.35)',
+                    boxShadow: winningNumber === 0 ? '0 0 15px rgba(212,175,55,0.6)' : '0 2px 6px rgba(0,0,0,0.3)',
                     color: 'white',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.6)',
                     animation: winningNumber === 0 ? 'rouletteWinGlow 1.5s ease-in-out infinite' : undefined,
                   }}
                 >
@@ -651,15 +651,15 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                       <button
                         key={num}
                         onClick={() => placeBet(num.toString(), [num], 35)}
-                        className="roulette-cell relative h-8 rounded flex items-center justify-center font-bold text-xs transition-all"
+                        className="roulette-cell relative h-9 rounded flex items-center justify-center font-bold text-sm transition-all"
                         style={{
                           background: numRed
-                            ? 'linear-gradient(145deg, #dc2626, #991b1b)'
-                            : 'linear-gradient(145deg, #222, #0a0a0a)',
-                          border: isWinner ? '2px solid #D4AF37' : '1px solid rgba(212,175,55,0.25)',
-                          boxShadow: isWinner ? '0 0 12px rgba(212,175,55,0.5)' : '0 1px 3px rgba(0,0,0,0.3)',
+                            ? 'linear-gradient(145deg, #e53935, #b71c1c)'
+                            : 'linear-gradient(145deg, #2a2a2a, #111)',
+                          border: isWinner ? '2.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.12)',
+                          boxShadow: isWinner ? '0 0 15px rgba(212,175,55,0.6)' : '0 1px 3px rgba(0,0,0,0.3)',
                           color: 'white',
-                          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.6)',
                           animation: isWinner ? 'rouletteWinGlow 1.5s ease-in-out infinite' : undefined,
                         }}
                       >
@@ -671,7 +671,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                 </div>
 
                 {/* 2:1 columns */}
-                <div className="flex flex-col gap-[2px] flex-shrink-0">
+                <div className="flex flex-col gap-[2px] flex-shrink-0" style={{ width: '48px' }}>
                   {[
                     { type: 'col3', nums: [3,6,9,12,15,18,21,24,27,30,33,36] },
                     { type: 'col2', nums: [2,5,8,11,14,17,20,23,26,29,32,35] },
@@ -680,11 +680,12 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                     <button
                       key={type}
                       onClick={() => placeBet(type, nums, 2)}
-                      className="roulette-cell relative w-10 flex-1 rounded flex items-center justify-center font-bold text-[9px] transition-all hover:brightness-125"
+                      className="roulette-cell relative flex-1 rounded flex items-center justify-center font-bold text-xs transition-all hover:brightness-125"
                       style={{
                         background: 'linear-gradient(145deg, #5D4037, #3E2723)',
                         border: '1px solid rgba(212,175,55,0.3)',
                         color: '#D4AF37',
+                        letterSpacing: '0.05em',
                       }}
                     >
                       2:1
@@ -695,7 +696,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               </div>
 
               {/* Dozens */}
-              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '38px', marginRight: '42px' }}>
+              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '44px', marginRight: '50px' }}>
                 {[
                   { type: '1st12', label: '1st 12', nums: Array.from({ length: 12 }, (_, i) => i + 1) },
                   { type: '2nd12', label: '2nd 12', nums: Array.from({ length: 12 }, (_, i) => i + 13) },
@@ -704,7 +705,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
                   <button
                     key={type}
                     onClick={() => placeBet(type, nums, 2)}
-                    className="roulette-cell relative flex-1 h-8 rounded flex items-center justify-center font-bold text-xs transition-all hover:brightness-125"
+                    className="roulette-cell relative flex-1 h-9 rounded flex items-center justify-center font-bold text-xs tracking-wide transition-all hover:brightness-125"
                     style={{
                       background: 'linear-gradient(145deg, #5D4037, #3E2723)',
                       border: '1px solid rgba(212,175,55,0.3)',
@@ -718,19 +719,19 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               </div>
 
               {/* Outside bets */}
-              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '38px', marginRight: '42px' }}>
+              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '44px', marginRight: '50px' }}>
                 {[
-                  { type: 'low', label: '1-18', nums: Array.from({ length: 18 }, (_, i) => i + 1), bg: '' },
-                  { type: 'even', label: 'EVEN', nums: Array.from({ length: 18 }, (_, i) => (i + 1) * 2), bg: '' },
-                  { type: 'red', label: '◆', nums: RED_NUMBERS, bg: 'linear-gradient(145deg, #dc2626, #991b1b)', color: '#fff' },
-                  { type: 'black', label: '◆', nums: [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35], bg: 'linear-gradient(145deg, #222, #000)', color: '#fff' },
-                  { type: 'odd', label: 'ODD', nums: Array.from({ length: 18 }, (_, i) => i * 2 + 1), bg: '' },
-                  { type: 'high', label: '19-36', nums: Array.from({ length: 18 }, (_, i) => i + 19), bg: '' },
+                  { type: 'low', label: '1-18', nums: Array.from({ length: 18 }, (_, i) => i + 1), bg: '', color: '' },
+                  { type: 'even', label: 'EVEN', nums: Array.from({ length: 18 }, (_, i) => (i + 1) * 2), bg: '', color: '' },
+                  { type: 'red', label: 'RED', nums: RED_NUMBERS, bg: 'linear-gradient(145deg, #e53935, #b71c1c)', color: '#fff' },
+                  { type: 'black', label: 'BLACK', nums: [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35], bg: 'linear-gradient(145deg, #2a2a2a, #111)', color: '#fff' },
+                  { type: 'odd', label: 'ODD', nums: Array.from({ length: 18 }, (_, i) => i * 2 + 1), bg: '', color: '' },
+                  { type: 'high', label: '19-36', nums: Array.from({ length: 18 }, (_, i) => i + 19), bg: '', color: '' },
                 ].map(({ type, label, nums, bg, color }) => (
                   <button
                     key={type}
                     onClick={() => placeBet(type, nums, 1)}
-                    className="roulette-cell relative flex-1 h-8 rounded flex items-center justify-center font-bold text-[10px] transition-all hover:brightness-125"
+                    className="roulette-cell relative flex-1 h-9 rounded flex items-center justify-center font-bold text-[11px] tracking-wide transition-all hover:brightness-125"
                     style={{
                       background: bg || 'linear-gradient(145deg, #5D4037, #3E2723)',
                       border: '1px solid rgba(212,175,55,0.3)',

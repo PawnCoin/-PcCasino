@@ -12,44 +12,53 @@ function isRed(num: number) {
 }
 
 function getPocketColor(num: number): string {
-  if (num === 0) return '#15803d';
-  return isRed(num) ? '#dc2626' : '#1a1a1a';
+  if (num === 0) return '#1fa34a';
+  return isRed(num) ? '#e53935' : '#222222';
+}
+
+function WheelBase() {
+  return (
+    <group>
+      <mesh position={[0, 0.02, 0]} receiveShadow>
+        <cylinderGeometry args={[2.9, 2.9, 0.06, 64]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.02, 0]}>
+        <torusGeometry args={[2.9, 0.03, 16, 64]} />
+        <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
+      </mesh>
+    </group>
+  );
 }
 
 function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
-  const pocketsRef = useRef<THREE.Group>(null);
-
-  const pocketMeshes = useMemo(() => {
+  const pocketGeom = useMemo(() => {
     const shape = new THREE.Shape();
-    const innerR = 1.6;
-    const outerR = 2.3;
-    const halfAngle = SEGMENT_ANGLE * 0.48;
+    const innerR = 1.55;
+    const outerR = 2.35;
+    const halfAngle = SEGMENT_ANGLE * 0.47;
 
     shape.moveTo(Math.cos(-halfAngle) * innerR, Math.sin(-halfAngle) * innerR);
-    shape.lineTo(Math.cos(-halfAngle) * outerR, Math.sin(-halfAngle) * outerR);
-    const steps = 8;
+    const steps = 10;
     for (let i = 0; i <= steps; i++) {
       const a = -halfAngle + (halfAngle * 2 * i) / steps;
       shape.lineTo(Math.cos(a) * outerR, Math.sin(a) * outerR);
     }
-    shape.lineTo(Math.cos(halfAngle) * innerR, Math.sin(halfAngle) * innerR);
     for (let i = steps; i >= 0; i--) {
       const a = -halfAngle + (halfAngle * 2 * i) / steps;
       shape.lineTo(Math.cos(a) * innerR, Math.sin(a) * innerR);
     }
     shape.closePath();
 
-    const extrudeSettings = { depth: 0.15, bevelEnabled: false };
-    const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    return { geom };
+    return new THREE.ExtrudeGeometry(shape, { depth: 0.22, bevelEnabled: false });
   }, []);
 
   const dividerGeom = useMemo(() => {
-    return new THREE.BoxGeometry(0.02, 0.72, 0.2);
+    return new THREE.BoxGeometry(0.025, 0.82, 0.26);
   }, []);
 
   return (
-    <group ref={pocketsRef} position={[0, 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <group position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       {WHEEL_NUMBERS.map((num, i) => {
         const angle = i * SEGMENT_ANGLE;
         const color = getPocketColor(num);
@@ -57,22 +66,22 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
 
         return (
           <group key={num} rotation={[0, 0, angle]}>
-            <mesh geometry={pocketMeshes.geom} castShadow receiveShadow>
+            <mesh geometry={pocketGeom} castShadow receiveShadow>
               <meshStandardMaterial
                 color={color}
-                roughness={0.4}
-                metalness={0.1}
+                roughness={0.35}
+                metalness={0.05}
                 emissive={isWinner ? '#D4AF37' : '#000000'}
-                emissiveIntensity={isWinner ? 0.5 : 0}
+                emissiveIntensity={isWinner ? 0.8 : 0}
               />
             </mesh>
 
             <mesh
-              position={[Math.cos(SEGMENT_ANGLE * 0.5) * 1.95, Math.sin(SEGMENT_ANGLE * 0.5) * 1.95, 0.08]}
+              position={[Math.cos(SEGMENT_ANGLE * 0.5) * 1.95, Math.sin(SEGMENT_ANGLE * 0.5) * 1.95, 0.11]}
               rotation={[0, 0, SEGMENT_ANGLE * 0.5]}
               geometry={dividerGeom}
             >
-              <meshStandardMaterial color="#D4AF37" metalness={0.9} roughness={0.15} />
+              <meshStandardMaterial color="#C0A030" metalness={0.85} roughness={0.2} />
             </mesh>
           </group>
         );
@@ -95,12 +104,14 @@ function WheelNumbers() {
             key={num}
             position={[x, 0, z]}
             rotation={[-Math.PI / 2, 0, -angle + Math.PI]}
-            fontSize={0.13}
+            fontSize={0.16}
             color="#ffffff"
             anchorX="center"
             anchorY="middle"
             font={undefined}
             fontWeight={700}
+            outlineWidth={0.008}
+            outlineColor="#000000"
           >
             {num.toString()}
           </Text>
@@ -113,29 +124,29 @@ function WheelNumbers() {
 function OuterRim() {
   return (
     <group>
-      <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[2.7, 2.75, 0.4, 64, 1, true]} />
+      <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[2.72, 2.78, 0.5, 64, 1, true]} />
         <meshStandardMaterial
-          color="#5D4037"
-          roughness={0.25}
-          metalness={0.6}
+          color="#6D4C41"
+          roughness={0.3}
+          metalness={0.5}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      <mesh position={[0, 0.31, 0]}>
-        <torusGeometry args={[2.72, 0.04, 16, 64]} />
+      <mesh position={[0, 0.41, 0]}>
+        <torusGeometry args={[2.74, 0.05, 16, 64]} />
         <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
       </mesh>
 
-      <mesh position={[0, -0.11, 0]}>
-        <torusGeometry args={[2.72, 0.03, 16, 64]} />
+      <mesh position={[0, -0.1, 0]}>
+        <torusGeometry args={[2.76, 0.04, 16, 64]} />
         <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
       </mesh>
 
-      <mesh position={[0, 0.1, 0]} receiveShadow>
-        <cylinderGeometry args={[2.65, 2.65, 0.38, 64]} />
-        <meshStandardMaterial color="#2E1A12" roughness={0.3} metalness={0.4} />
+      <mesh position={[0, 0.15, 0]} receiveShadow>
+        <cylinderGeometry args={[2.65, 2.65, 0.48, 64]} />
+        <meshStandardMaterial color="#3E2723" roughness={0.35} metalness={0.3} />
       </mesh>
     </group>
   );
@@ -143,51 +154,48 @@ function OuterRim() {
 
 function BallTrack() {
   return (
-    <mesh position={[0, 0.25, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[2.35, 2.6, 64]} />
-      <meshStandardMaterial
-        color="#1a1a1a"
-        roughness={0.15}
-        metalness={0.8}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
-}
-
-function GoldDecorativeRing() {
-  return (
-    <mesh position={[0, 0.26, 0]}>
-      <torusGeometry args={[2.35, 0.025, 16, 64]} />
-      <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
-    </mesh>
+    <group>
+      <mesh position={[0, 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[2.38, 2.62, 64]} />
+        <meshStandardMaterial
+          color="#2a2a2a"
+          roughness={0.1}
+          metalness={0.7}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh position={[0, 0.31, 0]}>
+        <torusGeometry args={[2.38, 0.02, 16, 64]} />
+        <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
+      </mesh>
+    </group>
   );
 }
 
 function CenterHub() {
   return (
     <group>
-      <mesh position={[0, 0.2, 0]} castShadow>
-        <cylinderGeometry args={[0.6, 0.65, 0.35, 32]} />
+      <mesh position={[0, 0.22, 0]} castShadow>
+        <cylinderGeometry args={[0.55, 0.6, 0.4, 32]} />
         <meshStandardMaterial
           color="#D4AF37"
-          metalness={0.9}
-          roughness={0.15}
+          metalness={0.85}
+          roughness={0.2}
         />
       </mesh>
 
-      <mesh position={[0, 0.38, 0]}>
-        <cylinderGeometry args={[0.55, 0.55, 0.02, 32]} />
+      <mesh position={[0, 0.43, 0]}>
+        <cylinderGeometry args={[0.5, 0.5, 0.03, 32]} />
         <meshStandardMaterial color="#F4D03F" metalness={1} roughness={0.1} />
       </mesh>
 
-      <mesh position={[0, 0.39, 0]}>
-        <cylinderGeometry args={[0.15, 0.15, 0.06, 16]} />
+      <mesh position={[0, 0.45, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.06, 16]} />
         <meshStandardMaterial color="#B8860B" metalness={1} roughness={0.1} />
       </mesh>
 
-      <mesh position={[0, 0.26, 0]}>
-        <torusGeometry args={[0.61, 0.02, 16, 32]} />
+      <mesh position={[0, 0.32, 0]}>
+        <torusGeometry args={[0.56, 0.025, 16, 32]} />
         <meshStandardMaterial color="#F4D03F" metalness={1} roughness={0.1} />
       </mesh>
 
@@ -196,18 +204,18 @@ function CenterHub() {
         return (
           <mesh
             key={i}
-            position={[Math.cos(a) * 1.0, 0.18, Math.sin(a) * 1.0]}
+            position={[Math.cos(a) * 1.0, 0.2, Math.sin(a) * 1.0]}
             rotation={[0, -a, 0]}
           >
-            <boxGeometry args={[0.04, 0.08, 0.8]} />
-            <meshStandardMaterial color="#D4AF37" metalness={0.9} roughness={0.15} />
+            <boxGeometry args={[0.05, 0.1, 0.85]} />
+            <meshStandardMaterial color="#D4AF37" metalness={0.85} roughness={0.2} />
           </mesh>
         );
       })}
 
       <mesh position={[0, 0.15, 0]} receiveShadow>
-        <cylinderGeometry args={[1.55, 1.55, 0.05, 64]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.3} metalness={0.5} />
+        <cylinderGeometry args={[1.5, 1.5, 0.06, 64]} />
+        <meshStandardMaterial color="#111111" roughness={0.25} metalness={0.4} />
       </mesh>
     </group>
   );
@@ -221,26 +229,26 @@ function Ball({ ballAngle, ballRadius, isSpinning }: { ballAngle: number; ballRa
     if (!ballRef.current) return;
     const x = Math.cos(ballAngle) * ballRadius;
     const z = Math.sin(ballAngle) * ballRadius;
-    const y = isSpinning ? 0.38 : 0.32;
+    const y = isSpinning ? 0.42 : 0.34;
     ballRef.current.position.set(x, y, z);
     if (glowRef.current) {
-      glowRef.current.position.set(x, y + 0.1, z);
+      glowRef.current.position.set(x, y + 0.15, z);
     }
   });
 
   return (
     <>
       <mesh ref={ballRef} castShadow>
-        <sphereGeometry args={[0.08, 16, 16]} />
+        <sphereGeometry args={[0.09, 16, 16]} />
         <meshStandardMaterial
-          color="#f0f0f0"
-          metalness={0.8}
-          roughness={0.1}
+          color="#f5f5f5"
+          metalness={0.7}
+          roughness={0.05}
           emissive="#ffffff"
-          emissiveIntensity={0.1}
+          emissiveIntensity={0.15}
         />
       </mesh>
-      <pointLight ref={glowRef} color="#ffffff" intensity={0.3} distance={1} decay={2} />
+      <pointLight ref={glowRef} color="#ffffff" intensity={0.5} distance={1.5} decay={2} />
     </>
   );
 }
@@ -268,25 +276,26 @@ export default function RouletteWheel3D({
   });
 
   return (
-    <group rotation={[0.4, 0, 0]}>
+    <group rotation={[0.35, 0, 0]}>
       <spotLight
-        position={[0, 5, 2]}
-        angle={0.5}
-        penumbra={0.8}
-        intensity={3}
-        color="#FFF5E1"
+        position={[0, 6, 3]}
+        angle={0.6}
+        penumbra={0.6}
+        intensity={5}
+        color="#FFF8E8"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <ambientLight intensity={0.4} color="#FFF5E1" />
-      <pointLight position={[3, 2, 0]} intensity={0.6} color="#D4AF37" distance={8} decay={2} />
-      <pointLight position={[-3, 2, 0]} intensity={0.6} color="#D4AF37" distance={8} decay={2} />
-      <pointLight position={[0, 1, 3]} intensity={0.3} color="#ffffff" distance={6} decay={2} />
+      <ambientLight intensity={0.7} color="#FFF5E1" />
+      <pointLight position={[3, 3, 1]} intensity={1.2} color="#D4AF37" distance={10} decay={2} />
+      <pointLight position={[-3, 3, 1]} intensity={1.2} color="#D4AF37" distance={10} decay={2} />
+      <pointLight position={[0, 2, 4]} intensity={0.8} color="#ffffff" distance={8} decay={2} />
+      <pointLight position={[0, 4, -2]} intensity={0.5} color="#FFF5E1" distance={10} decay={2} />
 
+      <WheelBase />
       <OuterRim />
       <BallTrack />
-      <GoldDecorativeRing />
 
       <group ref={wheelGroupRef}>
         <WheelPockets winningNumber={winningNumber} />
