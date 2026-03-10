@@ -51,7 +51,7 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 │   │   │   ├── GameViewport.tsx      # 3D casino environment (Three.js, currently unused by games)
 │   │   │   ├── PokerGame.tsx         # Leather rail, 3D cards, pot chip stacks, action timer bars
 │   │   │   ├── BlackjackGame.tsx     # Wood rail, glossy 3D cards, dealer nameplate, card shoe, win/bust animations
-│   │   │   ├── RouletteGame.tsx      # Chrome wheel rim, metallic ball, gold grid, chip drop animations
+│   │   │   ├── RouletteGame.tsx      # Vegas-style 3D wheel, credit display, history panel, full betting table (0-36, dozens, columns, outside bets), repeat bet/spin, La Partage
 │   │   │   ├── CrapsGame.tsx         # 80px beveled dice, tumble animation, ON/OFF puck, padded rail
 │   │   │   ├── Spanish21Game.tsx     # Neon side bet circles (gold/purple/emerald), starburst bonus wins
 │   │   │   ├── SpadesGame.tsx        # Fan spread cards, trick animations, metallic scoreboard

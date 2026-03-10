@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
-import { ArrowLeft, Info, Volume2, VolumeX, RotateCcw, Settings } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { ArrowLeft, Info, Volume2, VolumeX, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PokerChip, ChipStack } from '@/components/PokerChip';
+import { PokerChip } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 
@@ -20,25 +20,17 @@ interface PlacedBet {
   numbers: number[];
   amount: number;
   payout: number;
-  chips: { amount: number; count: number }[];
 }
 
-const CHIP_VALUES = [1, 5, 10, 25, 50, 100, 500, 1000];
+const CHIP_VALUES = [1, 5, 10, 25, 100];
 
-// European Roulette wheel order
 const WHEEL_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
 
 const isRed = (num: number) => RED_NUMBERS.includes(num);
 
-// Roulette Rules
 const rouletteRules = {
   objective: 'Predict where the ball will land on the spinning wheel.',
-  wheel: [
-    'European Wheel: 37 pockets (0-36) - Better odds',
-    'American Wheel: 38 pockets (0, 00, 1-36) - Higher house edge',
-    'This game uses European rules (single zero)',
-  ],
   insideBets: [
     { name: 'Straight Up', desc: 'Single number', payout: '35:1' },
     { name: 'Split', desc: 'Two adjacent numbers', payout: '17:1' },
@@ -47,169 +39,99 @@ const rouletteRules = {
     { name: 'Line', desc: '6 numbers (2 rows)', payout: '5:1' },
   ],
   outsideBets: [
-    { name: 'Red', desc: 'Any red number', payout: '1:1' },
-    { name: 'Black', desc: 'Any black number', payout: '1:1' },
-    { name: 'Even', desc: 'Even numbers', payout: '1:1' },
-    { name: 'Odd', desc: 'Odd numbers', payout: '1:1' },
-    { name: 'Low (1-18)', desc: 'Numbers 1-18', payout: '1:1' },
-    { name: 'High (19-36)', desc: 'Numbers 19-36', payout: '1:1' },
-    { name: 'Dozen', desc: '1st, 2nd, or 3rd 12', payout: '2:1' },
+    { name: 'Red/Black', desc: 'Color bet', payout: '1:1' },
+    { name: 'Even/Odd', desc: 'Parity bet', payout: '1:1' },
+    { name: '1-18 / 19-36', desc: 'Half bet', payout: '1:1' },
+    { name: 'Dozen', desc: '1st/2nd/3rd 12', payout: '2:1' },
     { name: 'Column', desc: '12 numbers in column', payout: '2:1' },
   ],
 };
 
-// Ultra 3D Vegas-style Roulette Wheel Component with Deep Depth
-function VegasRouletteWheel({ 
-  rotation, 
-  ballRotation, 
-  isSpinning 
-}: { 
-  rotation: number; 
-  ballRotation: number; 
+const GRID_NUMBERS = [
+  [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
+  [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35],
+  [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34],
+];
+
+function VegasRouletteWheel({
+  rotation,
+  ballRotation,
+  isSpinning,
+  winningNumber,
+}: {
+  rotation: number;
+  ballRotation: number;
   isSpinning: boolean;
+  winningNumber: number | null;
 }) {
   const wheelRef = useRef<HTMLDivElement>(null);
-  
+
   return (
-    <div 
+    <div
       className="relative"
       style={{
-        perspective: '1500px',
+        perspective: '1200px',
         transformStyle: 'preserve-3d',
       }}
     >
-      {/* Deep table shadow beneath wheel */}
-      <div 
-        className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-96 h-32 rounded-full"
+      <div
+        className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-80 h-24 rounded-full"
         style={{
-          background: 'radial-gradient(ellipse, rgba(0,0,0,0.9), rgba(0,0,0,0.4) 40%, transparent 70%)',
-          filter: 'blur(25px)',
-          transform: 'translateZ(-100px)',
+          background: 'radial-gradient(ellipse, rgba(0,0,0,0.8), rgba(0,0,0,0.3) 40%, transparent 70%)',
+          filter: 'blur(20px)',
         }}
       />
 
-      {/* Main 3D Wheel Container with dramatic tilt */}
-      <div 
-        className="relative w-80 h-80 md:w-[500px] md:h-[500px]"
+      <div
+        className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] md:w-[400px] md:h-[400px]"
         style={{
-          transform: 'rotateX(35deg) rotateY(-5deg) translateZ(80px)',
+          transform: 'rotateX(30deg)',
           transformStyle: 'preserve-3d',
         }}
       >
-        {/* Deep Base Layer - Creates depth */}
-        <div 
-          className="absolute inset-0 rounded-full"
+        <div
+          className="absolute -inset-3 rounded-full"
           style={{
-            background: 'linear-gradient(145deg, #1a0f0a, #2a1a12, #1a0f0a)',
-            boxShadow: '0 50px 100px rgba(0,0,0,0.95)',
-            transform: 'translateZ(-60px)',
+            background: `linear-gradient(145deg, #2E1A12 0%, #5D4037 30%, #8D6E63 50%, #5D4037 70%, #2E1A12 100%)`,
+            boxShadow: `0 30px 80px rgba(0,0,0,0.9), 0 0 0 4px #1a0f0a, inset 0 0 50px rgba(0,0,0,0.6), inset 0 0 80px rgba(212,175,55,0.08)`,
+            transform: 'translateZ(-20px)',
           }}
         />
 
-        {/* Outer Wood Rim - Multi-layered for depth */}
-        <div 
-          className="absolute -inset-2 rounded-full"
-          style={{
-            background: `
-              linear-gradient(145deg, 
-                #2E1A12 0%, 
-                #3E2723 15%,
-                #5D4037 30%, 
-                #8D6E63 50%, 
-                #5D4037 70%, 
-                #3E2723 85%,
-                #2E1A12 100%
-              )
-            `,
-            boxShadow: `
-              0 40px 100px rgba(0,0,0,0.95),
-              0 0 0 6px #1a0f0a,
-              inset 0 0 60px rgba(0,0,0,0.7),
-              inset 0 0 100px rgba(212,175,55,0.1)
-            `,
-            transform: 'translateZ(-30px)',
-          }}
-        />
-
-        {/* Gold decorative outer ring */}
-        <div 
+        <div
           className="absolute -inset-1 rounded-full"
           style={{
-            background: `
-              repeating-conic-gradient(
-                from 0deg,
-                #D4AF37 0deg 3deg,
-                #B8860B 3deg 6deg
-              )
-            `,
-            boxShadow: `
-              0 0 30px rgba(212,175,55,0.5),
-              inset 0 0 20px rgba(0,0,0,0.6)
-            `,
-            transform: 'translateZ(-15px)',
+            background: `repeating-conic-gradient(from 0deg, #D4AF37 0deg 3deg, #B8860B 3deg 6deg)`,
+            boxShadow: `0 0 25px rgba(212,175,55,0.4), inset 0 0 15px rgba(0,0,0,0.5)`,
+            transform: 'translateZ(-10px)',
           }}
         />
 
-        {/* Inner wood ring with bevel */}
-        <div 
-          className="absolute inset-2 rounded-full"
+        <div
+          className="absolute inset-1 rounded-full"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #4E342E 0%, 
-                #3E2723 30%,
-                #2a1a12 50%,
-                #3E2723 70%, 
-                #4E342E 100%
-              )
-            `,
-            boxShadow: `
-              inset 0 0 40px rgba(0,0,0,0.8),
-              0 0 20px rgba(0,0,0,0.5)
-            `,
+            background: `linear-gradient(145deg, #4E342E 0%, #3E2723 30%, #2a1a12 50%, #3E2723 70%, #4E342E 100%)`,
+            boxShadow: `inset 0 0 30px rgba(0,0,0,0.7)`,
             transform: 'translateZ(-5px)',
           }}
         />
 
-        {/* Gold inner decorative ring */}
-        <div 
-          className="absolute inset-5 rounded-full"
+        <div
+          className="absolute inset-4 rounded-full"
           style={{
-            background: `
-              conic-gradient(
-                from 0deg,
-                #D4AF37 0deg,
-                #F4D03F 45deg,
-                #D4AF37 90deg,
-                #B8860B 135deg,
-                #D4AF37 180deg,
-                #F4D03F 225deg,
-                #D4AF37 270deg,
-                #B8860B 315deg,
-                #D4AF37 360deg
-              )
-            `,
-            boxShadow: `
-              inset 0 0 15px rgba(0,0,0,0.5),
-              0 0 15px rgba(212,175,55,0.4)
-            `,
+            background: `conic-gradient(from 0deg, #D4AF37 0deg, #F4D03F 45deg, #D4AF37 90deg, #B8860B 135deg, #D4AF37 180deg, #F4D03F 225deg, #D4AF37 270deg, #B8860B 315deg, #D4AF37 360deg)`,
+            boxShadow: `inset 0 0 10px rgba(0,0,0,0.4), 0 0 10px rgba(212,175,55,0.3)`,
           }}
         />
 
-        {/* Number track/pockets container */}
-        <div 
-          className="absolute inset-8 rounded-full overflow-hidden"
+        <div
+          className="absolute inset-6 rounded-full overflow-hidden"
           style={{
             background: '#0a0a0a',
-            boxShadow: `
-              inset 0 0 40px rgba(0,0,0,0.9),
-              0 0 0 3px #D4AF37,
-              0 0 20px rgba(212,175,55,0.3)
-            `,
-            transform: 'translateZ(10px)',
+            boxShadow: `inset 0 0 30px rgba(0,0,0,0.8), 0 0 0 2px #D4AF37, 0 0 15px rgba(212,175,55,0.2)`,
+            transform: 'translateZ(5px)',
           }}
         >
-          {/* Rotating number track */}
           <div
             ref={wheelRef}
             className="absolute inset-0"
@@ -218,333 +140,237 @@ function VegasRouletteWheel({
               transition: isSpinning ? 'none' : 'transform 0.5s ease-out',
             }}
           >
-            {/* Individual number pockets with 3D depth */}
             {WHEEL_NUMBERS.map((num, i) => {
               const angle = i * (360 / 37);
               const isNumRed = isRed(num);
               const isZero = num === 0;
-              
+              const isWinner = winningNumber === num && !isSpinning;
+
               return (
                 <div
                   key={num}
-                  className="absolute top-0 left-1/2 w-10 h-1/2 origin-bottom"
-                  style={{
-                    transform: `translateX(-50%) rotate(${angle}deg)`,
-                  }}
+                  className="absolute top-0 left-1/2 w-9 h-1/2 origin-bottom"
+                  style={{ transform: `translateX(-50%) rotate(${angle}deg)` }}
                 >
-                  {/* 3D Pocket with depth */}
-                  <div 
-                    className="absolute top-3 left-1/2 -translate-x-1/2 w-7 h-12 rounded-b-xl"
+                  <div
+                    className="absolute top-2 left-1/2 -translate-x-1/2 w-6 h-11 rounded-b-lg"
                     style={{
-                      background: isZero 
-                        ? 'linear-gradient(180deg, #166534 0%, #14532d 50%, #0D5A12 100%)' 
-                        : isNumRed 
-                          ? 'linear-gradient(180deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%)' 
-                          : 'linear-gradient(180deg, #374151 0%, #1f2937 50%, #000000 100%)',
-                      boxShadow: `
-                        inset 0 2px 4px rgba(255,255,255,0.3),
-                        inset 0 -3px 6px rgba(0,0,0,0.6),
-                        0 2px 4px rgba(0,0,0,0.5),
-                        0 0 0 1px rgba(212,175,55,0.4)
-                      `,
-                      transform: 'translateZ(5px)',
+                      background: isZero
+                        ? 'linear-gradient(180deg, #166534 0%, #14532d 50%, #0D5A12 100%)'
+                        : isNumRed
+                          ? 'linear-gradient(180deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%)'
+                          : 'linear-gradient(180deg, #374151 0%, #1f2937 50%, #111 100%)',
+                      boxShadow: isWinner
+                        ? `inset 0 2px 4px rgba(255,255,255,0.3), 0 0 12px rgba(212,175,55,0.8), 0 0 0 1px #D4AF37`
+                        : `inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(212,175,55,0.3)`,
                     }}
                   >
-                    <span 
-                      className="absolute top-2 left-1/2 -translate-x-1/2 text-[11px] font-bold text-white"
-                      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+                    <span
+                      className="absolute top-1 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white"
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
                     >
                       {num}
                     </span>
                   </div>
-                  {/* Gold divider */}
-                  <div 
-                    className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-4"
-                    style={{
-                      background: 'linear-gradient(to bottom, #D4AF37, #B8860B, transparent)',
-                      boxShadow: '0 0 4px rgba(212,175,55,0.5)',
-                    }}
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-3"
+                    style={{ background: 'linear-gradient(to bottom, #D4AF37, #B8860B, transparent)' }}
                   />
                 </div>
               );
             })}
           </div>
 
-          {/* Center hub with dramatic 3D effect */}
-          <div 
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 md:w-40 md:h-40 rounded-full z-20"
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 rounded-full z-20"
             style={{
-              background: `
-                radial-gradient(ellipse at 35% 35%, 
-                  #F4D03F 0%, 
-                  #D4AF37 20%, 
-                  #B8860B 40%, 
-                  #8B6914 60%, 
-                  #5D4037 80%,
-                  #3E2723 100%
-                )
-              `,
-              boxShadow: `
-                0 15px 50px rgba(0,0,0,0.9),
-                inset 0 3px 10px rgba(255,255,255,0.5),
-                inset 0 -5px 15px rgba(0,0,0,0.5),
-                0 0 0 5px #3E2723,
-                0 0 0 8px #D4AF37,
-                0 0 30px rgba(212,175,55,0.4)
-              `,
-              transform: 'translateZ(25px)',
+              background: `radial-gradient(ellipse at 35% 35%, #F4D03F 0%, #D4AF37 20%, #B8860B 40%, #8B6914 60%, #5D4037 80%, #3E2723 100%)`,
+              boxShadow: `0 10px 40px rgba(0,0,0,0.8), inset 0 2px 8px rgba(255,255,255,0.4), inset 0 -4px 12px rgba(0,0,0,0.4), 0 0 0 4px #3E2723, 0 0 0 6px #D4AF37, 0 0 20px rgba(212,175,55,0.3)`,
+              transform: 'translateZ(15px)',
             }}
           >
-            {/* Decorative sunburst pattern on hub */}
-            <div 
+            <div
               className="absolute inset-2 rounded-full"
               style={{
-                background: `
-                  repeating-conic-gradient(
-                    from 0deg,
-                    rgba(255,255,255,0.1) 0deg 10deg,
-                    transparent 10deg 20deg
-                  )
-                `,
+                background: `repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg 10deg, transparent 10deg 20deg)`,
               }}
             />
-            {/* Inner ring */}
-            <div 
-              className="absolute inset-6 rounded-full"
+            <div
+              className="absolute inset-5 rounded-full"
               style={{
                 background: 'linear-gradient(145deg, #D4AF37, #B8860B)',
-                boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)',
+                boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)',
               }}
             />
-            <img 
-              src="/logos/pc-logo.png" 
-              alt="$Pc" 
-              className="w-12 h-12 md:w-14 md:h-14 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-2xl"
-              style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8))' }}
+            <img
+              src="/logos/pc-logo.png"
+              alt="$Pc"
+              className="w-10 h-10 sm:w-12 sm:h-12 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-xl"
+              style={{ filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.7))' }}
             />
           </div>
         </div>
 
-        {/* Ball track rim */}
-        <div 
-          className="absolute inset-6 rounded-full pointer-events-none"
+        <div
+          className="absolute inset-4 rounded-full pointer-events-none"
           style={{
-            boxShadow: `
-              inset 0 0 30px rgba(0,0,0,0.7),
-              0 0 0 2px rgba(212,175,55,0.3)
-            `,
-            transform: 'translateZ(15px)',
+            boxShadow: `inset 0 0 25px rgba(0,0,0,0.6), 0 0 0 1.5px rgba(212,175,55,0.2)`,
+            transform: 'translateZ(8px)',
           }}
         />
 
-        {/* The Ball with realistic 3D */}
         <div
-          className="absolute w-5 h-5 md:w-6 md:h-6 rounded-full z-30"
+          className="absolute w-4 h-4 sm:w-5 sm:h-5 rounded-full z-30"
           style={{
-            background: `
-              radial-gradient(circle at 30% 30%, 
-                #ffffff 0%, 
-                #f0f0f0 20%,
-                #d0d0d0 40%, 
-                #909090 70%, 
-                #505050 100%
-              )
-            `,
-            boxShadow: `
-              0 5px 15px rgba(0,0,0,0.9), 
-              inset -3px -3px 6px rgba(0,0,0,0.4),
-              inset 2px 2px 4px rgba(255,255,255,0.9)
-            `,
-            top: '10%',
+            background: `radial-gradient(circle at 30% 30%, #ffffff 0%, #f0f0f0 20%, #d0d0d0 40%, #909090 70%, #505050 100%)`,
+            boxShadow: `0 4px 12px rgba(0,0,0,0.8), inset -2px -2px 4px rgba(0,0,0,0.3), inset 1px 1px 3px rgba(255,255,255,0.8)`,
+            top: '8%',
             left: '50%',
             transform: `translateX(-50%) rotate(${ballRotation}deg)`,
-            transformOrigin: '0 160px',
+            transformOrigin: '0 140px',
             transition: isSpinning ? 'none' : 'transform 0.5s ease-out',
           }}
         />
 
-        {/* Turret (center spindle) - Elevated 3D */}
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full z-40"
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full z-40"
           style={{
-            background: `
-              radial-gradient(circle at 35% 35%,
-                #F4D03F 0%,
-                #D4AF37 40%, 
-                #B8860B 70%, 
-                #8B6914 100%
-              )
-            `,
-            boxShadow: `
-              0 8px 25px rgba(0,0,0,0.8),
-              inset 0 2px 5px rgba(255,255,255,0.5),
-              inset 0 -3px 6px rgba(0,0,0,0.4)
-            `,
-            transform: 'translateZ(40px)',
+            background: `radial-gradient(circle at 35% 35%, #F4D03F 0%, #D4AF37 40%, #B8860B 70%, #8B6914 100%)`,
+            boxShadow: `0 6px 20px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.3)`,
+            transform: 'translateZ(25px)',
           }}
         />
 
-        {/* Decorative diamonds on outer rim */}
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
-            className="absolute w-4 h-5"
+            className="absolute w-3 h-4"
             style={{
               top: '2%',
               left: '50%',
               transform: `translateX(-50%) rotate(${i * 45}deg)`,
-              transformOrigin: '0 165px',
+              transformOrigin: '0 145px',
             }}
           >
-            <div 
+            <div
               className="w-full h-full"
               style={{
                 background: 'linear-gradient(145deg, #F4D03F, #D4AF37, #B8860B)',
                 clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                boxShadow: `
-                  0 3px 8px rgba(0,0,0,0.6),
-                  inset 0 1px 2px rgba(255,255,255,0.5)
-                `,
-                transform: 'translateZ(5px)',
               }}
             />
           </div>
         ))}
 
-        {/* Inner decorative metal ring */}
-        <div 
-          className="absolute inset-16 rounded-full pointer-events-none"
+        <div
+          className="absolute inset-14 rounded-full pointer-events-none"
           style={{
-            border: '2px solid rgba(212,175,55,0.3)',
-            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)',
+            border: '1.5px solid rgba(212,175,55,0.2)',
+            boxShadow: 'inset 0 0 15px rgba(0,0,0,0.4)',
           }}
         />
       </div>
 
-      {/* Pointer/Deflector with 3D */}
-      <div 
-        className="absolute -top-8 left-1/2 -translate-x-1/2 z-50"
-        style={{ 
-          filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.9))',
-          transform: 'translateZ(50px)',
-        }}
+      <div
+        className="absolute -top-6 left-1/2 -translate-x-1/2 z-50"
+        style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.8))' }}
       >
-        <div 
-          className="w-0 h-0 border-l-[18px] border-r-[18px] border-t-[30px] border-l-transparent border-r-transparent"
+        <div
+          className="w-0 h-0 border-l-[14px] border-r-[14px] border-t-[24px] border-l-transparent border-r-transparent"
           style={{ borderTopColor: '#D4AF37' }}
         />
-        <div 
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full"
+        <div
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full"
           style={{
             background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+            boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
           }}
         />
       </div>
 
-      {/* Metallic Chrome Highlight Layer on Wheel Rim */}
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
-          inset: '-16px',
-          background: `conic-gradient(
-            from 0deg,
-            rgba(255,255,255,0.0) 0deg,
-            rgba(255,255,255,0.35) 25deg,
-            rgba(220,235,255,0.55) 55deg,
-            rgba(255,255,255,0.15) 85deg,
-            rgba(255,255,255,0.0) 120deg,
-            rgba(220,235,255,0.25) 170deg,
-            rgba(255,255,255,0.45) 230deg,
-            rgba(220,235,255,0.1) 290deg,
-            rgba(255,255,255,0.0) 360deg
-          )`,
+          inset: '-12px',
+          background: `conic-gradient(from 0deg, rgba(255,255,255,0.0) 0deg, rgba(255,255,255,0.3) 25deg, rgba(220,235,255,0.45) 55deg, rgba(255,255,255,0.1) 85deg, rgba(255,255,255,0.0) 120deg, rgba(220,235,255,0.2) 170deg, rgba(255,255,255,0.35) 230deg, rgba(220,235,255,0.08) 290deg, rgba(255,255,255,0.0) 360deg)`,
           mask: 'radial-gradient(circle, transparent 66%, black 68%, black 77%, transparent 79%)',
           WebkitMask: 'radial-gradient(circle, transparent 66%, black 68%, black 77%, transparent 79%)',
-          transform: 'rotateX(35deg) rotateY(-5deg) translateZ(82px)',
-          mixBlendMode: 'screen',
-        }}
-      />
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          inset: '-8px',
-          background: `conic-gradient(
-            from 120deg,
-            transparent 0deg,
-            rgba(255,255,255,0.2) 40deg,
-            rgba(200,220,255,0.35) 80deg,
-            transparent 120deg,
-            rgba(255,255,255,0.15) 200deg,
-            rgba(200,220,255,0.25) 260deg,
-            transparent 300deg
-          )`,
-          mask: 'radial-gradient(circle, transparent 70%, black 72%, black 75%, transparent 77%)',
-          WebkitMask: 'radial-gradient(circle, transparent 70%, black 72%, black 75%, transparent 77%)',
-          transform: 'rotateX(35deg) rotateY(-5deg) translateZ(84px)',
-          mixBlendMode: 'screen',
+          transform: 'rotateX(30deg) translateZ(2px)',
+          mixBlendMode: 'screen' as const,
         }}
       />
 
-      {/* === ADDED: Ball Glow Trail === */}
       {isSpinning && (
         <>
           <div
-            className="absolute w-8 h-8 rounded-full z-30 pointer-events-none"
+            className="absolute w-7 h-7 rounded-full z-30 pointer-events-none"
             style={{
-              background: 'radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(212,175,55,0.3) 40%, transparent 70%)',
-              top: '10%',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(212,175,55,0.2) 40%, transparent 70%)',
+              top: '8%',
               left: '50%',
               transform: `translateX(-50%) rotate(${ballRotation}deg)`,
-              transformOrigin: '0 160px',
-              filter: 'blur(6px)',
+              transformOrigin: '0 140px',
+              filter: 'blur(5px)',
             }}
           />
           <div
-            className="absolute w-12 h-12 rounded-full z-29 pointer-events-none"
+            className="absolute w-10 h-10 rounded-full z-29 pointer-events-none"
             style={{
-              background: 'radial-gradient(circle, rgba(212,175,55,0.4) 0%, rgba(212,175,55,0.1) 40%, transparent 70%)',
-              top: '8%',
+              background: 'radial-gradient(circle, rgba(212,175,55,0.3) 0%, transparent 60%)',
+              top: '7%',
               left: '49%',
-              transform: `translateX(-50%) rotate(${ballRotation + 8}deg)`,
-              transformOrigin: '0 165px',
-              filter: 'blur(12px)',
-            }}
-          />
-          <div
-            className="absolute w-10 h-10 rounded-full z-28 pointer-events-none"
-            style={{
-              background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)',
-              top: '9%',
-              left: '49.5%',
-              transform: `translateX(-50%) rotate(${ballRotation + 16}deg)`,
-              transformOrigin: '0 163px',
-              filter: 'blur(18px)',
+              transform: `translateX(-50%) rotate(${ballRotation + 10}deg)`,
+              transformOrigin: '0 145px',
+              filter: 'blur(10px)',
             }}
           />
         </>
       )}
+    </div>
+  );
+}
 
-      {/* === ADDED: Spotlight with Dynamic Shadow During Spin === */}
-      {isSpinning && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(ellipse at ${50 + Math.sin(ballRotation * 0.02) * 15}% ${50 + Math.cos(ballRotation * 0.02) * 15}%, rgba(255,255,255,0.08) 0%, transparent 50%)`,
-            transform: 'scale(1.2)',
-            animation: 'pulse 2s ease-in-out infinite',
-          }}
-        />
-      )}
-
-      {/* Ambient glow effect */}
-      <div 
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, transparent 50%, rgba(212,175,55,0.05) 70%, transparent 100%)',
-          transform: 'scale(1.3)',
-        }}
-      />
+function HistoryPanel({ history }: { history: number[] }) {
+  return (
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(10,10,10,0.98) 100%)',
+        border: '1px solid rgba(212,175,55,0.4)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+        minWidth: '70px',
+      }}
+    >
+      <div
+        className="px-3 py-1.5 text-center text-[9px] font-bold tracking-[0.2em] uppercase"
+        style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', borderBottom: '1px solid rgba(212,175,55,0.2)' }}
+      >
+        Last
+      </div>
+      <div className="p-1.5 space-y-1 max-h-[260px] overflow-y-auto">
+        {history.length === 0 && (
+          <div className="text-[10px] text-gray-600 text-center py-2">No spins</div>
+        )}
+        {history.map((num, i) => (
+          <div
+            key={i}
+            className="w-full h-7 rounded flex items-center justify-center text-xs font-bold"
+            style={{
+              background: num === 0
+                ? 'linear-gradient(135deg, #15803d, #0D5A12)'
+                : isRed(num)
+                  ? 'linear-gradient(135deg, #dc2626, #991b1b)'
+                  : 'linear-gradient(135deg, #333, #111)',
+              color: '#fff',
+              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+              border: i === 0 ? '1px solid rgba(212,175,55,0.6)' : '1px solid rgba(255,255,255,0.1)',
+              boxShadow: i === 0 ? '0 0 8px rgba(212,175,55,0.3)' : 'none',
+            }}
+          >
+            {num}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -552,6 +378,7 @@ function VegasRouletteWheel({
 export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProps) {
   const [selectedChip, setSelectedChip] = useState(10);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
+  const [lastBets, setLastBets] = useState<PlacedBet[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
   const [ballRotation, setBallRotation] = useState(0);
@@ -560,23 +387,18 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
   const [showSettings, setShowSettings] = useState(false);
   const [message, setMessage] = useState('Place your bets!');
   const [useLaPartage, setUseLaPartage] = useState(true);
-  
+  const [history, setHistory] = useState<number[]>([]);
+  const [winFlash, setWinFlash] = useState(false);
+  const [loseFlash, setLoseFlash] = useState(false);
+  const [lastWin, setLastWin] = useState(0);
+
+  const animRef = useRef<number | null>(null);
+  const pendingSpinRef = useRef(false);
   const { isMuted, toggleMute, playSound } = useSoundEffects();
 
   const totalBet = placedBets.reduce((sum, bet) => sum + bet.amount, 0);
 
-  const addChipsToBet = (amount: number, existingChips: { amount: number; count: number }[] = []) => {
-    const newChips = [...existingChips];
-    const existing = newChips.find(c => c.amount === amount);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      newChips.push({ amount, count: 1 });
-    }
-    return newChips;
-  };
-
-  const placeNumberBet = (number: number, payout: number) => {
+  const placeBet = useCallback((type: string, numbers: number[], payout: number) => {
     if (isSpinning) return;
     if (!onBet(selectedChip)) {
       setMessage('Insufficient balance!');
@@ -584,69 +406,61 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
       return;
     }
 
-    const existingBetIndex = placedBets.findIndex(b => b.type === number.toString());
-    
-    if (existingBetIndex >= 0) {
+    const existingIdx = placedBets.findIndex(b => b.type === type);
+    if (existingIdx >= 0) {
       const newBets = [...placedBets];
-      newBets[existingBetIndex].amount += selectedChip;
-      newBets[existingBetIndex].chips = addChipsToBet(selectedChip, newBets[existingBetIndex].chips);
+      newBets[existingIdx] = { ...newBets[existingIdx], amount: newBets[existingIdx].amount + selectedChip };
       setPlacedBets(newBets);
     } else {
-      setPlacedBets([...placedBets, {
-        type: number.toString(),
-        numbers: [number],
-        amount: selectedChip,
-        payout,
-        chips: [{ amount: selectedChip, count: 1 }],
-      }]);
-    }
-    playSound('chip');
-    setMessage(`Bet ${selectedChip} $Pc on ${number}`);
-  };
-
-  const placeOutsideBet = (type: string, numbers: number[], payout: number) => {
-    if (isSpinning) return;
-    if (!onBet(selectedChip)) {
-      setMessage('Insufficient balance!');
-      playSound('error');
-      return;
-    }
-
-    const existingBetIndex = placedBets.findIndex(b => b.type === type);
-    
-    if (existingBetIndex >= 0) {
-      const newBets = [...placedBets];
-      newBets[existingBetIndex].amount += selectedChip;
-      newBets[existingBetIndex].chips = addChipsToBet(selectedChip, newBets[existingBetIndex].chips);
-      setPlacedBets(newBets);
-    } else {
-      setPlacedBets([...placedBets, { 
-        type, 
-        numbers, 
-        amount: selectedChip, 
-        payout,
-        chips: [{ amount: selectedChip, count: 1 }],
-      }]);
+      setPlacedBets(prev => [...prev, { type, numbers, amount: selectedChip, payout }]);
     }
     playSound('chip');
     setMessage(`Bet ${selectedChip} $Pc on ${type}`);
-  };
+    setWinningNumber(null);
+    setLastWin(0);
+  }, [isSpinning, selectedChip, placedBets, onBet, playSound]);
 
-  const clearBets = () => {
+  const clearBets = useCallback(() => {
     if (isSpinning) return;
-    placedBets.forEach(bet => {
-      onWin(bet.amount);
-    });
+    placedBets.forEach(bet => onWin(bet.amount));
     setPlacedBets([]);
     setMessage('Bets cleared');
     playSound('clear');
-  };
+  }, [isSpinning, placedBets, onWin, playSound]);
 
-  const spin = async () => {
+  const repeatBet = useCallback(() => {
+    if (isSpinning || lastBets.length === 0) return;
+    const totalNeeded = lastBets.reduce((sum, b) => sum + b.amount, 0);
+    let totalDeducted = 0;
+    const affordable: PlacedBet[] = [];
+
+    for (const bet of lastBets) {
+      if (onBet(bet.amount)) {
+        affordable.push({ ...bet });
+        totalDeducted += bet.amount;
+      }
+    }
+
+    if (affordable.length === 0) {
+      setMessage('Insufficient balance for repeat!');
+      playSound('error');
+      return;
+    }
+
+    setPlacedBets(affordable);
+    setWinningNumber(null);
+    setLastWin(0);
+    playSound('chip');
+    setMessage(`Repeated bet: ${totalDeducted} $Pc`);
+  }, [isSpinning, lastBets, onBet, playSound]);
+
+  const spin = useCallback(async () => {
     if (isSpinning || placedBets.length === 0) return;
 
     setIsSpinning(true);
     setMessage('No more bets!');
+    setWinningNumber(null);
+    setLastWin(0);
     playSound('spin');
 
     const winningIndex = Math.floor(Math.random() * WHEEL_NUMBERS.length);
@@ -664,26 +478,25 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // Ease out cubic for realistic deceleration
       const easeOut = 1 - Math.pow(1 - progress, 4);
-      
+
       setWheelRotation(startRotation + (targetRotation - startRotation) * easeOut);
       setBallRotation(startBallRotation + (ballTargetRotation - startBallRotation) * easeOut);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animRef.current = requestAnimationFrame(animate);
       } else {
         finishSpin(winningNum);
       }
     };
 
-    requestAnimationFrame(animate);
-  };
+    animRef.current = requestAnimationFrame(animate);
+  }, [isSpinning, placedBets, wheelRotation, ballRotation, playSound]);
 
   const finishSpin = (number: number) => {
     setWinningNumber(number);
     setIsSpinning(false);
-    playSound('win');
+    setHistory(prev => [number, ...prev.slice(0, 19)]);
 
     let totalWin = 0;
     let laPartageRefund = 0;
@@ -697,641 +510,627 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
         won = true;
         winAmount = bet.amount * (bet.payout + 1);
       } else if (bet.type === 'red' && isRed(number)) {
-        won = true;
-        winAmount = bet.amount * 2;
+        won = true; winAmount = bet.amount * 2;
       } else if (bet.type === 'black' && !isRed(number) && number !== 0) {
-        won = true;
-        winAmount = bet.amount * 2;
+        won = true; winAmount = bet.amount * 2;
       } else if (bet.type === 'even' && number !== 0 && number % 2 === 0) {
-        won = true;
-        winAmount = bet.amount * 2;
+        won = true; winAmount = bet.amount * 2;
       } else if (bet.type === 'odd' && number !== 0 && number % 2 === 1) {
-        won = true;
-        winAmount = bet.amount * 2;
+        won = true; winAmount = bet.amount * 2;
       } else if (bet.type === 'low' && number >= 1 && number <= 18) {
-        won = true;
-        winAmount = bet.amount * 2;
+        won = true; winAmount = bet.amount * 2;
       } else if (bet.type === 'high' && number >= 19 && number <= 36) {
-        won = true;
-        winAmount = bet.amount * 2;
+        won = true; winAmount = bet.amount * 2;
       } else if (bet.type === '1st12' && number >= 1 && number <= 12) {
-        won = true;
-        winAmount = bet.amount * 3;
+        won = true; winAmount = bet.amount * 3;
       } else if (bet.type === '2nd12' && number >= 13 && number <= 24) {
-        won = true;
-        winAmount = bet.amount * 3;
+        won = true; winAmount = bet.amount * 3;
       } else if (bet.type === '3rd12' && number >= 25 && number <= 36) {
-        won = true;
-        winAmount = bet.amount * 3;
+        won = true; winAmount = bet.amount * 3;
       } else if (bet.type === 'col1' && number % 3 === 1 && number !== 0) {
-        won = true;
-        winAmount = bet.amount * 3;
+        won = true; winAmount = bet.amount * 3;
       } else if (bet.type === 'col2' && number % 3 === 2) {
-        won = true;
-        winAmount = bet.amount * 3;
+        won = true; winAmount = bet.amount * 3;
       } else if (bet.type === 'col3' && number % 3 === 0 && number !== 0) {
-        won = true;
-        winAmount = bet.amount * 3;
+        won = true; winAmount = bet.amount * 3;
       }
 
-      if (won) {
-        totalWin += winAmount;
-      } else if (isZero && bet.payout === 1 && useLaPartage) {
+      if (won) totalWin += winAmount;
+      else if (isZero && bet.payout === 1 && useLaPartage) {
         laPartageRefund += bet.amount / 2;
       }
     });
 
-    if (laPartageRefund > 0) {
-      totalWin += laPartageRefund;
-      setMessage(`Zero! La Partage: ${laPartageRefund} $Pc returned!`);
-    }
+    if (laPartageRefund > 0) totalWin += laPartageRefund;
+
+    setLastBets([...placedBets]);
 
     if (totalWin > 0) {
       onWin(totalWin);
-      if (!laPartageRefund) setMessage(`Number ${number}! You won ${totalWin} $Pc!`);
-      triggerWinFlash();
+      setLastWin(totalWin);
+      setMessage(laPartageRefund > 0
+        ? `Zero! La Partage: ${laPartageRefund} $Pc returned!`
+        : `Number ${number}! You won ${totalWin} $Pc!`
+      );
+      playSound('win');
+      setWinFlash(true);
+      setTimeout(() => setWinFlash(false), 1500);
     } else {
       setMessage(`Number ${number}. Better luck next time!`);
-      triggerLoseFlash();
+      playSound('error');
+      setLoseFlash(true);
+      setTimeout(() => setLoseFlash(false), 1200);
     }
 
     setPlacedBets([]);
   };
 
-  const [winFlash, setWinFlash] = useState(false);
-  const [loseFlash, setLoseFlash] = useState(false);
+  useEffect(() => {
+    if (pendingSpinRef.current && placedBets.length > 0 && !isSpinning) {
+      pendingSpinRef.current = false;
+      spin();
+    }
+  }, [placedBets, isSpinning, spin]);
 
-  const getBetChips = (type: string) => {
+  const repeatAndSpin = useCallback(() => {
+    if (isSpinning || lastBets.length === 0) return;
+    const affordable: PlacedBet[] = [];
+    for (const bet of lastBets) {
+      if (onBet(bet.amount)) affordable.push({ ...bet });
+    }
+    if (affordable.length === 0) {
+      setMessage('Insufficient balance!');
+      playSound('error');
+      return;
+    }
+    pendingSpinRef.current = true;
+    setPlacedBets(affordable);
+    setWinningNumber(null);
+    setLastWin(0);
+  }, [isSpinning, lastBets, onBet, playSound]);
+
+  const getBetAmount = (type: string) => {
     const bet = placedBets.find(b => b.type === type);
-    return bet?.chips || [];
-  };
-
-  const triggerWinFlash = () => {
-    setWinFlash(true);
-    setTimeout(() => setWinFlash(false), 1500);
-  };
-  const triggerLoseFlash = () => {
-    setLoseFlash(true);
-    setTimeout(() => setLoseFlash(false), 1200);
+    return bet?.amount || 0;
   };
 
   return (
     <CasinoEnvironment gameType="roulette">
-    <div 
-      className="min-h-screen"
-      style={{
-        background: `
-          radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0a 50%, #000000 100%)
-        `,
-      }}
-    >
-      <style>{`
-        @keyframes neonPulse {
-          0% { opacity: 0.85; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8)) brightness(0.9); }
-          100% { opacity: 1; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8)) brightness(1.2); }
-        }
-        @keyframes spotlightSweep {
-          0% { opacity: 0.3; }
-          50% { opacity: 0.6; }
-          100% { opacity: 0.3; }
-        }
-        @keyframes rouletteChipDrop {
-          0% { transform: translateX(-50%) translateY(-30px) scale(0.5); opacity: 0; }
-          60% { transform: translateX(-50%) translateY(4px) scale(1.1); opacity: 1; }
-          80% { transform: translateX(-50%) translateY(-2px) scale(0.95); }
-          100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
-        }
-        @keyframes rouletteExpandRing {
-          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
-        }
-        @keyframes rouletteWinFlash {
-          0% { opacity: 0; }
-          20% { opacity: 0.25; }
-          100% { opacity: 0; }
-        }
-        @keyframes rouletteLoseShake {
-          0%, 100% { transform: translateX(0); }
-          10% { transform: translateX(-4px); }
-          20% { transform: translateX(4px); }
-          30% { transform: translateX(-3px); }
-          40% { transform: translateX(3px); }
-          50% { transform: translateX(-2px); }
-          60% { transform: translateX(2px); }
-          70% { transform: translateX(0); }
-        }
-        @keyframes rouletteCellPulse {
-          0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1), 0 0 8px rgba(212,175,55,0.2); }
-          50% { box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1), 0 0 16px rgba(212,175,55,0.5); }
-        }
-        @keyframes rouletteWinCellGlow {
-          0% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
-          50% { box-shadow: 0 0 25px currentColor, 0 0 50px currentColor, 0 0 80px currentColor; }
-          100% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
-        }
-        .roulette-chip-drop {
-          animation: rouletteChipDrop 0.4s ease-out forwards;
-        }
-        .roulette-cell-active {
-          animation: rouletteCellPulse 2s ease-in-out infinite;
-        }
-        .roulette-win-flash {
-          animation: rouletteWinFlash 1.5s ease-out forwards;
-        }
-        .roulette-lose-shake {
-          animation: rouletteLoseShake 0.6s ease-out;
-        }
-        .roulette-number-cell:hover {
-          filter: brightness(1.4) !important;
-          box-shadow: 0 0 15px rgba(212,175,55,0.6), inset 0 1px 1px rgba(255,255,255,0.2) !important;
-          z-index: 5;
-        }
-      `}</style>
+      <div
+        className="min-h-screen"
+        style={{
+          background: `radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0a 50%, #000000 100%)`,
+        }}
+      >
+        <style>{`
+          @keyframes rouletteNeonPulse {
+            0% { opacity: 0.85; filter: brightness(0.9); }
+            100% { opacity: 1; filter: brightness(1.2); }
+          }
+          @keyframes rouletteChipDrop {
+            0% { transform: translateY(-15px) scale(0.5); opacity: 0; }
+            60% { transform: translateY(2px) scale(1.05); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+          }
+          @keyframes rouletteExpandRing {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+          }
+          @keyframes rouletteFlash {
+            0% { opacity: 0; }
+            20% { opacity: 0.3; }
+            100% { opacity: 0; }
+          }
+          @keyframes rouletteLoseShake {
+            0%, 100% { transform: translateX(0); }
+            10% { transform: translateX(-3px); }
+            20% { transform: translateX(3px); }
+            30% { transform: translateX(-2px); }
+            40% { transform: translateX(2px); }
+            50% { transform: translateX(0); }
+          }
+          @keyframes rouletteWinGlow {
+            0%, 100% { box-shadow: 0 0 8px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+          }
+          .roulette-cell:hover {
+            filter: brightness(1.4) !important;
+            box-shadow: 0 0 12px rgba(212,175,55,0.5), inset 0 1px 1px rgba(255,255,255,0.2) !important;
+            z-index: 5;
+          }
+          .roulette-chip-indicator {
+            animation: rouletteChipDrop 0.3s ease-out forwards;
+          }
+        `}</style>
 
-      {winFlash && (
-        <div className="fixed inset-0 z-[100] pointer-events-none roulette-win-flash" style={{ background: 'radial-gradient(ellipse at center, rgba(34,197,94,0.3) 0%, transparent 70%)' }} />
-      )}
-      {loseFlash && (
-        <div className="fixed inset-0 z-[100] pointer-events-none roulette-win-flash" style={{ background: 'radial-gradient(ellipse at center, rgba(220,38,38,0.25) 0%, transparent 70%)' }} />
-      )}
-      {/* Header */}
-      <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                  <ArrowLeft className="w-5 h-5" />
-                  <span className="font-casino font-bold text-[#D4AF37]">ROULETTE</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Return to game lobby</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <div className="flex items-center gap-4">
+        {winFlash && (
+          <div className="fixed inset-0 z-[100] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, rgba(34,197,94,0.25) 0%, transparent 70%)', animation: 'rouletteFlash 1.5s ease-out forwards' }} />
+        )}
+        {loseFlash && (
+          <div className="fixed inset-0 z-[100] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, rgba(220,38,38,0.2) 0%, transparent 70%)', animation: 'rouletteFlash 1.2s ease-out forwards' }} />
+        )}
+
+        {/* Header */}
+        <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
+          <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 px-4 py-1 rounded-full balance-display cursor-pointer hover:scale-105 transition-transform">
-                    <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
-                    <span className="font-bold text-[#D4AF37]">
-                      {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-xs text-gray-400">$Pc</span>
-                  </div>
+                  <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                    <ArrowLeft className="w-5 h-5" />
+                    <span className="font-casino font-bold text-[#D4AF37]">ROULETTE</span>
+                  </button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>Your current $Pc balance</p>
-                </TooltipContent>
+                <TooltipContent><p>Return to lobby</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)}>
-                    <Settings className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Game settings (La Partage, etc.)</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={toggleMute}>
-                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isMuted ? 'Unmute game sounds' : 'Mute game sounds'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-                    <Info className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>View Roulette rules & payouts</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex items-center gap-3">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)}>
+                      <Settings className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Settings</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={toggleMute}>
+                      {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>{isMuted ? 'Unmute' : 'Mute'}</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                      <Info className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Rules</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
 
-      {/* Game Area - Vegas 3D Style */}
-      <div className="pt-14 min-h-screen flex flex-col lg:flex-row gap-4 p-4">
-        {/* 3D Roulette Wheel */}
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="relative">
-            {/* === ADDED: Spotlight Cone Effect During Spin === */}
-            {isSpinning && (
-              <div
-                className="absolute -inset-16 pointer-events-none z-0"
-                style={{
-                  background: 'radial-gradient(ellipse at 50% 30%, rgba(212,175,55,0.12) 0%, rgba(255,255,255,0.04) 30%, transparent 60%)',
-                  animation: 'spotlightSweep 2s ease-in-out infinite',
-                }}
+        {/* Main Game Layout */}
+        <div className="pt-14 h-screen flex flex-col">
+          {/* Top section: Credit + Wheel + History */}
+          <div className="relative flex items-start justify-center px-4 pt-4 pb-2 flex-shrink-0" style={{ minHeight: '320px' }}>
+            {/* Credit counter - top left */}
+            <div
+              className="absolute top-4 left-4 z-20"
+              style={{
+                background: 'linear-gradient(145deg, rgba(0,0,0,0.95) 0%, rgba(10,10,10,0.98) 100%)',
+                border: '2px solid rgba(212,175,55,0.5)',
+                borderRadius: '10px',
+                padding: '10px 18px',
+                boxShadow: '0 6px 25px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)',
+                minWidth: '120px',
+              }}
+            >
+              <div className="text-[9px] text-[#D4AF37] font-bold tracking-[0.2em] uppercase mb-1">Credit</div>
+              <div className="text-2xl font-bold text-white" style={{ textShadow: '0 0 10px rgba(212,175,55,0.3)' }}>
+                {balance.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-gray-500">$Pc</div>
+            </div>
+
+            {/* Roulette wheel - center */}
+            <div className="relative flex flex-col items-center">
+              <VegasRouletteWheel
+                rotation={wheelRotation}
+                ballRotation={ballRotation}
+                isSpinning={isSpinning}
+                winningNumber={winningNumber}
               />
-            )}
-            <VegasRouletteWheel 
-              rotation={wheelRotation}
-              ballRotation={ballRotation}
-              isSpinning={isSpinning}
-            />
-            
-            {winningNumber !== null && (
-              <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 text-center">
-                <div
-                  className="absolute top-1/2 left-1/2 w-20 h-20 rounded-full pointer-events-none"
-                  style={{
-                    border: `3px solid ${isRed(winningNumber) ? 'rgba(220,38,38,0.8)' : winningNumber === 0 ? 'rgba(21,128,61,0.8)' : 'rgba(212,175,55,0.8)'}`,
-                    animation: 'rouletteExpandRing 1.5s ease-out infinite',
-                  }}
-                />
-                <div
-                  className="absolute top-1/2 left-1/2 w-16 h-16 rounded-full pointer-events-none"
-                  style={{
-                    border: `2px solid ${isRed(winningNumber) ? 'rgba(220,38,38,0.5)' : winningNumber === 0 ? 'rgba(21,128,61,0.5)' : 'rgba(212,175,55,0.5)'}`,
-                    animation: 'rouletteExpandRing 1.5s ease-out 0.3s infinite',
-                  }}
-                />
-                <div
-                  className="relative px-8 py-4 rounded-2xl"
-                  style={{
-                    background: 'linear-gradient(145deg, rgba(0,0,0,0.9), rgba(20,20,30,0.95))',
-                    border: `2px solid ${
-                      isRed(winningNumber) ? 'rgba(220,38,38,0.8)' :
-                      winningNumber === 0 ? 'rgba(21,128,61,0.8)' :
-                      'rgba(156,163,175,0.6)'
-                    }`,
-                    boxShadow: `
-                      0 0 20px ${
-                        isRed(winningNumber) ? 'rgba(220,38,38,0.4)' :
-                        winningNumber === 0 ? 'rgba(21,128,61,0.4)' :
-                        'rgba(156,163,175,0.3)'
-                      },
-                      0 0 60px ${
-                        isRed(winningNumber) ? 'rgba(220,38,38,0.2)' :
-                        winningNumber === 0 ? 'rgba(21,128,61,0.2)' :
-                        'rgba(156,163,175,0.1)'
-                      },
-                      inset 0 0 30px rgba(0,0,0,0.5)
-                    `,
-                  }}
-                >
+
+              {/* Winning number display below wheel */}
+              {winningNumber !== null && !isSpinning && (
+                <div className="mt-6 text-center relative">
                   <div
-                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                    className="absolute top-1/2 left-1/2 w-16 h-16 rounded-full pointer-events-none"
                     style={{
-                      background: `radial-gradient(ellipse at center, ${
-                        isRed(winningNumber) ? 'rgba(220,38,38,0.15)' :
-                        winningNumber === 0 ? 'rgba(21,128,61,0.15)' :
-                        'rgba(156,163,175,0.1)'
-                      } 0%, transparent 70%)`,
+                      border: `2px solid ${isRed(winningNumber) ? 'rgba(220,38,38,0.6)' : winningNumber === 0 ? 'rgba(21,128,61,0.6)' : 'rgba(200,200,200,0.4)'}`,
+                      animation: 'rouletteExpandRing 1.5s ease-out infinite',
                     }}
                   />
-                  <div className="text-sm text-[#C0C0C0] mb-1 tracking-[0.3em] uppercase" style={{ textShadow: '0 0 10px rgba(192,192,192,0.5)' }}>WINNING NUMBER</div>
                   <div
-                    className={`text-7xl font-bold ${
-                      isRed(winningNumber) ? 'text-[#dc2626]' :
-                      winningNumber === 0 ? 'text-[#15803d]' :
-                      'text-gray-300'
-                    }`}
+                    className="relative px-6 py-3 rounded-xl"
                     style={{
-                      textShadow: `
-                        0 0 10px currentColor,
-                        0 0 30px currentColor,
-                        0 0 60px currentColor,
-                        0 0 90px currentColor
-                      `,
-                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8))',
-                      animation: 'neonPulse 1.5s ease-in-out infinite alternate',
+                      background: 'linear-gradient(145deg, rgba(0,0,0,0.95), rgba(15,15,25,0.98))',
+                      border: `2px solid ${isRed(winningNumber) ? 'rgba(220,38,38,0.7)' : winningNumber === 0 ? 'rgba(21,128,61,0.7)' : 'rgba(180,180,180,0.5)'}`,
+                      boxShadow: `0 0 15px ${isRed(winningNumber) ? 'rgba(220,38,38,0.3)' : winningNumber === 0 ? 'rgba(21,128,61,0.3)' : 'rgba(150,150,150,0.2)'}`,
                     }}
                   >
-                    {winningNumber}
+                    <div
+                      className={`text-4xl font-bold ${isRed(winningNumber) ? 'text-[#dc2626]' : winningNumber === 0 ? 'text-[#15803d]' : 'text-gray-200'}`}
+                      style={{ textShadow: `0 0 15px currentColor`, animation: 'rouletteNeonPulse 1.5s ease-in-out infinite alternate' }}
+                    >
+                      {winningNumber}
+                    </div>
+                    <div className="text-[10px] font-bold tracking-[0.2em] mt-1" style={{ color: isRed(winningNumber) ? '#dc2626' : winningNumber === 0 ? '#15803d' : '#aaa' }}>
+                      {winningNumber === 0 ? 'GREEN' : isRed(winningNumber) ? 'RED' : 'BLACK'}
+                    </div>
                   </div>
-                  {isRed(winningNumber) && <div className="text-sm text-[#dc2626] font-bold tracking-[0.3em]" style={{ textShadow: '0 0 15px rgba(220,38,38,0.6)' }}>RED</div>}
-                  {!isRed(winningNumber) && winningNumber !== 0 && <div className="text-sm text-gray-400 font-bold tracking-[0.3em]" style={{ textShadow: '0 0 15px rgba(156,163,175,0.4)' }}>BLACK</div>}
-                  {winningNumber === 0 && <div className="text-sm text-[#15803d] font-bold tracking-[0.3em]" style={{ textShadow: '0 0 15px rgba(21,128,61,0.6)' }}>GREEN</div>}
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
 
-        {/* Vegas Style Betting Table */}
-        <div className={`flex-1 p-4 ${loseFlash ? 'roulette-lose-shake' : ''}`}>
-          {/* Chip Selection */}
-          <div className="mb-4">
-            <div className="text-center text-[#C0C0C0] text-sm mb-2 tracking-wider">SELECT CHIP VALUE</div>
-            <div className="flex justify-center gap-2 flex-wrap">
-              {CHIP_VALUES.map(amount => (
-                <PokerChip
-                  key={amount}
-                  amount={amount}
-                  size="md"
-                  selected={selectedChip === amount}
-                  onClick={() => setSelectedChip(amount)}
-                />
-              ))}
+            {/* History panel - top right */}
+            <div className="absolute top-4 right-4 z-20">
+              <HistoryPanel history={history} />
             </div>
           </div>
 
-          {/* 3D Betting Table */}
-          <div className="overflow-x-auto relative">
-            {/* === ADDED: Subtle Ambient Glow Around Betting Board === */}
-            <div
-              className="absolute -inset-4 pointer-events-none"
+          {/* Message bar */}
+          <div className="text-center py-1 flex-shrink-0">
+            <span
+              className="inline-block px-5 py-1.5 rounded-full text-sm font-bold"
               style={{
-                background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, rgba(27,94,32,0.06) 30%, transparent 70%)',
-                filter: 'blur(20px)',
-              }}
-            />
-            <div 
-              className="inline-block p-5 rounded-xl relative premium-felt"
-              style={{
-                boxShadow: `
-                  0 20px 60px rgba(0,0,0,0.8),
-                  inset 0 2px 4px rgba(255,255,255,0.05),
-                  0 0 0 10px #5D4037,
-                  0 0 0 12px #3E2723,
-                  0 0 0 14px rgba(212,175,55,0.4),
-                  0 0 40px rgba(27,94,32,0.15),
-                  0 0 80px rgba(212,175,55,0.08)
-                `,
+                background: 'linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(15,10,5,0.9) 100%)',
+                color: lastWin > 0 ? '#43A047' : '#D4AF37',
+                border: `1px solid ${lastWin > 0 ? 'rgba(67,160,71,0.4)' : 'rgba(212,175,55,0.3)'}`,
+                boxShadow: `0 2px 10px rgba(0,0,0,0.4)`,
+                textShadow: `0 0 8px ${lastWin > 0 ? 'rgba(67,160,71,0.3)' : 'rgba(212,175,55,0.3)'}`,
               }}
             >
-              {/* Zero */}
-              <div className="flex mb-1">
-                <button
-                  onClick={() => placeNumberBet(0, 35)}
-                  className="relative w-14 h-24 rounded-lg flex items-center justify-center font-bold text-xl transition-all hover:scale-105"
-                  style={{
-                    background: 'linear-gradient(145deg, #15803d, #0D5A12)',
-                    border: '2px solid rgba(212,175,55,0.5)',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.1)',
-                    color: 'white',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  0
-                  {getBetChips('0').length > 0 && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                      <ChipStack amount={getBetChips('0')[0]?.amount || 10} count={1} size="sm" />
-                    </div>
-                  )}
-                </button>
+              {message}
+            </span>
+          </div>
 
-                {/* Number grid - 3 rows */}
-                <div className="grid grid-cols-12 ml-1" style={{ gap: '2px', backgroundImage: 'linear-gradient(to right, rgba(212,175,55,0.5) 1px, transparent 1px), linear-gradient(to bottom, rgba(212,175,55,0.5) 1px, transparent 1px)', backgroundSize: 'calc(100%/12) calc(100%/3)', padding: '1px' }}>
-                  {[3,6,9,12,15,18,21,24,27,30,33,36,2,5,8,11,14,17,20,23,26,29,32,35,1,4,7,10,13,16,19,22,25,28,31,34].map((num) => {
-                    const isNumRed = isRed(num);
-                    const chips = getBetChips(num.toString());
-                    const hasBet = chips.length > 0;
-                    const isWinner = winningNumber === num;
-                    
-                    return (
-                      <button
-                        key={num}
-                        onClick={() => placeNumberBet(num, 35)}
-                        className={`roulette-number-cell relative w-9 h-8 md:w-10 md:h-9 rounded flex items-center justify-center font-bold text-sm transition-all ${hasBet ? 'roulette-cell-active' : ''}`}
-                        style={{
-                          background: isNumRed 
-                            ? 'linear-gradient(145deg, #dc2626, #991b1b)' 
-                            : 'linear-gradient(145deg, #1f2937, #000000)',
-                          border: `1px solid ${isWinner ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.5)'}`,
-                          boxShadow: isWinner
-                            ? '0 0 20px rgba(212,175,55,0.8), 0 0 40px rgba(212,175,55,0.4), inset 0 1px 1px rgba(255,255,255,0.2)'
-                            : '0 2px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1)',
-                          color: 'white',
-                          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                          animation: isWinner ? 'rouletteWinCellGlow 1.5s ease-in-out infinite' : undefined,
-                        }}
-                      >
-                        {num}
-                        {chips.length > 0 && (
-                          <div className="absolute -top-2 left-1/2 z-10 roulette-chip-drop">
-                            <ChipStack amount={chips[0]?.amount || 10} count={chips[0]?.count || 1} size="sm" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+          {/* Betting Table + Controls */}
+          <div className={`flex-1 overflow-auto px-4 pb-2 ${loseFlash ? 'roulette-lose-shake' : ''}`} style={{ animation: loseFlash ? 'rouletteLoseShake 0.6s ease-out' : undefined }}>
+            <div className="max-w-3xl mx-auto">
+              {/* Betting board */}
+              <div
+                className="rounded-xl p-3 relative"
+                style={{
+                  background: `
+                    repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.008) 1px, transparent 2px, transparent 3px),
+                    repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.005) 1px, transparent 2px, transparent 3px),
+                    linear-gradient(145deg, #1B5E20 0%, #0D3312 50%, #051a08 100%)
+                  `,
+                  boxShadow: `
+                    0 15px 50px rgba(0,0,0,0.7),
+                    inset 0 1px 3px rgba(255,255,255,0.04),
+                    0 0 0 6px #5D4037,
+                    0 0 0 8px #3E2723,
+                    0 0 0 10px rgba(212,175,55,0.35)
+                  `,
+                }}
+              >
+                {/* Main number grid with 0 */}
+                <div className="flex gap-[2px]">
+                  {/* Zero */}
+                  <button
+                    onClick={() => placeBet('0', [0], 35)}
+                    className="roulette-cell relative flex items-center justify-center font-bold text-lg transition-all hover:scale-105 flex-shrink-0"
+                    style={{
+                      width: '40px',
+                      height: 'auto',
+                      borderRadius: '6px',
+                      background: 'linear-gradient(145deg, #15803d, #0D5A12)',
+                      border: winningNumber === 0 ? '2px solid #D4AF37' : '1.5px solid rgba(212,175,55,0.4)',
+                      boxShadow: winningNumber === 0
+                        ? '0 0 15px rgba(212,175,55,0.6), inset 0 1px 2px rgba(255,255,255,0.15)'
+                        : '0 3px 10px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.1)',
+                      color: 'white',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                      animation: winningNumber === 0 ? 'rouletteWinGlow 1.5s ease-in-out infinite' : undefined,
+                    }}
+                  >
+                    0
+                    {getBetAmount('0') > 0 && (
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 roulette-chip-indicator">
+                        <div className="w-5 h-5 rounded-full bg-[#D4AF37] flex items-center justify-center text-[7px] font-bold text-black border border-[#8B6914]">
+                          {getBetAmount('0')}
+                        </div>
+                      </div>
+                    )}
+                  </button>
 
-                {/* 2 to 1 column bets */}
-                <div className="flex flex-col gap-1 ml-1">
-                  {[
-                    { type: 'col3', label: '2:1', nums: [3,6,9,12,15,18,21,24,27,30,33,36] },
-                    { type: 'col2', label: '2:1', nums: [2,5,8,11,14,17,20,23,26,29,32,35] },
-                    { type: 'col1', label: '2:1', nums: [1,4,7,10,13,16,19,22,25,28,31,34] },
-                  ].map(({ type, label, nums }) => {
-                    const chips = getBetChips(type);
-                    
-                    return (
+                  {/* Number grid 3 rows x 12 cols */}
+                  <div className="grid grid-cols-12 flex-1 gap-[2px]">
+                    {GRID_NUMBERS.flat().map((num) => {
+                      const isNumRed = isRed(num);
+                      const betAmt = getBetAmount(num.toString());
+                      const isWinner = winningNumber === num;
+
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => placeBet(num.toString(), [num], 35)}
+                          className="roulette-cell relative h-9 rounded flex items-center justify-center font-bold text-sm transition-all"
+                          style={{
+                            background: isNumRed
+                              ? 'linear-gradient(145deg, #dc2626, #991b1b)'
+                              : 'linear-gradient(145deg, #1f2937, #111)',
+                            border: isWinner ? '2px solid #D4AF37' : '1px solid rgba(212,175,55,0.3)',
+                            boxShadow: isWinner
+                              ? '0 0 15px rgba(212,175,55,0.6), inset 0 1px 1px rgba(255,255,255,0.15)'
+                              : '0 2px 5px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.08)',
+                            color: 'white',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                            animation: isWinner ? 'rouletteWinGlow 1.5s ease-in-out infinite' : undefined,
+                          }}
+                        >
+                          {num}
+                          {betAmt > 0 && (
+                            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 roulette-chip-indicator">
+                              <div className="w-4 h-4 rounded-full bg-[#D4AF37] flex items-center justify-center text-[6px] font-bold text-black border border-[#8B6914]">
+                                {betAmt}
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 2:1 column bets */}
+                  <div className="flex flex-col gap-[2px] flex-shrink-0">
+                    {[
+                      { type: 'col3', label: '2:1', nums: [3,6,9,12,15,18,21,24,27,30,33,36] },
+                      { type: 'col2', label: '2:1', nums: [2,5,8,11,14,17,20,23,26,29,32,35] },
+                      { type: 'col1', label: '2:1', nums: [1,4,7,10,13,16,19,22,25,28,31,34] },
+                    ].map(({ type, label, nums }) => (
                       <button
                         key={type}
-                        onClick={() => placeOutsideBet(type, nums, 2)}
-                        className="relative w-12 h-8 md:w-14 md:h-9 rounded flex items-center justify-center font-bold text-xs"
+                        onClick={() => placeBet(type, nums, 2)}
+                        className="roulette-cell relative w-10 flex-1 rounded flex items-center justify-center font-bold text-[10px] transition-all hover:brightness-125"
                         style={{
                           background: 'linear-gradient(145deg, #5D4037, #3E2723)',
-                          border: '1px solid rgba(212,175,55,0.4)',
+                          border: '1px solid rgba(212,175,55,0.35)',
                           color: '#D4AF37',
                           textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          writingMode: 'vertical-lr',
+                          textOrientation: 'mixed',
                         }}
                       >
                         {label}
-                        {chips.length > 0 && (
-                          <div className="absolute -top-2 left-1/2 roulette-chip-drop">
-                            <ChipStack amount={chips[0]?.amount || 10} count={1} size="sm" />
+                        {getBetAmount(type) > 0 && (
+                          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 roulette-chip-indicator">
+                            <div className="w-4 h-4 rounded-full bg-[#D4AF37] flex items-center justify-center text-[6px] font-bold text-black border border-[#8B6914]">
+                              {getBetAmount(type)}
+                            </div>
                           </div>
                         )}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Dozens */}
-              <div className="flex gap-1 mt-2">
-                {[
-                  { type: '1st12', label: '1st 12', nums: Array.from({length: 12}, (_, i) => i + 1) },
-                  { type: '2nd12', label: '2nd 12', nums: Array.from({length: 12}, (_, i) => i + 13) },
-                  { type: '3rd12', label: '3rd 12', nums: Array.from({length: 12}, (_, i) => i + 25) },
-                ].map(({ type, label, nums }) => {
-                  const chips = getBetChips(type);
-                  
-                  return (
+                {/* Dozens row */}
+                <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '42px', marginRight: '42px' }}>
+                  {[
+                    { type: '1st12', label: '1st 12', nums: Array.from({ length: 12 }, (_, i) => i + 1) },
+                    { type: '2nd12', label: '2nd 12', nums: Array.from({ length: 12 }, (_, i) => i + 13) },
+                    { type: '3rd12', label: '3rd 12', nums: Array.from({ length: 12 }, (_, i) => i + 25) },
+                  ].map(({ type, label, nums }) => (
                     <button
                       key={type}
-                      onClick={() => placeOutsideBet(type, nums, 2)}
-                      className="relative flex-1 h-10 rounded flex items-center justify-center font-bold text-sm transition-all hover:brightness-125"
+                      onClick={() => placeBet(type, nums, 2)}
+                      className="roulette-cell relative flex-1 h-9 rounded flex items-center justify-center font-bold text-sm transition-all hover:brightness-125"
                       style={{
                         background: 'linear-gradient(145deg, #5D4037, #3E2723)',
-                        border: '1px solid rgba(212,175,55,0.5)',
+                        border: '1px solid rgba(212,175,55,0.35)',
                         color: '#D4AF37',
                         textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                       }}
                     >
                       {label}
-                      {chips.length > 0 && (
-                        <div className="absolute -top-2 left-1/2 roulette-chip-drop">
-                          <ChipStack amount={chips[0]?.amount || 10} count={1} size="sm" />
+                      {getBetAmount(type) > 0 && (
+                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 roulette-chip-indicator">
+                          <div className="w-4 h-4 rounded-full bg-[#D4AF37] flex items-center justify-center text-[6px] font-bold text-black border border-[#8B6914]">
+                            {getBetAmount(type)}
+                          </div>
                         </div>
                       )}
                     </button>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
 
-              {/* Outside bets - Even/Odd, Red/Black, Low/High */}
-              <div className="flex gap-1 mt-1">
-                {[
-                  { type: 'low', label: '1-18', nums: Array.from({length: 18}, (_, i) => i + 1) },
-                  { type: 'even', label: 'EVEN', nums: Array.from({length: 18}, (_, i) => (i + 1) * 2) },
-                  { type: 'red', label: 'RED', nums: RED_NUMBERS, isRed: true },
-                  { type: 'black', label: 'BLACK', nums: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36].filter(n => !RED_NUMBERS.includes(n)), isBlack: true },
-                  { type: 'odd', label: 'ODD', nums: Array.from({length: 18}, (_, i) => i * 2 + 1).filter(n => n > 0) },
-                  { type: 'high', label: '19-36', nums: Array.from({length: 18}, (_, i) => i + 19) },
-                ].map(({ type, label, nums, isRed: redBtn, isBlack: blackBtn }) => {
-                  const chips = getBetChips(type);
-                  
-                  return (
+                {/* Outside bets row */}
+                <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '42px', marginRight: '42px' }}>
+                  {[
+                    { type: 'low', label: '1-18', nums: Array.from({ length: 18 }, (_, i) => i + 1), style: {} },
+                    { type: 'even', label: 'EVEN', nums: Array.from({ length: 18 }, (_, i) => (i + 1) * 2), style: {} },
+                    { type: 'red', label: '◆', nums: RED_NUMBERS, style: { background: 'linear-gradient(145deg, #dc2626, #991b1b)', color: '#fff' } },
+                    { type: 'black', label: '◆', nums: [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35], style: { background: 'linear-gradient(145deg, #1f2937, #000)', color: '#fff' } },
+                    { type: 'odd', label: 'ODD', nums: Array.from({ length: 18 }, (_, i) => i * 2 + 1), style: {} },
+                    { type: 'high', label: '19-36', nums: Array.from({ length: 18 }, (_, i) => i + 19), style: {} },
+                  ].map(({ type, label, nums, style: btnStyle }) => (
                     <button
                       key={type}
-                      onClick={() => placeOutsideBet(type, nums, 1)}
-                      className={`relative flex-1 h-10 rounded flex items-center justify-center font-bold text-xs transition-all hover:scale-105 hover:brightness-125 ${chips.length > 0 ? 'roulette-cell-active' : ''}`}
+                      onClick={() => placeBet(type, nums, 1)}
+                      className="roulette-cell relative flex-1 h-9 rounded flex items-center justify-center font-bold text-xs transition-all hover:scale-105 hover:brightness-125"
                       style={{
-                        background: redBtn 
-                          ? 'linear-gradient(145deg, #dc2626, #991b1b)' 
-                          : blackBtn 
-                            ? 'linear-gradient(145deg, #1f2937, #000000)' 
-                            : 'linear-gradient(145deg, #5D4037, #3E2723)',
-                        border: '1px solid rgba(212,175,55,0.5)',
-                        color: redBtn || blackBtn ? 'white' : '#D4AF37',
+                        background: 'linear-gradient(145deg, #5D4037, #3E2723)',
+                        border: '1px solid rgba(212,175,55,0.35)',
+                        color: '#D4AF37',
                         textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                        ...btnStyle,
                       }}
                     >
                       {label}
-                      {chips.length > 0 && (
-                        <div className="absolute -top-2 left-1/2 roulette-chip-drop">
-                          <ChipStack amount={chips[0]?.amount || 10} count={1} size="sm" />
+                      {getBetAmount(type) > 0 && (
+                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 roulette-chip-indicator">
+                          <div className="w-4 h-4 rounded-full bg-[#D4AF37] flex items-center justify-center text-[6px] font-bold text-black border border-[#8B6914]">
+                            {getBetAmount(type)}
+                          </div>
                         </div>
                       )}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Total Bet & Controls */}
-          <div className="flex items-center justify-between mt-4 p-3 rounded-xl bg-black/60 border border-[#5D4037]/50">
-            <div>
-              <span className="text-[#C0C0C0] text-sm">Total Bet: </span>
-              <span className="text-[#D4AF37] font-bold text-xl">{totalBet} $Pc</span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={clearBets}
-                disabled={isSpinning || placedBets.length === 0}
-                className="border-[#B71C1C]/50 text-[#B71C1C] hover:bg-[#B71C1C]/20"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Clear
-              </Button>
-            </div>
-          </div>
-
-          {/* Message */}
-          {message && (
-            <div className="mt-4 text-center">
-              <div className="inline-block px-6 py-2 rounded-full bg-black/80 text-[#D4AF37] border border-[#D4AF37]/40 font-bold">
-                {message}
-              </div>
-            </div>
-          )}
-
-          {/* Spin Button */}
-          <Button
-            onClick={spin}
-            disabled={isSpinning || placedBets.length === 0}
-            className="w-full btn-primary py-6 text-xl font-bold mt-4"
-            style={{ boxShadow: '0 10px 30px rgba(212,175,55,0.3)' }}
+          {/* Bottom bar: Chips + Action Buttons */}
+          <div
+            className="flex-shrink-0"
+            style={{
+              background: 'linear-gradient(180deg, rgba(15,15,15,0.98) 0%, rgba(5,5,5,1) 100%)',
+              borderTop: '2px solid rgba(212,175,55,0.3)',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.6)',
+            }}
           >
-            {isSpinning ? 'SPINNING...' : 'SPIN WHEEL'}
-          </Button>
-        </div>
-      </div>
+            <div className="max-w-4xl mx-auto px-4 py-2">
+              <div className="flex items-center justify-between gap-4">
+                {/* Chip selector */}
+                <div className="flex gap-1.5">
+                  {CHIP_VALUES.map(value => (
+                    <PokerChip
+                      key={value}
+                      amount={value}
+                      size="sm"
+                      selected={selectedChip === value}
+                      onClick={() => setSelectedChip(value)}
+                    />
+                  ))}
+                </div>
 
-      {/* Rules Dialog */}
-      <Dialog open={showRules} onOpenChange={setShowRules}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto glass-panel-strong">
-          <DialogHeader>
-            <DialogTitle className="font-casino text-2xl text-gradient-gold">Roulette Rules</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 text-sm">
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Objective</h3>
-              <p className="text-[#C0C0C0]">{rouletteRules.objective}</p>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Inside Bets</h3>
-              <ul className="space-y-1 text-[#C0C0C0]">
-                {rouletteRules.insideBets.map((bet, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-[#D4AF37]">•</span>
-                    <span><strong className="text-white">{bet.name}:</strong> {bet.desc} ({bet.payout})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Outside Bets</h3>
-              <ul className="space-y-1 text-[#C0C0C0]">
-                {rouletteRules.outsideBets.map((bet, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-[#D4AF37]">•</span>
-                    <span><strong className="text-white">{bet.name}:</strong> {bet.desc} ({bet.payout})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+                {/* Bet total */}
+                <div className="text-center flex-shrink-0">
+                  <div className="text-[9px] text-gray-500 uppercase tracking-wider">Total Bet</div>
+                  <div className="text-lg font-bold text-[#D4AF37]">{totalBet} $Pc</div>
+                </div>
 
-      {/* Settings Dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-sm glass-panel-strong">
-          <DialogHeader>
-            <DialogTitle className="font-casino text-xl text-gradient-gold">Game Settings</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#5D4037]/20">
-              <div>
-                <div className="font-bold text-white">La Partage</div>
-                <div className="text-xs text-[#808080]">Lose half on zero (even-money bets)</div>
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => spin()}
+                    disabled={isSpinning || placedBets.length === 0}
+                    className="px-5 py-3 rounded-lg font-bold text-sm text-black"
+                    style={{
+                      background: isSpinning || placedBets.length === 0
+                        ? 'linear-gradient(145deg, #555, #333)'
+                        : 'linear-gradient(145deg, #43A047, #2E7D32)',
+                      boxShadow: '0 3px 10px rgba(67,160,71,0.4)',
+                      color: isSpinning || placedBets.length === 0 ? '#888' : '#fff',
+                    }}
+                  >
+                    {isSpinning ? 'SPINNING...' : 'SPIN'}
+                  </Button>
+
+                  <Button
+                    onClick={repeatAndSpin}
+                    disabled={isSpinning || lastBets.length === 0}
+                    className="px-4 py-3 rounded-lg font-bold text-[11px]"
+                    style={{
+                      background: isSpinning || lastBets.length === 0
+                        ? 'linear-gradient(145deg, #555, #333)'
+                        : 'linear-gradient(145deg, #1E88E5, #1565C0)',
+                      boxShadow: '0 3px 10px rgba(30,136,229,0.3)',
+                      color: isSpinning || lastBets.length === 0 ? '#888' : '#fff',
+                    }}
+                  >
+                    REPEAT & SPIN
+                  </Button>
+
+                  <Button
+                    onClick={repeatBet}
+                    disabled={isSpinning || lastBets.length === 0}
+                    className="px-4 py-3 rounded-lg font-bold text-[11px]"
+                    style={{
+                      background: isSpinning || lastBets.length === 0
+                        ? 'linear-gradient(145deg, #555, #333)'
+                        : 'linear-gradient(145deg, #D4AF37, #B8860B)',
+                      boxShadow: '0 3px 10px rgba(212,175,55,0.3)',
+                      color: isSpinning || lastBets.length === 0 ? '#888' : '#000',
+                    }}
+                  >
+                    REPEAT BET
+                  </Button>
+
+                  <Button
+                    onClick={clearBets}
+                    disabled={isSpinning || placedBets.length === 0}
+                    className="px-4 py-3 rounded-lg font-bold text-[11px]"
+                    style={{
+                      background: isSpinning || placedBets.length === 0
+                        ? 'linear-gradient(145deg, #555, #333)'
+                        : 'linear-gradient(145deg, #B71C1C, #8B0000)',
+                      boxShadow: '0 3px 10px rgba(183,28,28,0.3)',
+                      color: isSpinning || placedBets.length === 0 ? '#888' : '#fff',
+                    }}
+                  >
+                    CLEAR
+                  </Button>
+                </div>
               </div>
-              <Switch checked={useLaPartage} onCheckedChange={setUseLaPartage} />
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        {/* Rules Dialog */}
+        <Dialog open={showRules} onOpenChange={setShowRules}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto glass-panel-strong">
+            <DialogHeader>
+              <DialogTitle className="font-casino text-2xl text-gradient-gold">Roulette Rules</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Objective</h3>
+                <p className="text-[#C0C0C0]">{rouletteRules.objective}</p>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">European Roulette</h3>
+                <p className="text-[#C0C0C0]">37 pockets (0-36), single zero. La Partage rule returns half of even-money bets when zero hits.</p>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Inside Bets</h3>
+                <ul className="space-y-1 text-[#C0C0C0]">
+                  {rouletteRules.insideBets.map((bet, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-[#D4AF37]">•</span>
+                      <span><strong className="text-white">{bet.name}:</strong> {bet.desc} ({bet.payout})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Outside Bets</h3>
+                <ul className="space-y-1 text-[#C0C0C0]">
+                  {rouletteRules.outsideBets.map((bet, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-[#D4AF37]">•</span>
+                      <span><strong className="text-white">{bet.name}:</strong> {bet.desc} ({bet.payout})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Dialog */}
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent className="max-w-sm glass-panel-strong">
+            <DialogHeader>
+              <DialogTitle className="font-casino text-xl text-gradient-gold">Settings</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#5D4037]/20">
+                <div>
+                  <div className="font-bold text-white">La Partage</div>
+                  <div className="text-xs text-[#808080]">Half back on zero (even-money bets)</div>
+                </div>
+                <Switch checked={useLaPartage} onCheckedChange={setUseLaPartage} />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </CasinoEnvironment>
   );
 }
