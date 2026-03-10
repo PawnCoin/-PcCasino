@@ -135,19 +135,33 @@ export function usePokerVoice() {
 export function useRouletteVoice() {
   const { speak, stop, isSupported } = useGameVoice();
 
+  const announceBetsOpen = useCallback(() => {
+    if (!isSupported) return;
+    speak('Place your bets', 0.9);
+  }, [speak, isSupported]);
+
+  const announceNoMoreBets = useCallback(() => {
+    if (!isSupported) return;
+    speak('No more bets', 0.9);
+  }, [speak, isSupported]);
+
   const announceResult = useCallback((number: number, isRed: boolean) => {
     if (!isSupported) return;
-    
     const color = isRed ? 'red' : number === 0 ? 'green' : 'black';
-    speak(`${number} ${color}`, 0.9);
+    speak(`Number ${number}, ${color}`, 0.85);
   }, [speak, isSupported]);
 
   const announceWin = useCallback((amount: number) => {
     if (!isSupported) return;
-    speak(`You win ${amount} dollars!`, 1.1);
+    speak(`Winner! You win ${amount} pawn coin`, 1.0);
   }, [speak, isSupported]);
 
-  return { announceResult, announceWin, stop, isSupported };
+  const announceLoss = useCallback(() => {
+    if (!isSupported) return;
+    speak('Better luck next time', 0.9);
+  }, [speak, isSupported]);
+
+  return { announceBetsOpen, announceNoMoreBets, announceResult, announceWin, announceLoss, stop, isSupported };
 }
 
 // Blackjack voice announcements

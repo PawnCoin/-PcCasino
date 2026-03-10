@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' | 'click' | 'diceRoll' | 'shuffle' | 'dealerCall' | 'jackpot';
+type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' | 'click' | 'diceRoll' | 'shuffle' | 'dealerCall' | 'jackpot' | 'ballClick' | 'wheelTick' | 'noMoreBets' | 'ballLand' | 'chipPlace';
 
 let sharedAudioContext: AudioContext | null = null;
 let masterGainNode: GainNode | null = null;
@@ -60,6 +60,26 @@ function playSynthSound(type: SoundType, volume: number) {
   }
   if (type === 'jackpot') {
     playJackpotSound(ctx, master, now, volume);
+    return;
+  }
+  if (type === 'ballClick') {
+    playBallClickSound(ctx, master, now, volume);
+    return;
+  }
+  if (type === 'wheelTick') {
+    playWheelTickSound(ctx, master, now, volume);
+    return;
+  }
+  if (type === 'noMoreBets') {
+    playNoMoreBetsSound(ctx, master, now, volume);
+    return;
+  }
+  if (type === 'ballLand') {
+    playBallLandSound(ctx, master, now, volume);
+    return;
+  }
+  if (type === 'chipPlace') {
+    playChipPlaceSound(ctx, master, now, volume);
     return;
   }
 
@@ -281,6 +301,201 @@ function playJackpotSound(ctx: AudioContext, master: GainNode, now: number, volu
   riserGain.connect(layerGain);
   riserOsc.start(now);
   riserOsc.stop(now + totalDuration);
+}
+
+function playBallClickSound(ctx: AudioContext, master: GainNode, now: number, volume: number) {
+  const layerGain = ctx.createGain();
+  layerGain.connect(master);
+
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(3500, now);
+  osc.frequency.exponentialRampToValueAtTime(1800, now + 0.03);
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.25 * volume, now);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+  osc.connect(oscGain);
+  oscGain.connect(layerGain);
+  osc.start(now);
+  osc.stop(now + 0.05);
+
+  const noiseBuffer = createNoiseBuffer(ctx, 0.03);
+  const noiseSource = ctx.createBufferSource();
+  noiseSource.buffer = noiseBuffer;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'highpass';
+  noiseFilter.frequency.value = 4000;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.12 * volume, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+  noiseSource.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(layerGain);
+  noiseSource.start(now);
+  noiseSource.stop(now + 0.04);
+}
+
+function playWheelTickSound(ctx: AudioContext, master: GainNode, now: number, volume: number) {
+  const layerGain = ctx.createGain();
+  layerGain.connect(master);
+
+  const tickCount = 12;
+  for (let i = 0; i < tickCount; i++) {
+    const delay = i * (0.06 + i * 0.012);
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = 2200 + Math.random() * 400;
+    const tickGain = ctx.createGain();
+    const amp = (0.15 - i * 0.01) * volume;
+    tickGain.gain.setValueAtTime(Math.max(amp, 0.02 * volume), now + delay);
+    tickGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.025);
+    osc.connect(tickGain);
+    tickGain.connect(layerGain);
+    osc.start(now + delay);
+    osc.stop(now + delay + 0.03);
+  }
+}
+
+function playNoMoreBetsSound(ctx: AudioContext, master: GainNode, now: number, volume: number) {
+  const layerGain = ctx.createGain();
+  layerGain.connect(master);
+
+  const bell1 = ctx.createOscillator();
+  bell1.type = 'sine';
+  bell1.frequency.value = 1200;
+  const bell1Gain = ctx.createGain();
+  bell1Gain.gain.setValueAtTime(0.3 * volume, now);
+  bell1Gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+  bell1.connect(bell1Gain);
+  bell1Gain.connect(layerGain);
+  bell1.start(now);
+  bell1.stop(now + 0.55);
+
+  const bell2 = ctx.createOscillator();
+  bell2.type = 'sine';
+  bell2.frequency.value = 1600;
+  const bell2Gain = ctx.createGain();
+  bell2Gain.gain.setValueAtTime(0.2 * volume, now + 0.05);
+  bell2Gain.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
+  bell2.connect(bell2Gain);
+  bell2Gain.connect(layerGain);
+  bell2.start(now + 0.05);
+  bell2.stop(now + 0.6);
+
+  [2400, 3600].forEach((freq) => {
+    const harm = ctx.createOscillator();
+    harm.type = 'sine';
+    harm.frequency.value = freq;
+    const harmGain = ctx.createGain();
+    harmGain.gain.setValueAtTime(0.06 * volume, now);
+    harmGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    harm.connect(harmGain);
+    harmGain.connect(layerGain);
+    harm.start(now);
+    harm.stop(now + 0.4);
+  });
+}
+
+function playBallLandSound(ctx: AudioContext, master: GainNode, now: number, volume: number) {
+  const layerGain = ctx.createGain();
+  layerGain.connect(master);
+
+  const thudOsc = ctx.createOscillator();
+  thudOsc.type = 'sine';
+  thudOsc.frequency.setValueAtTime(180, now);
+  thudOsc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+  const thudGain = ctx.createGain();
+  thudGain.gain.setValueAtTime(0.35 * volume, now);
+  thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  thudOsc.connect(thudGain);
+  thudGain.connect(layerGain);
+  thudOsc.start(now);
+  thudOsc.stop(now + 0.25);
+
+  const noiseBuffer = createNoiseBuffer(ctx, 0.1);
+  const noiseSrc = ctx.createBufferSource();
+  noiseSrc.buffer = noiseBuffer;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'lowpass';
+  noiseFilter.frequency.value = 800;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.15 * volume, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+  noiseSrc.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(layerGain);
+  noiseSrc.start(now);
+  noiseSrc.stop(now + 0.12);
+
+  const ringOsc = ctx.createOscillator();
+  ringOsc.type = 'sine';
+  ringOsc.frequency.value = 2800;
+  const ringGain = ctx.createGain();
+  ringGain.gain.setValueAtTime(0.001, now + 0.05);
+  ringGain.gain.linearRampToValueAtTime(0.15 * volume, now + 0.08);
+  ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  ringOsc.connect(ringGain);
+  ringGain.connect(layerGain);
+  ringOsc.start(now + 0.05);
+  ringOsc.stop(now + 0.45);
+
+  for (let i = 0; i < 3; i++) {
+    const bounceOsc = ctx.createOscillator();
+    bounceOsc.type = 'sine';
+    bounceOsc.frequency.value = 2000 + i * 300;
+    const bounceGain = ctx.createGain();
+    const t = now + 0.12 + i * 0.08;
+    bounceGain.gain.setValueAtTime((0.08 - i * 0.02) * volume, t);
+    bounceGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    bounceOsc.connect(bounceGain);
+    bounceGain.connect(layerGain);
+    bounceOsc.start(t);
+    bounceOsc.stop(t + 0.05);
+  }
+}
+
+function playChipPlaceSound(ctx: AudioContext, master: GainNode, now: number, volume: number) {
+  const layerGain = ctx.createGain();
+  layerGain.connect(master);
+
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(900, now);
+  osc.frequency.exponentialRampToValueAtTime(600, now + 0.12);
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.25 * volume, now);
+  oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+  osc.connect(oscGain);
+  oscGain.connect(layerGain);
+  osc.start(now);
+  osc.stop(now + 0.18);
+
+  const noiseBuffer = createNoiseBuffer(ctx, 0.12);
+  const noiseSrc = ctx.createBufferSource();
+  noiseSrc.buffer = noiseBuffer;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.value = 1200;
+  noiseFilter.Q.value = 2;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.1 * volume, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+  noiseSrc.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(layerGain);
+  noiseSrc.start(now);
+  noiseSrc.stop(now + 0.14);
+
+  const resOsc = ctx.createOscillator();
+  resOsc.type = 'sine';
+  resOsc.frequency.value = 1800;
+  const resGain = ctx.createGain();
+  resGain.gain.setValueAtTime(0.08 * volume, now + 0.02);
+  resGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  resOsc.connect(resGain);
+  resGain.connect(layerGain);
+  resOsc.start(now + 0.02);
+  resOsc.stop(now + 0.22);
 }
 
 let ambientNodes: { stop: () => void } | null = null;

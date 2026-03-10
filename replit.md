@@ -48,10 +48,11 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 │   │   ├── Sportsbook.tsx
 │   │   ├── games/
 │   │   │   ├── CasinoEnvironment.tsx # Casino room wrapper (ceiling lights, columns, dust particles, floor reflections)
-│   │   │   ├── GameViewport.tsx      # 3D casino environment (Three.js, currently unused by games)
+│   │   │   ├── GameViewport.tsx      # 3D casino environment (Three.js)
+│   │   │   ├── RouletteWheel3D.tsx   # True 3D roulette wheel (React Three Fiber): metallic rim, 37 colored pockets, gold hub, ball track, spinning ball, spot/point lighting
 │   │   │   ├── PokerGame.tsx         # Leather rail, 3D cards, pot chip stacks, action timer bars
 │   │   │   ├── BlackjackGame.tsx     # Wood rail, glossy 3D cards, dealer nameplate, card shoe, win/bust animations
-│   │   │   ├── RouletteGame.tsx      # Vegas-style 3D wheel, credit display, history panel, full betting table (0-36, dozens, columns, outside bets), repeat bet/spin, La Partage
+│   │   │   ├── RouletteGame.tsx      # 3D R3F wheel (top), credit + history overlays, green felt betting table (0, 3×12 grid, 2:1 columns, dozens, outside bets), bottom bar (chips, bet, SPIN/REPEAT/CLEAR), roulette sounds (ballClick, wheelTick, noMoreBets, ballLand) + dealer voice (place bets, no more bets, number/color, win/loss), La Partage
 │   │   │   ├── CrapsGame.tsx         # 80px beveled dice, tumble animation, ON/OFF puck, padded rail
 │   │   │   ├── Spanish21Game.tsx     # Neon side bet circles (gold/purple/emerald), starburst bonus wins
 │   │   │   ├── SpadesGame.tsx        # Fan spread cards, trick animations, metallic scoreboard
@@ -63,7 +64,7 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 
 - **Frontend**: React 19, TypeScript, Vite
 - **Styling**: Tailwind CSS, shadcn/ui components
-- **3D Engine**: Three.js, @react-three/fiber, @react-three/drei (available but games use CSS-based effects)
+- **3D Engine**: Three.js, @react-three/fiber, @react-three/drei (used by Roulette 3D wheel, GameViewport)
 - **State**: React hooks + localStorage persistence
 - **Build**: Vite (dev on port 5000)
 
