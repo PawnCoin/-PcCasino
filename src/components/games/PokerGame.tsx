@@ -209,9 +209,11 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
   const [loseEffect, setLoseEffect] = useState(false);
   const [winText, setWinText] = useState('');
   const [opponents, setOpponents] = useState([
-    { id: 1, name: 'Player 2', balance: 2500, bet: 0, cards: 2, active: true },
-    { id: 2, name: 'Player 3', balance: 1800, bet: 0, cards: 2, active: true },
-    { id: 3, name: 'Player 4', balance: 3200, bet: 0, cards: 2, active: true },
+    { id: 1, name: 'Player 2', balance: 2500, bet: 0, cards: 2, active: true, position: 'BB' },
+    { id: 2, name: 'Player 3', balance: 1800, bet: 0, cards: 2, active: true, position: 'SB' },
+    { id: 3, name: 'Player 4', balance: 3200, bet: 0, cards: 2, active: true, position: '' },
+    { id: 4, name: 'Player 5', balance: 2100, bet: 0, cards: 2, active: true, position: '' },
+    { id: 5, name: 'Player 6', balance: 4000, bet: 0, cards: 2, active: true, position: '' },
   ]);
 
   const { isMuted, toggleMute, playSound } = useSoundEffects();
@@ -222,10 +224,10 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
     const newDeck = shuffleDeck(createDeck());
     const playerCards = [newDeck[0], newDeck[1]];
     
-    const newOpponents = opponents.map((opp) => ({
+    const newOpponents = opponents.map((opp, idx) => ({
       ...opp,
       bet: 0,
-      active: true,
+      active: idx < 3 || Math.random() > 0.3,
     }));
     
     setDeck(newDeck.slice(8));
@@ -718,26 +720,20 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
           </div>
         </nav>
 
-        <div className="pt-14 min-h-screen flex flex-col relative z-10">
-          <div className="flex-1 relative p-4">
+        <div className="pt-14 h-screen flex flex-col relative z-10">
+          {/* === TABLE AREA === */}
+          <div className="flex-1 relative px-4 pt-2 pb-0 min-h-0">
             <div 
-              className="relative w-full max-w-6xl mx-auto rounded-[50%/30%] overflow-hidden"
+              className="relative w-full max-w-5xl mx-auto h-full"
               style={{
-                aspectRatio: '2/1.2',
                 animation: loseEffect ? 'pokerLoseShake 0.6s ease-out' : undefined,
               }}
             >
+              {/* Wood rail */}
               <div
-                className="absolute -inset-[14px] rounded-[50%/30%] z-0"
+                className="absolute inset-0 rounded-[50%/35%]"
                 style={{
                   background: `
-                    repeating-linear-gradient(
-                      90deg,
-                      rgba(139, 69, 19, 0.08) 0px,
-                      transparent 2px,
-                      transparent 6px,
-                      rgba(139, 69, 19, 0.05) 8px
-                    ),
                     radial-gradient(ellipse at 30% 20%, rgba(160,120,80,0.3) 0%, transparent 50%),
                     radial-gradient(ellipse at 70% 80%, rgba(160,120,80,0.2) 0%, transparent 50%),
                     linear-gradient(180deg, #6D4C2E 0%, #5D4037 20%, #4E342E 50%, #3E2723 80%, #2E1F18 100%)
@@ -750,32 +746,28 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                   `,
                 }}
               />
-
+              {/* Gold notch rim */}
               <div
-                className="absolute -inset-[14px] rounded-[50%/30%] z-[1] pointer-events-none"
+                className="absolute inset-0 rounded-[50%/35%] pointer-events-none"
                 style={{
-                  background: `
-                    repeating-conic-gradient(
-                      from 0deg,
-                      transparent 0deg 8deg,
-                      rgba(212,175,55,0.15) 8deg 9deg,
-                      transparent 9deg 18deg
-                    )
-                  `,
+                  background: `repeating-conic-gradient(from 0deg, transparent 0deg 8deg, rgba(212,175,55,0.15) 8deg 9deg, transparent 9deg 18deg)`,
                   mask: 'radial-gradient(ellipse at center, transparent 85%, black 90%, black 100%)',
                   WebkitMask: 'radial-gradient(ellipse at center, transparent 85%, black 90%, black 100%)',
                 }}
               />
 
+              {/* Green felt */}
               <div 
-                className="absolute inset-0 rounded-[50%/30%] z-[2]"
+                className="absolute rounded-[50%/35%]"
                 style={{
+                  inset: '14px',
                   background: 'radial-gradient(ellipse at 50% 40%, #2E7D32 0%, #1B5E20 30%, #0D3312 60%, #051a08 100%)',
-                  boxShadow: 'inset 0 0 150px rgba(0,0,0,0.6)',
+                  boxShadow: 'inset 0 0 120px rgba(0,0,0,0.5)',
                 }}
               >
+                {/* Felt texture */}
                 <div 
-                  className="absolute inset-0 opacity-50"
+                  className="absolute inset-0 opacity-50 rounded-[50%/35%]"
                   style={{
                     backgroundImage: `
                       repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.015) 1px, transparent 2px, transparent 3px),
@@ -783,432 +775,360 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     `,
                   }}
                 />
-                
-                <div className="absolute inset-[5%] border-2 border-dashed border-[#D4AF37]/20 rounded-[50%/30%]" />
-                
+                {/* Gold border lines */}
+                <div className="absolute inset-[5%] border-2 border-dashed border-[#D4AF37]/20 rounded-[50%/35%]" />
                 <div
-                  className="absolute inset-[4%] rounded-[50%/30%] pointer-events-none"
+                  className="absolute inset-[4%] rounded-[50%/35%] pointer-events-none"
                   style={{
                     border: '1.5px solid rgba(212,175,55,0.25)',
                     boxShadow: 'inset 0 0 40px rgba(212,175,55,0.06)',
                   }}
                 />
 
+                {/* TEXAS HOLD'EM text on felt */}
                 <div
-                  className="absolute top-[15%] left-1/2 -translate-x-1/2 pointer-events-none select-none z-[1]"
+                  className="absolute top-[10%] left-1/2 -translate-x-1/2 pointer-events-none select-none"
                   style={{
                     fontFamily: "'Cinzel', serif",
-                    fontSize: '14px',
+                    fontSize: '16px',
                     letterSpacing: '0.4em',
-                    color: 'rgba(212,175,55,0.15)',
+                    color: 'rgba(212,175,55,0.35)',
                     textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.3)',
                   }}
                 >
                   TEXAS HOLD'EM POKER
                 </div>
 
+                {/* $Pc center branding */}
                 <div
-                  className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1] flex items-center gap-2"
-                  style={{ opacity: 0.08 }}
+                  className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none flex items-center gap-2"
+                  style={{ opacity: 0.2 }}
                 >
-                  <img src="/logos/pc-logo.png" alt="" className="w-8 h-8 opacity-60" />
-                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: '16px', color: '#D4AF37', letterSpacing: '0.3em' }}>$Pc</span>
+                  <img src="/logos/pc-logo.png" alt="" className="w-10 h-10" />
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: '20px', color: '#D4AF37', letterSpacing: '0.3em' }}>$Pc CASINO</span>
                 </div>
 
+                {/* Spotlight */}
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[45%] pointer-events-none"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[45%] pointer-events-none rounded-[50%/35%]"
                   style={{
-                    background: 'radial-gradient(ellipse at center top, rgba(255,255,220,0.1) 0%, rgba(212,175,55,0.06) 30%, transparent 60%)',
+                    background: 'radial-gradient(ellipse at center top, rgba(255,255,220,0.1) 0%, rgba(212,175,55,0.05) 30%, transparent 60%)',
                     animation: 'pokerSpotlight 4s ease-in-out infinite',
                   }}
                 />
               </div>
 
+              {/* Table limits placard */}
               <div
-                className="absolute top-[3%] left-[5%] z-[4] pointer-events-none"
+                className="absolute z-[10] pointer-events-none"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,20,20,0.95) 100%)',
-                  border: '1px solid rgba(212,175,55,0.5)',
+                  top: '10%',
+                  left: '12%',
+                  background: 'linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(20,20,20,0.98) 100%)',
+                  border: '1px solid rgba(212,175,55,0.6)',
                   borderRadius: '6px',
                   padding: '6px 10px',
                   boxShadow: '0 4px 15px rgba(0,0,0,0.6)',
                 }}
               >
-                <div style={{ fontSize: '8px', color: '#D4AF37', letterSpacing: '0.1em', fontWeight: 700 }}>TABLE LIMITS</div>
+                <div style={{ fontSize: '8px', color: '#D4AF37', letterSpacing: '0.15em', fontWeight: 700 }}>TABLE LIMITS</div>
                 <div style={{ fontSize: '9px', color: '#C0C0C0', marginTop: '2px' }}>MIN 5 $Pc</div>
                 <div style={{ fontSize: '9px', color: '#C0C0C0' }}>MAX 500 $Pc</div>
               </div>
 
+              {/* Card shoe */}
               <div
-                className="absolute top-[3%] right-[5%] z-[4] pointer-events-none"
+                className="absolute z-[10] pointer-events-none"
                 style={{
+                  top: '10%',
+                  right: '12%',
                   width: '35px',
                   height: '50px',
                   background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)',
-                  border: '2px solid rgba(212,175,55,0.4)',
+                  border: '2px solid rgba(212,175,55,0.5)',
                   borderRadius: '4px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.05)',
-                  position: 'relative',
                   overflow: 'hidden',
                 }}
               >
-                <div style={{
-                  position: 'absolute',
-                  top: '3px',
-                  left: '4px',
-                  right: '4px',
-                  height: '6px',
-                  background: 'linear-gradient(180deg, #283593, #1a237e)',
-                  borderRadius: '2px',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  top: '10px',
-                  left: '4px',
-                  right: '4px',
-                  height: '5px',
-                  background: 'linear-gradient(180deg, #283593, #1a237e)',
-                  borderRadius: '2px',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  bottom: '3px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  fontSize: '6px',
-                  color: 'rgba(212,175,55,0.5)',
-                  fontWeight: 700,
-                }}>SHOE</div>
+                <div style={{ position: 'absolute', top: '3px', left: '4px', right: '4px', height: '6px', background: 'linear-gradient(180deg, #283593, #1a237e)', borderRadius: '2px' }} />
+                <div style={{ position: 'absolute', top: '10px', left: '4px', right: '4px', height: '5px', background: 'linear-gradient(180deg, #283593, #1a237e)', borderRadius: '2px' }} />
+                <div style={{ position: 'absolute', top: '16px', left: '4px', right: '4px', height: '5px', background: 'linear-gradient(180deg, #283593, #1a237e)', borderRadius: '2px' }} />
+                <div style={{ position: 'absolute', bottom: '3px', left: '50%', transform: 'translateX(-50%)', fontSize: '6px', color: 'rgba(212,175,55,0.6)', fontWeight: 700 }}>SHOE</div>
               </div>
 
-              <div className="absolute inset-0 z-[3]">
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-                  <div
-                    className="px-5 py-1.5 rounded-full"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(20,20,20,0.9) 100%)',
-                      border: '1px solid rgba(212,175,55,0.5)',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-                    }}
-                  >
-                    <span className="text-[#D4AF37] font-casino text-sm tracking-[0.2em]">{getPhaseLabel()}</span>
-                  </div>
-                </div>
-
+              {/* Phase label */}
+              <div className="absolute top-[3%] left-1/2 -translate-x-1/2 z-[10]">
                 <div
-                  className="absolute top-[22%] left-1/2 -translate-x-1/2 text-center z-10"
+                  className="px-5 py-1.5 rounded-full"
                   style={{
-                    animation: pot > 0 ? 'pokerPotGlow 2s ease-in-out infinite' : 'none',
-                    background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, transparent 70%)',
-                    borderRadius: '20px',
-                    padding: '12px 24px',
+                    background: 'linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(20,20,20,0.95) 100%)',
+                    border: '1px solid rgba(212,175,55,0.5)',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
                   }}
                 >
-                  <div className="text-[10px] text-[#C0C0C0] tracking-[0.3em] mb-1 font-bold">POT</div>
-                  <div className="text-3xl font-bold text-[#D4AF37] gold-text">{pot.toLocaleString()}</div>
-                  <div className="text-xs text-[#C0C0C0]">$Pc</div>
-                  
-                  {pot > 0 && (
-                    <div
-                      className="mt-2"
-                      style={{ animation: winEffect ? 'pokerChipsSweep 1s ease-in 0.5s forwards' : undefined }}
-                    >
-                      <PotChipStack pot={pot} />
+                  <span className="text-[#D4AF37] font-casino text-sm tracking-[0.2em]">{getPhaseLabel()}</span>
+                </div>
+              </div>
+
+              {/* Pot display */}
+              <div
+                className="absolute top-[20%] left-1/2 -translate-x-1/2 text-center z-[10]"
+                style={{
+                  animation: pot > 0 ? 'pokerPotGlow 2s ease-in-out infinite' : 'none',
+                  background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, transparent 70%)',
+                  borderRadius: '20px',
+                  padding: '8px 20px',
+                }}
+              >
+                <div className="text-[10px] text-[#C0C0C0] tracking-[0.3em] mb-1 font-bold">POT</div>
+                <div className="text-2xl font-bold text-[#D4AF37] gold-text">{pot.toLocaleString()}</div>
+                <div className="text-xs text-[#C0C0C0]">$Pc</div>
+                {pot > 0 && (
+                  <div className="mt-1" style={{ animation: winEffect ? 'pokerChipsSweep 1s ease-in 0.5s forwards' : undefined }}>
+                    <PotChipStack pot={pot} />
+                  </div>
+                )}
+              </div>
+
+              {/* Community cards */}
+              <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-[10]">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      animation: communityCards[i] && i < revealedCommunity
+                        ? `pokerCommunityReveal 0.6s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.15}s both`
+                        : undefined,
+                    }}
+                  >
+                    {communityCards[i] ? (
+                      <PlayingCard card={communityCards[i]} size="lg" />
+                    ) : (
+                      <div 
+                        className="rounded-lg border-2 border-dashed border-[#D4AF37]/20 bg-black/20"
+                        style={{ width: '70px', height: '100px', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.3)' }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* === OPPONENT SEATS === */}
+              {/* Seat 1 - Top center (Dealer area) */}
+              <div className="absolute top-[8%] left-1/2 -translate-x-1/2 z-[10]">
+                <div className="flex flex-col items-center">
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Dealer</div>
+                  <div className="flex gap-1 mb-1">
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                  </div>
+                  <div className="text-[10px] text-white font-bold">{opponents[0].name}</div>
+                  <div className="text-[9px] text-[#D4AF37]">{opponents[0].balance.toLocaleString()} $Pc</div>
+                  {opponents[0].bet > 0 && <div className="mt-1"><PokerChip amount={opponents[0].bet} size="sm" /></div>}
+                  {opponents[0].position && (
+                    <div className="mt-1 px-2 py-0.5 rounded-full text-[7px] font-bold" style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(212,175,55,0.5)', color: '#D4AF37' }}>
+                      {opponents[0].position}
                     </div>
                   )}
                 </div>
+              </div>
 
-                <div className="absolute top-[42%] left-1/2 -translate-x-1/2 flex gap-3 z-10">
-                  {[0, 1, 2, 3, 4].map((i) => (
+              {/* Seat 2 - Top left */}
+              <div className="absolute top-[15%] left-[8%] z-[10]">
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-1 mb-1">
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                  </div>
+                  <div className="text-[10px] text-white font-bold">{opponents[1].name}</div>
+                  <div className="text-[9px] text-[#D4AF37]">{opponents[1].balance.toLocaleString()} $Pc</div>
+                  {opponents[1].bet > 0 && <div className="mt-1"><PokerChip amount={opponents[1].bet} size="sm" /></div>}
+                  {opponents[1].position && (
+                    <div className="mt-1 px-2 py-0.5 rounded-full text-[7px] font-bold" style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(212,175,55,0.5)', color: '#D4AF37' }}>
+                      {opponents[1].position}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Seat 3 - Top right */}
+              <div className="absolute top-[15%] right-[8%] z-[10]">
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-1 mb-1">
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                  </div>
+                  <div className="text-[10px] text-white font-bold">{opponents[2].name}</div>
+                  <div className="text-[9px] text-[#D4AF37]">{opponents[2].balance.toLocaleString()} $Pc</div>
+                  {opponents[2].bet > 0 && <div className="mt-1"><PokerChip amount={opponents[2].bet} size="sm" /></div>}
+                </div>
+              </div>
+
+              {/* Seat 4 - Left side */}
+              <div className="absolute top-[50%] -translate-y-1/2 left-[3%] z-[10]">
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-1 mb-1">
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                  </div>
+                  <div className="text-[10px] text-white font-bold">{opponents[3].name}</div>
+                  <div className="text-[9px] text-[#D4AF37]">{opponents[3].balance.toLocaleString()} $Pc</div>
+                  {opponents[3].bet > 0 && <div className="mt-1"><PokerChip amount={opponents[3].bet} size="sm" /></div>}
+                </div>
+              </div>
+
+              {/* Seat 5 - Right side */}
+              <div className="absolute top-[50%] -translate-y-1/2 right-[3%] z-[10]">
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-1 mb-1">
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                    <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+                  </div>
+                  <div className="text-[10px] text-white font-bold">{opponents[4].name}</div>
+                  <div className="text-[9px] text-[#D4AF37]">{opponents[4].balance.toLocaleString()} $Pc</div>
+                  {opponents[4].bet > 0 && <div className="mt-1"><PokerChip amount={opponents[4].bet} size="sm" /></div>}
+                </div>
+              </div>
+
+              {/* Showdown overlay (on table) */}
+              {showdownData && (
+                <div className="absolute inset-0 z-[20] flex items-center justify-center pointer-events-none">
+                  <div
+                    className="text-center p-6 rounded-2xl"
+                    style={{
+                      background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
+                      minWidth: '320px',
+                    }}
+                  >
+                    <div className="text-xs tracking-[0.3em] mb-3 font-bold" style={{ color: 'rgba(212,175,55,0.7)' }}>
+                      SHOWDOWN
+                    </div>
+                    {showdownData.opponentCards && (
+                      <div className="flex justify-center gap-3 mb-3 items-center">
+                        <div className="text-[10px] text-gray-400 uppercase tracking-wider mr-2">
+                          {showdownData.winner === 'opponent' ? showdownData.opponentName : 'Opponent'}
+                        </div>
+                        {showdownData.opponentCards.map((c, i) => (
+                          <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.2}s both` }}>
+                            <PlayingCard card={c} size="md" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div
-                      key={i}
+                      className="text-2xl font-casino font-bold mb-1"
                       style={{
-                        animation: communityCards[i] && i < revealedCommunity
-                          ? `pokerCommunityReveal 0.6s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.15}s both`
-                          : undefined,
+                        color: showdownData.winner === 'player' ? '#D4AF37' : '#ef4444',
+                        textShadow: showdownData.winner === 'player' ? '0 0 20px rgba(212,175,55,0.6)' : '0 0 20px rgba(239,68,68,0.4)',
                       }}
                     >
-                      {communityCards[i] ? (
-                        <div className="premium-card card-hover-lift">
-                          <PlayingCard card={communityCards[i]} size="md" />
-                        </div>
-                      ) : (
-                        <div 
-                          className="rounded-lg border-2 border-dashed border-[#D4AF37]/15 bg-black/30"
-                          style={{
-                            width: '55px',
-                            height: '77px',
-                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.3)',
-                          }}
-                        />
-                      )}
+                      {showdownData.handName.toUpperCase()}
+                    </div>
+                    <div className="text-lg font-bold mb-2" style={{ color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                      {showdownData.winner === 'player'
+                        ? `YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!`
+                        : `${showdownData.opponentName} wins`
+                      }
+                    </div>
+                    <div className="text-xs text-gray-400">Next hand in {showdownTimer}s</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* === PLAYER HAND AREA (below table) === */}
+          <div
+            className="relative z-20 px-4 py-2"
+            style={{
+              background: 'linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(5,5,5,0.98) 100%)',
+              borderTop: '1px solid rgba(212,175,55,0.2)',
+            }}
+          >
+            <div className="max-w-4xl mx-auto">
+              {message && (
+                <div className="text-center mb-2">
+                  <span
+                    className="px-4 py-1.5 rounded-full text-xs font-bold"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,15,10,0.95) 100%)',
+                      color: '#fff',
+                      border: '1px solid rgba(212,175,55,0.3)',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+                      textShadow: '0 0 8px rgba(212,175,55,0.4)',
+                    }}
+                  >
+                    {message}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-6">
+                {/* Player's hole cards */}
+                <div className="flex gap-3">
+                  {playerHand.map((card, i) => (
+                    <div
+                      key={i}
+                      className="card-hover-lift"
+                      style={{
+                        filter: showdownData?.winner === 'player' ? 'drop-shadow(0 0 12px rgba(212,175,55,0.6))' : undefined,
+                      }}
+                    >
+                      <PlayingCard card={card} size="xl" />
                     </div>
                   ))}
                 </div>
 
-                <div className="absolute top-[8%] left-1/2 -translate-x-1/2 z-10">
-                  <div className="flex flex-col items-center relative">
-                    <div className="flex gap-1 mb-2">
-                      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
-                      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
-                    </div>
-                    <PlayerAvatar
-                      name="Player 2"
-                      balance={2500}
-                      size="sm"
-                      showTalkButton={true}
-                    />
-                    {opponents[0].bet > 0 && (
-                      <div className="mt-1">
-                        <PokerChip amount={opponents[0].bet} size="sm" />
-                      </div>
-                    )}
-                    <div
-                      className="mt-1 px-3 py-0.5 rounded-full text-[8px] font-bold tracking-wider"
-                      style={{
-                        background: 'linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 50%, #3a3a3a 100%)',
-                        backgroundSize: '200% 100%',
-                        animation: 'pokerMetallicShine 3s linear infinite',
-                        border: '1px solid rgba(212,175,55,0.5)',
-                        color: '#D4AF37',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1)',
-                      }}
-                    >
-                      BB
-                    </div>
-                    <div
-                      className="w-full mt-1 h-[3px] rounded-full overflow-hidden"
-                      style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          background: 'linear-gradient(90deg, #D4AF37, #43A047)',
-                          animation: 'pokerTimerCountdown 15s linear infinite',
-                        }}
-                      />
-                    </div>
+                {/* Player label + bet */}
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className="px-4 py-1.5 rounded text-xs font-bold tracking-wider text-center"
+                    style={{
+                      background: showdownData?.winner === 'player' ? 'rgba(212,175,55,0.15)' : 'rgba(0,0,0,0.7)',
+                      border: showdownData?.winner === 'player' ? '1.5px solid rgba(212,175,55,0.8)' : '1px solid rgba(255,255,255,0.2)',
+                      color: showdownData?.winner === 'player' ? '#D4AF37' : '#fff',
+                      boxShadow: showdownData?.winner === 'player' ? '0 0 15px rgba(212,175,55,0.4)' : 'none',
+                    }}
+                  >
+                    YOU
                   </div>
-                </div>
-
-                <div className="absolute top-[35%] left-[5%] z-10">
-                  <div className="flex flex-col items-center relative">
-                    <div className="flex gap-1 mb-2">
-                      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
-                      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
-                    </div>
-                    <PlayerAvatar
-                      name="Player 3"
-                      balance={1800}
-                      size="sm"
-                      showTalkButton={true}
-                    />
-                    {opponents[1].bet > 0 && (
-                      <div className="mt-1">
-                        <PokerChip amount={opponents[1].bet} size="sm" />
-                      </div>
-                    )}
-                    <div
-                      className="mt-1 px-3 py-0.5 rounded-full text-[8px] font-bold tracking-wider"
-                      style={{
-                        background: 'linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 50%, #3a3a3a 100%)',
-                        backgroundSize: '200% 100%',
-                        animation: 'pokerMetallicShine 3s linear infinite',
-                        border: '1px solid rgba(212,175,55,0.5)',
-                        color: '#D4AF37',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1)',
-                      }}
-                    >
-                      SB
-                    </div>
-                    <div
-                      className="w-full mt-1 h-[3px] rounded-full overflow-hidden"
-                      style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          background: 'linear-gradient(90deg, #D4AF37, #43A047)',
-                          animation: 'pokerTimerCountdown 15s linear 2s infinite',
-                        }}
-                      />
-                    </div>
+                  <div className="text-xs text-[#D4AF37] font-bold">
+                    {balance.toLocaleString()} $Pc
                   </div>
-                </div>
-
-                <div className="absolute top-[35%] right-[5%] z-10">
-                  <div className="flex flex-col items-center relative">
-                    <div className="flex gap-1 mb-2">
-                      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
-                      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
-                    </div>
-                    <PlayerAvatar
-                      name="Player 4"
-                      balance={3200}
-                      size="sm"
-                      showTalkButton={true}
-                    />
-                    {opponents[2].bet > 0 && (
-                      <div className="mt-1">
-                        <PokerChip amount={opponents[2].bet} size="sm" />
-                      </div>
-                    )}
-                    <div
-                      className="w-full mt-1 h-[3px] rounded-full overflow-hidden"
-                      style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          background: 'linear-gradient(90deg, #D4AF37, #43A047)',
-                          animation: 'pokerTimerCountdown 15s linear 4s infinite',
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-[3%] left-1/2 -translate-x-1/2 w-full max-w-lg relative z-10">
-                  {message && (
-                    <div className="text-center mb-2">
-                      <span
-                        className="px-5 py-2 rounded-full text-sm font-bold"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,15,10,0.95) 100%)',
-                          color: '#fff',
-                          border: '1px solid rgba(212,175,55,0.4)',
-                          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-                          textShadow: '0 0 10px rgba(212,175,55,0.5)',
-                        }}
-                      >
-                        {message}
-                      </span>
-                    </div>
-                  )}
-
                   {playerChips.length > 0 && (
-                    <div className="flex justify-center mb-2">
-                      <div className="flex gap-1 flex-wrap justify-center max-w-[200px]">
-                        {playerChips.map((chip, i) => (
-                          <div key={i} className="relative chip-bounce">
-                            <ChipStack amount={chip.amount} count={chip.count} size="sm" />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="ml-2 text-[#D4AF37] font-bold self-center text-sm">
-                        {playerBet} $Pc
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-end justify-center gap-4">
-                    <div className="flex gap-3">
-                      {playerHand.map((card, i) => (
-                        <div
-                          key={i}
-                          className="card-hover-lift"
-                          style={{
-                            filter: showdownData?.winner === 'player' ? 'drop-shadow(0 0 12px rgba(212,175,55,0.6))' : undefined,
-                          }}
-                        >
-                          <PlayingCard card={card} size="lg" />
+                    <div className="flex gap-1 items-center mt-1">
+                      {playerChips.map((chip, i) => (
+                        <div key={i} className="chip-bounce">
+                          <PokerChip amount={chip.amount} size="sm" />
                         </div>
                       ))}
+                      <span className="text-[#D4AF37] text-xs font-bold ml-1">{playerBet} $Pc</span>
                     </div>
-
-                    <div className="flex flex-col items-center gap-1">
-                      <div
-                        className="px-3 py-1 rounded text-[10px] font-bold tracking-wider text-center"
-                        style={{
-                          background: 'rgba(0,0,0,0.8)',
-                          border: showdownData?.winner === 'player' ? '1.5px solid rgba(212,175,55,0.8)' : '1px solid rgba(255,255,255,0.2)',
-                          color: showdownData?.winner === 'player' ? '#D4AF37' : '#fff',
-                          boxShadow: showdownData?.winner === 'player' ? '0 0 15px rgba(212,175,55,0.4)' : 'none',
-                        }}
-                      >
-                        YOU
-                      </div>
-                      <div className="text-[10px] text-[#D4AF37] font-bold">
-                        {balance.toLocaleString()} $Pc
-                      </div>
-                    </div>
-
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold"
-                      style={{
-                        background: 'linear-gradient(135deg, #f0f0f0 0%, #c0c0c0 20%, #ffffff 45%, #e0e0e0 55%, #c0c0c0 80%, #f0f0f0 100%)',
-                        backgroundSize: '200% 100%',
-                        animation: 'pokerMetallicShine 4s linear infinite',
-                        border: '2.5px solid rgba(212,175,55,0.7)',
-                        color: '#1a1a1a',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.8), 0 0 8px rgba(212,175,55,0.3)',
-                        textShadow: '0 1px 1px rgba(255,255,255,0.6)',
-                      }}
-                    >
-                      D
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {showdownData && (
-                  <div className="absolute inset-0 z-[20] flex items-center justify-center pointer-events-none">
-                    <div
-                      className="text-center p-6 rounded-2xl"
-                      style={{
-                        background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
-                        minWidth: '320px',
-                      }}
-                    >
-                      <div
-                        className="text-xs tracking-[0.3em] mb-3 font-bold"
-                        style={{ color: 'rgba(212,175,55,0.7)' }}
-                      >
-                        SHOWDOWN
-                      </div>
-
-                      {showdownData.opponentCards && (
-                        <div className="flex justify-center gap-3 mb-3">
-                          <div className="text-[10px] text-gray-400 uppercase tracking-wider self-center mr-2">
-                            {showdownData.winner === 'opponent' ? showdownData.opponentName : 'Opponent'}
-                          </div>
-                          {showdownData.opponentCards.map((c, i) => (
-                            <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.2}s both` }}>
-                              <PlayingCard card={c} size="md" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div
-                        className="text-2xl font-casino font-bold mb-1"
-                        style={{
-                          color: showdownData.winner === 'player' ? '#D4AF37' : '#ef4444',
-                          textShadow: showdownData.winner === 'player'
-                            ? '0 0 20px rgba(212,175,55,0.6)'
-                            : '0 0 20px rgba(239,68,68,0.4)',
-                        }}
-                      >
-                        {showdownData.handName.toUpperCase()}
-                      </div>
-
-                      <div className="text-lg font-bold mb-2" style={{ color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
-                        {showdownData.winner === 'player'
-                          ? `YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!`
-                          : `${showdownData.opponentName} wins`
-                        }
-                      </div>
-
-                      <div className="text-xs text-gray-400">
-                        Next hand in {showdownTimer}s
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Dealer button */}
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold"
+                  style={{
+                    background: 'linear-gradient(135deg, #f0f0f0 0%, #c0c0c0 20%, #ffffff 45%, #e0e0e0 55%, #c0c0c0 80%, #f0f0f0 100%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'pokerMetallicShine 4s linear infinite',
+                    border: '2.5px solid rgba(212,175,55,0.7)',
+                    color: '#1a1a1a',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.8), 0 0 8px rgba(212,175,55,0.3)',
+                  }}
+                >
+                  D
+                </div>
               </div>
             </div>
           </div>
 
+          {/* === BOTTOM CONTROLS BAR === */}
           <div
             style={{
               background: 'linear-gradient(180deg, rgba(15,15,15,0.98) 0%, rgba(5,5,5,1) 100%)',
@@ -1263,7 +1183,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     >
                       FOLD
                     </Button>
-
                     {currentBet === 0 || playerBet >= currentBet ? (
                       <Button
                         onClick={handleCheck}
@@ -1281,7 +1200,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                         CALL {currentBet - playerBet}
                       </Button>
                     )}
-
                     <Button
                       onClick={handleRaise}
                       className="px-5 py-3 rounded-lg font-bold text-sm bg-[#D4AF37] hover:bg-[#B8860B] text-black"
@@ -1289,7 +1207,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     >
                       RAISE +{selectedChip}
                     </Button>
-
                     <Button
                       onClick={handleAllIn}
                       className="px-5 py-3 rounded-lg font-bold text-sm bg-gradient-to-r from-[#8B0000] to-[#B71C1C]"
@@ -1297,7 +1214,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     >
                       ALL IN
                     </Button>
-
                     {playerChips.length > 0 && (
                       <Button
                         onClick={clearBet}
