@@ -53,7 +53,7 @@
   body {
     background: 
       radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.85) 100%),
-      url('/bg-casino.png');
+      url('https://images.unsplash.com/photo-1596838132731-dd9d7fab3097?q=80&w=2070&auto=format&fit=crop');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -73,7 +73,7 @@
     font-family: 'Rajdhani', sans-serif;
     background: 
       linear-gradient(180deg, rgba(10,10,10,0.9) 0%, rgba(10,10,10,0.7) 100%),
-      url('/images/casino-bg.jpg') center/cover no-repeat fixed;
+      url('https://images.unsplash.com/photo-1518623489648-a173ef7824f3?q=80&w=2070&auto=format&fit=crop') center/cover no-repeat fixed;
     min-height: 100vh;
   }
   
