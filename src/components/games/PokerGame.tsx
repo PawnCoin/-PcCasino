@@ -375,31 +375,59 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
     }, 500);
   };
 
+  const [showdownData, setShowdownData] = useState<{
+    winner: 'player' | 'opponent';
+    handName: string;
+    winAmount: number;
+    opponentName?: string;
+    opponentCards?: Card[];
+  } | null>(null);
+  const [showdownTimer, setShowdownTimer] = useState(0);
+
   const resolveHand = () => {
     const allCards = [...playerHand, ...communityCards];
     const result = evaluatePokerHand(allCards);
     
     const playerWins = Math.random() > 0.6;
+    const handName = handRankings[result.hand];
+    
+    const oppCards: Card[] = [
+      deck[0] || { rank: 'K', suit: 'spades' },
+      deck[1] || { rank: 'Q', suit: 'hearts' },
+    ];
     
     if (playerWins) {
       const winAmount = pot;
       onWin(winAmount);
       setWinEffect(true);
-      setWinText(`${handRankings[result.hand]} — ${winAmount} $Pc!`);
-      setMessage(`WINNER! ${handRankings[result.hand]} - You won ${winAmount} $Pc!`);
+      setWinText(`${handName} — ${winAmount} $Pc!`);
+      setMessage(`YOU WIN! ${handName}`);
       playSound('win');
-      if (showVoice) announceEvent(`Winner! You won ${winAmount} dollars with ${handRankings[result.hand]}.`);
+      if (showVoice) announceEvent(`Winner! You won ${winAmount} dollars with ${handName}.`);
+      setShowdownData({ winner: 'player', handName, winAmount, opponentCards: oppCards });
     } else {
       setLoseEffect(true);
-      setMessage(`Opponent wins. You had ${handRankings[result.hand]}`);
+      const winnerIdx = Math.floor(Math.random() * 3);
+      const opponentName = opponents[winnerIdx]?.name || 'Player 2';
+      setMessage(`${opponentName} wins with ${handName}`);
       playSound('lose');
-      if (showVoice) announceEvent(`Opponent wins. You had ${handRankings[result.hand]}.`);
+      if (showVoice) announceEvent(`${opponentName} wins with ${handName}.`);
+      setShowdownData({ winner: 'opponent', handName, winAmount: pot, opponentName, opponentCards: oppCards });
     }
     
-    setTimeout(() => {
-      setPlayerChips([]);
-      startNewHand();
-    }, 4000);
+    setShowdownTimer(4);
+    const countdown = setInterval(() => {
+      setShowdownTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(countdown);
+          setPlayerChips([]);
+          setShowdownData(null);
+          startNewHand();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const clearBet = () => {
@@ -742,37 +770,116 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
               <div 
                 className="absolute inset-0 rounded-[50%/30%] z-[2]"
                 style={{
-                  background: 'radial-gradient(ellipse at center, #2E7D32 0%, #1B5E20 40%, #0D3312 70%, #051a08 100%)',
+                  background: 'radial-gradient(ellipse at 50% 40%, #2E7D32 0%, #1B5E20 30%, #0D3312 60%, #051a08 100%)',
                   boxShadow: 'inset 0 0 150px rgba(0,0,0,0.6)',
                 }}
               >
                 <div 
-                  className="absolute inset-0 opacity-40"
+                  className="absolute inset-0 opacity-50"
                   style={{
                     backgroundImage: `
-                      repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.012) 1px, transparent 2px, transparent 3px),
-                      repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.008) 1px, transparent 2px, transparent 3px)
+                      repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.015) 1px, transparent 2px, transparent 3px),
+                      repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.01) 1px, transparent 2px, transparent 3px)
                     `,
                   }}
                 />
                 
-                <div className="absolute inset-[5%] border-2 border-dashed border-[#D4AF37]/25 rounded-[50%/30%]" />
+                <div className="absolute inset-[5%] border-2 border-dashed border-[#D4AF37]/20 rounded-[50%/30%]" />
                 
                 <div
                   className="absolute inset-[4%] rounded-[50%/30%] pointer-events-none"
                   style={{
-                    border: '1.5px solid rgba(212,175,55,0.3)',
-                    boxShadow: 'inset 0 0 30px rgba(212,175,55,0.08)',
+                    border: '1.5px solid rgba(212,175,55,0.25)',
+                    boxShadow: 'inset 0 0 40px rgba(212,175,55,0.06)',
                   }}
                 />
 
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none"
+                  className="absolute top-[15%] left-1/2 -translate-x-1/2 pointer-events-none select-none z-[1]"
                   style={{
-                    background: 'radial-gradient(ellipse at center top, rgba(212,175,55,0.12) 0%, transparent 60%)',
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: '14px',
+                    letterSpacing: '0.4em',
+                    color: 'rgba(212,175,55,0.15)',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  TEXAS HOLD'EM POKER
+                </div>
+
+                <div
+                  className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1] flex items-center gap-2"
+                  style={{ opacity: 0.08 }}
+                >
+                  <img src="/logos/pc-logo.png" alt="" className="w-8 h-8 opacity-60" />
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: '16px', color: '#D4AF37', letterSpacing: '0.3em' }}>$Pc</span>
+                </div>
+
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[45%] pointer-events-none"
+                  style={{
+                    background: 'radial-gradient(ellipse at center top, rgba(255,255,220,0.1) 0%, rgba(212,175,55,0.06) 30%, transparent 60%)',
                     animation: 'pokerSpotlight 4s ease-in-out infinite',
                   }}
                 />
+              </div>
+
+              <div
+                className="absolute top-[3%] left-[5%] z-[4] pointer-events-none"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,20,20,0.95) 100%)',
+                  border: '1px solid rgba(212,175,55,0.5)',
+                  borderRadius: '6px',
+                  padding: '6px 10px',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.6)',
+                }}
+              >
+                <div style={{ fontSize: '8px', color: '#D4AF37', letterSpacing: '0.1em', fontWeight: 700 }}>TABLE LIMITS</div>
+                <div style={{ fontSize: '9px', color: '#C0C0C0', marginTop: '2px' }}>MIN 5 $Pc</div>
+                <div style={{ fontSize: '9px', color: '#C0C0C0' }}>MAX 500 $Pc</div>
+              </div>
+
+              <div
+                className="absolute top-[3%] right-[5%] z-[4] pointer-events-none"
+                style={{
+                  width: '35px',
+                  height: '50px',
+                  background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)',
+                  border: '2px solid rgba(212,175,55,0.4)',
+                  borderRadius: '4px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.05)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '3px',
+                  left: '4px',
+                  right: '4px',
+                  height: '6px',
+                  background: 'linear-gradient(180deg, #283593, #1a237e)',
+                  borderRadius: '2px',
+                }} />
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '4px',
+                  right: '4px',
+                  height: '5px',
+                  background: 'linear-gradient(180deg, #283593, #1a237e)',
+                  borderRadius: '2px',
+                }} />
+                <div style={{
+                  position: 'absolute',
+                  bottom: '3px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: '6px',
+                  color: 'rgba(212,175,55,0.5)',
+                  fontWeight: 700,
+                }}>SHOE</div>
               </div>
 
               <div className="absolute inset-0 z-[3]">
@@ -962,56 +1069,73 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                   </div>
                 </div>
 
-                <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-full max-w-md relative z-10">
+                <div className="absolute bottom-[3%] left-1/2 -translate-x-1/2 w-full max-w-lg relative z-10">
                   {message && (
-                    <div className="text-center mb-3">
+                    <div className="text-center mb-2">
                       <span
                         className="px-5 py-2 rounded-full text-sm font-bold"
                         style={{
-                          background: 'linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(20,15,10,0.9) 100%)',
-                          color: '#D4AF37',
+                          background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,15,10,0.95) 100%)',
+                          color: '#fff',
                           border: '1px solid rgba(212,175,55,0.4)',
-                          boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                          textShadow: '0 0 10px rgba(212,175,55,0.5)',
                         }}
                       >
                         {message}
                       </span>
                     </div>
                   )}
-                  
+
                   {playerChips.length > 0 && (
-                    <div className="flex justify-center mb-3">
+                    <div className="flex justify-center mb-2">
                       <div className="flex gap-1 flex-wrap justify-center max-w-[200px]">
                         {playerChips.map((chip, i) => (
                           <div key={i} className="relative chip-bounce">
-                            <ChipStack amount={chip.amount} count={chip.count} size="md" />
+                            <ChipStack amount={chip.amount} count={chip.count} size="sm" />
                           </div>
                         ))}
                       </div>
-                      <div className="ml-2 text-[#D4AF37] font-bold self-center">
+                      <div className="ml-2 text-[#D4AF37] font-bold self-center text-sm">
                         {playerBet} $Pc
                       </div>
                     </div>
                   )}
-                  
-                  <div className="flex items-center justify-center gap-4">
-                    <div className="flex gap-2">
+
+                  <div className="flex items-end justify-center gap-4">
+                    <div className="flex gap-3">
                       {playerHand.map((card, i) => (
-                        <div key={i} className="premium-card card-hover-lift">
-                          <PlayingCard card={card} size="md" />
+                        <div
+                          key={i}
+                          className="card-hover-lift"
+                          style={{
+                            filter: showdownData?.winner === 'player' ? 'drop-shadow(0 0 12px rgba(212,175,55,0.6))' : undefined,
+                          }}
+                        >
+                          <PlayingCard card={card} size="lg" />
                         </div>
                       ))}
                     </div>
-                    
-                    <PlayerAvatar
-                      name="You"
-                      balance={balance}
-                      size="md"
-                      isActive={true}
-                      showTalkButton={true}
-                    />
+
+                    <div className="flex flex-col items-center gap-1">
+                      <div
+                        className="px-3 py-1 rounded text-[10px] font-bold tracking-wider text-center"
+                        style={{
+                          background: 'rgba(0,0,0,0.8)',
+                          border: showdownData?.winner === 'player' ? '1.5px solid rgba(212,175,55,0.8)' : '1px solid rgba(255,255,255,0.2)',
+                          color: showdownData?.winner === 'player' ? '#D4AF37' : '#fff',
+                          boxShadow: showdownData?.winner === 'player' ? '0 0 15px rgba(212,175,55,0.4)' : 'none',
+                        }}
+                      >
+                        YOU
+                      </div>
+                      <div className="text-[10px] text-[#D4AF37] font-bold">
+                        {balance.toLocaleString()} $Pc
+                      </div>
+                    </div>
+
                     <div
-                      className="ml-2 w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold"
                       style={{
                         background: 'linear-gradient(135deg, #f0f0f0 0%, #c0c0c0 20%, #ffffff 45%, #e0e0e0 55%, #c0c0c0 80%, #f0f0f0 100%)',
                         backgroundSize: '200% 100%',
@@ -1026,83 +1150,164 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                     </div>
                   </div>
                 </div>
+
+                {showdownData && (
+                  <div className="absolute inset-0 z-[20] flex items-center justify-center pointer-events-none">
+                    <div
+                      className="text-center p-6 rounded-2xl"
+                      style={{
+                        background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
+                        minWidth: '320px',
+                      }}
+                    >
+                      <div
+                        className="text-xs tracking-[0.3em] mb-3 font-bold"
+                        style={{ color: 'rgba(212,175,55,0.7)' }}
+                      >
+                        SHOWDOWN
+                      </div>
+
+                      {showdownData.opponentCards && (
+                        <div className="flex justify-center gap-3 mb-3">
+                          <div className="text-[10px] text-gray-400 uppercase tracking-wider self-center mr-2">
+                            {showdownData.winner === 'opponent' ? showdownData.opponentName : 'Opponent'}
+                          </div>
+                          {showdownData.opponentCards.map((c, i) => (
+                            <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.2}s both` }}>
+                              <PlayingCard card={c} size="md" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div
+                        className="text-2xl font-casino font-bold mb-1"
+                        style={{
+                          color: showdownData.winner === 'player' ? '#D4AF37' : '#ef4444',
+                          textShadow: showdownData.winner === 'player'
+                            ? '0 0 20px rgba(212,175,55,0.6)'
+                            : '0 0 20px rgba(239,68,68,0.4)',
+                        }}
+                      >
+                        {showdownData.handName.toUpperCase()}
+                      </div>
+
+                      <div className="text-lg font-bold mb-2" style={{ color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                        {showdownData.winner === 'player'
+                          ? `YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!`
+                          : `${showdownData.opponentName} wins`
+                        }
+                      </div>
+
+                      <div className="text-xs text-gray-400">
+                        Next hand in {showdownTimer}s
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           <div
-            className="border-t p-4"
             style={{
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(10,10,10,0.98) 100%)',
-              borderColor: 'rgba(93,64,55,0.4)',
-              boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
+              background: 'linear-gradient(180deg, rgba(15,15,15,0.98) 0%, rgba(5,5,5,1) 100%)',
+              borderTop: '2px solid rgba(212,175,55,0.3)',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.6)',
             }}
           >
-            <div className="max-w-4xl mx-auto">
-              <div ref={chipAreaRef} className="flex justify-center gap-3 mb-4">
-                {CHIP_VALUES.map(value => (
-                  <PokerChip
-                    key={value}
-                    amount={value}
-                    size="md"
-                    selected={selectedChip === value}
-                    onClick={() => setSelectedChip(value)}
-                  />
-                ))}
+            <div className="max-w-5xl mx-auto px-4 py-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Cash</span>
+                    <span className="text-sm font-bold text-white">{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} $Pc</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Bet</span>
+                    <span className="text-sm font-bold text-[#D4AF37]">{playerBet.toLocaleString('en-US', { minimumFractionDigits: 2 })} $Pc</span>
+                  </div>
+                  {winEffect && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Win</span>
+                      <span className="text-sm font-bold text-[#43A047]">{pot.toLocaleString('en-US', { minimumFractionDigits: 2 })} $Pc</span>
+                    </div>
+                  )}
+                </div>
+
+                <div ref={chipAreaRef} className="flex gap-2">
+                  {CHIP_VALUES.map(value => (
+                    <PokerChip
+                      key={value}
+                      amount={value}
+                      size="sm"
+                      selected={selectedChip === value}
+                      onClick={() => setSelectedChip(value)}
+                    />
+                  ))}
+                </div>
               </div>
-              
+
               <div className="flex justify-center gap-3">
-                <Button
-                  onClick={handleFold}
-                  variant="destructive"
-                  className="px-6 py-5 rounded-xl font-bold bg-[#B71C1C] hover:bg-[#8B0000]"
-                  style={{ boxShadow: '0 4px 15px rgba(183,28,28,0.4)' }}
-                >
-                  FOLD
-                </Button>
-                
-                {currentBet === 0 || playerBet >= currentBet ? (
-                  <Button
-                    onClick={handleCheck}
-                    className="px-6 py-5 rounded-xl font-bold bg-[#1E88E5] hover:bg-[#1565C0]"
-                    style={{ boxShadow: '0 4px 15px rgba(30,136,229,0.4)' }}
-                  >
-                    CHECK
-                  </Button>
+                {gamePhase === 'showdown' ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400 text-sm">Next hand in {showdownTimer}s...</span>
+                  </div>
                 ) : (
-                  <Button
-                    onClick={handleCall}
-                    className="px-6 py-5 rounded-xl font-bold bg-[#43A047] hover:bg-[#2E7D32]"
-                    style={{ boxShadow: '0 4px 15px rgba(67,160,71,0.4)' }}
-                  >
-                    CALL {currentBet - playerBet}
-                  </Button>
-                )}
-                
-                <Button
-                  onClick={handleRaise}
-                  className="px-6 py-5 rounded-xl font-bold bg-[#D4AF37] hover:bg-[#B8860B] text-black"
-                  style={{ boxShadow: '0 4px 15px rgba(212,175,55,0.4)' }}
-                >
-                  RAISE +{selectedChip}
-                </Button>
-                
-                <Button
-                  onClick={handleAllIn}
-                  className="px-6 py-5 rounded-xl font-bold bg-gradient-to-r from-[#8B0000] to-[#B71C1C]"
-                  style={{ boxShadow: '0 4px 15px rgba(139,0,0,0.4)' }}
-                >
-                  ALL IN
-                </Button>
-                
-                {playerChips.length > 0 && (
-                  <Button
-                    onClick={clearBet}
-                    variant="outline"
-                    className="px-4 py-5 rounded-xl border-[#5D4037] text-[#C0C0C0]"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleFold}
+                      variant="destructive"
+                      className="px-5 py-3 rounded-lg font-bold text-sm bg-[#B71C1C] hover:bg-[#8B0000]"
+                      style={{ boxShadow: '0 3px 10px rgba(183,28,28,0.4)' }}
+                    >
+                      FOLD
+                    </Button>
+
+                    {currentBet === 0 || playerBet >= currentBet ? (
+                      <Button
+                        onClick={handleCheck}
+                        className="px-5 py-3 rounded-lg font-bold text-sm bg-[#1E88E5] hover:bg-[#1565C0]"
+                        style={{ boxShadow: '0 3px 10px rgba(30,136,229,0.4)' }}
+                      >
+                        CHECK
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleCall}
+                        className="px-5 py-3 rounded-lg font-bold text-sm bg-[#43A047] hover:bg-[#2E7D32]"
+                        style={{ boxShadow: '0 3px 10px rgba(67,160,71,0.4)' }}
+                      >
+                        CALL {currentBet - playerBet}
+                      </Button>
+                    )}
+
+                    <Button
+                      onClick={handleRaise}
+                      className="px-5 py-3 rounded-lg font-bold text-sm bg-[#D4AF37] hover:bg-[#B8860B] text-black"
+                      style={{ boxShadow: '0 3px 10px rgba(212,175,55,0.4)' }}
+                    >
+                      RAISE +{selectedChip}
+                    </Button>
+
+                    <Button
+                      onClick={handleAllIn}
+                      className="px-5 py-3 rounded-lg font-bold text-sm bg-gradient-to-r from-[#8B0000] to-[#B71C1C]"
+                      style={{ boxShadow: '0 3px 10px rgba(139,0,0,0.4)' }}
+                    >
+                      ALL IN
+                    </Button>
+
+                    {playerChips.length > 0 && (
+                      <Button
+                        onClick={clearBet}
+                        variant="outline"
+                        className="px-3 py-3 rounded-lg border-[#5D4037] text-[#C0C0C0]"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

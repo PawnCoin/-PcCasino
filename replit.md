@@ -40,8 +40,8 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 │   │   ├── MusicPlayer.tsx
 │   │   ├── MultiplayerLobby.tsx
 │   │   ├── VappTVPlayer.tsx
-│   │   ├── PlayingCard.tsx
-│   │   ├── PokerChip.tsx
+│   │   ├── PlayingCard.tsx    # Premium cards (sm/md/lg/xl sizes, gold trim, glossy shine)
+│   │   ├── PokerChip.tsx     # 3D metallic chips with stacking, ChipStack, BetArea
 │   │   ├── PokerHandAnalyzer.tsx
 │   │   ├── PlayerAvatar.tsx
 │   │   ├── AnimatedChip.tsx

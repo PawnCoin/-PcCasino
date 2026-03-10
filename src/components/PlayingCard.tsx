@@ -4,14 +4,15 @@ interface PlayingCardProps {
   card?: Card | null;
   hidden?: boolean;
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
 const sizeConfig = {
-  sm: { width: 35, height: 50, fontSize: 'text-sm', suitSize: 'text-lg' },
-  md: { width: 50, height: 70, fontSize: 'text-base', suitSize: 'text-xl' },
-  lg: { width: 70, height: 100, fontSize: 'text-lg', suitSize: 'text-2xl' },
+  sm: { width: 45, height: 63, rankSize: '11px', suitSize: '13px', centerSize: '24px', padding: '3px' },
+  md: { width: 70, height: 100, rankSize: '15px', suitSize: '16px', centerSize: '36px', padding: '5px' },
+  lg: { width: 90, height: 126, rankSize: '18px', suitSize: '20px', centerSize: '44px', padding: '6px' },
+  xl: { width: 110, height: 154, rankSize: '22px', suitSize: '24px', centerSize: '56px', padding: '8px' },
 };
 
 export function PlayingCard({ 
@@ -23,28 +24,26 @@ export function PlayingCard({
 }: PlayingCardProps) {
   const config = sizeConfig[size];
   
-  // Render card back
   if (hidden || !card) {
     const backStyle = cardBackStyle || { type: 'css' as const, style: {} };
     
     if (backStyle.type === 'image' && backStyle.image) {
       return (
         <div
-          className={`rounded-lg overflow-hidden shadow-lg ${className}`}
+          className={`rounded-lg overflow-hidden ${className}`}
           style={{ 
             width: config.width, 
             height: config.height,
             background: `url(${backStyle.image}) center/cover`,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(212,175,55,0.2)',
           }}
         />
       );
     }
     
-    // Default card back pattern
     return (
       <div
-        className={`rounded-lg overflow-hidden shadow-lg ${className}`}
+        className={`rounded-lg overflow-hidden ${className}`}
         style={{ 
           width: config.width, 
           height: config.height,
@@ -57,11 +56,10 @@ export function PlayingCard({
               #283593 16px
             )
           `,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1), inset 0 0 20px rgba(0,0,0,0.3)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 6px 16px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(212,175,55,0.2)',
+          border: '2px solid rgba(212,175,55,0.3)',
         }}
       >
-        {/* Inner border pattern */}
         <div 
           className="w-full h-full flex items-center justify-center"
           style={{
@@ -82,7 +80,6 @@ export function PlayingCard({
     );
   }
 
-  // Render card face
   const suitSymbols: Record<string, string> = {
     hearts: '♥',
     diamonds: '♦',
@@ -91,10 +88,10 @@ export function PlayingCard({
   };
 
   const suitColors: Record<string, string> = {
-    hearts: '#dc2626',
-    diamonds: '#dc2626',
-    clubs: '#1f2937',
-    spades: '#1f2937',
+    hearts: '#c62828',
+    diamonds: '#c62828',
+    clubs: '#1a1a1a',
+    spades: '#1a1a1a',
   };
 
   const suitColor = suitColors[card.suit];
@@ -102,80 +99,87 @@ export function PlayingCard({
 
   return (
     <div
-      className={`relative rounded-lg overflow-hidden shadow-lg select-none ${className}`}
+      className={`relative rounded-lg overflow-hidden select-none ${className}`}
       style={{ 
         width: config.width, 
         height: config.height,
-        background: 'linear-gradient(145deg, #ffffff, #f0f0f0)',
+        background: 'linear-gradient(165deg, #ffffff 0%, #fafafa 40%, #f5f5f5 100%)',
         boxShadow: `
-          0 4px 12px rgba(0,0,0,0.4),
-          0 0 0 1px rgba(0,0,0,0.1),
-          inset 0 1px 0 rgba(255,255,255,0.8)
+          0 8px 20px rgba(0,0,0,0.5),
+          0 3px 6px rgba(0,0,0,0.3),
+          inset 0 1px 0 rgba(255,255,255,0.9),
+          inset 0 -1px 0 rgba(0,0,0,0.05)
         `,
+        border: '1.5px solid rgba(0,0,0,0.12)',
+        outline: '1px solid rgba(212,175,55,0.2)',
+        outlineOffset: '-3px',
       }}
     >
-      {/* Card texture */}
       <div 
-        className="absolute inset-0 opacity-30"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background: `
-            repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 2px,
-              rgba(0,0,0,0.02) 2px,
-              rgba(0,0,0,0.02) 4px
-            )
-          `,
+          background: `linear-gradient(
+            135deg,
+            transparent 0%,
+            transparent 40%,
+            rgba(255,255,255,0.5) 47%,
+            rgba(255,255,255,0.7) 50%,
+            rgba(255,255,255,0.5) 53%,
+            transparent 60%,
+            transparent 100%
+          )`,
+          opacity: 0.4,
         }}
       />
       
-      {/* Top left corner */}
       <div 
-        className="absolute top-1 left-1 flex flex-col items-center leading-none"
-        style={{ color: suitColor }}
+        className="absolute flex flex-col items-center leading-none font-bold"
+        style={{ 
+          color: suitColor, 
+          top: config.padding, 
+          left: config.padding,
+        }}
       >
-        <span className={`font-bold ${config.fontSize}`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+        <span style={{ fontSize: config.rankSize, textShadow: '0 1px 1px rgba(0,0,0,0.08)' }}>
           {card.rank}
         </span>
-        <span className={config.suitSize}>{suitSymbol}</span>
+        <span style={{ fontSize: config.suitSize, marginTop: '-1px' }}>{suitSymbol}</span>
       </div>
 
-      {/* Center suit */}
       <div 
         className="absolute inset-0 flex items-center justify-center"
         style={{ color: suitColor }}
       >
         <span 
-          className="text-4xl md:text-5xl"
           style={{ 
-            textShadow: '0 2px 4px rgba(0,0,0,0.15)',
-            opacity: 0.9,
+            fontSize: config.centerSize,
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            opacity: 0.85,
           }}
         >
           {suitSymbol}
         </span>
       </div>
 
-      {/* Bottom right corner (inverted) */}
       <div 
-        className="absolute bottom-1 right-1 flex flex-col items-center leading-none"
+        className="absolute flex flex-col items-center leading-none font-bold"
         style={{ 
           color: suitColor,
+          bottom: config.padding,
+          right: config.padding,
           transform: 'rotate(180deg)',
         }}
       >
-        <span className={`font-bold ${config.fontSize}`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+        <span style={{ fontSize: config.rankSize, textShadow: '0 1px 1px rgba(0,0,0,0.08)' }}>
           {card.rank}
         </span>
-        <span className={config.suitSize}>{suitSymbol}</span>
+        <span style={{ fontSize: config.suitSize, marginTop: '-1px' }}>{suitSymbol}</span>
       </div>
 
-      {/* Subtle border */}
       <div 
         className="absolute inset-0 rounded-lg pointer-events-none"
         style={{
-          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)',
+          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.06)',
         }}
       />
     </div>

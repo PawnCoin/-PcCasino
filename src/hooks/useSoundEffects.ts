@@ -111,21 +111,52 @@ function playSynthSound(type: SoundType, volume: number) {
   }
 
   if (type === 'win') {
-    const arpFreqs = [config.freq, config.freq * 1.25, config.freq * 1.5, config.freq * 2];
-    arpFreqs.forEach((f, i) => {
+    const cheerFreqs = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+    cheerFreqs.forEach((f, i) => {
       const arpOsc = ctx.createOscillator();
       arpOsc.frequency.value = f;
       arpOsc.type = 'sine';
       const arpGain = ctx.createGain();
-      const offset = i * 0.08;
-      arpGain.gain.setValueAtTime(0.001, now);
-      arpGain.gain.linearRampToValueAtTime(0.15 * volume, now + offset + 0.02);
-      arpGain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.2);
+      const offset = i * 0.12;
+      arpGain.gain.setValueAtTime(0.001, now + offset);
+      arpGain.gain.linearRampToValueAtTime(0.18 * volume, now + offset + 0.04);
+      arpGain.gain.setValueAtTime(0.15 * volume, now + offset + 0.15);
+      arpGain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.5);
       arpOsc.connect(arpGain);
       arpGain.connect(layerGain);
       arpOsc.start(now + offset);
-      arpOsc.stop(now + offset + 0.25);
+      arpOsc.stop(now + offset + 0.55);
+
+      const warmOsc = ctx.createOscillator();
+      warmOsc.frequency.value = f * 0.5;
+      warmOsc.type = 'sine';
+      const warmGain = ctx.createGain();
+      warmGain.gain.setValueAtTime(0.001, now + offset);
+      warmGain.gain.linearRampToValueAtTime(0.06 * volume, now + offset + 0.05);
+      warmGain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.4);
+      warmOsc.connect(warmGain);
+      warmGain.connect(layerGain);
+      warmOsc.start(now + offset);
+      warmOsc.stop(now + offset + 0.45);
     });
+
+    const crowdBuffer = createNoiseBuffer(ctx, 1.0);
+    const crowdSource = ctx.createBufferSource();
+    crowdSource.buffer = crowdBuffer;
+    const crowdFilter = ctx.createBiquadFilter();
+    crowdFilter.type = 'bandpass';
+    crowdFilter.frequency.value = 2500;
+    crowdFilter.Q.value = 0.8;
+    const crowdGain = ctx.createGain();
+    crowdGain.gain.setValueAtTime(0.001, now + 0.1);
+    crowdGain.gain.linearRampToValueAtTime(0.08 * volume, now + 0.3);
+    crowdGain.gain.setValueAtTime(0.06 * volume, now + 0.6);
+    crowdGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+    crowdSource.connect(crowdFilter);
+    crowdFilter.connect(crowdGain);
+    crowdGain.connect(layerGain);
+    crowdSource.start(now + 0.1);
+    crowdSource.stop(now + 1.1);
   }
 
   if (type === 'lose') {
