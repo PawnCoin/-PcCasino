@@ -12,22 +12,21 @@ function isRed(num: number) {
 }
 
 function getPocketColor(num: number): string {
-  if (num === 0) return '#1fa34a';
-  return isRed(num) ? '#e53935' : '#222222';
+  if (num === 0) return '#22a84a';
+  return isRed(num) ? '#e53935' : '#3a3a3a';
+}
+
+function getPocketEmissive(num: number): string {
+  if (num === 0) return '#0a5a1a';
+  return isRed(num) ? '#5a0a0a' : '#111111';
 }
 
 function WheelBase() {
   return (
-    <group>
-      <mesh position={[0, 0.02, 0]} receiveShadow>
-        <cylinderGeometry args={[2.9, 2.9, 0.06, 64]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.6} />
-      </mesh>
-      <mesh position={[0, 0.02, 0]}>
-        <torusGeometry args={[2.9, 0.03, 16, 64]} />
-        <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
-      </mesh>
-    </group>
+    <mesh position={[0, 0.02, 0]} receiveShadow>
+      <cylinderGeometry args={[2.9, 2.9, 0.06, 64]} />
+      <meshStandardMaterial color="#2a2a2a" roughness={0.4} metalness={0.3} />
+    </mesh>
   );
 }
 
@@ -50,11 +49,7 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
     }
     shape.closePath();
 
-    return new THREE.ExtrudeGeometry(shape, { depth: 0.22, bevelEnabled: false });
-  }, []);
-
-  const dividerGeom = useMemo(() => {
-    return new THREE.BoxGeometry(0.025, 0.82, 0.26);
+    return new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: false });
   }, []);
 
   return (
@@ -62,28 +57,19 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
       {WHEEL_NUMBERS.map((num, i) => {
         const angle = i * SEGMENT_ANGLE;
         const color = getPocketColor(num);
+        const emissiveColor = getPocketEmissive(num);
         const isWinner = winningNumber === num;
 
         return (
-          <group key={num} rotation={[0, 0, angle]}>
-            <mesh geometry={pocketGeom} castShadow receiveShadow>
-              <meshStandardMaterial
-                color={color}
-                roughness={0.35}
-                metalness={0.05}
-                emissive={isWinner ? '#D4AF37' : '#000000'}
-                emissiveIntensity={isWinner ? 0.8 : 0}
-              />
-            </mesh>
-
-            <mesh
-              position={[Math.cos(SEGMENT_ANGLE * 0.5) * 1.95, Math.sin(SEGMENT_ANGLE * 0.5) * 1.95, 0.11]}
-              rotation={[0, 0, SEGMENT_ANGLE * 0.5]}
-              geometry={dividerGeom}
-            >
-              <meshStandardMaterial color="#C0A030" metalness={0.85} roughness={0.2} />
-            </mesh>
-          </group>
+          <mesh key={num} rotation={[0, 0, angle]} geometry={pocketGeom}>
+            <meshStandardMaterial
+              color={color}
+              roughness={0.6}
+              metalness={0}
+              emissive={isWinner ? '#D4AF37' : emissiveColor}
+              emissiveIntensity={isWinner ? 1.2 : 0.3}
+            />
+          </mesh>
         );
       })}
     </group>
@@ -92,7 +78,7 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
 
 function WheelNumbers() {
   return (
-    <group position={[0, 0.32, 0]}>
+    <group position={[0, 0.28, 0]}>
       {WHEEL_NUMBERS.map((num, i) => {
         const angle = i * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
         const radius = 1.95;
@@ -104,13 +90,13 @@ function WheelNumbers() {
             key={num}
             position={[x, 0, z]}
             rotation={[-Math.PI / 2, 0, -angle + Math.PI]}
-            fontSize={0.16}
+            fontSize={0.18}
             color="#ffffff"
             anchorX="center"
             anchorY="middle"
             font={undefined}
             fontWeight={700}
-            outlineWidth={0.008}
+            outlineWidth={0.012}
             outlineColor="#000000"
           >
             {num.toString()}
@@ -124,29 +110,18 @@ function WheelNumbers() {
 function OuterRim() {
   return (
     <group>
-      <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[2.72, 2.78, 0.5, 64, 1, true]} />
+      <mesh position={[0, 0.15, 0]}>
+        <cylinderGeometry args={[2.72, 2.78, 0.4, 64, 1, true]} />
         <meshStandardMaterial
-          color="#6D4C41"
-          roughness={0.3}
-          metalness={0.5}
+          color="#8D6E63"
+          roughness={0.5}
+          metalness={0.2}
           side={THREE.DoubleSide}
         />
       </mesh>
-
-      <mesh position={[0, 0.41, 0]}>
-        <torusGeometry args={[2.74, 0.05, 16, 64]} />
-        <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
-      </mesh>
-
-      <mesh position={[0, -0.1, 0]}>
-        <torusGeometry args={[2.76, 0.04, 16, 64]} />
-        <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
-      </mesh>
-
-      <mesh position={[0, 0.15, 0]} receiveShadow>
-        <cylinderGeometry args={[2.65, 2.65, 0.48, 64]} />
-        <meshStandardMaterial color="#3E2723" roughness={0.35} metalness={0.3} />
+      <mesh position={[0, 0.12, 0]} receiveShadow>
+        <cylinderGeometry args={[2.65, 2.65, 0.35, 64]} />
+        <meshStandardMaterial color="#5D4037" roughness={0.5} metalness={0.1} />
       </mesh>
     </group>
   );
@@ -154,68 +129,38 @@ function OuterRim() {
 
 function BallTrack() {
   return (
-    <group>
-      <mesh position={[0, 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[2.38, 2.62, 64]} />
-        <meshStandardMaterial
-          color="#2a2a2a"
-          roughness={0.1}
-          metalness={0.7}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      <mesh position={[0, 0.31, 0]}>
-        <torusGeometry args={[2.38, 0.02, 16, 64]} />
-        <meshStandardMaterial color="#D4AF37" metalness={1} roughness={0.1} />
-      </mesh>
-    </group>
+    <mesh position={[0, 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[2.38, 2.62, 64]} />
+      <meshStandardMaterial
+        color="#444444"
+        roughness={0.3}
+        metalness={0.3}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
 function CenterHub() {
   return (
     <group>
-      <mesh position={[0, 0.22, 0]} castShadow>
-        <cylinderGeometry args={[0.55, 0.6, 0.4, 32]} />
+      <mesh position={[0, 0.22, 0]}>
+        <cylinderGeometry args={[0.55, 0.6, 0.35, 32]} />
         <meshStandardMaterial
           color="#D4AF37"
-          metalness={0.85}
-          roughness={0.2}
+          metalness={0.5}
+          roughness={0.3}
+          emissive="#8B6914"
+          emissiveIntensity={0.3}
         />
       </mesh>
-
-      <mesh position={[0, 0.43, 0]}>
+      <mesh position={[0, 0.41, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.03, 32]} />
-        <meshStandardMaterial color="#F4D03F" metalness={1} roughness={0.1} />
+        <meshStandardMaterial color="#F4D03F" metalness={0.5} roughness={0.3} emissive="#B8860B" emissiveIntensity={0.2} />
       </mesh>
-
-      <mesh position={[0, 0.45, 0]}>
-        <cylinderGeometry args={[0.12, 0.12, 0.06, 16]} />
-        <meshStandardMaterial color="#B8860B" metalness={1} roughness={0.1} />
-      </mesh>
-
-      <mesh position={[0, 0.32, 0]}>
-        <torusGeometry args={[0.56, 0.025, 16, 32]} />
-        <meshStandardMaterial color="#F4D03F" metalness={1} roughness={0.1} />
-      </mesh>
-
-      {Array.from({ length: 8 }).map((_, i) => {
-        const a = (i / 8) * Math.PI * 2;
-        return (
-          <mesh
-            key={i}
-            position={[Math.cos(a) * 1.0, 0.2, Math.sin(a) * 1.0]}
-            rotation={[0, -a, 0]}
-          >
-            <boxGeometry args={[0.05, 0.1, 0.85]} />
-            <meshStandardMaterial color="#D4AF37" metalness={0.85} roughness={0.2} />
-          </mesh>
-        );
-      })}
-
       <mesh position={[0, 0.15, 0]} receiveShadow>
         <cylinderGeometry args={[1.5, 1.5, 0.06, 64]} />
-        <meshStandardMaterial color="#111111" roughness={0.25} metalness={0.4} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.5} metalness={0.1} />
       </mesh>
     </group>
   );
@@ -277,13 +222,12 @@ export default function RouletteWheel3D({
         dropTransitionRef.current = Math.min(dropTransitionRef.current + dt, 1.0);
 
         const t = Math.min(dropTransitionRef.current / 0.8, 1);
-        const ease = 1 - Math.pow(1 - t, 3);
 
         const pocketIdx = WHEEL_NUMBERS.indexOf(winningNumber);
         const pocketAngle = pocketIdx * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
         const targetAngle = wheelRotRef.current + pocketAngle;
         const targetRadius = 1.95;
-        const targetY = 0.34;
+        const targetY = 0.30;
 
         if (t < 0.3) {
           const bounceProgress = t / 0.3;
@@ -291,14 +235,13 @@ export default function RouletteWheel3D({
           const midRadius = 2.45 + (2.15 - 2.45) * bounceEase;
           ballRadiusRef.current = midRadius;
           ballAngleRef.current += (targetAngle - ballAngleRef.current) * Math.min(dt * 8, 1);
-          ballYRef.current += (0.38 - ballYRef.current) * Math.min(dt * 6, 1);
+          ballYRef.current += (0.36 - ballYRef.current) * Math.min(dt * 6, 1);
         } else {
           ballAngleRef.current = targetAngle;
-          const settleT = (t - 0.3) / 0.7;
-          const settleEase = 1 - Math.pow(1 - settleT, 2);
           ballRadiusRef.current += (targetRadius - ballRadiusRef.current) * Math.min(dt * 5, 1);
           ballYRef.current += (targetY - ballYRef.current) * Math.min(dt * 5, 1);
 
+          const settleT = (t - 0.3) / 0.7;
           if (settleT < 0.5) {
             const wobble = Math.sin(settleT * Math.PI * 4) * 0.02 * (1 - settleT);
             ballRadiusRef.current += wobble;
@@ -312,7 +255,7 @@ export default function RouletteWheel3D({
 
       if (glowRef.current && ballRef.current) {
         glowRef.current.position.copy(ballRef.current.position);
-        glowRef.current.position.y += 0.15;
+        glowRef.current.position.y += 0.2;
       }
     }
 
@@ -321,21 +264,28 @@ export default function RouletteWheel3D({
 
   return (
     <group rotation={[0.35, 0, 0]}>
+      <ambientLight intensity={2.5} color="#ffffff" />
+      <directionalLight position={[0, 8, 0]} intensity={3} color="#ffffff" />
       <spotLight
-        position={[0, 6, 3]}
-        angle={0.6}
-        penumbra={0.6}
-        intensity={5}
+        position={[0, 7, 4]}
+        angle={0.8}
+        penumbra={0.5}
+        intensity={15}
         color="#FFF8E8"
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={512}
+        shadow-mapSize-height={512}
       />
-      <ambientLight intensity={0.7} color="#FFF5E1" />
-      <pointLight position={[3, 3, 1]} intensity={1.2} color="#D4AF37" distance={10} decay={2} />
-      <pointLight position={[-3, 3, 1]} intensity={1.2} color="#D4AF37" distance={10} decay={2} />
-      <pointLight position={[0, 2, 4]} intensity={0.8} color="#ffffff" distance={8} decay={2} />
-      <pointLight position={[0, 4, -2]} intensity={0.5} color="#FFF5E1" distance={10} decay={2} />
+      <spotLight
+        position={[0, 6, -3]}
+        angle={0.7}
+        penumbra={0.6}
+        intensity={8}
+        color="#ffffff"
+      />
+      <pointLight position={[3, 4, 2]} intensity={3} color="#ffffff" distance={12} decay={2} />
+      <pointLight position={[-3, 4, 2]} intensity={3} color="#ffffff" distance={12} decay={2} />
+      <pointLight position={[0, 3, 5]} intensity={2} color="#ffffff" distance={10} decay={2} />
 
       <WheelBase />
       <OuterRim />
@@ -348,16 +298,16 @@ export default function RouletteWheel3D({
       </group>
 
       <mesh ref={ballRef} castShadow>
-        <sphereGeometry args={[0.1, 16, 16]} />
+        <sphereGeometry args={[0.13, 16, 16]} />
         <meshStandardMaterial
-          color="#f5f5f5"
-          metalness={0.7}
-          roughness={0.05}
+          color="#ffffff"
+          metalness={0.3}
+          roughness={0.1}
           emissive="#ffffff"
-          emissiveIntensity={0.2}
+          emissiveIntensity={0.6}
         />
       </mesh>
-      <pointLight ref={glowRef} color="#ffffff" intensity={0.6} distance={1.5} decay={2} />
+      <pointLight ref={glowRef} color="#ffffff" intensity={2} distance={2.5} decay={2} />
     </group>
   );
 }

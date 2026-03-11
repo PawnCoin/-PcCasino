@@ -49,7 +49,7 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 │   │   ├── games/
 │   │   │   ├── CasinoEnvironment.tsx # Casino room wrapper (ceiling lights, columns, dust particles, floor reflections)
 │   │   │   ├── GameViewport.tsx      # 3D casino environment (Three.js)
-│   │   │   ├── RouletteWheel3D.tsx   # True 3D roulette wheel (R3F): speed-based animation (targetSpeed prop), wheel+ball rotate opposite directions (ball 3x faster), ball drops into pocket with bounce, idle rotation, metallic rim, 37 pockets, gold hub
+│   │   │   ├── RouletteWheel3D.tsx   # True 3D roulette wheel (R3F): speed-based animation (targetSpeed prop), wheel+ball rotate opposite directions (ball 3x faster), ball drops into pocket with bounce, idle rotation, clean minimal design (no divider bars/torus rings/spokes), bright multi-light rig (ambient 2.5 + directional + dual spotlights + point lights), emissive pocket colors for visibility, 37 pockets, gold hub
 │   │   │   ├── PokerGame.tsx         # Leather rail, 3D cards, pot chip stacks, action timer bars
 │   │   │   ├── BlackjackGame.tsx     # Wood rail, glossy 3D cards, dealer nameplate, card shoe, win/bust animations
 │   │   │   ├── RouletteGame.tsx      # Unity-matching 11-phase spin (~20s), expanded chips [1-10K] with scrollable selector + UNDO, visual chip stacking, 3s post-spin delay + YOU WIN!/LOST overlay, green felt betting table, La Partage, sounds + voice

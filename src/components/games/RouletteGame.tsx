@@ -671,7 +671,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Top: 3D Wheel + Credit + History */}
-        <div className="relative flex-shrink-0" style={{ height: '42%', minHeight: '280px' }}>
+        <div className="relative flex-shrink-0" style={{ height: '34%', minHeight: '220px' }}>
           {/* Credit counter */}
           <div
             className="absolute top-3 left-3 z-20"
