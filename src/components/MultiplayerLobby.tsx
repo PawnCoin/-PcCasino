@@ -15,7 +15,7 @@ interface MultiplayerLobbyProps {
 
 // Mock tables data
 const generateMockTables = (): GameTable[] => {
-  const games: GameType[] = ['poker', 'blackjack', 'roulette', 'craps', 'spanish21', 'spades', 'slots', 'sports'];
+  const games: GameType[] = ['poker', 'blackjack', 'roulette', 'craps', 'spades', 'slots', 'sports'];
   const tableNames = [
     'High Rollers', 'Beginners Welcome', 'VIP Lounge', 'Quick Match', 
     'Tournament Prep', 'Casual Play', 'Pro Table', 'Night Owls',
@@ -26,7 +26,7 @@ const generateMockTables = (): GameTable[] => {
   
   for (let i = 0; i < 20; i++) {
     const game = games[Math.floor(Math.random() * games.length)];
-    const maxPlayers = game === 'poker' ? 6 : game === 'spanish21' ? 5 : game === 'blackjack' ? 5 : 8;
+    const maxPlayers = game === 'poker' ? 6 : game === 'blackjack' ? 5 : 8;
     const playerCount = Math.floor(Math.random() * (maxPlayers - 1)) + 1;
     
     tables.push({
@@ -57,10 +57,11 @@ const gameIcons: Record<GameType, string> = {
   blackjack: '🃏',
   roulette: '🎰',
   craps: '🎲',
-  spanish21: '✨',
   spades: '♠️',
   slots: '🎰',
   sports: '🏈',
+  bingo: '🎱',
+  dominoes: '🁣',
 };
 
 const gameNames: Record<GameType, string> = {
@@ -68,10 +69,11 @@ const gameNames: Record<GameType, string> = {
   blackjack: 'Blackjack',
   roulette: 'Roulette',
   craps: 'Craps',
-  spanish21: 'Spanish 21',
   spades: 'Spades',
   slots: 'Slots',
   sports: 'Sportsbook',
+  bingo: 'Bingo 75-Ball',
+  dominoes: 'Dominoes',
 };
 
 export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance }: MultiplayerLobbyProps) {

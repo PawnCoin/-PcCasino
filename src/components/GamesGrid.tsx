@@ -24,16 +24,6 @@ const games: GameCard[] = [
     href: '/game/poker',
   },
   {
-    id: 'spanish21',
-    name: 'Spanish 21 + Side Bets',
-    description: 'Blackjack variant with 3 Card Poker, Match The Dealer, and Perfect Pair side bets.',
-    image: '/logos/game-spanish21.png',
-    minBet: 10,
-    activeTables: 89,
-    badge: 'NEW',
-    href: '/game/spanish21',
-  },
-  {
     id: 'blackjack',
     name: 'Blackjack',
     description: 'Beat the dealer to 21. Multiple hands, side bets, and insurance.',

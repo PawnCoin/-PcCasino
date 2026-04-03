@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createDeck, shuffleDeck, calculateBlackjackValue, isBlackjack } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
+import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import type { Card } from '@/types';
 
@@ -340,28 +341,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
 
   const renderCard = (card: Card, index: number, hidden = false) => {
     if (hidden) {
-      return renderCardBack(index);
+      return (
+        <div key={index} style={{ animationDelay: `${index * 0.15}s` }} className="card-deal-3d">
+          <PlayingCard hidden cardBackStyle={cardBackStyle} size="lg" />
+        </div>
+      );
     }
-
-    const suitSymbols: Record<string, string> = {
-      hearts: '♥',
-      diamonds: '♦',
-      clubs: '♣',
-      spades: '♠',
-    };
-
     return (
-      <div
-        key={index}
-        className={`premium-card card-hover-lift card-deal-3d relative flex flex-col items-center justify-center rounded-lg ${card.isRed ? 'text-red-700' : 'text-gray-900'}`}
-        style={{
-          width: '90px',
-          height: '126px',
-          animationDelay: `${index * 0.15}s`,
-        }}
-      >
-        <span className="text-2xl font-bold leading-none">{card.rank}</span>
-        <span className="text-3xl leading-none">{suitSymbols[card.suit]}</span>
+      <div key={index} style={{ animationDelay: `${index * 0.15}s` }} className="card-deal-3d card-hover-lift">
+        <PlayingCard card={card} cardBackStyle={cardBackStyle} size="lg" />
       </div>
     );
   };

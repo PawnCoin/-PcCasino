@@ -17,7 +17,6 @@ import { PokerGame } from '@/components/games/PokerGame';
 import { BlackjackGame } from '@/components/games/BlackjackGame';
 import { RouletteGame } from '@/components/games/RouletteGame';
 import { CrapsGame } from '@/components/games/CrapsGame';
-import { Spanish21Game } from '@/components/games/Spanish21Game';
 import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
@@ -298,16 +297,6 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-          />
-        );
-      case 'spanish21':
-        return (
-          <Spanish21Game
-            balance={user?.balance || 0}
-            onBack={() => setCurrentView('lobby')}
-            onBet={handleBet}
-            onWin={handleWin}
-            cardBackStyle={getCardBackStyle()}
           />
         );
       case 'spades':
