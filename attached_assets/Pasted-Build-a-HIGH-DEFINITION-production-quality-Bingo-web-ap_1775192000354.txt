@@ -1,0 +1,104 @@
+Build a HIGH-DEFINITION, production-quality Bingo web app with the BEST possible visuals, animations, and performance that Replit can support.
+
+CORE REQUIREMENTS:
+- Game Type: American Bingo (75-ball format)
+- Include standard rules:
+  - 5x5 grid with FREE center space
+  - B-I-N-G-O columns (B:1–15, I:16–30, N:31–45, G:46–60, O:61–75)
+  - Random number caller system with voice + animation
+  - Win patterns: horizontal, vertical, diagonal, and custom patterns
+
+UI / DESIGN:
+- Match my website theme dynamically (create a theme config system)
+- Ultra-clean, modern UI (similar to top casino apps)
+- Smooth animations (ball draws, marker placement, win effects)
+- Responsive (mobile-first, app-like feel)
+- Add glowing/highlight effects when close to winning
+
+CUSTOMIZATION FEATURES:
+- Allow users to:
+  - Change bingo card themes (colors, fonts, styles)
+  - Change markers (chips, daubers, emojis, custom icons)
+  - Change backgrounds (casino, neon, minimal, etc.)
+  - Save preferences
+
+AUDIO / RADIO SYSTEM (IMPORTANT):
+- Integrate live music streaming into the game
+- Allow user to choose music from:
+  - Slacker Radio (or similar API)
+  - Live radio streams (use public radio APIs if needed)
+- Music must:
+  - Play in background while gaming
+  - Have volume control + mute toggle
+  - Auto-pause on win events (optional)
+
+ANIMATIONS & EXPERIENCE:
+- Realistic bingo ball draw animation
+- Voice announcer (text-to-speech: “B-12”, “G-55”, etc.)
+- Confetti / celebration on win
+- Smooth transitions between states
+- No lag — optimize performance
+
+ADVANCED FEATURES:
+- Multiplayer-ready architecture (prepare for future real-time play)
+- Player profiles (username, avatar)
+- Leaderboard system
+- Game history tracking
+- Sound effects + announcer voice options
+
+TECH STACK:
+- Frontend: React + Tailwind CSS (clean, modern UI)
+- Animations: Framer Motion or GSAP
+- Audio: HTML5 Audio + streaming API integration
+- State Management: Zustand or Redux
+- Backend-ready structure (Node.js/Express or serverless functions)
+
+PERFORMANCE:
+- Optimize for fast loading and smooth gameplay
+- Lazy load assets
+- Use reusable components
+
+MONETIZATION READY:
+- Add hooks for:
+  - Ads
+  - Subscriptions
+  - In-game purchases (themes, effects)
+
+DELIVERABLE:
+- Fully working app with clean file structure
+- Ready to deploy on Replit
+- No placeholders — everything functional
+💡 Pro Upgrade Prompt (NEXT LEVEL — Use After First Build)
+
+After it builds the first version, hit it with this:
+
+Upgrade this Bingo app to a PREMIUM casino-level experience:
+
+- Add 3D-style bingo balls and realistic physics animations
+- Add lobby system (players can choose rooms/themes)
+- Add autoplay mode for casual players
+- Add daily rewards / streak system
+- Add push notifications (wins, near wins)
+- Add real-time multiplayer using WebSockets
+- Add crypto + PayPal payment system for premium features
+- Add TikTok-style UI transitions and sound effects
+- Improve UI to feel like a real mobile app (Vegas casino quality)
+⚠️ Important Reality Check (So You Don’t Hit a Wall)
+Slacker Radio (now LiveOne) does NOT have a public easy API
+So Replit may need to:
+Use public radio streams (Icecast/Shoutcast)
+Or integrate with Spotify / YouTube audio workarounds
+
+👉 Tell Replit this if needed:
+
+If Slacker/LiveOne API is not accessible, use alternative:
+- Public radio streaming APIs
+- Or Spotify/YouTube embedded playback
+🎯 Pro Tip (This is KEY)
+
+After Replit generates the app:
+
+👉 Immediately say:
+
+Refactor and optimize this code to production level.
+Fix all bugs, improve performance, and enhance UI/UX to feel like a real casino app.

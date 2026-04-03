@@ -83,6 +83,16 @@ const games: GameCard[] = [
     badge: 'JACKPOT',
     href: '/game/slots',
   },
+  {
+    id: 'bingo',
+    name: 'Bingo 75-Ball',
+    description: 'American 75-ball bingo with voice caller, win patterns, and blackout jackpots.',
+    image: '/logos/pc-logo.png',
+    minBet: 5,
+    activeTables: 28,
+    badge: 'HOT',
+    href: '/game/bingo',
+  },
 ];
 
 const badgeStyles: Record<string, string> = {

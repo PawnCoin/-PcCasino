@@ -2,6 +2,9 @@
 
 A React + Vite + TypeScript casino web application featuring multiple card and casino games with premium visual effects, part of the Pawn Coin ecosystem. The Command Center is an external app at pawncoinpc.com — not included in this application.
 
+## Games
+Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades, Slots, Bingo 75-Ball
+
 ## Project Structure
 
 ```

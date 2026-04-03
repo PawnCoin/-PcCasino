@@ -20,6 +20,7 @@ import { CrapsGame } from '@/components/games/CrapsGame';
 import { Spanish21Game } from '@/components/games/Spanish21Game';
 import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
+import { BingoGame } from '@/components/games/BingoGame';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -321,6 +322,15 @@ function App() {
       case 'slots':
         return (
           <SlotsGame
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+          />
+        );
+      case 'bingo':
+        return (
+          <BingoGame
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
