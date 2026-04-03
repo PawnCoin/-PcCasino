@@ -141,39 +141,6 @@ function PotChipStack({ pot }: { pot: number }) {
   );
 }
 
-/* ── Improved card back ── */
-function CardBack({ size = 'sm' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const dims = { sm: { w: 45, h: 63 }, md: { w: 70, h: 100 }, lg: { w: 90, h: 126 } }[size];
-  return (
-    <div style={{
-      width: dims.w, height: dims.h,
-      borderRadius: 8,
-      background: 'linear-gradient(160deg,#1a237e 0%,#283593 100%)',
-      border: '2px solid rgba(212,175,55,0.5)',
-      boxShadow: '0 6px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      {/* diamond tile pattern */}
-      <div style={{
-        position: 'absolute', inset: 4,
-        backgroundImage: `repeating-linear-gradient(45deg,rgba(255,255,255,0.07) 0px,rgba(255,255,255,0.07) 3px,transparent 3px,transparent 10px),
-          repeating-linear-gradient(-45deg,rgba(255,255,255,0.07) 0px,rgba(255,255,255,0.07) 3px,transparent 3px,transparent 10px)`,
-        borderRadius: 4,
-        border: '1.5px solid rgba(255,255,255,0.15)',
-      }} />
-      {/* center diamond icon */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        width: dims.w * 0.28, height: dims.w * 0.28,
-        background: 'rgba(212,175,55,0.22)',
-        rotate: '45deg',
-        borderRadius: 2,
-        border: '1px solid rgba(212,175,55,0.5)',
-      }} />
-    </div>
-  );
-}
-
 /* ── Player info box (matches reference panel style) ── */
 interface OpponentData {
   id: number;
@@ -187,9 +154,11 @@ interface OpponentData {
 
 function OpponentSeat({
   opponent,
+  cardBackStyle,
   cardDirection = 'up',
 }: {
   opponent: OpponentData;
+  cardBackStyle?: PokerGameProps['cardBackStyle'];
   cardDirection?: 'up' | 'left' | 'right' | 'down';
 }) {
   if (!opponent.active) {
@@ -210,8 +179,8 @@ function OpponentSeat({
 
   const cards = (
     <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-      <CardBack size="sm" />
-      <CardBack size="sm" />
+      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+      <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
     </div>
   );
 
@@ -223,8 +192,8 @@ function OpponentSeat({
       {/* cards above for top seats */}
       {cardDirection === 'up' && (
         <div style={{ display: 'flex', gap: 3, marginBottom: 2 }}>
-          <CardBack size="sm" />
-          <CardBack size="sm" />
+          <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+          <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
         </div>
       )}
 
@@ -826,7 +795,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                 if (!pos) return null;
                 return (
                   <div key={opp.id} className="absolute z-[20]" style={pos.style}>
-                    <OpponentSeat opponent={opp} cardDirection={pos.dir} />
+                    <OpponentSeat opponent={opp} cardBackStyle={cardBackStyle} cardDirection={pos.dir} />
                   </div>
                 );
               })}
