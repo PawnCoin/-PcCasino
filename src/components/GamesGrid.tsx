@@ -93,6 +93,16 @@ const games: GameCard[] = [
     badge: 'HOT',
     href: '/game/bingo',
   },
+  {
+    id: 'dominoes',
+    name: 'Dominoes',
+    description: 'Classic Draw Dominoes on a square table. Slam your last tile and crack the table to win!',
+    image: '/logos/pc-logo.png',
+    minBet: 5,
+    activeTables: 18,
+    badge: 'NEW',
+    href: '/game/dominoes',
+  },
 ];
 
 const badgeStyles: Record<string, string> = {

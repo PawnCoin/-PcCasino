@@ -21,6 +21,7 @@ import { Spanish21Game } from '@/components/games/Spanish21Game';
 import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
+import { DominoesGame } from '@/components/games/DominoesGame';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -337,6 +338,15 @@ function App() {
             onWin={handleWin}
           />
         );
+      case 'dominoes':
+        return (
+          <DominoesGame
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+          />
+        );
       default:
         return (
           <>
@@ -370,6 +380,8 @@ function App() {
                       <li><button onClick={() => handleSelectGame('roulette')} className="hover:text-[#D4AF37] transition-colors">Roulette</button></li>
                       <li><button onClick={() => handleSelectGame('craps')} className="hover:text-[#D4AF37] transition-colors">Craps</button></li>
                       <li><button onClick={() => handleSelectGame('spades')} className="hover:text-[#D4AF37] transition-colors">Spades</button></li>
+                      <li><button onClick={() => handleSelectGame('bingo')} className="hover:text-[#D4AF37] transition-colors">Bingo 75-Ball</button></li>
+                      <li><button onClick={() => handleSelectGame('dominoes')} className="hover:text-[#D4AF37] transition-colors">Dominoes</button></li>
                     </ul>
                   </div>
                   <div>
