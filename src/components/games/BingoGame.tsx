@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Volume2, VolumeX, Play, Pause, RefreshCw, Zap, Info } from 'lucide-react';
+import {
+  ArrowLeft, Volume2, VolumeX, RefreshCw, Info, Users, Award,
+  Plus, Minus, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -12,50 +15,46 @@ interface BingoGameProps {
   onWin: (amount: number) => void;
 }
 
-type GamePhase = 'setup' | 'playing' | 'won';
+type GamePhase = 'setup' | 'playing' | 'won' | 'gameover';
+type BallMachineState = 'idle' | 'mixing' | 'ejecting' | 'settled';
 
 const COLUMNS = ['B', 'I', 'N', 'G', 'O'] as const;
-const COL_RANGES = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]];
+const COL_RANGES: [number, number][] = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]];
 
-const BALL_COLORS: Record<string, { bg: string; shadow: string; text: string }> = {
-  B: { bg: 'linear-gradient(135deg,#1565C0,#42A5F5)', shadow: 'rgba(21,101,192,0.7)', text: '#fff' },
-  I: { bg: 'linear-gradient(135deg,#6A1B9A,#CE93D8)', shadow: 'rgba(106,27,154,0.7)', text: '#fff' },
-  N: { bg: 'linear-gradient(135deg,#212121,#616161)', shadow: 'rgba(33,33,33,0.7)', text: '#fff' },
-  G: { bg: 'linear-gradient(135deg,#1B5E20,#66BB6A)', shadow: 'rgba(27,94,32,0.7)', text: '#fff' },
-  O: { bg: 'linear-gradient(135deg,#B71C1C,#EF5350)', shadow: 'rgba(183,28,28,0.7)', text: '#fff' },
+const BALL_COLORS: Record<string, { bg: string; solid: string; shadow: string }> = {
+  B: { bg: 'linear-gradient(135deg,#0D47A1,#42A5F5)', solid: '#1565C0', shadow: 'rgba(21,101,192,0.8)' },
+  I: { bg: 'linear-gradient(135deg,#4A148C,#CE93D8)', solid: '#7B1FA2', shadow: 'rgba(106,27,154,0.8)' },
+  N: { bg: 'linear-gradient(135deg,#1a1a1a,#757575)', solid: '#424242', shadow: 'rgba(66,66,66,0.8)' },
+  G: { bg: 'linear-gradient(135deg,#1B5E20,#66BB6A)', solid: '#2E7D32', shadow: 'rgba(27,94,32,0.8)' },
+  O: { bg: 'linear-gradient(135deg,#B71C1C,#EF5350)', solid: '#C62828', shadow: 'rgba(183,28,28,0.8)' },
 };
 
-const WIN_PAYOUTS: Record<string, number> = {
-  'Line': 3,
-  'Diagonal': 5,
-  '4 Corners': 7,
-  'BLACKOUT': 20,
-};
+const HOPPER_BALL_POSITIONS = [
+  { x: 14, y: 22 }, { x: 72, y: 14 }, { x: 130, y: 28 },
+  { x: 50, y: 55 }, { x: 105, y: 55 },
+];
 
+const WIN_PAYOUTS: Record<string, number> = { Line: 3, Diagonal: 5, '4 Corners': 7, BLACKOUT: 20 };
 const BET_OPTIONS = [5, 10, 25, 50, 100];
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function generateCard(): (number | 'FREE')[][] {
   const card: (number | 'FREE')[][] = [];
   for (let col = 0; col < 5; col++) {
     const [min, max] = COL_RANGES[col];
     const pool = Array.from({ length: max - min + 1 }, (_, i) => i + min);
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    card.push(pool.slice(0, 5) as number[]);
+    card.push(shuffle(pool).slice(0, 5) as number[]);
   }
   card[2][2] = 'FREE';
   return card;
-}
-
-function generateBallPool(): number[] {
-  const pool = Array.from({ length: 75 }, (_, i) => i + 1);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool;
 }
 
 function getColumnLetter(n: number): string {
@@ -67,611 +66,832 @@ function getColumnLetter(n: number): string {
 }
 
 function checkWin(daubed: boolean[][]): { won: boolean; pattern: string; winCells: Set<string> } {
-  const cells: string[] = [];
-
   for (let row = 0; row < 5; row++) {
-    if ([0, 1, 2, 3, 4].every(col => daubed[col][row])) {
+    if ([0, 1, 2, 3, 4].every(c => daubed[c][row]))
       return { won: true, pattern: 'Line', winCells: new Set([0, 1, 2, 3, 4].map(c => `${c},${row}`)) };
-    }
   }
   for (let col = 0; col < 5; col++) {
-    if ([0, 1, 2, 3, 4].every(row => daubed[col][row])) {
+    if ([0, 1, 2, 3, 4].every(r => daubed[col][r]))
       return { won: true, pattern: 'Line', winCells: new Set([0, 1, 2, 3, 4].map(r => `${col},${r}`)) };
-    }
   }
-  if ([0, 1, 2, 3, 4].every(i => daubed[i][i])) {
+  if ([0, 1, 2, 3, 4].every(i => daubed[i][i]))
     return { won: true, pattern: 'Diagonal', winCells: new Set([0, 1, 2, 3, 4].map(i => `${i},${i}`)) };
-  }
-  if ([0, 1, 2, 3, 4].every(i => daubed[i][4 - i])) {
+  if ([0, 1, 2, 3, 4].every(i => daubed[i][4 - i]))
     return { won: true, pattern: 'Diagonal', winCells: new Set([0, 1, 2, 3, 4].map(i => `${i},${4 - i}`)) };
-  }
-  if (daubed[0][0] && daubed[4][0] && daubed[0][4] && daubed[4][4]) {
+  if (daubed[0][0] && daubed[4][0] && daubed[0][4] && daubed[4][4])
     return { won: true, pattern: '4 Corners', winCells: new Set(['0,0', '4,0', '0,4', '4,4']) };
-  }
-  if ([0, 1, 2, 3, 4].every(col => [0, 1, 2, 3, 4].every(row => daubed[col][row]))) {
+  if ([0, 1, 2, 3, 4].every(c => [0, 1, 2, 3, 4].every(r => daubed[c][r]))) {
     const all = new Set<string>();
     for (let c = 0; c < 5; c++) for (let r = 0; r < 5; r++) all.add(`${c},${r}`);
     return { won: true, pattern: 'BLACKOUT', winCells: all };
   }
-
-  void cells;
   return { won: false, pattern: '', winCells: new Set() };
 }
 
-function getNearWinCells(daubed: boolean[][]): Set<string> {
-  const near = new Set<string>();
-  for (let row = 0; row < 5; row++) {
-    const cols = [0, 1, 2, 3, 4];
-    if (cols.filter(c => daubed[c][row]).length === 4) {
-      const miss = cols.find(c => !daubed[c][row]);
-      if (miss !== undefined) near.add(`${miss},${row}`);
-    }
-  }
-  for (let col = 0; col < 5; col++) {
-    const rows = [0, 1, 2, 3, 4];
-    if (rows.filter(r => daubed[col][r]).length === 4) {
-      const miss = rows.find(r => !daubed[col][r]);
-      if (miss !== undefined) near.add(`${col},${miss}`);
-    }
-  }
-  const diag1 = [0, 1, 2, 3, 4];
-  if (diag1.filter(i => daubed[i][i]).length === 4) {
-    const miss = diag1.find(i => !daubed[i][i]);
-    if (miss !== undefined) near.add(`${miss},${miss}`);
-  }
-  const diag2 = [0, 1, 2, 3, 4];
-  if (diag2.filter(i => daubed[i][4 - i]).length === 4) {
-    const miss = diag2.find(i => !daubed[i][4 - i]);
-    if (miss !== undefined) near.add(`${miss},${4 - miss}`);
-  }
-  return near;
+// ── BALL MACHINE ────────────────────────────────────────────────────────────
+interface BallMachineProps {
+  machineState: BallMachineState;
+  currentBall: number | null;
+  drawKey: number;
+  onDraw: () => void;
+  autoPlay: boolean;
+  autoSpeed: number;
+  phase: GamePhase;
+  calledCount: number;
 }
 
-function ConfettiParticle({ x, y, color, delay }: { x: number; y: number; color: string; delay: number }) {
+function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, autoSpeed, phase, calledCount }: BallMachineProps) {
+  const letter = currentBall ? getColumnLetter(currentBall) : null;
+  const bc = letter ? BALL_COLORS[letter] : null;
+
+  const letters = ['B', 'I', 'N', 'G', 'O'] as const;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      {/* Machine housing */}
+      <div style={{ position: 'relative', width: 180, height: 95, background: 'linear-gradient(180deg,rgba(25,25,25,0.95),rgba(15,15,15,0.99))', border: '2px solid rgba(212,175,55,0.35)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+        {/* Glass highlight */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 36, background: 'linear-gradient(180deg,rgba(255,255,255,0.06),transparent)', borderRadius: '16px 16px 0 0', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 8, color: 'rgba(212,175,55,0.5)', letterSpacing: '0.3em', fontWeight: 700 }}>BALL MACHINE</div>
+
+        {/* Hopper balls */}
+        {letters.map((l, i) => {
+          const pos = HOPPER_BALL_POSITIONS[i];
+          const ballBc = BALL_COLORS[l];
+          const isMixing = machineState === 'mixing';
+          const isEjecting = machineState === 'ejecting' && currentBall ? getColumnLetter(currentBall) === l : false;
+          return (
+            <div key={l} style={{
+              position: 'absolute',
+              left: pos.x, top: pos.y,
+              width: 26, height: 26,
+              borderRadius: '50%',
+              background: ballBc.bg,
+              boxShadow: `0 2px 8px ${ballBc.shadow}, inset 0 2px 4px rgba(255,255,255,0.3)`,
+              animationName: isEjecting ? 'hopperEject' : isMixing ? `hopperBounce${i}` : 'hopperIdle',
+              animationDuration: isEjecting ? '0.5s' : isMixing ? `${0.65 + i * 0.12}s` : '3s',
+              animationTimingFunction: 'ease-in-out',
+              animationIterationCount: isEjecting ? '1' : 'infinite',
+              animationFillMode: isEjecting ? 'forwards' : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 7, fontWeight: 900, color: '#fff',
+              zIndex: isEjecting ? 10 : 1,
+              opacity: isEjecting ? 0 : 1,
+              transition: isEjecting ? 'opacity 0.3s' : 'none',
+            }}>{l}</div>
+          );
+        })}
+      </div>
+
+      {/* Tube/chute connector */}
+      <div style={{ width: 4, height: 14, background: 'linear-gradient(180deg,rgba(212,175,55,0.4),rgba(212,175,55,0.1))', borderRadius: 2 }} />
+
+      {/* Current ball display */}
+      <div style={{ position: 'relative', width: 110, height: 110 }}>
+        {currentBall !== null && bc ? (
+          <div key={drawKey} style={{
+            width: 110, height: 110, borderRadius: '50%',
+            background: bc.bg,
+            boxShadow: `0 0 35px ${bc.shadow}, 0 6px 24px rgba(0,0,0,0.8), inset 0 4px 8px rgba(255,255,255,0.3)`,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            animation: 'ballSettle 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{ position: 'absolute', top: '10%', left: '18%', width: '28%', height: '28%', background: 'radial-gradient(circle,rgba(255,255,255,0.55) 0%,transparent 70%)', borderRadius: '50%' }} />
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', lineHeight: 1, textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>{letter}</div>
+            <div style={{ fontSize: 38, fontWeight: 900, color: '#fff', lineHeight: 1, textShadow: '0 2px 6px rgba(0,0,0,0.5)' }}>{currentBall}</div>
+          </div>
+        ) : (
+          <div style={{ width: 110, height: 110, borderRadius: '50%', background: 'rgba(20,20,20,0.8)', border: '3px dashed rgba(212,175,55,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em', textAlign: 'center' }}>WAITING{'\n'}FOR DRAW</span>
+          </div>
+        )}
+        {/* Mixing overlay */}
+        {machineState === 'mixing' && (
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle,rgba(212,175,55,0.15) 0%,transparent 70%)', animation: 'mixingPulse 0.4s ease-in-out infinite' }} />
+        )}
+      </div>
+
+      {/* Countdown bar */}
+      {phase === 'playing' && calledCount > 0 && (
+        <div style={{ width: 160, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+          <div key={`cd-${drawKey}`} style={{
+            height: '100%', background: 'linear-gradient(90deg,#D4AF37,#FFD700)',
+            borderRadius: 3,
+            animationName: autoPlay ? 'countdownDrain' : 'none',
+            animationDuration: `${autoSpeed}ms`,
+            animationTimingFunction: 'linear',
+            animationFillMode: 'forwards',
+          }} />
+        </div>
+      )}
+
+      {/* Draw controls */}
+      {phase === 'playing' && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={onDraw} disabled={autoPlay || machineState !== 'settled' && machineState !== 'idle'} style={{
+            padding: '7px 20px', borderRadius: 10, fontWeight: 800, fontSize: 12,
+            background: autoPlay ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#1B5E20,#43A047)',
+            color: '#fff', border: 'none', cursor: autoPlay ? 'not-allowed' : 'pointer',
+            opacity: autoPlay ? 0.4 : 1,
+            boxShadow: autoPlay ? 'none' : '0 3px 12px rgba(27,94,32,0.6)',
+          }}>▶ DRAW</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SINGLE BINGO CARD ────────────────────────────────────────────────────────
+interface BingoCardProps {
+  cardIdx: number;
+  card: (number | 'FREE')[][];
+  daubed: boolean[][];
+  hinted: Set<string>;
+  winCells: Set<string>;
+  cellSize: number;
+  onDaub: (cardIdx: number, col: number, row: number) => void;
+  isWinner: boolean;
+  label?: string;
+}
+
+function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, isWinner, label }: BingoCardProps) {
+  const fontSize = cellSize >= 54 ? 18 : cellSize >= 44 ? 15 : cellSize >= 36 ? 13 : 11;
+  const headerFont = cellSize >= 54 ? 22 : cellSize >= 44 ? 18 : cellSize >= 36 ? 15 : 13;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {label && (
+        <div style={{ textAlign: 'center', fontSize: 9, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 4 }}>{label}</div>
+      )}
+      <div style={{
+        background: 'linear-gradient(160deg,rgba(28,28,28,0.97),rgba(12,12,12,0.99))',
+        border: `2px solid ${isWinner ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.4)'}`,
+        borderRadius: 14,
+        overflow: 'hidden',
+        boxShadow: isWinner ? '0 0 30px rgba(212,175,55,0.6), 0 8px 32px rgba(0,0,0,0.8)' : '0 6px 28px rgba(0,0,0,0.7)',
+        animation: isWinner ? 'cardWinPulse 1s ease-in-out infinite' : 'none',
+      }}>
+        {/* BINGO header */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 2, padding: `8px 8px 4px` }}>
+          {COLUMNS.map((l) => {
+            const bc = BALL_COLORS[l];
+            return (
+              <div key={l} style={{ textAlign: 'center', fontWeight: 900, fontSize: headerFont, background: bc.bg, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: `drop-shadow(0 0 6px ${bc.shadow})` }}>{l}</div>
+            );
+          })}
+        </div>
+
+        {/* Grid */}
+        <div style={{ padding: '0 8px 8px', display: 'grid', gridTemplateColumns: `repeat(5,${cellSize}px)`, gap: 3 }}>
+          {[0, 1, 2, 3, 4].map(row => [0, 1, 2, 3, 4].map(col => {
+            const val = card[col]?.[row];
+            const cellKey = `${cardIdx},${col},${row}`;
+            const gridKey = `${col},${row}`;
+            const isDaubed = daubed[col]?.[row];
+            const isHinted = hinted.has(cellKey);
+            const isWin = winCells.has(gridKey);
+            const isFree = val === 'FREE';
+            const colL = COLUMNS[col];
+            const bc = BALL_COLORS[colL];
+
+            const canDaub = isHinted && !isDaubed;
+
+            return (
+              <div key={`${col}-${row}`}
+                onClick={() => canDaub && onDaub(cardIdx, col, row)}
+                style={{
+                  width: cellSize, height: cellSize,
+                  borderRadius: 8,
+                  position: 'relative',
+                  background: isWin ? 'rgba(212,175,55,0.18)' : isDaubed ? 'rgba(15,15,15,0.95)' : isHinted ? 'rgba(40,32,8,0.95)' : 'rgba(28,28,28,0.8)',
+                  border: isWin ? '2px solid rgba(212,175,55,0.9)' : isDaubed ? `1.5px solid ${bc.solid}44` : isHinted ? '1.5px solid rgba(212,175,55,0.8)' : '1.5px solid rgba(255,255,255,0.07)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: canDaub ? 'pointer' : 'default',
+                  overflow: 'hidden',
+                  transition: 'all 0.25s ease',
+                  animation: isWin ? 'cellWinPulse 1s ease-in-out infinite' : isHinted && !isDaubed ? 'hintGlow 1.3s ease-in-out infinite' : 'none',
+                  boxShadow: isHinted && !isDaubed ? `0 0 12px rgba(212,175,55,0.5), inset 0 0 8px rgba(212,175,55,0.1)` : 'none',
+                }}
+                onMouseEnter={e => { if (canDaub) { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.zIndex = '5'; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.zIndex = '1'; }}
+              >
+                {/* Daubed marker */}
+                {isDaubed && (
+                  <div style={{
+                    position: 'absolute', inset: 3, borderRadius: 6,
+                    background: isFree ? 'linear-gradient(135deg,rgba(212,175,55,0.45),rgba(212,175,55,0.65))' : bc.bg,
+                    opacity: 0.88,
+                    animation: 'daubAppear 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards',
+                    boxShadow: `inset 0 0 6px rgba(0,0,0,0.35), 0 0 6px ${bc.shadow}`,
+                  }} />
+                )}
+
+                {/* Number / FREE */}
+                <span style={{
+                  position: 'relative', zIndex: 2,
+                  fontSize: isFree ? fontSize * 0.62 : fontSize,
+                  fontWeight: 800,
+                  color: isHinted && !isDaubed ? '#D4AF37' : isDaubed ? 'rgba(255,255,255,0.5)' : '#e5e7eb',
+                  letterSpacing: isFree ? '0.04em' : 0,
+                  userSelect: 'none',
+                }}>{isFree ? 'FREE' : val}</span>
+
+                {/* Hint indicator */}
+                {isHinted && !isDaubed && (
+                  <div style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#D4AF37', animation: 'hintDot 0.8s ease-in-out infinite' }} />
+                )}
+
+                {/* Win star */}
+                {isWin && (
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'radial-gradient(circle,rgba(212,175,55,0.3) 0%,transparent 70%)' }} />
+                )}
+              </div>
+            );
+          }))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CONFETTI ────────────────────────────────────────────────────────────────
+function ConfettiPiece({ x, y, color, delay, shape }: { x: number; y: number; color: string; delay: number; shape: string }) {
   return (
     <div style={{
-      position: 'fixed', left: x, top: y, width: 10, height: 10,
-      background: color, borderRadius: Math.random() > 0.5 ? '50%' : '2px',
-      animationDelay: `${delay}ms`,
-      animation: 'bingoConfettiFall 2.5s ease-in forwards',
-      pointerEvents: 'none', zIndex: 200,
+      position: 'fixed', left: x, top: y, width: shape === 'circle' ? 9 : 8, height: shape === 'circle' ? 9 : 12,
+      background: color, borderRadius: shape === 'circle' ? '50%' : '2px',
+      animationDelay: `${delay}ms`, animation: 'confettiFall 2.8s ease-in forwards',
+      pointerEvents: 'none', zIndex: 300,
     }} />
   );
 }
 
+// ── MAIN GAME ────────────────────────────────────────────────────────────────
 export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
   const [phase, setPhase] = useState<GamePhase>('setup');
-  const [card, setCard] = useState<(number | 'FREE')[][]>([]);
-  const [daubed, setDaubed] = useState<boolean[][]>(Array.from({ length: 5 }, () => Array(5).fill(false)));
+  const [numCards, setNumCards] = useState(1);
+  const [betAmount, setBetAmount] = useState(25);
+  const [cards, setCards] = useState<(number | 'FREE')[][][]>([]);
+  const [daubed, setDaubed] = useState<boolean[][][]>([]);
+  const [hinted, setHinted] = useState<Set<string>>(new Set());
+  const [winCells, setWinCells] = useState<Map<number, Set<string>>>(new Map());
   const [ballPool, setBallPool] = useState<number[]>([]);
   const [calledNumbers, setCalledNumbers] = useState<number[]>([]);
   const [currentBall, setCurrentBall] = useState<number | null>(null);
+  const [machineState, setMachineState] = useState<BallMachineState>('idle');
+  const [drawKey, setDrawKey] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
-  const [betAmount, setBetAmount] = useState(25);
+  const [autoSpeed, setAutoSpeed] = useState(6000);
   const [winPattern, setWinPattern] = useState('');
-  const [winCells, setWinCells] = useState<Set<string>>(new Set());
-  const [nearCells, setNearCells] = useState<Set<string>>(new Set());
-  const [ballAnim, setBallAnim] = useState(false);
-  const [winEffect, setWinEffect] = useState(false);
-  const [confetti, setConfetti] = useState<{ x: number; y: number; color: string; delay: number; id: number }[]>([]);
-  const [recentBalls, setRecentBalls] = useState<number[]>([]);
   const [showRules, setShowRules] = useState(false);
+  const [bingoFeedback, setBingoFeedback] = useState<'none' | 'valid' | 'invalid'>('none');
+  const [confetti, setConfetti] = useState<{ x: number; y: number; color: string; delay: number; shape: string; id: number }[]>([]);
+  const [onlinePlayers, setOnlinePlayers] = useState(() => 52 + Math.floor(Math.random() * 148));
+  const [calledTicker, setCalledTicker] = useState<number[]>([]);
   const [message, setMessage] = useState('');
-  const [autoSpeed, setAutoSpeed] = useState(2500);
-  const confettiId = useRef(0);
-  const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const { isMuted, toggleMute, playSound } = useSoundEffects();
-  const { speak, isSupported: voiceSupported } = useGameVoice();
+  const [isMuted, setIsMuted] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
+  const confId = useRef(0);
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDrawing = useRef(false);
 
-  const announceNumber = useCallback((n: number) => {
-    if (!voiceOn || !voiceSupported) return;
-    const letter = getColumnLetter(n);
-    speak(`${letter} ${n}`, 0.9);
-  }, [voiceOn, voiceSupported, speak]);
+  const { speak, isSupported: voiceSupported } = useGameVoice();
+  const { playSound } = useSoundEffects();
 
-  const startNewGame = useCallback(() => {
-    if (!onBet(betAmount)) {
-      setMessage('Insufficient balance!');
-      return;
-    }
-    const newCard = generateCard();
-    const initDaubed = Array.from({ length: 5 }, () => Array(5).fill(false));
-    initDaubed[2][2] = true; // FREE center
-    setCard(newCard);
+  // Fluctuating online players
+  useEffect(() => {
+    const t = setInterval(() => setOnlinePlayers(p => Math.max(30, p + Math.floor(Math.random() * 11) - 5)), 7000);
+    return () => clearInterval(t);
+  }, []);
+
+  const startGame = useCallback(() => {
+    const totalCost = betAmount * numCards;
+    if (!onBet(totalCost)) { setMessage('Insufficient balance!'); return; }
+
+    const newCards = Array.from({ length: numCards }, generateCard);
+    const initDaubed = newCards.map(() => {
+      const d = Array.from({ length: 5 }, () => Array(5).fill(false) as boolean[]);
+      d[2][2] = true;
+      return d;
+    });
+
+    setCards(newCards);
     setDaubed(initDaubed);
-    setBallPool(generateBallPool());
+    setBallPool(shuffle(Array.from({ length: 75 }, (_, i) => i + 1)));
     setCalledNumbers([]);
     setCurrentBall(null);
+    setHinted(new Set());
+    setWinCells(new Map());
     setPhase('playing');
     setWinPattern('');
-    setWinCells(new Set());
-    setNearCells(new Set());
-    setWinEffect(false);
+    setBingoFeedback('none');
     setConfetti([]);
-    setRecentBalls([]);
+    setCalledTicker([]);
+    setMachineState('idle');
+    setMessage('Click DRAW BALL or enable auto to start calling numbers!');
     setAutoPlay(false);
-    setMessage('Good luck! Draw a ball to start.');
-    playSound('click');
-  }, [betAmount, onBet, playSound]);
-
-  const triggerWin = useCallback((pattern: string, cells: Set<string>, pool: number[], bet: number) => {
-    const mult = WIN_PAYOUTS[pattern] || 3;
-    const prize = bet * mult;
-    onWin(prize);
-    setWinEffect(true);
-    setWinPattern(pattern);
-    setWinCells(cells);
-    setPhase('won');
-    setAutoPlay(false);
-    setMessage(`BINGO! ${pattern} — You win ${prize} $Pc! (${mult}x)`);
-    playSound('win');
-    if (voiceOn && voiceSupported) speak(`Bingo! ${pattern}. You win ${prize} pawn coin!`, 0.88);
-
-    const colors = ['#D4AF37', '#43A047', '#1E88E5', '#E53935', '#9C27B0', '#FF9800', '#fff'];
-    const pieces = Array.from({ length: 80 }, (_, i) => ({
-      x: Math.random() * window.innerWidth,
-      y: -20 - Math.random() * 200,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      delay: Math.random() * 1200,
-      id: confettiId.current++,
-    }));
-    setConfetti(pieces);
-    setTimeout(() => setConfetti([]), 4000);
-  }, [onWin, playSound, voiceOn, voiceSupported, speak]);
+    isDrawing.current = false;
+  }, [betAmount, numCards, onBet]);
 
   const drawBall = useCallback(() => {
-    if (phase !== 'playing' || ballPool.length === 0) return;
-
-    const [drawn, ...rest] = ballPool;
-    setBallPool(rest);
-    setCurrentBall(drawn);
-    setRecentBalls(prev => [drawn, ...prev].slice(0, 6));
-    setCalledNumbers(prev => [...prev, drawn]);
-    setBallAnim(true);
-    setTimeout(() => setBallAnim(false), 800);
-
-    playSound('ballClick');
-    announceNumber(drawn);
-
-    setDaubed(prev => {
-      const next = prev.map(col => [...col]);
-      const letter = getColumnLetter(drawn);
-      const colIdx = COLUMNS.indexOf(letter as typeof COLUMNS[number]);
-      for (let row = 0; row < 5; row++) {
-        if (card[colIdx]?.[row] === drawn) {
-          next[colIdx][row] = true;
-        }
+    if (isDrawing.current) return;
+    setBallPool(prev => {
+      if (prev.length === 0) {
+        setPhase('gameover');
+        setMessage('All 75 balls called! Game over.');
+        return prev;
       }
 
-      const near = getNearWinCells(next);
-      setNearCells(near);
+      isDrawing.current = true;
+      const [drawn, ...rest] = prev;
 
-      const { won, pattern, winCells: wc } = checkWin(next);
-      if (won) {
-        setTimeout(() => triggerWin(pattern, wc, rest, betAmount), 400);
-      } else if (rest.length === 0) {
-        setPhase('won');
-        setMessage('No more balls! Start a new game.');
-      }
+      setMachineState('mixing');
 
-      return next;
+      setTimeout(() => {
+        setMachineState('ejecting');
+        setTimeout(() => {
+          setCurrentBall(drawn);
+          setMachineState('settled');
+          setDrawKey(k => k + 1);
+
+          setCalledNumbers(c => [...c, drawn]);
+          setCalledTicker(t => [drawn, ...t].slice(0, 12));
+
+          if (voiceOn && voiceSupported) {
+            speak(`${getColumnLetter(drawn)} ${drawn}`, 0.9);
+          }
+
+          // Build new hints
+          setCards(cds => {
+            setHinted(prev => {
+              const next = new Set(prev);
+              cds.forEach((card, ci) => {
+                COLUMNS.forEach((_, col) => {
+                  [0, 1, 2, 3, 4].forEach(row => {
+                    if (card[col]?.[row] === drawn) {
+                      next.add(`${ci},${col},${row}`);
+                    }
+                  });
+                });
+              });
+              return next;
+            });
+            return cds;
+          });
+
+          isDrawing.current = false;
+        }, 700);
+      }, 1000);
+
+      return rest;
     });
-  }, [phase, ballPool, card, betAmount, announceNumber, playSound, triggerWin]);
+  }, [voiceOn, voiceSupported, speak]);
 
+  // Auto-play
   useEffect(() => {
     if (autoPlay && phase === 'playing') {
-      autoTimer.current = setInterval(drawBall, autoSpeed);
-      return () => { if (autoTimer.current) clearInterval(autoTimer.current); };
+      const loop = () => {
+        autoTimer.current = setTimeout(() => {
+          drawBall();
+          if (autoPlay) loop();
+        }, autoSpeed);
+      };
+      const first = setTimeout(() => { drawBall(); loop(); }, 200);
+      return () => {
+        clearTimeout(first);
+        if (autoTimer.current) clearTimeout(autoTimer.current);
+      };
     }
-    return () => { if (autoTimer.current) clearInterval(autoTimer.current); };
-  }, [autoPlay, phase, drawBall, autoSpeed]);
+    return () => { if (autoTimer.current) clearTimeout(autoTimer.current); };
+  }, [autoPlay, phase, autoSpeed, drawBall]);
+
+  const daubCell = useCallback((cardIdx: number, col: number, row: number) => {
+    const key = `${cardIdx},${col},${row}`;
+    if (!hinted.has(key)) return;
+
+    setHinted(prev => { const n = new Set(prev); n.delete(key); return n; });
+    setDaubed(prev => {
+      const next = prev.map(c => c.map(r => [...r]));
+      next[cardIdx][col][row] = true;
+      return next;
+    });
+    playSound && playSound('click');
+  }, [hinted, playSound]);
+
+  const claimBingo = useCallback(() => {
+    if (phase !== 'playing') return;
+
+    let foundWin = false;
+    const newWinCells = new Map<number, Set<string>>();
+    let bestPattern = '';
+
+    daubed.forEach((cardDaubed, ci) => {
+      if (foundWin) return;
+      const { won, pattern, winCells: wc } = checkWin(cardDaubed);
+      if (won) {
+        foundWin = true;
+        newWinCells.set(ci, wc);
+        bestPattern = pattern;
+      }
+    });
+
+    if (foundWin) {
+      const mult = WIN_PAYOUTS[bestPattern] || 3;
+      const prize = betAmount * numCards * mult;
+      onWin(prize);
+      setWinCells(newWinCells);
+      setWinPattern(bestPattern);
+      setPhase('won');
+      setBingoFeedback('valid');
+      setAutoPlay(false);
+      setMessage(`BINGO! ${bestPattern} — You win ${prize.toLocaleString()} $Pc (${mult}×)!`);
+      if (voiceOn && voiceSupported) speak(`BINGO! ${bestPattern}! You win ${prize} pawn coin!`, 0.88);
+
+      const colors = ['#D4AF37', '#FFD700', '#43A047', '#1E88E5', '#E53935', '#9C27B0', '#FF9800', '#fff', '#00BCD4'];
+      const pieces = Array.from({ length: 90 }, (_, i) => ({
+        x: Math.random() * window.innerWidth, y: -30 - Math.random() * 160,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        delay: Math.random() * 1400, shape: Math.random() > 0.5 ? 'circle' : 'rect',
+        id: confId.current++,
+      }));
+      setConfetti(pieces);
+      setTimeout(() => setConfetti([]), 4500);
+    } else {
+      setBingoFeedback('invalid');
+      setMessage('Not a valid BINGO yet — keep marking your numbers!');
+      if (voiceOn && voiceSupported) speak('Not yet. Keep playing!', 0.88);
+      setTimeout(() => setBingoFeedback('none'), 2200);
+    }
+  }, [phase, daubed, betAmount, numCards, onWin, voiceOn, voiceSupported, speak]);
 
   const calledSet = new Set(calledNumbers);
-  const letter = currentBall ? getColumnLetter(currentBall) : null;
-  const ballColor = letter ? BALL_COLORS[letter] : null;
+  const totalHinted = hinted.size;
+
+  const cellSize = numCards === 1 ? 60 : numCards === 2 ? 52 : numCards === 3 ? 43 : 37;
+  const cardColumns = numCards <= 3 ? numCards : numCards === 4 ? 2 : 3;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0a0a0a 0%,#0d1a0d 50%,#0a0a0a 100%)', color: '#fff', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#080808 0%,#0b140b 50%,#080808 100%)', color: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <style>{`
-        @keyframes bingoBallDrop {
-          0%  { transform: translateY(-80px) scale(0.6) rotate(-30deg); opacity:0; }
-          50% { transform: translateY(12px) scale(1.12) rotate(10deg); opacity:1; }
-          70% { transform: translateY(-6px) scale(0.97) rotate(-4deg); }
-          100%{ transform: translateY(0) scale(1) rotate(0deg); opacity:1; }
-        }
-        @keyframes bingoDaub {
-          0%  { transform:scale(0) rotate(-20deg); opacity:0; }
-          60% { transform:scale(1.2) rotate(8deg); opacity:1; }
-          100%{ transform:scale(1) rotate(0deg); opacity:1; }
-        }
-        @keyframes bingoNearWin {
-          0%,100%{ box-shadow: 0 0 8px 2px rgba(212,175,55,0.4); }
-          50%    { box-shadow: 0 0 22px 6px rgba(212,175,55,0.9); }
-        }
-        @keyframes bingoWinPulse {
-          0%,100%{ box-shadow: 0 0 10px 3px rgba(212,175,55,0.5); }
-          50%    { box-shadow: 0 0 30px 12px rgba(212,175,55,1); }
-        }
-        @keyframes bingoConfettiFall {
-          0%  { opacity:1; transform:translateY(0) rotate(0deg) scale(1); }
-          100%{ opacity:0; transform:translateY(100vh) rotate(720deg) scale(0.3); }
-        }
-        @keyframes bingoWinText {
-          0%  { transform:translate(-50%,-50%) scale(0.4); opacity:0; }
-          50% { transform:translate(-50%,-50%) scale(1.1); opacity:1; }
-          100%{ transform:translate(-50%,-50%) scale(1); opacity:1; }
-        }
-        @keyframes bingoGlow {
-          0%,100%{ opacity:0.4; } 50%{ opacity:0.9; }
-        }
-        @keyframes ballSpin {
-          0%  { transform: scale(0.5) rotate(-180deg); opacity:0; }
-          100%{ transform: scale(1) rotate(0deg); opacity:1; }
-        }
+        @keyframes hopperBounce0{0%{transform:translate(0,0) rotate(-5deg)}25%{transform:translate(60px,-28px) rotate(12deg)}50%{transform:translate(110px,-4px) rotate(-8deg)}75%{transform:translate(55px,28px) rotate(15deg)}100%{transform:translate(0,0) rotate(-5deg)}}
+        @keyframes hopperBounce1{0%{transform:translate(0,0) rotate(8deg)}30%{transform:translate(-40px,22px) rotate(-15deg)}60%{transform:translate(70px,30px) rotate(10deg)}100%{transform:translate(0,0) rotate(8deg)}}
+        @keyframes hopperBounce2{0%{transform:translate(0,0)}20%{transform:translate(-60px,-20px) rotate(-20deg)}55%{transform:translate(30px,25px) rotate(18deg)}80%{transform:translate(-20px,-10px) rotate(-8deg)}100%{transform:translate(0,0)}}
+        @keyframes hopperBounce3{0%{transform:translate(0,0) rotate(5deg)}35%{transform:translate(65px,-25px) rotate(-12deg)}70%{transform:translate(-30px,15px) rotate(20deg)}100%{transform:translate(0,0) rotate(5deg)}}
+        @keyframes hopperBounce4{0%{transform:translate(0,0) rotate(-10deg)}40%{transform:translate(-50px,20px) rotate(15deg)}75%{transform:translate(40px,-22px) rotate(-18deg)}100%{transform:translate(0,0) rotate(-10deg)}}
+        @keyframes hopperIdle{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(2px,-3px) rotate(3deg)}}
+        @keyframes hopperEject{0%{transform:translate(0,0) scale(1); opacity:1}100%{transform:translate(0,80px) scale(0); opacity:0}}
+        @keyframes ballSettle{0%{transform:translateY(-60px) scale(0.5) rotate(-30deg);opacity:0}55%{transform:translateY(10px) scale(1.1) rotate(8deg);opacity:1}75%{transform:translateY(-5px) scale(0.97) rotate(-3deg)}100%{transform:translateY(0) scale(1) rotate(0);opacity:1}}
+        @keyframes mixingPulse{0%,100%{opacity:0.3}50%{opacity:0.8}}
+        @keyframes countdownDrain{from{width:100%}to{width:0%}}
+        @keyframes daubAppear{0%{transform:scale(0) rotate(-15deg);opacity:0}60%{transform:scale(1.15) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+        @keyframes hintGlow{0%,100%{box-shadow:0 0 10px rgba(212,175,55,0.4),inset 0 0 6px rgba(212,175,55,0.1);border-color:rgba(212,175,55,0.6)}50%{box-shadow:0 0 20px rgba(212,175,55,0.8),inset 0 0 12px rgba(212,175,55,0.25);border-color:rgba(212,175,55,1)}}
+        @keyframes hintDot{0%,100%{transform:scale(0.7);opacity:0.6}50%{transform:scale(1.3);opacity:1}}
+        @keyframes cardWinPulse{0%,100%{box-shadow:0 0 20px rgba(212,175,55,0.4),0 8px 32px rgba(0,0,0,0.8)}50%{box-shadow:0 0 40px rgba(212,175,55,0.9),0 8px 32px rgba(0,0,0,0.8)}}
+        @keyframes cellWinPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 14px rgba(212,175,55,0.7)}}
+        @keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0) scale(1)}100%{opacity:0;transform:translateY(100vh) rotate(540deg) scale(0.2)}}
+        @keyframes bingoShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+        @keyframes bingoFlash{0%,100%{background:linear-gradient(135deg,#D4AF37,#B8860B)}50%{background:linear-gradient(135deg,#FFD700,#D4AF37)}}
+        @keyframes tickerSlide{from{transform:translateX(120px);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes onlinePulse{0%,100%{opacity:0.6}50%{opacity:1}}
       `}</style>
 
-      {/* confetti */}
-      {confetti.map(p => <ConfettiParticle key={p.id} x={p.x} y={p.y} color={p.color} delay={p.delay} />)}
-
-      {/* Win overlay */}
-      {winEffect && (
-        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 150, background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, transparent 60%)', animation: 'bingoGlow 1.5s ease-in-out infinite' }}>
-          <div style={{ position: 'absolute', top: '35%', left: '50%', animation: 'bingoWinText 0.7s ease-out forwards', textAlign: 'center' }}>
-            <div style={{ fontSize: 56, fontWeight: 900, letterSpacing: '0.1em', background: 'linear-gradient(135deg,#D4AF37,#FFD700,#D4AF37)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 30px rgba(212,175,55,0.9))' }}>BINGO!</div>
-            <div style={{ fontSize: 20, color: '#fff', fontWeight: 700, textShadow: '0 0 12px rgba(0,0,0,0.9)', marginTop: 4 }}>{winPattern}</div>
-          </div>
-        </div>
-      )}
+      {/* Confetti */}
+      {confetti.map(p => <ConfettiPiece key={p.id} x={p.x} y={p.y} color={p.color} delay={p.delay} shape={p.shape} />)}
 
       {/* NAV */}
-      <nav style={{ background: 'rgba(10,10,10,0.95)', borderBottom: '1px solid rgba(212,175,55,0.3)', position: 'sticky', top: 0, zIndex: 50, flexShrink: 0 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#9ca3af')}>
-            <ArrowLeft style={{ width: 20, height: 20 }} />
-            <span style={{ fontFamily: "'Cinzel',serif", fontWeight: 700, color: '#D4AF37', fontSize: 15, letterSpacing: '0.1em' }}>BINGO 75-BALL</span>
+      <nav style={{ background: 'rgba(8,8,8,0.97)', borderBottom: '1px solid rgba(212,175,55,0.25)', flexShrink: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9ca3af'}>
+            <ArrowLeft style={{ width: 18, height: 18 }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontWeight: 700, color: '#D4AF37', fontSize: 14, letterSpacing: '0.12em' }}>BINGO 75-BALL</span>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 14px', borderRadius: 20, background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)' }}>
-              <img src="/logos/pc-logo.png" alt="$Pc" style={{ width: 18, height: 18 }} />
-              <span style={{ fontWeight: 700, color: '#D4AF37' }}>{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              <span style={{ fontSize: 11, color: '#6b7280' }}>$Pc</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Online players badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 12px', borderRadius: 16, background: 'rgba(67,160,71,0.12)', border: '1px solid rgba(67,160,71,0.3)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
+              <Users style={{ width: 13, height: 13, color: '#66BB6A' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayers.toLocaleString()}</span>
+              <span style={{ fontSize: 9, color: '#4b5563' }}>ONLINE</span>
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 12px', borderRadius: 16, background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)' }}>
+              <img src="/logos/pc-logo.png" alt="" style={{ width: 16, height: 16 }} />
+              <span style={{ fontWeight: 700, color: '#D4AF37', fontSize: 13 }}>{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>$Pc</span>
+            </div>
+
             {voiceSupported && (
-              <button onClick={() => setVoiceOn(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: voiceOn ? '#D4AF37' : '#4b5563', padding: 6, borderRadius: 8 }} title="Toggle voice">
-                <Volume2 style={{ width: 18, height: 18 }} />
+              <button onClick={() => setVoiceOn(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: voiceOn ? '#D4AF37' : '#374151', padding: 5, borderRadius: 8 }} title="Voice caller">
+                <Volume2 style={{ width: 16, height: 16 }} />
               </button>
             )}
-            <button onClick={toggleMute} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#4b5563' : '#9ca3af', padding: 6, borderRadius: 8 }}>
-              {isMuted ? <VolumeX style={{ width: 18, height: 18 }} /> : <Volume2 style={{ width: 18, height: 18 }} />}
+            <button onClick={() => setIsMuted(m => !m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#374151' : '#6b7280', padding: 5, borderRadius: 8 }}>
+              {isMuted ? <VolumeX style={{ width: 16, height: 16 }} /> : <Volume2 style={{ width: 16, height: 16 }} />}
             </button>
-            <button onClick={() => setShowRules(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: 6, borderRadius: 8 }}>
-              <Info style={{ width: 18, height: 18 }} />
+            <button onClick={() => setShowRules(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: 5, borderRadius: 8 }}>
+              <Info style={{ width: 16, height: 16 }} />
             </button>
           </div>
         </div>
       </nav>
 
-      {/* MESSAGE BAR */}
+      {/* CALLED TICKER */}
+      {calledTicker.length > 0 && (
+        <div style={{ background: 'rgba(0,0,0,0.7)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.2em', flexShrink: 0 }}>CALLED</span>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', alignItems: 'center' }}>
+            {calledTicker.map((n, i) => {
+              const l = getColumnLetter(n);
+              const bc = BALL_COLORS[l];
+              return (
+                <div key={i} style={{
+                  flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3,
+                  padding: '2px 8px', borderRadius: 8,
+                  background: i === 0 ? bc.bg : 'rgba(255,255,255,0.05)',
+                  boxShadow: i === 0 ? `0 0 10px ${bc.shadow}` : 'none',
+                  animation: i === 0 ? 'tickerSlide 0.4s ease-out' : 'none',
+                }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: i === 0 ? '#fff' : '#6b7280' }}>{l}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: i === 0 ? '#fff' : '#9ca3af' }}>{n}</span>
+                </div>
+              );
+            })}
+          </div>
+          <span style={{ fontSize: 9, color: '#374151', flexShrink: 0, marginLeft: 'auto' }}>{calledNumbers.length}/75</span>
+        </div>
+      )}
+
+      {/* MESSAGE */}
       {message && (
-        <div style={{ textAlign: 'center', padding: '8px 16px', background: 'rgba(212,175,55,0.06)', borderBottom: '1px solid rgba(212,175,55,0.15)', fontSize: 13, fontWeight: 700, color: winEffect ? '#D4AF37' : '#d1d5db', letterSpacing: '0.05em' }}>
+        <div style={{ textAlign: 'center', padding: '6px 16px', background: phase === 'won' ? 'rgba(212,175,55,0.08)' : 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, fontWeight: 700, color: phase === 'won' ? '#D4AF37' : '#9ca3af', flexShrink: 0, letterSpacing: '0.04em' }}>
           {message}
         </div>
       )}
 
-      {/* MAIN */}
-      <div style={{ flex: 1, display: 'flex', gap: 20, padding: '16px 20px', maxWidth: 1200, margin: '0 auto', width: '100%', minHeight: 0 }}>
+      {/* SETUP SCREEN */}
+      {phase === 'setup' && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <div style={{ background: 'rgba(15,15,15,0.95)', border: '2px solid rgba(212,175,55,0.4)', borderRadius: 20, padding: '40px 48px', maxWidth: 520, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, fontWeight: 900, fontFamily: "'Cinzel',serif", background: 'linear-gradient(135deg,#D4AF37,#FFD700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 4 }}>BINGO 75-BALL</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 32 }}>American 75-ball bingo — daub your card, call BINGO!</div>
 
-        {/* LEFT: Bingo Card */}
-        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ textAlign: 'center', fontSize: 11, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700 }}>YOUR CARD</div>
-
-          {/* Card */}
-          <div style={{
-            background: 'linear-gradient(160deg,rgba(30,30,30,0.95),rgba(15,15,15,0.98))',
-            border: '2px solid rgba(212,175,55,0.5)',
-            borderRadius: 16,
-            overflow: 'hidden',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,175,55,0.1)',
-          }}>
-            {/* BINGO header */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 3, padding: '10px 10px 6px' }}>
-              {COLUMNS.map((letter, ci) => {
-                const bc = BALL_COLORS[letter];
-                return (
-                  <div key={letter} style={{
-                    textAlign: 'center', fontWeight: 900, fontSize: 22, letterSpacing: '0.05em',
-                    background: bc.bg, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    filter: `drop-shadow(0 0 8px ${bc.shadow})`,
-                    padding: '2px 0',
-                  }}>{letter}</div>
-                );
-              })}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 12 }}>NUMBER OF CARDS</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                <button onClick={() => setNumCards(c => Math.max(1, c - 1))} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', color: '#fff', fontSize: 18 }}>-</button>
+                <div style={{ fontSize: 36, fontWeight: 900, color: '#D4AF37', width: 60, textAlign: 'center' }}>{numCards}</div>
+                <button onClick={() => setNumCards(c => Math.min(5, c + 1))} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', color: '#fff', fontSize: 18 }}>+</button>
+              </div>
+              <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6 }}>max 5 cards</div>
             </div>
 
-            {/* Cells */}
-            <div style={{ padding: '0 10px 10px', display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 4 }}>
-              {[0, 1, 2, 3, 4].map(row =>
-                [0, 1, 2, 3, 4].map(col => {
-                  const val = card[col]?.[row];
-                  const key = `${col},${row}`;
-                  const isDaubed = daubed[col]?.[row];
-                  const isFree = val === 'FREE';
-                  const isWin = winCells.has(key);
-                  const isNear = nearCells.has(key) && !isDaubed;
-                  const colLetter = COLUMNS[col];
-                  const bc = BALL_COLORS[colLetter];
-
-                  return (
-                    <div key={key} style={{
-                      width: 62, height: 62,
-                      borderRadius: 10,
-                      position: 'relative',
-                      background: isWin ? 'rgba(212,175,55,0.15)' : isDaubed ? 'rgba(20,20,20,0.9)' : 'rgba(30,30,30,0.7)',
-                      border: isWin ? '2px solid rgba(212,175,55,0.9)' : isDaubed ? '1.5px solid rgba(255,255,255,0.08)' : '1.5px solid rgba(255,255,255,0.1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'default', overflow: 'hidden',
-                      transition: 'all 0.3s ease',
-                      animation: isWin ? 'bingoWinPulse 1s ease-in-out infinite' : isNear ? 'bingoNearWin 1.2s ease-in-out infinite' : 'none',
-                      boxShadow: isNear ? '0 0 14px rgba(212,175,55,0.5)' : 'none',
-                    }}>
-                      {/* Number / FREE label */}
-                      <span style={{
-                        fontSize: isFree ? 10 : 18, fontWeight: 800,
-                        color: isDaubed ? 'rgba(255,255,255,0.35)' : isNear ? '#D4AF37' : '#fff',
-                        letterSpacing: isFree ? '0.05em' : '0',
-                        zIndex: 1, position: 'relative',
-                      }}>{isFree ? 'FREE' : val}</span>
-
-                      {/* Daub marker */}
-                      {isDaubed && (
-                        <div style={{
-                          position: 'absolute', inset: 4, borderRadius: 8,
-                          background: isFree
-                            ? 'linear-gradient(135deg,rgba(212,175,55,0.35),rgba(212,175,55,0.55))'
-                            : `${bc.bg}`,
-                          opacity: 0.82,
-                          animation: 'bingoDaub 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards',
-                          boxShadow: `inset 0 0 10px rgba(0,0,0,0.3), 0 0 8px ${bc.shadow}`,
-                          zIndex: 0,
-                        }} />
-                      )}
-
-                      {/* Win star overlay */}
-                      {isWin && (
-                        <div style={{ position: 'absolute', inset: 0, borderRadius: 10, background: 'radial-gradient(circle, rgba(212,175,55,0.25) 0%, transparent 70%)' }} />
-                      )}
-                    </div>
-                  );
-                })
-              )}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 10 }}>COST PER CARD</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {BET_OPTIONS.map(v => (
+                  <button key={v} onClick={() => setBetAmount(v)} style={{
+                    padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    background: betAmount === v ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
+                    border: `1.5px solid ${betAmount === v ? 'rgba(212,175,55,0.7)' : 'rgba(255,255,255,0.1)'}`,
+                    color: betAmount === v ? '#D4AF37' : '#9ca3af',
+                  }}>{v} $Pc</button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Called count */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6b7280', padding: '0 4px' }}>
-            <span>Called: <strong style={{ color: '#D4AF37' }}>{calledNumbers.length}/75</strong></span>
-            <span>Remaining: <strong style={{ color: '#6b7280' }}>{75 - calledNumbers.length}</strong></span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.07)', marginBottom: 20 }}>
+              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#4b5563' }}>TOTAL COST</div><div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{(betAmount * numCards)} $Pc</div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#4b5563' }}>BLACKOUT WIN</div><div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{(betAmount * numCards * WIN_PAYOUTS.BLACKOUT)} $Pc</div></div>
+            </div>
+
+            <button onClick={startGame} style={{
+              width: '100%', padding: '14px 0', borderRadius: 12, fontWeight: 900, fontSize: 16,
+              background: 'linear-gradient(135deg,#D4AF37,#B8860B)', color: '#000', border: 'none', cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(212,175,55,0.4)', letterSpacing: '0.05em', fontFamily: "'Cinzel',serif",
+            }}>BUY CARDS & PLAY</button>
+
+            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
+              <span style={{ fontSize: 11, color: '#6b7280' }}><strong style={{ color: '#66BB6A' }}>{onlinePlayers}</strong> players in lobby</span>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* CENTER: Ball Display */}
-        <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, minWidth: 0 }}>
+      {/* PLAYING / WON SCREEN */}
+      {(phase === 'playing' || phase === 'won' || phase === 'gameover') && (
+        <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0, overflow: 'hidden' }}>
 
-          {/* Current Ball */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '0.25em', fontWeight: 700 }}>CURRENT BALL</div>
-            {currentBall !== null && ballColor && letter ? (
-              <div style={{
-                width: 130, height: 130, borderRadius: '50%',
-                background: ballColor.bg,
-                boxShadow: `0 0 40px ${ballColor.shadow}, 0 8px 30px rgba(0,0,0,0.7), inset 0 4px 8px rgba(255,255,255,0.25)`,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                position: 'relative', overflow: 'hidden',
-                animation: ballAnim ? 'bingoBallDrop 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards' : 'none',
-              }}>
-                {/* Shine */}
-                <div style={{ position: 'absolute', top: '10%', left: '15%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(255,255,255,0.5) 0%, transparent 70%)', borderRadius: '50%' }} />
-                <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', lineHeight: 1, textShadow: '0 2px 6px rgba(0,0,0,0.5)' }}>{letter}</div>
-                <div style={{ fontSize: 46, fontWeight: 900, color: '#fff', lineHeight: 1, textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>{currentBall}</div>
-              </div>
-            ) : (
-              <div style={{ width: 130, height: 130, borderRadius: '50%', background: 'rgba(30,30,30,0.8)', border: '3px dashed rgba(212,175,55,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 11, color: '#4b5563', letterSpacing: '0.1em' }}>WAITING</span>
+          {/* LEFT COLUMN: Ball machine + number board */}
+          <div style={{ flexShrink: 0, width: 240, borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+
+            <BallMachine
+              machineState={machineState}
+              currentBall={currentBall}
+              drawKey={drawKey}
+              onDraw={drawBall}
+              autoPlay={autoPlay}
+              autoSpeed={autoSpeed}
+              phase={phase}
+              calledCount={calledNumbers.length}
+            />
+
+            {/* Auto-play toggle */}
+            {phase === 'playing' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button onClick={() => setAutoPlay(a => !a)} style={{
+                  padding: '8px 0', borderRadius: 10, fontWeight: 800, fontSize: 11,
+                  background: autoPlay ? 'linear-gradient(135deg,#B71C1C,#E53935)' : 'linear-gradient(135deg,#1565C0,#1E88E5)',
+                  color: '#fff', border: 'none', cursor: 'pointer',
+                  boxShadow: autoPlay ? '0 3px 12px rgba(183,28,28,0.5)' : '0 3px 12px rgba(21,101,192,0.5)',
+                  letterSpacing: '0.08em',
+                }}>
+                  {autoPlay ? '⏸ STOP AUTO' : '⚡ AUTO PLAY'}
+                </button>
+
+                {/* Speed selector */}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[{ l: 'SLOW', v: 8000 }, { l: 'MED', v: 5000 }, { l: 'FAST', v: 3000 }].map(s => (
+                    <button key={s.v} onClick={() => setAutoSpeed(s.v)} style={{
+                      flex: 1, padding: '4px 0', borderRadius: 6, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                      background: autoSpeed === s.v ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${autoSpeed === s.v ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.08)'}`,
+                      color: autoSpeed === s.v ? '#D4AF37' : '#4b5563',
+                    }}>{s.l}</button>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Recent balls */}
-          {recentBalls.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <div style={{ fontSize: 10, color: '#4b5563', letterSpacing: '0.2em' }}>RECENTLY CALLED</div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {recentBalls.slice(1).map((n, i) => {
-                  const l = getColumnLetter(n);
+            {/* Win payouts */}
+            <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 8 }}>PAYOUTS</div>
+              {Object.entries(WIN_PAYOUTS).map(([p, m]) => (
+                <div key={p} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 11 }}>
+                  <span style={{ color: '#9ca3af' }}>{p}</span>
+                  <span style={{ fontWeight: 700, color: '#D4AF37' }}>{m}×</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Number board (compact) */}
+            <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '8px' }}>
+              <div style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 6, textAlign: 'center' }}>CALLED NUMBERS</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 3 }}>
+                {COLUMNS.map((l, ci) => {
                   const bc = BALL_COLORS[l];
                   return (
-                    <div key={i} style={{
-                      width: 44, height: 44, borderRadius: '50%', background: bc.bg,
-                      boxShadow: `0 2px 10px ${bc.shadow}`,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      opacity: 1 - i * 0.2,
-                    }}>
-                      <div style={{ fontSize: 8, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{l}</div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{n}</div>
+                    <div key={l} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <div style={{ fontSize: 10, fontWeight: 900, background: bc.bg, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{l}</div>
+                      {Array.from({ length: 15 }, (_, j) => {
+                        const n = COL_RANGES[ci][0] + j;
+                        const called = calledSet.has(n);
+                        return (
+                          <div key={n} style={{
+                            width: 24, height: 24, borderRadius: '50%',
+                            background: called ? bc.bg : 'rgba(25,25,25,0.8)',
+                            border: called ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 8, fontWeight: 700,
+                            color: called ? '#fff' : '#1f2937',
+                            boxShadow: called ? `0 0 6px ${bc.shadow}` : 'none',
+                            transition: 'all 0.3s',
+                          }}>{n}</div>
+                        );
+                      })}
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
 
-          {/* Auto speed control */}
-          {phase === 'playing' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <span style={{ fontSize: 10, color: '#4b5563', letterSpacing: '0.1em' }}>SPEED</span>
-              {[{ label: 'SLOW', val: 4000 }, { label: 'MED', val: 2500 }, { label: 'FAST', val: 1200 }].map(s => (
-                <button key={s.val} onClick={() => setAutoSpeed(s.val)} style={{
-                  padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                  background: autoSpeed === s.val ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${autoSpeed === s.val ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.1)'}`,
-                  color: autoSpeed === s.val ? '#D4AF37' : '#6b7280',
-                }}>{s.label}</button>
-              ))}
-            </div>
-          )}
-
-          {/* Pattern payout guide */}
-          <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '12px 16px', width: '100%' }}>
-            <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 8 }}>WIN PATTERNS</div>
-            {Object.entries(WIN_PAYOUTS).map(([pattern, mult]) => (
-              <div key={pattern} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <span style={{ fontSize: 12, color: '#d1d5db' }}>{pattern}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#D4AF37' }}>{mult}x</span>
+            {/* Online social bar */}
+            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(67,160,71,0.2)', borderRadius: 10, padding: '10px 10px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 6 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayers} players online</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT: Number Board */}
-        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, textAlign: 'center' }}>CALLED NUMBERS</div>
-
-          <div style={{
-            background: 'rgba(10,10,10,0.8)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 14, padding: '10px 12px',
-            display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6,
-          }}>
-            {COLUMNS.map((letter, ci) => {
-              const bc = BALL_COLORS[letter];
-              return (
-                <div key={letter} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 900,
-                    background: bc.bg, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    marginBottom: 2,
-                  }}>{letter}</div>
-                  {Array.from({ length: 15 }, (_, j) => {
-                    const n = COL_RANGES[ci][0] + j;
-                    const isCalled = calledSet.has(n);
-                    return (
-                      <div key={n} style={{
-                        width: 28, height: 28, borderRadius: '50%',
-                        background: isCalled ? bc.bg : 'rgba(30,30,30,0.7)',
-                        border: isCalled ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 9, fontWeight: 700,
-                        color: isCalled ? '#fff' : '#374151',
-                        boxShadow: isCalled ? `0 0 8px ${bc.shadow}` : 'none',
-                        transition: 'all 0.3s ease',
-                        flexShrink: 0,
-                      }}>{n}</div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* BOTTOM CONTROLS */}
-      <div style={{ background: 'linear-gradient(180deg,rgba(10,10,10,0.98),rgba(5,5,5,1))', borderTop: '2px solid rgba(212,175,55,0.25)', boxShadow: '0 -4px 20px rgba(0,0,0,0.6)', flexShrink: 0, padding: '12px 20px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-
-          {/* Bet selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.1em', fontWeight: 700 }}>CARD COST</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {BET_OPTIONS.map(v => (
-                <button key={v} disabled={phase === 'playing'} onClick={() => setBetAmount(v)} style={{
-                  padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: phase === 'playing' ? 'not-allowed' : 'pointer',
-                  background: betAmount === v ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
-                  border: `1.5px solid ${betAmount === v ? 'rgba(212,175,55,0.7)' : 'rgba(255,255,255,0.1)'}`,
-                  color: betAmount === v ? '#D4AF37' : '#9ca3af',
-                  opacity: phase === 'playing' && betAmount !== v ? 0.4 : 1,
-                }}>{v} $Pc</button>
-              ))}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+                {['Alex', 'Liz', 'Sam', 'Mia', 'Jon'].map((name, i) => (
+                  <img key={i} src={`https://api.dicebear.com/7.x/personas/svg?seed=${name}`} alt={name} style={{ width: 22, height: 22, borderRadius: '50%', border: '1px solid rgba(67,160,71,0.4)', background: '#1a1a1a' }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 9, color: '#374151' }}>Multiplayer lobby</div>
             </div>
           </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {phase === 'setup' || phase === 'won' ? (
-              <Button onClick={startNewGame} style={{
-                padding: '10px 28px', borderRadius: 10, fontWeight: 800, fontSize: 14,
-                background: 'linear-gradient(135deg,#D4AF37,#B8860B)', color: '#000',
-                boxShadow: '0 4px 16px rgba(212,175,55,0.4)', border: 'none', cursor: 'pointer',
-              }}>
-                <RefreshCw style={{ width: 16, height: 16, marginRight: 8 }} />
-                {phase === 'won' ? 'NEW GAME' : 'BUY CARD & PLAY'}
-              </Button>
-            ) : (
-              <>
-                <Button onClick={drawBall} disabled={autoPlay || ballPool.length === 0} style={{
-                  padding: '10px 24px', borderRadius: 10, fontWeight: 800, fontSize: 14,
-                  background: autoPlay || ballPool.length === 0 ? 'rgba(255,255,255,0.07)' : 'linear-gradient(135deg,#1B5E20,#43A047)',
-                  color: '#fff', border: 'none', cursor: autoPlay || ballPool.length === 0 ? 'not-allowed' : 'pointer',
-                  boxShadow: autoPlay ? 'none' : '0 4px 14px rgba(27,94,32,0.5)',
-                  opacity: autoPlay ? 0.5 : 1,
-                }}>
-                  <Play style={{ width: 16, height: 16, marginRight: 8 }} />
-                  DRAW BALL
-                </Button>
+          {/* RIGHT: Cards grid */}
+          <div style={{ flex: 1, padding: '14px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-                <Button onClick={() => setAutoPlay(a => !a)} style={{
-                  padding: '10px 20px', borderRadius: 10, fontWeight: 800, fontSize: 14,
-                  background: autoPlay ? 'linear-gradient(135deg,#B71C1C,#E53935)' : 'linear-gradient(135deg,#1565C0,#1E88E5)',
-                  color: '#fff', border: 'none', cursor: 'pointer',
-                  boxShadow: autoPlay ? '0 4px 14px rgba(183,28,28,0.5)' : '0 4px 14px rgba(21,101,192,0.5)',
-                }}>
-                  {autoPlay ? <><Pause style={{ width: 16, height: 16, marginRight: 8 }} />STOP AUTO</> : <><Zap style={{ width: 16, height: 16, marginRight: 8 }} />AUTO PLAY</>}
-                </Button>
+            {/* Hint info bar */}
+            {totalHinted > 0 && phase === 'playing' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)', animation: 'hintGlow 1.5s ease-in-out infinite' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#D4AF37', animation: 'hintDot 0.8s ease-in-out infinite' }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#D4AF37' }}>{totalHinted} number{totalHinted !== 1 ? 's' : ''} called on your card{numCards > 1 ? 's' : ''} — click to daub!</span>
+              </div>
+            )}
 
-                <Button onClick={() => { setAutoPlay(false); setPhase('won'); setMessage('Game ended. Start a new game.'); }} style={{
-                  padding: '10px 16px', borderRadius: 10, fontWeight: 700, fontSize: 13,
-                  background: 'rgba(255,255,255,0.06)', color: '#9ca3af',
-                  border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
-                }}>
-                  <RefreshCw style={{ width: 14, height: 14 }} />
-                </Button>
-              </>
+            {/* Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cardColumns}, auto)`, gap: 14, justifyContent: 'center' }}>
+              {cards.map((card, ci) => (
+                <BingoCard
+                  key={ci}
+                  cardIdx={ci}
+                  card={card}
+                  daubed={daubed[ci] || []}
+                  hinted={hinted}
+                  winCells={winCells.get(ci) || new Set()}
+                  cellSize={cellSize}
+                  onDaub={daubCell}
+                  isWinner={winCells.has(ci)}
+                  label={numCards > 1 ? `CARD ${ci + 1}` : undefined}
+                />
+              ))}
+            </div>
+
+            {/* Win celebration */}
+            {phase === 'won' && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 48, fontWeight: 900, fontFamily: "'Cinzel',serif", background: 'linear-gradient(135deg,#D4AF37,#FFD700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 20px rgba(212,175,55,0.7))' }}>BINGO!</div>
+                <div style={{ fontSize: 18, color: '#D4AF37', fontWeight: 700, marginTop: 4 }}>{winPattern}</div>
+                <button onClick={startGame} style={{ marginTop: 20, padding: '12px 36px', borderRadius: 12, fontWeight: 900, fontSize: 16, background: 'linear-gradient(135deg,#D4AF37,#B8860B)', color: '#000', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(212,175,55,0.4)', fontFamily: "'Cinzel',serif" }}>
+                  PLAY AGAIN
+                </button>
+              </div>
+            )}
+
+            {phase === 'gameover' && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 20, color: '#6b7280', fontWeight: 700 }}>All 75 balls called — no BINGO this round</div>
+                <button onClick={startGame} style={{ marginTop: 16, padding: '12px 28px', borderRadius: 12, fontWeight: 800, fontSize: 14, background: 'linear-gradient(135deg,#D4AF37,#B8860B)', color: '#000', border: 'none', cursor: 'pointer' }}>TRY AGAIN</button>
+              </div>
             )}
           </div>
+        </div>
+      )}
 
-          {/* Win stats */}
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 10, color: '#4b5563', letterSpacing: '0.1em' }}>CARD COST</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#9ca3af' }}>{betAmount} $Pc</div>
+      {/* BOTTOM BINGO BUTTON BAR */}
+      {(phase === 'playing' || phase === 'won') && (
+        <div style={{ background: 'rgba(5,5,5,0.99)', borderTop: '2px solid rgba(212,175,55,0.2)', boxShadow: '0 -4px 20px rgba(0,0,0,0.7)', flexShrink: 0, padding: '12px 20px' }}>
+          <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            {/* Hint count */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>UNMARKED HINTS</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: totalHinted > 0 ? '#D4AF37' : '#374151' }}>{totalHinted}</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 10, color: '#4b5563', letterSpacing: '0.1em' }}>JACKPOT</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#D4AF37' }}>{betAmount * WIN_PAYOUTS['BLACKOUT']} $Pc</div>
+
+            {/* BINGO! BUTTON */}
+            <button onClick={claimBingo} disabled={phase !== 'playing'} style={{
+              padding: '14px 52px', borderRadius: 14, fontWeight: 900, fontSize: 22,
+              fontFamily: "'Cinzel',serif",
+              background: bingoFeedback === 'valid' ? 'linear-gradient(135deg,#1B5E20,#43A047)' : bingoFeedback === 'invalid' ? 'linear-gradient(135deg,#B71C1C,#E53935)' : phase === 'won' ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#D4AF37,#B8860B)',
+              color: phase === 'won' ? '#4b5563' : bingoFeedback !== 'none' ? '#fff' : '#000',
+              border: 'none',
+              cursor: phase !== 'playing' ? 'default' : 'pointer',
+              boxShadow: phase === 'won' ? 'none' : bingoFeedback === 'invalid' ? '0 4px 20px rgba(183,28,28,0.6)' : '0 4px 28px rgba(212,175,55,0.5), 0 0 0 3px rgba(212,175,55,0.15)',
+              letterSpacing: '0.12em',
+              animation: bingoFeedback === 'invalid' ? 'bingoShake 0.4s ease-in-out' : bingoFeedback === 'valid' ? 'bingoFlash 0.6s ease-in-out' : 'none',
+              transition: 'background 0.3s, box-shadow 0.3s',
+            }}>
+              {bingoFeedback === 'valid' ? '✓ BINGO!' : bingoFeedback === 'invalid' ? '✗ NOT YET' : 'BINGO!'}
+            </button>
+
+            {/* Stats */}
+            <div style={{ display: 'flex', gap: 20 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>CARDS</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#9ca3af' }}>{numCards}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>CALLED</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#9ca3af' }}>{calledNumbers.length}<span style={{ fontSize: 11, color: '#374151' }}>/75</span></div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>LINE WIN</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{betAmount * numCards * WIN_PAYOUTS.Line} $Pc</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Rules Dialog */}
+      {/* Rules dialog */}
       <Dialog open={showRules} onOpenChange={setShowRules}>
-        <DialogContent style={{ background: 'rgba(10,10,10,0.98)', border: '1px solid rgba(212,175,55,0.4)', maxWidth: 520 }}>
+        <DialogContent style={{ background: 'rgba(10,10,10,0.98)', border: '1px solid rgba(212,175,55,0.4)', maxWidth: 500 }}>
           <DialogHeader>
-            <DialogTitle style={{ fontFamily: "'Cinzel',serif", fontSize: 22, color: '#D4AF37' }}>Bingo 75-Ball Rules</DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Cinzel',serif", fontSize: 20, color: '#D4AF37' }}>How to Play — 75-Ball Bingo</DialogTitle>
           </DialogHeader>
-          <div style={{ fontSize: 13, color: '#d1d5db', lineHeight: 1.7 }}>
-            <p style={{ marginBottom: 12 }}>American 75-ball bingo uses a 5×5 card. Columns are labeled B-I-N-G-O with the following number ranges:</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-              {COLUMNS.map((l, i) => <div key={l} style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: 6 }}><strong style={{ color: '#D4AF37' }}>{l}</strong>: {COL_RANGES[i][0]}–{COL_RANGES[i][1]}</div>)}
-            </div>
-            <p style={{ marginBottom: 8 }}>The center square is <strong>FREE</strong> — it's always marked.</p>
-            <p style={{ fontWeight: 700, color: '#D4AF37', marginBottom: 6 }}>Win Patterns & Payouts:</p>
-            {Object.entries(WIN_PAYOUTS).map(([p, m]) => <div key={p} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}><span>{p}</span><strong style={{ color: '#D4AF37' }}>{m}× your card cost</strong></div>)}
-            <p style={{ marginTop: 12, color: '#6b7280', fontSize: 12 }}>Auto Play draws one ball every few seconds automatically. Adjust the speed with the SLOW/MED/FAST buttons.</p>
+          <div style={{ fontSize: 13, color: '#d1d5db', lineHeight: 1.8 }}>
+            <p><strong style={{ color: '#D4AF37' }}>1.</strong> Buy 1–5 cards. The center FREE space is daubed automatically.</p>
+            <p><strong style={{ color: '#D4AF37' }}>2.</strong> Click <em>DRAW BALL</em> or enable <em>AUTO PLAY</em>. The ball machine calls a number.</p>
+            <p><strong style={{ color: '#D4AF37' }}>3.</strong> When your number is called, it glows gold on your card. <strong>Click it to daub it.</strong> The hint stays so you never lose track.</p>
+            <p><strong style={{ color: '#D4AF37' }}>4.</strong> When you have a winning pattern, hit the big <strong>BINGO!</strong> button to claim your win.</p>
+            <p style={{ marginTop: 12, fontWeight: 700, color: '#D4AF37' }}>Win Patterns:</p>
+            {Object.entries(WIN_PAYOUTS).map(([p, m]) => <div key={p} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '3px 0' }}><span>{p === 'Line' ? 'Line (any row or column)' : p === 'Diagonal' ? 'Diagonal (corner to corner)' : p}</span><strong style={{ color: '#D4AF37' }}>{m}× total cost</strong></div>)}
+            <p style={{ marginTop: 10, fontSize: 11, color: '#4b5563' }}>Playing with multiple cards multiplies your total bet AND your prize. You can win on any one card.</p>
           </div>
         </DialogContent>
       </Dialog>
