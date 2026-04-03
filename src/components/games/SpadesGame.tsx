@@ -411,6 +411,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
   const TierIcon = tier.icon;
 
   // Card face renderer - proper playing card with corner indices
+  const SUIT_COLORS: Record<string, string> = {
+    hearts: '#c0272d',
+    diamonds: '#1565C0',
+    clubs: '#2e7d32',
+    spades: '#111827',
+  };
+
   const renderCardFace = (
     card: Card,
     onClick?: () => void,
@@ -418,8 +425,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
   ) => {
     const { size = 'md', playable = true, highlight = false, fanIdx, fanTotal } = opts;
     const suit = SUIT_SYMBOLS[card.suit];
-    const isRed = card.isRed;
-    const color = isRed ? '#c0272d' : '#111827';
+    const color = SUIT_COLORS[card.suit] ?? '#111827';
 
     const dims = size === 'lg' ? { w: 92, h: 130 } : size === 'sm' ? { w: 50, h: 70 } : { w: 72, h: 100 };
     const textSizes = size === 'lg' ? { rank: '16px', corner: '13px', center: '38px' } : size === 'sm' ? { rank: '10px', corner: '8px', center: '22px' } : { rank: '13px', corner: '11px', center: '30px' };
@@ -486,23 +492,35 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     );
   };
 
-  const renderCardBack = (w: number, h: number, rotDeg = 0, key?: string | number) => (
-    <div key={key} style={{
-      width: `${w}px`, height: `${h}px`, borderRadius: '7px', flexShrink: 0,
-      background: 'linear-gradient(135deg, #1a237e 0%, #283593 50%, #1a237e 100%)',
-      border: '1.5px solid rgba(192,192,192,0.35)',
-      boxShadow: '0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-      transform: `rotate(${rotDeg}deg)`,
-      position: 'relative', overflow: 'hidden',
-    }}>
-      <div style={{
-        position: 'absolute', inset: '5px', borderRadius: '4px',
-        border: '1px solid rgba(212,175,55,0.4)',
-        background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(212,175,55,0.08) 4px, rgba(212,175,55,0.08) 8px)',
-      }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', borderRadius: '7px' }} />
-    </div>
-  );
+  const renderCardBack = (w: number, h: number, rotDeg = 0, key?: string | number) => {
+    const hasImageBack = cardBackStyle?.type === 'image';
+    const hasCssBack = cardBackStyle?.type === 'css';
+    const backStyle: React.CSSProperties = hasImageBack
+      ? { backgroundImage: `url(${(cardBackStyle as { type: 'image'; image: string }).image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+      : hasCssBack
+        ? (cardBackStyle as { type: 'css'; style: React.CSSProperties }).style
+        : { background: 'linear-gradient(135deg, #1a237e 0%, #283593 50%, #1a237e 100%)' };
+
+    return (
+      <div key={key} style={{
+        width: `${w}px`, height: `${h}px`, borderRadius: '7px', flexShrink: 0,
+        ...backStyle,
+        border: '1.5px solid rgba(192,192,192,0.35)',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
+        transform: `rotate(${rotDeg}deg)`,
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {!hasImageBack && (
+          <div style={{
+            position: 'absolute', inset: '5px', borderRadius: '4px',
+            border: '1px solid rgba(212,175,55,0.4)',
+            background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(212,175,55,0.08) 4px, rgba(212,175,55,0.08) 8px)',
+          }} />
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', borderRadius: '7px', pointerEvents: 'none' }} />
+      </div>
+    );
+  };
 
   const posNames: Record<string, string> = { you: 'You', p2: 'West', p3: 'Partner', p4: 'East' };
 
@@ -767,18 +785,28 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
                 {/* ── PARTNER (TOP) ── */}
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-10">
-                  {/* Partner card backs fanned */}
-                  <div className="flex items-end" style={{ height: '52px' }}>
-                    {Array.from({ length: Math.min(players[2].hand.length || 8, 13) }).map((_, i, arr) => {
-                      const rot = (i - (arr.length - 1) / 2) * 5;
-                      const ty = Math.abs(i - (arr.length - 1) / 2) * 4;
-                      return (
-                        <div key={i} style={{ marginLeft: i === 0 ? 0 : '-22px', transform: `rotate(${rot}deg) translateY(${ty}px)`, transformOrigin: 'bottom center', zIndex: i }}>
-                          {renderCardBack(36, 50, 0, i)}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {/* Partner card backs - arch fan, tops pointing DOWN toward table center */}
+                  {(() => {
+                    const n = Math.min(players[2].hand.length || 8, 13);
+                    const step = Math.min(9, 80 / Math.max(n - 1, 1));
+                    return (
+                      <div style={{ position: 'relative', width: '200px', height: '58px' }}>
+                        {Array.from({ length: n }).map((_, i) => {
+                          const angle = (i - (n - 1) / 2) * step;
+                          return (
+                            <div key={i} style={{
+                              position: 'absolute', left: '50%', top: 0,
+                              transform: `translateX(-50%) rotate(${angle}deg)`,
+                              transformOrigin: 'top center',
+                              zIndex: i,
+                            }}>
+                              {renderCardBack(30, 44, 0, i)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   {/* Player badge */}
                   <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/70 border border-[#1565C0]/40 backdrop-blur-sm">
                     <div className="relative">
@@ -803,14 +831,28 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                     <div className="text-xs text-gray-400">{players[1].nilBid ? '🚫NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
                     <div className="text-xs text-gray-400">{players[1].tricks}✓</div>
                   </div>
-                  {/* Stacked cards rotated 90° */}
-                  <div className="flex flex-col" style={{ gap: '-8px' }}>
-                    {Array.from({ length: Math.min(players[1].hand.length || 8, 7) }).map((_, i) => (
-                      <div key={i} style={{ marginTop: i === 0 ? 0 : '-18px', zIndex: i }}>
-                        {renderCardBack(30, 42, 90, i)}
+                  {/* West arch fan - tops pointing RIGHT toward table center */}
+                  {(() => {
+                    const n = Math.min(players[1].hand.length || 8, 13);
+                    const step = Math.min(9, 80 / Math.max(n - 1, 1));
+                    return (
+                      <div style={{ position: 'relative', width: '52px', height: '180px', marginTop: '6px' }}>
+                        {Array.from({ length: n }).map((_, i) => {
+                          const angle = (i - (n - 1) / 2) * step;
+                          return (
+                            <div key={i} style={{
+                              position: 'absolute', right: 0, top: '50%',
+                              transform: `translateY(-50%) rotate(${angle}deg)`,
+                              transformOrigin: 'right center',
+                              zIndex: i,
+                            }}>
+                              {renderCardBack(44, 30, 0, i)}
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* ── EAST (RIGHT) ── */}
@@ -824,13 +866,28 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                     <div className="text-xs text-gray-400">{players[3].nilBid ? '🚫NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
                     <div className="text-xs text-gray-400">{players[3].tricks}✓</div>
                   </div>
-                  <div className="flex flex-col">
-                    {Array.from({ length: Math.min(players[3].hand.length || 8, 7) }).map((_, i) => (
-                      <div key={i} style={{ marginTop: i === 0 ? 0 : '-18px', zIndex: i }}>
-                        {renderCardBack(30, 42, -90, i)}
+                  {/* East arch fan - tops pointing LEFT toward table center */}
+                  {(() => {
+                    const n = Math.min(players[3].hand.length || 8, 13);
+                    const step = Math.min(9, 80 / Math.max(n - 1, 1));
+                    return (
+                      <div style={{ position: 'relative', width: '52px', height: '180px', marginTop: '6px' }}>
+                        {Array.from({ length: n }).map((_, i) => {
+                          const angle = (i - (n - 1) / 2) * step;
+                          return (
+                            <div key={i} style={{
+                              position: 'absolute', left: 0, top: '50%',
+                              transform: `translateY(-50%) rotate(${angle}deg)`,
+                              transformOrigin: 'left center',
+                              zIndex: i,
+                            }}>
+                              {renderCardBack(44, 30, 0, i)}
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* ── YOUR AVATAR (bottom center of table) ── */}
