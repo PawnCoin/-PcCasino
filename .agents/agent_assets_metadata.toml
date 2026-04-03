@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "UjfP2XNL4n_gQJzS8u2Ob"
+uri = "file://public/logos/game-bingo.png"
+type = "image"
+title = "bingo game card"
+
+[[generated]]
+id = "yk5rxRukL1aNe0xVP7kmu"
+uri = "file://public/logos/game-dominoes.png"
+type = "image"
+title = "dominoes game card"

@@ -14,7 +14,7 @@ interface LeaderboardPlayer {
 const MOCK_LEADERS: LeaderboardPlayer[] = [
   { rank: 1, username: 'HighRoller_King', avatar: '👑', balance: 2450000, totalWon: 8900000, winStreak: 12, favoriteGame: 'Poker' },
   { rank: 2, username: 'VegasQueen', avatar: '💎', balance: 1890000, totalWon: 6200000, winStreak: 8, favoriteGame: 'Blackjack' },
-  { rank: 3, username: 'LuckyAce', avatar: '🍀', balance: 1560000, totalWon: 4800000, winStreak: 15, favoriteGame: 'Spanish 21' },
+  { rank: 3, username: 'LuckyAce', avatar: '🍀', balance: 1560000, totalWon: 4800000, winStreak: 15, favoriteGame: 'Bingo' },
   { rank: 4, username: 'CryptoWhale', avatar: '🐋', balance: 1230000, totalWon: 3500000, winStreak: 5, favoriteGame: 'Roulette' },
   { rank: 5, username: 'DiamondHands', avatar: '💎', balance: 980000, totalWon: 2800000, winStreak: 7, favoriteGame: 'Craps' },
   { rank: 6, username: 'NightOwl', avatar: '🦉', balance: 850000, totalWon: 2100000, winStreak: 4, favoriteGame: 'Poker' },
