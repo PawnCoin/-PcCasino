@@ -436,6 +436,12 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, cardBackStyle }: 
           <div
             className={`flex-1 rounded-3xl wood-rail relative overflow-hidden p-3 ${tableShake ? 'bust-effect' : ''}`}
           >
+            {/* Casino table corner decorations */}
+            <div className="absolute top-4 left-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.75, fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🥃</div>
+            <div className="absolute top-4 right-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.7, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🚬</div>
+            <div className="absolute bottom-16 left-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🍸</div>
+            <div className="absolute bottom-16 right-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🎰</div>
+
             <div className="absolute inset-3 rounded-2xl premium-felt overflow-hidden">
               <div className="absolute inset-0"
                 style={{

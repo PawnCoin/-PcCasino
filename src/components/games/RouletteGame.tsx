@@ -669,7 +669,13 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
       </nav>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        {/* Casino table decorations */}
+        <div className="absolute top-16 left-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.72, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🥃</div>
+        <div className="absolute top-16 right-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🚬</div>
+        <div className="absolute bottom-20 left-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.66, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍸</div>
+        <div className="absolute bottom-20 right-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.66, fontSize: 16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍺</div>
+
         {/* Top: 3D Wheel + Credit + History */}
         <div className="relative flex-shrink-0" style={{ height: '34%', minHeight: '220px' }}>
           {/* Credit counter */}

@@ -1021,6 +1021,12 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
               transition: 'box-shadow 0.3s ease',
             }}
           >
+            {/* Casino table decorations */}
+            <div className="absolute top-2 left-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.72, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🥃</div>
+            <div className="absolute top-2 right-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🚬</div>
+            <div className="absolute bottom-4 left-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍸</div>
+            <div className="absolute bottom-4 right-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.65, fontSize: 16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍺</div>
+
             {/* Premium felt surface */}
             <div className="absolute inset-[12px] rounded-xl premium-felt" style={{
               boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',

@@ -702,6 +702,12 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
               className="relative w-full max-w-5xl mx-auto h-full"
               style={{ animation: loseEffect ? 'pokerLoseShake 0.6s ease-out' : undefined }}
             >
+              {/* Casino table decorations */}
+              <div className="absolute top-[8%] left-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.75, fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🥃</div>
+              <div className="absolute top-[8%] right-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.7, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🚬</div>
+              <div className="absolute bottom-[8%] left-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍸</div>
+              <div className="absolute bottom-[8%] right-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.7, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍺</div>
+
               {/* Wood rail */}
               <div className="absolute inset-0 rounded-[50%/38%]" style={{
                 background: 'linear-gradient(180deg,#6D4C2E 0%,#5D4037 20%,#4E342E 50%,#3E2723 80%,#2E1F18 100%)',

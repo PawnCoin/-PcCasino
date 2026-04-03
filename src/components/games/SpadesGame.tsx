@@ -118,14 +118,49 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
   const [isShuffling, setIsShuffling] = useState(false);
   const [tossCard, setTossCard] = useState<{ card: Card; rotation: number } | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
 
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => {
     if (aiTimer.current) clearTimeout(aiTimer.current);
     if (dealTimer.current) clearTimeout(dealTimer.current);
+    if (turnTimerRef.current) clearInterval(turnTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (gamePhase === 'playing' && currentPlayer === 0 && !isAIThinking) {
+      setTurnTimeLeft(20);
+      if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+      turnTimerRef.current = setInterval(() => {
+        setTurnTimeLeft(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(turnTimerRef.current!);
+            turnTimerRef.current = null;
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+      turnTimerRef.current = null;
+      setTurnTimeLeft(null);
+    }
+    return () => {
+      if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+    };
+  }, [gamePhase, currentPlayer, isAIThinking]);
+
+  useEffect(() => {
+    if (turnTimeLeft === 0 && gamePhase === 'playing' && currentPlayer === 0) {
+      const legal = getLegalIndices(players[0].hand, currentTrick);
+      if (legal.length > 0) playCard(legal[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnTimeLeft]);
 
   const showTip = useCallback((msg: string) => {
     if (!tooltipsEnabled) return;
@@ -297,6 +332,54 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     playNext();
   };
 
+  const startNewTrick = (leaderIdx: number, curPlayers: SpadesPlayer[], sbBroken: boolean) => {
+    let trickCards: TrickCard[] = [];
+    let updated = curPlayers.map(p => ({ ...p }));
+    let nextPIdx = leaderIdx;
+    let localBroken = sbBroken;
+
+    const playNext = () => {
+      if (trickCards.length >= 4) {
+        setIsAIThinking(false);
+        resolveTrick(trickCards, updated);
+        return;
+      }
+      const pIdx = nextPIdx % 4;
+      if (pIdx === 0) {
+        setCurrentTrick([...trickCards]);
+        setPlayers(updated);
+        setCurrentPlayer(0);
+        setIsAIThinking(false);
+        return;
+      }
+      const player = updated[pIdx];
+      const chosen = chooseAICard({
+        player: { ...player, bid: player.bid },
+        playerIndex: pIdx,
+        allPlayers: updated.map(p => ({ ...p, bid: p.bid })),
+        currentTrick: trickCards,
+        tricksPlayed: completedTricks.length,
+        spadesBroken: localBroken,
+        difficulty: aiDifficulty,
+        partnerIndex: PARTNER_INDEX[pIdx],
+      });
+      if (chosen.suit === 'spades' && !localBroken) { setSpadesBroken(true); triggerSpadesBroken(); localBroken = true; }
+      playSound('card');
+      const rot = (Math.random() - 0.5) * 24;
+      setTossCard({ card: chosen, rotation: rot });
+      setTimeout(() => setTossCard(null), 380);
+      updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
+      trickCards = [...trickCards, { player: player.id, card: chosen }];
+      setCurrentTrick([...trickCards]);
+      if (Math.random() > 0.7) setTimeout(() => addReaction(REACTIONS[Math.floor(Math.random() * REACTIONS.length)], player.id), 200);
+      nextPIdx++;
+      aiTimer.current = setTimeout(playNext, 580);
+    };
+
+    setIsAIThinking(true);
+    aiTimer.current = setTimeout(playNext, 900);
+  };
+
   const resolveTrick = (cards: TrickCard[], curPlayers: SpadesPlayer[]) => {
     const lead = cards[0].card.suit;
     let winCard = cards[0].card, winner = cards[0].player;
@@ -320,8 +403,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     setMessage(`${wname} won the trick!`);
     playSound('chip');
     setTimeout(() => setTrickWinner(null), 1300);
-    setCurrentPlayer(newPlayers.findIndex(p => p.id === winner));
-    if (newCompleted.length >= 13) setTimeout(() => scoreRound(newPlayers), 1700);
+    const winnerIdx = newPlayers.findIndex(p => p.id === winner);
+    setCurrentPlayer(winnerIdx);
+    if (newCompleted.length >= 13) {
+      setTimeout(() => scoreRound(newPlayers), 1700);
+    } else if (winnerIdx !== 0) {
+      setTimeout(() => startNewTrick(winnerIdx, newPlayers, spadesBroken), 1600);
+    }
   };
 
   const scoreRound = (fp: SpadesPlayer[]) => {
@@ -783,6 +871,22 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                 {/* Inner border */}
                 <div className="absolute inset-[10px] pointer-events-none rounded-sm" style={{ border: '1px solid rgba(212,175,55,0.15)', boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)' }} />
 
+                {/* $Pc logo engraving in table center */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1]" style={{ opacity: 0.07 }}>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 36, color: '#D4AF37', letterSpacing: '0.2em', textAlign: 'center', lineHeight: 1.1 }}>♠</div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: '#D4AF37', letterSpacing: '0.35em', textAlign: 'center', marginTop: 2 }}>$Pc CASINO</div>
+                </div>
+
+                {/* Casino table decorations */}
+                {/* Top-left: whiskey glass */}
+                <div className="absolute top-3 left-3 pointer-events-none select-none z-[2]" style={{ opacity: 0.72, fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))' }}>🥃</div>
+                {/* Top-right: ashtray with cigarette */}
+                <div className="absolute top-3 right-3 pointer-events-none select-none z-[2]" style={{ opacity: 0.65, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))' }}>🪨</div>
+                {/* Bottom-left: chip stack */}
+                <div className="absolute bottom-14 left-3 pointer-events-none select-none z-[2]" style={{ opacity: 0.7, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))' }}>🎰</div>
+                {/* Bottom-right: cocktail */}
+                <div className="absolute bottom-14 right-3 pointer-events-none select-none z-[2]" style={{ opacity: 0.7, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))' }}>🍸</div>
+
                 {/* ── PARTNER (TOP) ── */}
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-10">
                   {/* Partner card backs - arch fan, tops pointing DOWN toward table center */}
@@ -889,6 +993,22 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                     );
                   })()}
                 </div>
+
+                {/* ── TURN TIMER ── */}
+                {turnTimeLeft !== null && gamePhase === 'playing' && currentPlayer === 0 && (
+                  <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2"
+                      style={{
+                        borderColor: turnTimeLeft <= 5 ? '#ef5350' : turnTimeLeft <= 10 ? '#FFA726' : '#D4AF37',
+                        color: turnTimeLeft <= 5 ? '#ef5350' : turnTimeLeft <= 10 ? '#FFA726' : '#D4AF37',
+                        background: 'rgba(0,0,0,0.85)',
+                        animation: turnTimeLeft <= 5 ? 'trickGlow 0.5s ease-in-out infinite' : undefined,
+                      }}
+                    >{turnTimeLeft}</div>
+                    <span className="text-[10px] text-gray-400">auto-play</span>
+                  </div>
+                )}
 
                 {/* ── YOUR AVATAR (bottom center of table) ── */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-[#D4AF37]/35 backdrop-blur-sm">

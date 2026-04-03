@@ -828,6 +828,12 @@ export function DominoesGame({ balance, onBack, onBet, onWin }: DominoesGameProp
                 backgroundImage: 'repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)',
               }} />
 
+              {/* Casino decorations */}
+              <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 5, opacity: 0.72, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))', pointerEvents: 'none', userSelect: 'none' }}>🥃</div>
+              <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 5, opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))', pointerEvents: 'none', userSelect: 'none' }}>🚬</div>
+              <div style={{ position: 'absolute', bottom: 6, left: 6, zIndex: 5, opacity: 0.66, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))', pointerEvents: 'none', userSelect: 'none' }}>🍸</div>
+              <div style={{ position: 'absolute', bottom: 6, right: 6, zIndex: 5, opacity: 0.66, fontSize: 16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))', pointerEvents: 'none', userSelect: 'none' }}>🍺</div>
+
               <CrackOverlay active={cracking} />
 
               {/* Horizontal scrolling chain */}
