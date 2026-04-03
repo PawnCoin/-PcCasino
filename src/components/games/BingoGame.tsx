@@ -686,7 +686,7 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
         <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0, overflow: 'hidden' }}>
 
           {/* LEFT COLUMN: Ball machine + number board */}
-          <div style={{ flexShrink: 0, width: 240, borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+          <div style={{ flexShrink: 0, width: 270, borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
 
             <BallMachine
               machineState={machineState}
@@ -737,31 +737,42 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
               ))}
             </div>
 
-            {/* Number board (compact) */}
-            <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '8px' }}>
-              <div style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 6, textAlign: 'center' }}>CALLED NUMBERS</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 3 }}>
+            {/* Number board — vertical BINGO, horizontal numbers */}
+            <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 8px' }}>
+              <div style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>CALLED NUMBERS</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {COLUMNS.map((l, ci) => {
                   const bc = BALL_COLORS[l];
                   return (
-                    <div key={l} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                      <div style={{ fontSize: 10, fontWeight: 900, background: bc.bg, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{l}</div>
-                      {Array.from({ length: 15 }, (_, j) => {
-                        const n = COL_RANGES[ci][0] + j;
-                        const called = calledSet.has(n);
-                        return (
-                          <div key={n} style={{
-                            width: 24, height: 24, borderRadius: '50%',
-                            background: called ? bc.bg : 'rgba(25,25,25,0.8)',
-                            border: called ? 'none' : '1px solid rgba(255,255,255,0.06)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 8, fontWeight: 700,
-                            color: called ? '#fff' : '#1f2937',
-                            boxShadow: called ? `0 0 6px ${bc.shadow}` : 'none',
-                            transition: 'all 0.3s',
-                          }}>{n}</div>
-                        );
-                      })}
+                    <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {/* Letter label */}
+                      <div style={{
+                        width: 18, flexShrink: 0,
+                        fontSize: 15, fontWeight: 900, textAlign: 'center',
+                        background: bc.bg, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                        filter: `drop-shadow(0 0 4px ${bc.shadow})`,
+                      }}>{l}</div>
+
+                      {/* 15 number circles in a row */}
+                      <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap' }}>
+                        {Array.from({ length: 15 }, (_, j) => {
+                          const n = COL_RANGES[ci][0] + j;
+                          const called = calledSet.has(n);
+                          return (
+                            <div key={n} title={`${l}${n}`} style={{
+                              width: 14, height: 14, borderRadius: '50%',
+                              background: called ? bc.bg : 'rgba(22,22,22,0.9)',
+                              border: called ? 'none' : '1px solid rgba(255,255,255,0.07)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 6.5, fontWeight: 700, lineHeight: 1,
+                              color: called ? '#fff' : '#1f2937',
+                              boxShadow: called ? `0 0 5px ${bc.shadow}` : 'none',
+                              transition: 'background 0.3s, box-shadow 0.3s',
+                              flexShrink: 0,
+                            }}>{n}</div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
