@@ -1,0 +1,101 @@
+uild a HIGH-DEFINITION, production-quality Spades web app with a premium casino-style UI that matches my website theme.
+
+CORE GAME:
+
+Game: Spades (4 players, 2v2 teams)
+Standard 52-card deck
+Spades are always trump
+Full bidding system before each round
+Trick-taking gameplay
+
+RULES:
+
+Each player bids number of tricks they expect to win
+Players must follow suit if possible
+Spades cannot be led until “broken”
+Highest card of suit wins unless trumped by spade
+Team scoring system:
++10 per bid trick
++1 per overtrick (bag)
+-100 for failing bid
+Bag penalty at 10 bags (-100)
+
+GAME MODES:
+
+Practice mode (with tooltips system integration)
+vs AI (easy, medium, hard, elite)
+Multiplayer-ready architecture (WebSockets later)
+
+UI / DESIGN:
+
+Match my site theme dynamically
+Clean, modern, Vegas-style card table
+Smooth card animations (deal, play, win)
+Highlight playable cards only
+Show current trick clearly
+
+CUSTOMIZATION:
+
+Card deck styles (classic, gold, neon, minimal)
+Table styles (wood, casino, dark, glass)
+Player avatars
+Sound packs
+
+AUDIO SYSTEM:
+
+Realistic card sounds:
+Shuffle
+Deal
+Card slap on table
+Background music system (same as other games)
+Volume + mute controls
+
+TOOLTIPS (IMPORTANT):
+
+Integrate practice mode tooltip system (from tooltips.json)
+Show tips like:
+“Follow suit if possible”
+“Spades not broken yet”
+“You must bid before play”
+Toggle ON/OFF
+
+ANIMATIONS:
+
+Smooth dealing animation
+Trick collection animation
+Win celebration (subtle, clean)
+No lag — optimized performance
+
+ADVANCED FEATURES:
+
+AI with real strategy (not random)
+Show last trick replay
+Scoreboard + match history
+Turn indicator (highlight active player)
+
+TECH STACK:
+
+React + Tailwind CSS
+State: Zustand or Redux
+Animations: Framer Motion
+Audio: Web Audio API
+
+PERFORMANCE:
+
+Mobile-first (feels like an app)
+Fast, smooth gameplay
+Clean component structure
+
+MONETIZATION READY:
+
+Add hooks for:
+Premium card skins
+VIP tables
+Ads
+
+DELIVERABLE:
+
+Fully working Spades game
+Clean file structure
+Ready to deploy on Replit
+No placeholders — everything functional
