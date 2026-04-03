@@ -155,7 +155,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     return [0, 1, 2, 3].map((i) => ({
       ...mkPlayer(i),
       hand: newDeck.slice(i * 13, (i + 1) * 13).sort((a, b) => {
-        const so: Record<string, number> = { spades: 0, hearts: 1, diamonds: 2, clubs: 3 };
+        const so: Record<string, number> = { clubs: 0, diamonds: 1, hearts: 2, spades: 3 };
         return so[a.suit] - so[b.suit] || b.value - a.value;
       }),
     }));
@@ -413,8 +413,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
   // Card face renderer - proper playing card with corner indices
   const SUIT_COLORS: Record<string, string> = {
     hearts: '#c0272d',
-    diamonds: '#1565C0',
-    clubs: '#2e7d32',
+    diamonds: '#c0272d',
+    clubs: '#111827',
     spades: '#111827',
   };
 
