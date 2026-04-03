@@ -7,6 +7,7 @@ import { PokerChip, ChipStack } from '@/components/PokerChip';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { chooseAICard, calculateAIBid } from '@/hooks/useSpadesAI';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { AvatarSprite, SPADES_AVATARS } from '@/components/AvatarSprite';
 import type { AIDifficulty } from '@/hooks/useSpadesAI';
 import type { Card } from '@/types';
 
@@ -780,8 +781,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                   </div>
                   {/* Player badge */}
                   <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/70 border border-[#1565C0]/40 backdrop-blur-sm">
-                    <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${players[2].color} flex items-center justify-center text-base border border-white/20 relative`}>
-                      {players[2].avatar}
+                    <div className="relative">
+                      <AvatarSprite avatar={SPADES_AVATARS[2]} size={28} active={currentPlayer === 2 && gamePhase === 'playing'} />
                       {currentPlayer === 2 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div>
@@ -794,8 +795,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                 {/* ── WEST (LEFT) ── */}
                 <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-10">
                   <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/70 border border-[#8B0000]/40 backdrop-blur-sm">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${players[1].color} flex items-center justify-center text-lg border border-white/20 relative mb-1`}>
-                      {players[1].avatar}
+                    <div className="relative mb-1">
+                      <AvatarSprite avatar={SPADES_AVATARS[1]} size={40} active={currentPlayer === 1 && gamePhase === 'playing'} />
                       {currentPlayer === 1 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div className="text-xs font-bold text-[#ef5350]">{players[1].name}</div>
@@ -815,8 +816,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                 {/* ── EAST (RIGHT) ── */}
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 z-10">
                   <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/70 border border-[#1b5020]/40 backdrop-blur-sm">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${players[3].color} flex items-center justify-center text-lg border border-white/20 relative mb-1`}>
-                      {players[3].avatar}
+                    <div className="relative mb-1">
+                      <AvatarSprite avatar={SPADES_AVATARS[3]} size={40} active={currentPlayer === 3 && gamePhase === 'playing'} />
                       {currentPlayer === 3 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div className="text-xs font-bold text-[#81c784]">{players[3].name}</div>
@@ -834,8 +835,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
                 {/* ── YOUR AVATAR (bottom center of table) ── */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-[#D4AF37]/35 backdrop-blur-sm">
-                  <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${players[0].color} flex items-center justify-center text-base border border-white/20 relative`}>
-                    {players[0].avatar}
+                  <div className="relative">
+                    <AvatarSprite avatar={SPADES_AVATARS[0]} size={32} active={currentPlayer === 0 && gamePhase === 'playing'} />
                     {currentPlayer === 0 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#D4AF37] animate-pulse" />}
                   </div>
                   <div>
