@@ -795,9 +795,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                           const angle = (i - (n - 1) / 2) * step;
                           return (
                             <div key={i} style={{
-                              position: 'absolute', left: '50%', top: 0,
+                              position: 'absolute', left: '50%', bottom: 0,
                               transform: `translateX(-50%) rotate(${angle}deg)`,
-                              transformOrigin: 'top center',
+                              transformOrigin: 'bottom center',
                               zIndex: i,
                             }}>
                               {renderCardBack(30, 44, 0, i)}
@@ -831,7 +831,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                     <div className="text-xs text-gray-400">{players[1].nilBid ? '🚫NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
                     <div className="text-xs text-gray-400">{players[1].tricks}✓</div>
                   </div>
-                  {/* West arch fan - tops pointing RIGHT toward table center */}
+                  {/* West arch fan - fan opens RIGHT toward table center */}
                   {(() => {
                     const n = Math.min(players[1].hand.length || 8, 13);
                     const step = Math.min(9, 80 / Math.max(n - 1, 1));
@@ -841,9 +841,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                           const angle = (i - (n - 1) / 2) * step;
                           return (
                             <div key={i} style={{
-                              position: 'absolute', right: 0, top: '50%',
+                              position: 'absolute', left: 0, top: '50%',
                               transform: `translateY(-50%) rotate(${angle}deg)`,
-                              transformOrigin: 'right center',
+                              transformOrigin: 'left center',
                               zIndex: i,
                             }}>
                               {renderCardBack(44, 30, 0, i)}
@@ -866,7 +866,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                     <div className="text-xs text-gray-400">{players[3].nilBid ? '🚫NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
                     <div className="text-xs text-gray-400">{players[3].tricks}✓</div>
                   </div>
-                  {/* East arch fan - tops pointing LEFT toward table center */}
+                  {/* East arch fan - fan opens LEFT toward table center */}
                   {(() => {
                     const n = Math.min(players[3].hand.length || 8, 13);
                     const step = Math.min(9, 80 / Math.max(n - 1, 1));
@@ -876,9 +876,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                           const angle = (i - (n - 1) / 2) * step;
                           return (
                             <div key={i} style={{
-                              position: 'absolute', left: 0, top: '50%',
+                              position: 'absolute', right: 0, top: '50%',
                               transform: `translateY(-50%) rotate(${angle}deg)`,
-                              transformOrigin: 'left center',
+                              transformOrigin: 'right center',
                               zIndex: i,
                             }}>
                               {renderCardBack(44, 30, 0, i)}
