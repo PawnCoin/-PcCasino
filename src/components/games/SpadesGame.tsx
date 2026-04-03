@@ -190,8 +190,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
     return [0, 1, 2, 3].map((i) => ({
       ...mkPlayer(i),
       hand: newDeck.slice(i * 13, (i + 1) * 13).sort((a, b) => {
-        const so: Record<string, number> = { clubs: 0, diamonds: 1, hearts: 2, spades: 3 };
-        return so[a.suit] - so[b.suit] || b.value - a.value;
+        const so: Record<string, number> = { hearts: 0, clubs: 1, diamonds: 2, spades: 3 };
+        const rv: Record<string, number> = { A: 14, K: 13, Q: 12, J: 11, '10': 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 };
+        return so[a.suit] - so[b.suit] || (rv[b.rank] ?? b.value) - (rv[a.rank] ?? a.value);
       }),
     }));
   };
@@ -297,12 +298,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
   const playAICards = (trick: TrickCard[], curPlayers: SpadesPlayer[]) => {
     let trickCards = [...trick];
-    let nextPlayer = currentPlayer + 1;
+    let nextPlayer = (currentPlayer + 3) % 4;
     const updated = curPlayers.map(p => ({ ...p }));
 
     const playNext = () => {
       if (trickCards.length >= 4) { setIsAIThinking(false); resolveTrick(trickCards, updated); return; }
-      const pIdx = nextPlayer % 4;
+      const pIdx = nextPlayer;
       const player = updated[pIdx];
       const chosen = chooseAICard({
         player: { ...player, bid: player.bid },
@@ -320,13 +321,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
 
       const aiRotation = (Math.random() - 0.5) * 24;
       setTossCard({ card: chosen, rotation: aiRotation });
-      setTimeout(() => setTossCard(null), 380);
+      setTimeout(() => setTossCard(null), 500);
 
       updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
       trickCards = [...trickCards, { player: player.id, card: chosen }];
       setCurrentTrick([...trickCards]);
       if (Math.random() > 0.7) setTimeout(() => addReaction(REACTIONS[Math.floor(Math.random() * REACTIONS.length)], player.id), 200);
-      nextPlayer++;
+      nextPlayer = (nextPlayer + 3) % 4;
       aiTimer.current = setTimeout(playNext, 580);
     };
     playNext();
@@ -344,7 +345,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
         resolveTrick(trickCards, updated);
         return;
       }
-      const pIdx = nextPIdx % 4;
+      const pIdx = nextPIdx;
       if (pIdx === 0) {
         setCurrentTrick([...trickCards]);
         setPlayers(updated);
@@ -367,12 +368,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
       playSound('card');
       const rot = (Math.random() - 0.5) * 24;
       setTossCard({ card: chosen, rotation: rot });
-      setTimeout(() => setTossCard(null), 380);
+      setTimeout(() => setTossCard(null), 500);
       updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
       trickCards = [...trickCards, { player: player.id, card: chosen }];
       setCurrentTrick([...trickCards]);
       if (Math.random() > 0.7) setTimeout(() => addReaction(REACTIONS[Math.floor(Math.random() * REACTIONS.length)], player.id), 200);
-      nextPIdx++;
+      nextPIdx = (nextPIdx + 3) % 4;
       aiTimer.current = setTimeout(playNext, 580);
     };
 
@@ -625,6 +626,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
             0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
             40% { transform: translateY(-60px) rotate(var(--tr)) scale(1.12); opacity: 1; }
             100% { transform: translateY(-120px) rotate(calc(var(--tr)*1.5)) scale(0.9); opacity: 0; }
+          }
+          @keyframes tossCardIn {
+            0% { transform: translate(-50%, -50%) rotate(calc(var(--tr) * 2)) scale(0.4); opacity: 0; }
+            35% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.18); opacity: 1; }
+            70% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.85); opacity: 0; }
           }
           @keyframes slideToCenter-0 {
             0%  { transform: translateY(80px) scale(0.8) rotate(var(--tr)); opacity: 0; }
@@ -1067,6 +1074,26 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
                     </div>
                   )}
                 </div>
+
+                {/* ── TOSS CARD OVERLAY ── */}
+                {tossCard && (
+                  <div
+                    key={`${tossCard.card.suit}${tossCard.card.rank}-${Math.round(tossCard.rotation * 1000)}`}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 50,
+                      pointerEvents: 'none',
+                      animation: 'tossCardIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
+                      '--tr': `${tossCard.rotation}deg`,
+                      filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.7))',
+                    } as React.CSSProperties}
+                  >
+                    {renderCardFace(tossCard.card, undefined, { size: 'lg' })}
+                  </div>
+                )}
 
                 {/* ── DEALING ANIMATION OVERLAY ── */}
                 {gamePhase === 'dealing' && (
