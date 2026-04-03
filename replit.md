@@ -3,7 +3,20 @@
 A React + Vite + TypeScript casino web application featuring multiple card and casino games with premium visual effects, part of the Pawn Coin ecosystem. The Command Center is an external app at pawncoinpc.com — not included in this application.
 
 ## Games
-Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades, Slots, Bingo 75-Ball
+Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Edition), Slots, Bingo 75-Ball
+
+### Spades — Elite Competitive Edition
+- **4-level AI**: Easy / Medium / Hard / Elite (strategic, partner-aware, nil-aware play)
+- **NIL & Blind NIL bidding**: Full scoring logic (+100/-100 for NIL, +200/-200 for Blind NIL)
+- **House Rules**: Target score (300/500/750), sandbag penalty toggle, NIL/Blind NIL toggle, spades-always-broken option
+- **Ranked Mode**: MMR tracking, tier system (Bronze→Diamond), win/loss record
+- **Emoji Reactions**: 8 reactions, float animation, AI reactions
+- **Last Trick Replay**: Click to view previous trick in a dialog
+- **Tournament Bracket**: Visual 2-round bracket with live winner tracking
+- **Tooltips/Practice Mode**: Contextual tips system with ON/OFF toggle
+- **Round History**: Per-round score breakdown in sidebar
+- **Legal card highlighting**: Playable cards glow, illegal cards dim
+- **AI hook**: `src/hooks/useSpadesAI.ts` — separated AI logic for all 4 difficulty levels
 
 ## Project Structure
 
