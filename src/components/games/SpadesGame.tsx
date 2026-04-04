@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Info, Volume2, VolumeX, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, Flame, Zap } from 'lucide-react';
+import { Info, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, Flame, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
+import { InGameTopBar } from '@/components/InGameTopBar';
 import { chooseAICard, calculateAIBid } from '@/hooks/useSpadesAI';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { AvatarSprite, SPADES_AVATARS } from '@/components/AvatarSprite';
@@ -16,6 +17,7 @@ interface SpadesGameProps {
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 }
 
@@ -70,7 +72,7 @@ const PLAYER_COLORS = [
 const PLAYER_AVATARS = ['🎭', '⚔️', '🤝', '🛡️'];
 const PLAYER_TEXT_COLORS = ['text-[#D4AF37]', 'text-[#ef5350]', 'text-[#64b5f6]', 'text-[#81c784]'];
 
-export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: SpadesGameProps) {
+export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle }: SpadesGameProps) {
   const { playSound } = useSoundEffects();
 
   const mkPlayer = (idx: number): SpadesPlayer => ({
@@ -695,28 +697,26 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
         `}</style>
 
         {/* NAV */}
-        <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/20 h-12 flex items-center px-3 justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-casino font-bold text-[#D4AF37] tracking-widest text-lg">♠ SPADES</span>
-          </button>
-          <div className="flex items-center gap-2">
-            {rankedMode && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold"
-                style={{ borderColor: tier.color, color: tier.color }}>
-                <TierIcon className="w-3 h-3" />{tier.name} {playerStats.mmr}
-              </div>
-            )}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full balance-display text-sm">
-              <img src="/logos/pc-logo.png" alt="" className="w-4 h-4" />
-              <span className="font-bold text-[#D4AF37]">{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              <span className="text-xs text-gray-400">$Pc</span>
+        <InGameTopBar
+          gameName="♠ Spades"
+          balance={balance}
+          onBack={onBack}
+          onAddBalance={onAddBalance}
+          showShare
+          rightSlot={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {rankedMode && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold"
+                  style={{ borderColor: tier.color, color: tier.color }}>
+                  <TierIcon className="w-3 h-3" />{tier.name} {playerStats.mmr}
+                </div>
+              )}
+              <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setShowHouseRules(true)}><Settings className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setShowTournament(true)}><Trophy className="w-4 h-4 text-[#D4AF37]" /></Button>
+              <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setShowRules(true)}><Info className="w-4 h-4" /></Button>
             </div>
-            <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setShowHouseRules(true)}><Settings className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setShowTournament(true)}><Trophy className="w-4 h-4 text-[#D4AF37]" /></Button>
-            <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => setShowRules(true)}><Info className="w-4 h-4" /></Button>
-          </div>
-        </nav>
+          }
+        />
 
         {/* TOOLTIP */}
         {tooltip && (
@@ -739,7 +739,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, cardBackStyle }: Spa
         )}
 
         {/* MAIN CONTENT */}
-        <div className="pt-12 flex flex-col flex-1">
+        <div className="flex flex-col flex-1">
 
           {/* ═══════════ MENU SCREEN ═══════════ */}
           {gamePhase === 'menu' && (

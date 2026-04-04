@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { ArrowLeft, Info, Volume2, VolumeX, Settings, Undo2 } from 'lucide-react';
+import { Info, Settings, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -9,12 +9,14 @@ import { PokerChip } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRouletteVoice } from '@/hooks/useGameVoice';
 import RouletteWheel3D from '@/components/games/RouletteWheel3D';
+import { InGameTopBar } from '@/components/InGameTopBar';
 
 interface RouletteGameProps {
   balance: number;
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
 }
 
 interface PlacedBet {
@@ -37,7 +39,7 @@ interface ResultOverlay {
   number: number;
 }
 
-const CHIP_VALUES = [1, 5, 10, 25, 50, 100, 500, 1000, 5000, 10000];
+const CHIP_VALUES = [1_000_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000];
 
 const WHEEL_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
@@ -234,7 +236,7 @@ function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; on
   );
 }
 
-export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProps) {
+export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: RouletteGameProps) {
   const [selectedChip, setSelectedChip] = useState(10);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
@@ -614,26 +616,14 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
       )}
 
       {/* Header */}
-      <nav className="flex-shrink-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
-        <div className="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between">
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                  <ArrowLeft className="w-5 h-5" />
-                  <span className="font-casino font-bold text-[#D4AF37] text-sm">ROULETTE</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent><p>Return to lobby</p></TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full" style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(212,175,55,0.3)' }}>
-              <img src="/logos/pc-logo.png" alt="$Pc" className="w-4 h-4" />
-              <span className="font-bold text-[#D4AF37] text-sm">{balance.toLocaleString()}</span>
-              <span className="text-[10px] text-gray-500">$Pc</span>
-            </div>
+      <InGameTopBar
+        gameName="Roulette"
+        balance={balance}
+        onBack={onBack}
+        onAddBalance={onAddBalance}
+        showShare
+        rightSlot={
+          <div style={{ display: 'flex', gap: 4 }}>
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -647,16 +637,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleMute}>
-                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>{isMuted ? 'Unmute' : 'Mute'}</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowRules(true)}>
                     <Info className="w-4 h-4" />
                   </Button>
@@ -665,8 +645,8 @@ export function RouletteGame({ balance, onBack, onBet, onWin }: RouletteGameProp
               </Tooltip>
             </TooltipProvider>
           </div>
-        </div>
-      </nav>
+        }
+      />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">

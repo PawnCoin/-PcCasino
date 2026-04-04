@@ -280,6 +280,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
             cardBackStyle={getCardBackStyle()}
           />
         );
@@ -290,6 +291,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
             cardBackStyle={getCardBackStyle()}
           />
         );
@@ -300,6 +302,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
           />
         );
       case 'craps':
@@ -309,6 +312,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
           />
         );
       case 'spades':
@@ -318,6 +322,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
             cardBackStyle={getCardBackStyle()}
           />
         );
@@ -328,6 +333,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
           />
         );
       case 'bingo':
@@ -347,6 +353,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
           />
         );
       case 'pool':

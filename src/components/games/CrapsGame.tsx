@@ -1,17 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Info, Volume2, VolumeX, RotateCcw } from 'lucide-react';
+import { Info, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PokerChip, ChipStack } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from './CasinoEnvironment';
+import { InGameTopBar } from '@/components/InGameTopBar';
 
 interface CrapsGameProps {
   balance: number;
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
 }
 
 // Worldwide Craps Rules
@@ -69,7 +71,7 @@ interface Bet {
   chips: { amount: number; count: number }[];
 }
 
-const CHIP_VALUES = [1, 5, 10, 25, 50, 100, 500, 1000];
+const CHIP_VALUES = [1_000_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000];
 
 // Ultra Realistic 3D Dice Component with Vegas Quality
 interface RealisticDice3DProps {
@@ -471,7 +473,7 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
   );
 }
 
-export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
+export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: CrapsGameProps) {
   const [gamePhase, setGamePhase] = useState<'comeout' | 'point'>('comeout');
   const [point, setPoint] = useState<number | null>(null);
   const [dice, setDice] = useState<[number, number]>([1, 1]);
@@ -848,7 +850,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
   return (
     <CasinoEnvironment gameType="craps">
     <div 
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{
         background: `
           radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0a 50%, #000000 100%)
@@ -856,68 +858,25 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
       }}
     >
       {/* Header */}
-      <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <InGameTopBar
+        gameName="Craps"
+        balance={balance}
+        onBack={onBack}
+        onAddBalance={onAddBalance}
+        showShare
+        rightSlot={
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                  <ArrowLeft className="w-5 h-5" />
-                  <span className="font-casino font-bold text-[#D4AF37]">CRAPS</span>
-                </button>
+                <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                  <Info className="w-5 h-5" />
+                </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Return to game lobby</p>
-              </TooltipContent>
+              <TooltipContent><p>View Craps rules & payouts</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          
-          <div className="flex items-center gap-4">
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 px-4 py-1 rounded-full balance-display cursor-pointer hover:scale-105 transition-transform">
-                    <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
-                    <span className="font-bold text-[#D4AF37]">
-                      {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-xs text-gray-400">$Pc</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Your current $Pc balance</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={toggleMute}>
-                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isMuted ? 'Unmute game sounds' : 'Mute game sounds'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-                    <Info className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>View Craps rules & payouts</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      </nav>
+        }
+      />
 
       {/* Win/Loss Flash Overlays */}
       {winFlash && (
@@ -960,7 +919,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin }: CrapsGameProps) {
       )}
 
       {/* Game Area */}
-      <div className="pt-14 min-h-screen flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row">
         {/* Left Side - 3D Dice Table */}
         <div className="flex-1 p-6 flex flex-col items-center justify-center">
           {/* Phase Indicator + Point Marker Puck */}

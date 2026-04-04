@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Info, Volume2, VolumeX } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { PokerChip } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
+import { InGameTopBar } from '@/components/InGameTopBar';
 
 interface SlotsGameProps {
   balance: number;
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
 }
 
 const SYMBOLS = ['🍒', '🍋', '🍊', '🔔', '⭐', '💎', '7️⃣', '🎰'] as const;
@@ -37,7 +39,7 @@ const PAYOUTS: Record<string, number> = {
   '🎰': 50,
 };
 
-const CHIP_VALUES = [1, 5, 10, 25, 50, 100, 500, 1000];
+const CHIP_VALUES = [1_000_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000];
 const ROWS = 3;
 const COLS = 5;
 
@@ -117,7 +119,7 @@ const slotsRules = {
 
 const LED_COUNT = 24;
 
-export function SlotsGame({ balance, onBack, onBet, onWin }: SlotsGameProps) {
+export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance }: SlotsGameProps) {
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
   const [currentBet, setCurrentBet] = useState(0);
@@ -251,63 +253,28 @@ export function SlotsGame({ balance, onBack, onBet, onWin }: SlotsGameProps) {
 
   return (
     <CasinoEnvironment gameType="slots">
-      <div className="min-h-screen bg-[#0a0a0a]">
-        <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
-          <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+        <InGameTopBar
+          gameName="Slots"
+          balance={balance}
+          onBack={onBack}
+          onAddBalance={onAddBalance}
+          showShare
+          rightSlot={
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                    <span className="font-casino font-bold text-[#D4AF37]">SLOTS</span>
-                  </button>
+                  <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                    <Info className="w-5 h-5" />
+                  </Button>
                 </TooltipTrigger>
-                <TooltipContent><p>Return to game lobby</p></TooltipContent>
+                <TooltipContent><p>View Slots rules & payouts</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          }
+        />
 
-            <div className="flex items-center gap-4">
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 px-4 py-1 rounded-full balance-display cursor-pointer hover:scale-105 transition-transform">
-                      <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
-                      <span className="font-bold text-[#D4AF37]">
-                        {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className="text-xs text-gray-400">$Pc</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Your current $Pc balance</p></TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={toggleMute}>
-                      {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>{isMuted ? 'Unmute' : 'Mute'} game sounds</p></TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-                      <Info className="w-5 h-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>View Slots rules & payouts</p></TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-        </nav>
-
-        <div className="pt-20 pb-8 px-4 flex flex-col items-center gap-6 relative z-10">
+        <div className="flex-1 pb-8 px-4 flex flex-col items-center gap-6 relative z-10">
           <div
             className="slots-cabinet relative w-full max-w-3xl overflow-hidden"
             style={{

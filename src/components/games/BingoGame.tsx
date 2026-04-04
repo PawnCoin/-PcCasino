@@ -558,8 +558,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
           });
 
           isDrawing.current = false;
-        }, 700);
-      }, 2500);
+        }, 1200);
+      }, 5000);
 
       return rest;
     });

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Info, Volume2, VolumeX, RotateCcw, Mic, MicOff, Camera, User } from 'lucide-react';
+import { Info, RotateCcw, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -10,6 +10,7 @@ import { PokerChip } from '@/components/PokerChip';
 import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
+import { InGameTopBar } from '@/components/InGameTopBar';
 import type { Card } from '@/types';
 
 interface PokerGameProps {
@@ -17,10 +18,11 @@ interface PokerGameProps {
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 }
 
-const CHIP_VALUES = [5, 10, 25, 50, 100, 500];
+const CHIP_VALUES = [1_000_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 500_000_000];
 
 const handRankings: Record<string, string> = {
   royal_flush: 'Royal Flush',
@@ -324,7 +326,7 @@ function UserSeat({
   );
 }
 
-export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: PokerGameProps) {
+export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle }: PokerGameProps) {
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -624,27 +626,14 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
         )}
 
         {/* ── NAV ── */}
-        <nav className="fixed top-0 w-full z-50 glass-panel border-b border-[#D4AF37]/30">
-          <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                    <span className="font-casino font-bold text-[#D4AF37]">TEXAS HOLD'EM</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent><p>Return to game lobby</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-4 py-1 rounded-full balance-display">
-                <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
-                <span className="font-bold text-[#D4AF37]">{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                <span className="text-xs text-gray-400">$Pc</span>
-              </div>
-
+        <InGameTopBar
+          gameName="Texas Hold'em"
+          balance={balance}
+          onBack={onBack}
+          onAddBalance={onAddBalance}
+          showShare
+          rightSlot={
+            <div style={{ display: 'flex', gap: 4 }}>
               {voiceSupported && (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
@@ -657,18 +646,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                   </Tooltip>
                 </TooltipProvider>
               )}
-
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={toggleMute}>
-                      {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>{isMuted ? 'Unmute' : 'Mute'}</p></TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -679,7 +656,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                   <TooltipContent><p>{showAnalyzer ? 'Hand analyzer ON' : 'Hand analyzer OFF'}</p></TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -691,11 +667,11 @@ export function PokerGame({ balance, onBack, onBet, onWin, cardBackStyle }: Poke
                 </Tooltip>
               </TooltipProvider>
             </div>
-          </div>
-        </nav>
+          }
+        />
 
         {/* ── MAIN LAYOUT ── */}
-        <div className="pt-14 h-screen flex flex-col relative z-10">
+        <div className="flex-1 flex flex-col relative z-10" style={{ minHeight: 0 }}>
           {/* TABLE */}
           <div className="flex-1 relative px-6 pt-3 pb-0 min-h-0">
             <div

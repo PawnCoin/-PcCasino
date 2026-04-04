@@ -1,7 +1,8 @@
 import React, { useState, useReducer, useEffect, useRef } from 'react';
-import { ArrowLeft, Volume2, VolumeX, Settings, RotateCcw, Zap, GraduationCap } from 'lucide-react';
+import { Settings, RotateCcw, Zap, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { InGameTopBar } from '@/components/InGameTopBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Tile { left: number; right: number; id: string }
@@ -464,9 +465,10 @@ interface DominoesGameProps {
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
 }
 
-export function DominoesGame({ balance, onBack, onBet, onWin }: DominoesGameProps) {
+export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: DominoesGameProps) {
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const [muted, setMuted] = useState(false);
   const [slamOn, setSlamOn] = useState(true);
@@ -632,31 +634,23 @@ export function DominoesGame({ balance, onBack, onBet, onWin }: DominoesGameProp
       `}</style>
 
       {/* Header */}
-      <div style={{ background: 'linear-gradient(90deg,#0A0800,#140F00)', borderBottom: '1px solid rgba(212,175,55,.3)', padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600 }}>
-            <ArrowLeft size={17} /> Back
-          </button>
-          <div>
-            <div style={{ color: '#D4AF37', fontWeight: 800, fontSize: 18, letterSpacing: 2, fontFamily: 'Georgia,serif' }}>🁣 DOMINOES</div>
-            <div style={{ color: '#555', fontSize: 11 }}>Classic Draw · Double-Six · 4 Players</div>
+      <InGameTopBar
+        gameName="🁣 Dominoes"
+        balance={balance}
+        onBack={onBack}
+        onAddBalance={onAddBalance}
+        showShare
+        rightSlot={
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {gs.mode === 'practice' && gs.phase !== 'setup' && (
+              <span style={{ padding: '2px 10px', borderRadius: 20, background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.4)', color: '#42A5F5', fontSize: 11, fontWeight: 700 }}>PRACTICE</span>
+            )}
+            <button onClick={() => setShowSettings(s => !s)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
+              <Settings size={20} />
+            </button>
           </div>
-          {gs.mode === 'practice' && gs.phase !== 'setup' && (
-            <span style={{ padding: '2px 10px', borderRadius: 20, background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.4)', color: '#42A5F5', fontSize: 11, fontWeight: 700 }}>PRACTICE</span>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ padding: '5px 14px', borderRadius: 20, background: 'rgba(212,175,55,.12)', border: '1px solid rgba(212,175,55,.35)', color: '#D4AF37', fontWeight: 700, fontSize: 13 }}>
-            {balance.toLocaleString()} $Pc
-          </div>
-          <button onClick={() => setMuted(m => !m)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
-            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-          </button>
-          <button onClick={() => setShowSettings(s => !s)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
-            <Settings size={20} />
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Settings panel */}
       {showSettings && (

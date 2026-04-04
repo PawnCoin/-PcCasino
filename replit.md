@@ -84,6 +84,17 @@ Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Editi
 - **State**: React hooks + localStorage persistence
 - **Build**: Vite (dev on port 5000)
 
+## Shared In-Game UI System
+
+All games use `InGameTopBar` as a unified top navigation bar:
+- **`InGameTopBar`** — fixed top bar with game name, $Pc balance display, back button, VappTV PiP overlay (members-only), options panel, quick-buy button, social share, and optional `rightSlot` for game-specific controls
+- **`InGameOptionsPanel`** — avatar picker, volume, voice/text/AI toggles; opens from top bar
+- **`InGameQuickBuy`** — quick balance reload drawer
+- **`GlobalGameContext`** — shared state (balance formatting, membership threshold 100M $Pc, QUICK_BETS)
+- **`CasinoBackground`** — animated casino lobby backdrop (checkerboard carpet, spotlights, floating suit chars, vignette)
+- All chip/bet values are million-scale: 1M, 5M, 10M, 25M, 50M, 100M, 500M, 1B $Pc
+- `onAddBalance` prop wired from App.tsx to every game for quick reload functionality
+
 ## Games
 
 - Texas Hold'em Poker
@@ -93,6 +104,8 @@ Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Editi
 - Craps & Dice
 - Spades (4-player)
 - Slots (3x5 reel)
+- Bingo (75-ball)
+- Dominoes (Draw, Double-Six, 4-player)
 - Sportsbook (linked to WeParlay.io — external)
 
 ## Visual Design System
