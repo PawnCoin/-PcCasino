@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createDeck, shuffleDeck, calculateBlackjackValue, isBlackjack } from '@/hooks/useGameEngine';
-import { PokerChip, ChipStack, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
+import { PokerChip, ChipStack, ChipSelector, CasinoChipTray, formatChipLabel } from '@/components/PokerChip';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -72,6 +72,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const [resultOverlay, setResultOverlay] = useState<'win' | 'bust' | 'blackjack' | null>(null);
   const [showWinRings, setShowWinRings] = useState(false);
   const [tableShake, setTableShake] = useState(false);
+  const [tossChips, setTossChips] = useState<{ id: number; amount: number }[]>([]);
+  const tossIdRef = useRef(0);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -94,6 +96,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       }
       return [...prev, { amount, count: 1 }];
     });
+
+    // Trigger chip toss animation
+    const id = ++tossIdRef.current;
+    setTossChips(prev => [...prev, { id, amount }]);
+    setTimeout(() => setTossChips(prev => prev.filter(c => c.id !== id)), 800);
   };
 
   const clearBet = () => {
@@ -456,9 +463,38 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
               </div>
             </div>
 
+            {/* ── Chip Tray (left side of table) ── */}
+            <div className="absolute top-6 left-5 z-10"
+              style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.7))' }}>
+              <CasinoChipTray />
+            </div>
+
+            {/* ── Diagonal Card Shoe (near dealer, right side) ── */}
+            <div className="absolute top-4 right-6 z-10"
+              style={{ transform: 'rotate(-18deg)', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.8))' }}>
+              <svg width={48} height={68} viewBox="0 0 48 68">
+                <defs>
+                  <linearGradient id="bj-shoe-g" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#2a2010" />
+                    <stop offset="100%" stopColor="#0a0808" />
+                  </linearGradient>
+                </defs>
+                <rect x={2} y={2} width={44} height={58} rx={5}
+                  fill="url(#bj-shoe-g)" stroke="#D4AF37" strokeWidth={1.2} />
+                <rect x={6} y={6} width={36} height={48} rx={3}
+                  fill="#000820" stroke="rgba(192,192,192,0.15)" strokeWidth={0.5} />
+                {[0, 1, 2, 3, 4].map(i => (
+                  <rect key={i} x={7} y={8 + i * 9} width={34} height={7} rx={1}
+                    fill={i % 2 === 0 ? '#e8e8e8' : '#f5f5f5'}
+                    stroke="rgba(0,0,0,0.25)" strokeWidth={0.3} />
+                ))}
+                <text x={24} y={66} textAnchor="middle" fontSize={7}
+                  fill="#D4AF37" fontWeight="700" fontFamily="Arial, sans-serif">SHOE</text>
+              </svg>
+            </div>
+
             <div className="relative z-10 flex flex-col items-center justify-start pt-6">
               <div className="relative mb-3 flex items-center gap-4">
-                <DealerVegasProps />
                 <div className="px-6 py-1 rounded-lg border border-[#D4AF37]/50"
                   style={{
                     background: 'linear-gradient(180deg, #2a1f0e 0%, #1a1208 100%)',
@@ -467,7 +503,6 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                 >
                   <div className="text-sm text-[#D4AF37] tracking-[0.3em] font-bold font-casino">DEALER</div>
                 </div>
-                <DealerVegasProps />
               </div>
               <div className="text-center mb-2">
                 <div className="text-xl font-bold text-white bg-black/40 px-4 py-1 rounded-full">
@@ -478,25 +513,6 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
               <div className="flex gap-3">
                 {dealerHand.map((card, i) => renderCard(card, i, i === 1 && !showDealerCard))}
               </div>
-            </div>
-
-            <div className="absolute top-6 right-6 z-10"
-              style={{
-                width: '60px',
-                height: '40px',
-                background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)',
-                borderRadius: '6px 6px 2px 2px',
-                border: '2px solid rgba(80,80,80,0.5)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.7), inset 0 -2px 4px rgba(0,0,0,0.5)',
-              }}
-            >
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[50px] h-[8px] rounded-b"
-                style={{
-                  background: 'linear-gradient(180deg, #1a237e 0%, #0d1642 100%)',
-                  border: '1px solid rgba(192,192,192,0.3)',
-                }}
-              />
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] text-gray-500 tracking-wider">SHOE</div>
             </div>
 
             {message && (
@@ -570,6 +586,13 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
               </div>
             )}
 
+            {/* ── Chip Toss Animation Overlay ── */}
+            {tossChips.map(tc => (
+              <div key={tc.id} className="chip-toss-fly" style={{ pointerEvents: 'none' }}>
+                <PokerChip amount={tc.amount} size="md" />
+              </div>
+            ))}
+
             <div className="absolute bottom-36 left-0 right-0 flex justify-center gap-8 z-10">
               {playerHands.map((hand, handIndex) => (
                 <div 
@@ -624,26 +647,37 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                     <div className="text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
                   </div>
 
-                  <button
-                    onClick={() => addChipToBet(selectedChip)}
-                    className="relative w-28 h-28 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.2)] hover:shadow-[0_0_40px_rgba(212,175,55,0.4)]"
-                  >
-                    {tableChips.length > 0 ? (
-                      <div className="relative">
-                        {tableChips.map((chip, i) => (
-                          <div key={i} className="absolute chip-bounce" style={{ 
-                            transform: `translate(${Math.sin(i * 0.7) * 6}px, ${-i * 5}px) rotate(${i * 15}deg)`,
-                            zIndex: tableChips.length - i,
-                            animationDelay: `${i * 0.1}s`,
-                          }}>
-                            <ChipStack amount={chip.amount} count={chip.count} size="sm" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-[#D4AF37]/50 text-sm">CLICK TO BET</span>
-                    )}
-                  </button>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="text-[9px] text-[#C0C0C0]/60 tracking-widest uppercase">Drag or Click</div>
+                    <button
+                      onClick={() => addChipToBet(selectedChip)}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const amt = parseInt(e.dataTransfer.getData('chip-amount'), 10);
+                        if (amt > 0) addChipToBet(amt);
+                      }}
+                      className="relative w-32 h-32 rounded-full border-4 border-dashed border-[#D4AF37]/60 hover:border-[#D4AF37] transition-all bg-black/50 flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.2)] hover:shadow-[0_0_50px_rgba(212,175,55,0.5)]"
+                    >
+                      {tableChips.length > 0 ? (
+                        <div className="relative w-24 h-24 flex flex-wrap items-center justify-center gap-0.5">
+                          {tableChips.map((chip, i) => (
+                            <div key={i} className="chip-land" style={{
+                              animationDelay: `${i * 0.05}s`,
+                              zIndex: tableChips.length - i,
+                            }}>
+                              <PokerChip amount={chip.amount} size="sm" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[#D4AF37]/40 text-2xl">⬤</span>
+                          <span className="text-[#D4AF37]/50 text-[10px] tracking-widest">BET HERE</span>
+                        </div>
+                      )}
+                    </button>
+                  </div>
 
                   <button
                     onClick={clearBet}

@@ -351,7 +351,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
             <div style={{ fontSize: 9, color: '#D4AF37', fontWeight: 700, letterSpacing: '1px', opacity: 0.8 }}>STANDARD</div>
             <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
               {STANDARD_CHIPS.map(amt => (
-                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} />
+                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
               ))}
             </div>
           </div>
@@ -360,7 +360,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
             <div style={{ fontSize: 9, color: '#FF8F00', fontWeight: 700, letterSpacing: '1px', opacity: 0.8 }}>THOUSANDS ⸻ K</div>
             <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
               {THOUSAND_CHIPS.map(amt => (
-                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} />
+                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
               ))}
             </div>
           </div>
@@ -369,7 +369,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
             <div style={{ fontSize: 9, color: '#00BCD4', fontWeight: 700, letterSpacing: '1px', opacity: 0.8 }}>MILLIONS ⸻ M</div>
             <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
               {MILLION_CHIPS.map(amt => (
-                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} />
+                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
               ))}
             </div>
           </div>
@@ -377,7 +377,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
       ) : (
         <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
           {chips.map(amt => (
-            <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} />
+            <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
           ))}
         </div>
       )}
@@ -420,6 +420,96 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
           USE
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── CasinoChipTray ─────────────────────────────────────────────────────────
+// Realistic casino chip tray with all different colored chip stacks visible
+export function CasinoChipTray({ style, className = '' }: { style?: React.CSSProperties; className?: string }) {
+  const chipCols = [
+    { main: '#d0d0d0', stripe: '#ffffff', label: '$1' },
+    { main: '#c0002a', stripe: '#ff4060', label: '$5' },
+    { main: '#1050b0', stripe: '#4080f0', label: '$10' },
+    { main: '#196a20', stripe: '#40b040', label: '$25' },
+    { main: '#c04000', stripe: '#ff7020', label: '$50' },
+    { main: '#222222', stripe: '#D4AF37', label: '$100' },
+    { main: '#5a0e8a', stripe: '#d870fc', label: '$500' },
+    { main: '#8B0000', stripe: '#FFD700', label: '$1K' },
+  ];
+  const CHIPS = 11;
+  const colW = 20;
+  const colGap = 3;
+  const chipH = 5;
+  const padX = 8;
+  const padY = 6;
+  const trayW = chipCols.length * (colW + colGap) - colGap + padX * 2;
+  const stackH = CHIPS * chipH;
+  const trayH = stackH + padY * 2 + 6;
+  const totalH = trayH + 14;
+
+  return (
+    <div className={className} style={style}>
+      <svg width={trayW} height={totalH} viewBox={`0 0 ${trayW} ${totalH}`} style={{ display: 'block' }}>
+        <defs>
+          <linearGradient id="ct-body" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2a1f0e" />
+            <stop offset="100%" stopColor="#0d0a04" />
+          </linearGradient>
+        </defs>
+        {/* Label above tray */}
+        <text x={trayW / 2} y={9} textAnchor="middle" fontSize={7}
+          fill="#D4AF37" fontWeight="800" letterSpacing="2" fontFamily="Arial, sans-serif">
+          CHIP TRAY
+        </text>
+        {/* Outer tray body */}
+        <rect x={0} y={12} width={trayW} height={trayH} rx={5}
+          fill="url(#ct-body)" stroke="#D4AF37" strokeWidth={1.4} />
+        {/* Inner dark base */}
+        <rect x={3} y={15} width={trayW - 6} height={trayH - 6} rx={3}
+          fill="#050400" />
+        {/* Chip columns */}
+        {chipCols.map((col, ci) => {
+          const x = padX + ci * (colW + colGap);
+          const bottomY = 12 + padY + stackH + 4;
+          return (
+            <g key={ci}>
+              {/* Column slot */}
+              <rect x={x - 1} y={18} width={colW + 2} height={stackH + 4} rx={2} fill="rgba(0,0,0,0.35)" />
+              {/* Stacked chips — bottom to top */}
+              {Array.from({ length: CHIPS }, (_, i) => {
+                const cy = bottomY - i * chipH;
+                return (
+                  <g key={i}>
+                    <ellipse cx={x + colW / 2} cy={cy} rx={colW / 2 - 0.5} ry={chipH * 0.44}
+                      fill={col.main} stroke="rgba(0,0,0,0.55)" strokeWidth={0.5} />
+                    <ellipse cx={x + colW / 2} cy={cy} rx={colW / 2 - 0.5} ry={chipH * 0.15}
+                      fill={col.stripe} opacity={0.65} />
+                  </g>
+                );
+              })}
+              {/* Top chip face (circle from above) */}
+              <ellipse
+                cx={x + colW / 2}
+                cy={bottomY - CHIPS * chipH - chipH * 0.44}
+                rx={colW / 2 - 0.5}
+                ry={colW / 2 - 0.5}
+                fill={col.main} stroke={col.stripe} strokeWidth={1.3}
+              />
+              <ellipse
+                cx={x + colW / 2}
+                cy={bottomY - CHIPS * chipH - chipH * 0.44}
+                rx={colW / 2 * 0.5}
+                ry={colW / 2 * 0.5}
+                fill="rgba(255,255,255,0.18)"
+              />
+            </g>
+          );
+        })}
+        {/* Gold border shine */}
+        <rect x={0} y={12} width={trayW} height={trayH} rx={5}
+          fill="none" stroke="rgba(212,175,55,0.25)" strokeWidth={0.5} />
+      </svg>
     </div>
   );
 }
