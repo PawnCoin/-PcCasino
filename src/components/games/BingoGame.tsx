@@ -29,9 +29,20 @@ const BALL_COLORS: Record<string, { bg: string; solid: string; shadow: string }>
   O: { bg: 'linear-gradient(135deg,#B71C1C,#EF5350)', solid: '#C62828', shadow: 'rgba(183,28,28,0.8)' },
 };
 
-const HOPPER_BALL_POSITIONS = [
-  { x: 14, y: 22 }, { x: 72, y: 14 }, { x: 130, y: 28 },
-  { x: 50, y: 55 }, { x: 105, y: 55 },
+const HOPPER_BALLS = [
+  { x: 12,  y: 88,  col: 'B', sz: 26 },
+  { x: 48,  y: 82,  col: 'I', sz: 28 },
+  { x: 88,  y: 86,  col: 'N', sz: 25 },
+  { x: 130, y: 84,  col: 'G', sz: 27 },
+  { x: 165, y: 90,  col: 'O', sz: 25 },
+  { x: 28,  y: 52,  col: 'O', sz: 26 },
+  { x: 68,  y: 50,  col: 'B', sz: 28 },
+  { x: 110, y: 54,  col: 'I', sz: 25 },
+  { x: 152, y: 56,  col: 'G', sz: 27 },
+  { x: 8,   y: 18,  col: 'N', sz: 25 },
+  { x: 50,  y: 16,  col: 'G', sz: 27 },
+  { x: 100, y: 14,  col: 'O', sz: 26 },
+  { x: 148, y: 20,  col: 'B', sz: 25 },
 ];
 
 const WIN_PAYOUTS: Record<string, number> = { Line: 3, Diagonal: 5, '4 Corners': 7, BLACKOUT: 20 };
@@ -98,53 +109,110 @@ interface BallMachineProps {
   autoSpeed: number;
   phase: GamePhase;
   calledCount: number;
+  isMuted: boolean;
 }
 
-function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, autoSpeed, phase, calledCount }: BallMachineProps) {
+function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, autoSpeed, phase, calledCount, isMuted }: BallMachineProps) {
   const letter = currentBall ? getColumnLetter(currentBall) : null;
   const bc = letter ? BALL_COLORS[letter] : null;
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const clinkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const letters = ['B', 'I', 'N', 'G', 'O'] as const;
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return audioCtxRef.current;
+  };
+
+  const playBallClink = () => {
+    if (isMuted) return;
+    try {
+      const ctx = getAudioCtx();
+      const numClicks = 1 + Math.floor(Math.random() * 3);
+      for (let k = 0; k < numClicks; k++) {
+        const delay = k * (0.04 + Math.random() * 0.06);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const freq = 600 + Math.random() * 1400;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.35, ctx.currentTime + delay + 0.09);
+        gain.gain.setValueAtTime(0.22, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.11);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.13);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (machineState === 'mixing') {
+      playBallClink();
+      clinkTimerRef.current = setInterval(() => {
+        playBallClink();
+      }, 180 + Math.random() * 160);
+    } else {
+      if (clinkTimerRef.current) clearInterval(clinkTimerRef.current);
+    }
+    return () => { if (clinkTimerRef.current) clearInterval(clinkTimerRef.current); };
+  }, [machineState, isMuted]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-      {/* Machine housing */}
-      <div style={{ position: 'relative', width: 180, height: 95, background: 'linear-gradient(180deg,rgba(25,25,25,0.95),rgba(15,15,15,0.99))', border: '2px solid rgba(212,175,55,0.35)', borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
-        {/* Glass highlight */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 36, background: 'linear-gradient(180deg,rgba(255,255,255,0.06),transparent)', borderRadius: '16px 16px 0 0', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 8, color: 'rgba(212,175,55,0.5)', letterSpacing: '0.3em', fontWeight: 700 }}>BALL MACHINE</div>
+      {/* Glass hopper housing */}
+      <div style={{ position: 'relative', width: 200, height: 130, borderRadius: 20, overflow: 'hidden', boxShadow: '0 6px 28px rgba(0,0,0,0.8), inset 0 0 0 2px rgba(212,175,55,0.3)' }}>
+        {/* Glass body */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,rgba(180,220,255,0.06) 0%,rgba(10,10,18,0.92) 40%,rgba(8,8,12,0.98) 100%)', borderRadius: 20 }} />
+        {/* Glass border */}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 20, border: '2px solid rgba(180,220,255,0.18)', boxShadow: 'inset 0 0 30px rgba(0,0,0,0.5)' }} />
+        {/* Glass shine top-left */}
+        <div style={{ position: 'absolute', top: 6, left: 8, width: '35%', height: '28%', background: 'linear-gradient(135deg,rgba(255,255,255,0.10),transparent)', borderRadius: 12, pointerEvents: 'none' }} />
+        {/* Glass shine top-right */}
+        <div style={{ position: 'absolute', top: 4, right: 10, width: '18%', height: '15%', background: 'rgba(255,255,255,0.06)', borderRadius: '50%', pointerEvents: 'none' }} />
+        {/* Label */}
+        <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 7.5, color: 'rgba(212,175,55,0.6)', letterSpacing: '0.3em', fontWeight: 700, zIndex: 5, whiteSpace: 'nowrap' }}>BALL CAGE</div>
 
-        {/* Hopper balls */}
-        {letters.map((l, i) => {
-          const pos = HOPPER_BALL_POSITIONS[i];
-          const ballBc = BALL_COLORS[l];
+        {/* Balls inside glass */}
+        {HOPPER_BALLS.map((b, i) => {
+          const ballBc = BALL_COLORS[b.col as keyof typeof BALL_COLORS];
           const isMixing = machineState === 'mixing';
-          const isEjecting = machineState === 'ejecting' && currentBall ? getColumnLetter(currentBall) === l : false;
+          const isEjecting = machineState === 'ejecting' && currentBall ? getColumnLetter(currentBall) === b.col : false;
+          const bounceIdx = i % 13;
           return (
-            <div key={l} style={{
+            <div key={i} style={{
               position: 'absolute',
-              left: pos.x, top: pos.y,
-              width: 26, height: 26,
+              left: b.x, top: b.y,
+              width: b.sz, height: b.sz,
               borderRadius: '50%',
               background: ballBc.bg,
-              boxShadow: `0 2px 8px ${ballBc.shadow}, inset 0 2px 4px rgba(255,255,255,0.3)`,
-              animationName: isEjecting ? 'hopperEject' : isMixing ? `hopperBounce${i}` : 'hopperIdle',
-              animationDuration: isEjecting ? '0.5s' : isMixing ? `${0.65 + i * 0.12}s` : '3s',
+              boxShadow: `0 3px 10px ${ballBc.shadow}, inset 0 2px 5px rgba(255,255,255,0.35), inset 0 -1px 3px rgba(0,0,0,0.4)`,
+              animationName: isEjecting && i === 0 ? 'hopperEject' : isMixing ? `hb${bounceIdx}` : 'hopperIdle',
+              animationDuration: isMixing ? `${0.55 + (i % 7) * 0.08}s` : '4s',
               animationTimingFunction: 'ease-in-out',
-              animationIterationCount: isEjecting ? '1' : 'infinite',
-              animationFillMode: isEjecting ? 'forwards' : 'none',
+              animationIterationCount: 'infinite',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 7, fontWeight: 900, color: '#fff',
-              zIndex: isEjecting ? 10 : 1,
-              opacity: isEjecting ? 0 : 1,
-              transition: isEjecting ? 'opacity 0.3s' : 'none',
-            }}>{l}</div>
+              fontSize: 7, fontWeight: 900, color: 'rgba(255,255,255,0.85)',
+              zIndex: 2,
+              textShadow: '0 1px 3px rgba(0,0,0,0.7)',
+            }}>
+              {/* Specular highlight */}
+              <div style={{ position: 'absolute', top: '12%', left: '18%', width: '30%', height: '28%', background: 'radial-gradient(circle,rgba(255,255,255,0.55) 0%,transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+              {b.col}
+            </div>
           );
         })}
+
+        {/* Mixing turbulence glow */}
+        {machineState === 'mixing' && (
+          <div style={{ position: 'absolute', inset: 0, borderRadius: 20, background: 'radial-gradient(ellipse at 50% 80%,rgba(212,175,55,0.1) 0%,transparent 70%)', animation: 'mixingPulse 0.3s ease-in-out infinite', pointerEvents: 'none', zIndex: 4 }} />
+        )}
       </div>
 
-      {/* Tube/chute connector */}
-      <div style={{ width: 4, height: 14, background: 'linear-gradient(180deg,rgba(212,175,55,0.4),rgba(212,175,55,0.1))', borderRadius: 2 }} />
+      {/* Chute */}
+      <div style={{ width: 6, height: 16, background: 'linear-gradient(180deg,rgba(212,175,55,0.5),rgba(212,175,55,0.15))', borderRadius: 3, boxShadow: '0 0 6px rgba(212,175,55,0.3)' }} />
 
       {/* Current ball display */}
       <div style={{ position: 'relative', width: 110, height: 110 }}>
@@ -152,7 +220,7 @@ function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, aut
           <div key={drawKey} style={{
             width: 110, height: 110, borderRadius: '50%',
             background: bc.bg,
-            boxShadow: `0 0 35px ${bc.shadow}, 0 6px 24px rgba(0,0,0,0.8), inset 0 4px 8px rgba(255,255,255,0.3)`,
+            boxShadow: `0 0 40px ${bc.shadow}, 0 6px 24px rgba(0,0,0,0.8), inset 0 4px 8px rgba(255,255,255,0.3)`,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             animation: 'ballSettle 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards',
             position: 'relative', overflow: 'hidden',
@@ -166,7 +234,6 @@ function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, aut
             <span style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em', textAlign: 'center' }}>WAITING{'\n'}FOR DRAW</span>
           </div>
         )}
-        {/* Mixing overlay */}
         {machineState === 'mixing' && (
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle,rgba(212,175,55,0.15) 0%,transparent 70%)', animation: 'mixingPulse 0.4s ease-in-out infinite' }} />
         )}
@@ -189,7 +256,7 @@ function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, aut
       {/* Draw controls */}
       {phase === 'playing' && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={onDraw} disabled={autoPlay || machineState !== 'settled' && machineState !== 'idle'} style={{
+          <button onClick={onDraw} disabled={autoPlay || (machineState !== 'settled' && machineState !== 'idle')} style={{
             padding: '7px 20px', borderRadius: 10, fontWeight: 800, fontSize: 12,
             background: autoPlay ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#1B5E20,#43A047)',
             color: '#fff', border: 'none', cursor: autoPlay ? 'not-allowed' : 'pointer',
@@ -213,9 +280,12 @@ interface BingoCardProps {
   onDaub: (cardIdx: number, col: number, row: number) => void;
   isWinner: boolean;
   label?: string;
+  phase: GamePhase;
+  onClaimBingo: () => void;
+  bingoFeedback: 'none' | 'valid' | 'invalid';
 }
 
-function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, isWinner, label }: BingoCardProps) {
+function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, isWinner, label, phase, onClaimBingo, bingoFeedback }: BingoCardProps) {
   const fontSize = cellSize >= 54 ? 18 : cellSize >= 44 ? 15 : cellSize >= 36 ? 13 : 11;
   const headerFont = cellSize >= 54 ? 22 : cellSize >= 44 ? 18 : cellSize >= 36 ? 15 : 13;
 
@@ -243,7 +313,7 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
         </div>
 
         {/* Grid */}
-        <div style={{ padding: '0 8px 8px', display: 'grid', gridTemplateColumns: `repeat(5,${cellSize}px)`, gap: 3 }}>
+        <div style={{ padding: '0 8px 6px', display: 'grid', gridTemplateColumns: `repeat(5,${cellSize}px)`, gap: 3 }}>
           {[0, 1, 2, 3, 4].map(row => [0, 1, 2, 3, 4].map(col => {
             const val = card[col]?.[row];
             const cellKey = `${cardIdx},${col},${row}`;
@@ -310,6 +380,44 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
             );
           }))}
         </div>
+
+        {/* Per-card BINGO button */}
+        {phase === 'playing' && (
+          <div style={{ padding: '0 8px 8px' }}>
+            <button
+              onClick={onClaimBingo}
+              style={{
+                width: '100%',
+                padding: cellSize >= 54 ? '10px 0' : '7px 0',
+                borderRadius: 10,
+                fontWeight: 900,
+                fontSize: cellSize >= 54 ? 18 : 14,
+                fontFamily: "'Cinzel',serif",
+                letterSpacing: '0.15em',
+                border: 'none',
+                cursor: 'pointer',
+                background: bingoFeedback === 'valid'
+                  ? 'linear-gradient(135deg,#1B5E20,#43A047)'
+                  : bingoFeedback === 'invalid'
+                    ? 'linear-gradient(135deg,#B71C1C,#E53935)'
+                    : 'linear-gradient(135deg,#D4AF37,#B8860B)',
+                color: bingoFeedback !== 'none' ? '#fff' : '#000',
+                boxShadow: bingoFeedback === 'invalid'
+                  ? '0 3px 14px rgba(183,28,28,0.6)'
+                  : '0 3px 18px rgba(212,175,55,0.5), 0 0 0 2px rgba(212,175,55,0.12)',
+                animation: bingoFeedback === 'invalid' ? 'bingoShake 0.4s ease-in-out' : bingoFeedback === 'valid' ? 'bingoFlash 0.6s ease-in-out' : 'none',
+                transition: 'background 0.25s, box-shadow 0.25s',
+              }}
+            >
+              {bingoFeedback === 'valid' ? '✓ BINGO!' : bingoFeedback === 'invalid' ? '✗ NOT YET' : 'BINGO!'}
+            </button>
+          </div>
+        )}
+        {phase === 'won' && isWinner && (
+          <div style={{ padding: '0 8px 8px', textAlign: 'center' }}>
+            <div style={{ fontSize: cellSize >= 54 ? 20 : 15, fontWeight: 900, fontFamily: "'Cinzel',serif", background: 'linear-gradient(135deg,#D4AF37,#FFD700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.7))' }}>✓ BINGO!</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -534,11 +642,19 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#080808 0%,#0b140b 50%,#080808 100%)', color: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <style>{`
-        @keyframes hopperBounce0{0%{transform:translate(0,0) rotate(-5deg)}25%{transform:translate(60px,-28px) rotate(12deg)}50%{transform:translate(110px,-4px) rotate(-8deg)}75%{transform:translate(55px,28px) rotate(15deg)}100%{transform:translate(0,0) rotate(-5deg)}}
-        @keyframes hopperBounce1{0%{transform:translate(0,0) rotate(8deg)}30%{transform:translate(-40px,22px) rotate(-15deg)}60%{transform:translate(70px,30px) rotate(10deg)}100%{transform:translate(0,0) rotate(8deg)}}
-        @keyframes hopperBounce2{0%{transform:translate(0,0)}20%{transform:translate(-60px,-20px) rotate(-20deg)}55%{transform:translate(30px,25px) rotate(18deg)}80%{transform:translate(-20px,-10px) rotate(-8deg)}100%{transform:translate(0,0)}}
-        @keyframes hopperBounce3{0%{transform:translate(0,0) rotate(5deg)}35%{transform:translate(65px,-25px) rotate(-12deg)}70%{transform:translate(-30px,15px) rotate(20deg)}100%{transform:translate(0,0) rotate(5deg)}}
-        @keyframes hopperBounce4{0%{transform:translate(0,0) rotate(-10deg)}40%{transform:translate(-50px,20px) rotate(15deg)}75%{transform:translate(40px,-22px) rotate(-18deg)}100%{transform:translate(0,0) rotate(-10deg)}}
+        @keyframes hb0{0%{transform:translate(0,0) rotate(-5deg)}25%{transform:translate(42px,-32px) rotate(14deg)}50%{transform:translate(85px,-6px) rotate(-10deg)}75%{transform:translate(40px,30px) rotate(12deg)}100%{transform:translate(0,0) rotate(-5deg)}}
+        @keyframes hb1{0%{transform:translate(0,0) rotate(8deg)}30%{transform:translate(-35px,28px) rotate(-18deg)}60%{transform:translate(60px,22px) rotate(12deg)}100%{transform:translate(0,0) rotate(8deg)}}
+        @keyframes hb2{0%{transform:translate(0,0)}20%{transform:translate(-52px,-24px) rotate(-22deg)}55%{transform:translate(28px,30px) rotate(16deg)}80%{transform:translate(-18px,-14px) rotate(-8deg)}100%{transform:translate(0,0)}}
+        @keyframes hb3{0%{transform:translate(0,0) rotate(5deg)}35%{transform:translate(55px,-30px) rotate(-15deg)}70%{transform:translate(-28px,20px) rotate(22deg)}100%{transform:translate(0,0) rotate(5deg)}}
+        @keyframes hb4{0%{transform:translate(0,0) rotate(-10deg)}40%{transform:translate(-45px,24px) rotate(18deg)}75%{transform:translate(38px,-28px) rotate(-20deg)}100%{transform:translate(0,0) rotate(-10deg)}}
+        @keyframes hb5{0%{transform:translate(0,0) rotate(3deg)}33%{transform:translate(70px,18px) rotate(-14deg)}66%{transform:translate(-22px,-26px) rotate(10deg)}100%{transform:translate(0,0) rotate(3deg)}}
+        @keyframes hb6{0%{transform:translate(0,0)}28%{transform:translate(-62px,-18px) rotate(20deg)}58%{transform:translate(32px,32px) rotate(-16deg)}85%{transform:translate(14px,-8px) rotate(6deg)}100%{transform:translate(0,0)}}
+        @keyframes hb7{0%{transform:translate(0,0) rotate(-8deg)}22%{transform:translate(48px,26px) rotate(16deg)}50%{transform:translate(-38px,-20px) rotate(-12deg)}78%{transform:translate(20px,18px) rotate(8deg)}100%{transform:translate(0,0) rotate(-8deg)}}
+        @keyframes hb8{0%{transform:translate(0,0) rotate(12deg)}38%{transform:translate(-58px,14px) rotate(-20deg)}72%{transform:translate(36px,-24px) rotate(14deg)}100%{transform:translate(0,0) rotate(12deg)}}
+        @keyframes hb9{0%{transform:translate(0,0)}18%{transform:translate(44px,-30px) rotate(-18deg)}45%{transform:translate(-30px,22px) rotate(20deg)}72%{transform:translate(58px,16px) rotate(-8deg)}100%{transform:translate(0,0)}}
+        @keyframes hb10{0%{transform:translate(0,0) rotate(-6deg)}30%{transform:translate(-50px,-22px) rotate(16deg)}60%{transform:translate(34px,28px) rotate(-14deg)}100%{transform:translate(0,0) rotate(-6deg)}}
+        @keyframes hb11{0%{transform:translate(0,0) rotate(10deg)}25%{transform:translate(60px,20px) rotate(-22deg)}55%{transform:translate(-40px,-18px) rotate(12deg)}80%{transform:translate(22px,12px) rotate(-6deg)}100%{transform:translate(0,0) rotate(10deg)}}
+        @keyframes hb12{0%{transform:translate(0,0)}20%{transform:translate(-44px,28px) rotate(18deg)}50%{transform:translate(62px,-22px) rotate(-16deg)}80%{transform:translate(-16px,20px) rotate(10deg)}100%{transform:translate(0,0)}}
         @keyframes hopperIdle{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(2px,-3px) rotate(3deg)}}
         @keyframes hopperEject{0%{transform:translate(0,0) scale(1); opacity:1}100%{transform:translate(0,80px) scale(0); opacity:0}}
         @keyframes ballSettle{0%{transform:translateY(-60px) scale(0.5) rotate(-30deg);opacity:0}55%{transform:translateY(10px) scale(1.1) rotate(8deg);opacity:1}75%{transform:translateY(-5px) scale(0.97) rotate(-3deg)}100%{transform:translateY(0) scale(1) rotate(0);opacity:1}}
@@ -697,6 +813,7 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
               autoSpeed={autoSpeed}
               phase={phase}
               calledCount={calledNumbers.length}
+              isMuted={isMuted}
             />
 
             {/* Auto-play toggle */}
@@ -819,6 +936,9 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
                   onDaub={daubCell}
                   isWinner={winCells.has(ci)}
                   label={numCards > 1 ? `CARD ${ci + 1}` : undefined}
+                  phase={phase}
+                  onClaimBingo={claimBingo}
+                  bingoFeedback={bingoFeedback}
                 />
               ))}
             </div>
