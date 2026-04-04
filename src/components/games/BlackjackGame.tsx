@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createDeck, shuffleDeck, calculateBlackjackValue, isBlackjack } from '@/hooks/useGameEngine';
-import { PokerChip, ChipStack } from '@/components/PokerChip';
+import { PokerChip, ChipStack, DealerVegasProps } from '@/components/PokerChip';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -457,7 +457,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
             </div>
 
             <div className="relative z-10 flex flex-col items-center justify-start pt-6">
-              <div className="relative mb-3">
+              <div className="relative mb-3 flex items-center gap-4">
+                <DealerVegasProps />
                 <div className="px-6 py-1 rounded-lg border border-[#D4AF37]/50"
                   style={{
                     background: 'linear-gradient(180deg, #2a1f0e 0%, #1a1208 100%)',
@@ -466,6 +467,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                 >
                   <div className="text-sm text-[#D4AF37] tracking-[0.3em] font-bold font-casino">DEALER</div>
                 </div>
+                <DealerVegasProps />
               </div>
               <div className="text-center mb-2">
                 <div className="text-xl font-bold text-white bg-black/40 px-4 py-1 rounded-full">

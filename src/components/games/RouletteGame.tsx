@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PokerChip } from '@/components/PokerChip';
+import { PokerChip, DealerVegasProps } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRouletteVoice } from '@/hooks/useGameVoice';
 import RouletteWheel3D from '@/components/games/RouletteWheel3D';
@@ -658,6 +658,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
 
         {/* Top: 3D Wheel + Credit + History */}
         <div className="relative flex-shrink-0" style={{ height: '34%', minHeight: '220px' }}>
+          {/* Dealer side Vegas props */}
+          <div className="absolute top-2 right-3 z-20 pointer-events-none">
+            <DealerVegasProps />
+          </div>
           {/* Credit counter */}
           <div
             className="absolute top-3 left-3 z-20"

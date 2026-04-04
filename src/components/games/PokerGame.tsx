@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { createDeck, shuffleDeck, evaluatePokerHand } from '@/hooks/useGameEngine';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { usePokerVoice } from '@/hooks/useGameVoice';
-import { PokerChip } from '@/components/PokerChip';
+import { PokerChip, DealerVegasProps } from '@/components/PokerChip';
 import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
@@ -731,6 +731,11 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 <div style={{ fontSize:8, color:'#D4AF37', letterSpacing:'0.15em', fontWeight:700 }}>TABLE LIMITS</div>
                 <div style={{ fontSize:9, color:'#C0C0C0', marginTop:2 }}>MIN 5 $Pc</div>
                 <div style={{ fontSize:9, color:'#C0C0C0' }}>MAX 500 $Pc</div>
+              </div>
+
+              {/* Dealer side Vegas props — chip tray + dice + card fan */}
+              <div className="absolute z-[15] pointer-events-none" style={{ top:'4%', left:'50%', transform:'translateX(-50%)' }}>
+                <DealerVegasProps />
               </div>
 
               {/* Card shoe */}

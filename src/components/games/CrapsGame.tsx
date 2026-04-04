@@ -3,7 +3,7 @@ import { Info, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PokerChip, ChipStack } from '@/components/PokerChip';
+import { PokerChip, ChipStack, DealerVegasProps } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -877,6 +877,11 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
           </TooltipProvider>
         }
       />
+
+      {/* Dealer side Vegas props */}
+      <div className="flex justify-center py-1 pointer-events-none select-none" style={{ borderBottom: '1px solid rgba(212,175,55,0.1)' }}>
+        <DealerVegasProps />
+      </div>
 
       {/* Win/Loss Flash Overlays */}
       {winFlash && (
