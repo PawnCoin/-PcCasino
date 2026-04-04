@@ -12,3 +12,15 @@ id = "yk5rxRukL1aNe0xVP7kmu"
 uri = "file://public/logos/game-dominoes.png"
 type = "image"
 title = "dominoes game card"
+
+[[generated]]
+id = "kXFR1I-DdOtRV6Kn4CUqv"
+uri = "file://public/logos/game-pool.png"
+type = "image"
+title = "pool table game card"
+
+[[generated]]
+id = "n035q8_nMSqh1wvJ0_go5"
+uri = "file://public/logos/game-darts.png"
+type = "image"
+title = "darts game card"

@@ -93,6 +93,26 @@ const games: GameCard[] = [
     badge: 'NEW',
     href: '/game/dominoes',
   },
+  {
+    id: 'pool',
+    name: 'Pool Table',
+    description: '8-Ball and 9-Ball billiards. Rack em up, take your shot, and win big on the felt.',
+    image: '/logos/game-pool.png',
+    minBet: 5,
+    activeTables: 22,
+    badge: 'NEW',
+    href: '/game/pool',
+  },
+  {
+    id: 'darts',
+    name: 'Darts',
+    description: 'Bullseye betting with 501, Cricket, and Around the Clock. Hit the mark and cash out.',
+    image: '/logos/game-darts.png',
+    minBet: 2,
+    activeTables: 15,
+    badge: 'NEW',
+    href: '/game/darts',
+  },
 ];
 
 const badgeStyles: Record<string, string> = {

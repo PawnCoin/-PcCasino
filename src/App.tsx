@@ -336,6 +336,40 @@ function App() {
             onWin={handleWin}
           />
         );
+      case 'pool':
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #1a1a0a 100%)' }}>
+            <div className="text-center p-12 rounded-2xl" style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(0,0,0,0.6)' }}>
+              <div className="text-7xl mb-6">🎱</div>
+              <h2 className="font-casino text-4xl font-bold mb-3 metallic-gold-text">Pool Table</h2>
+              <p className="text-[#A0A0A0] text-lg mb-8">Game coming soon — drop in your build to activate</p>
+              <button
+                onClick={() => setCurrentView('lobby')}
+                className="px-8 py-3 rounded-xl font-bold text-black transition-all"
+                style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', boxShadow: '0 0 20px rgba(212,175,55,0.4)' }}
+              >
+                Back to Lobby
+              </button>
+            </div>
+          </div>
+        );
+      case 'darts':
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #0a0a1a 100%)' }}>
+            <div className="text-center p-12 rounded-2xl" style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(0,0,0,0.6)' }}>
+              <div className="text-7xl mb-6">🎯</div>
+              <h2 className="font-casino text-4xl font-bold mb-3 metallic-gold-text">Darts</h2>
+              <p className="text-[#A0A0A0] text-lg mb-8">Game coming soon — drop in your build to activate</p>
+              <button
+                onClick={() => setCurrentView('lobby')}
+                className="px-8 py-3 rounded-xl font-bold text-black transition-all"
+                style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', boxShadow: '0 0 20px rgba(212,175,55,0.4)' }}
+              >
+                Back to Lobby
+              </button>
+            </div>
+          </div>
+        );
       default:
         return (
           <>
