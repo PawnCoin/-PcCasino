@@ -563,62 +563,169 @@ function startAmbientSound(volume: number) {
   const master = getMasterGain();
 
   const ambientGain = ctx.createGain();
-  ambientGain.gain.setValueAtTime(0.04 * volume, ctx.currentTime);
+  ambientGain.gain.setValueAtTime(0.055 * volume, ctx.currentTime);
   ambientGain.connect(master);
 
-  const crowdBuf = createPinkNoiseBuffer(ctx, 3);
-  const crowdSource = ctx.createBufferSource();
-  crowdSource.buffer = crowdBuf;
-  crowdSource.loop = true;
-  const crowdFilter = ctx.createBiquadFilter();
-  crowdFilter.type = 'lowpass';
-  crowdFilter.frequency.value = 700;
-  crowdFilter.Q.value = 0.5;
-  const crowdGain = ctx.createGain();
-  crowdGain.gain.value = 0.55;
-  crowdSource.connect(crowdFilter);
-  crowdFilter.connect(crowdGain);
-  crowdGain.connect(ambientGain);
-  crowdSource.start();
+  // ── ROOM TONE: low rumble of many voices ──────────────────────────────────
+  const roomBuf = createPinkNoiseBuffer(ctx, 4);
+  const roomSrc = ctx.createBufferSource();
+  roomSrc.buffer = roomBuf;
+  roomSrc.loop = true;
+  const roomLP = ctx.createBiquadFilter();
+  roomLP.type = 'lowpass';
+  roomLP.frequency.value = 380;
+  roomLP.Q.value = 0.6;
+  const roomGain = ctx.createGain();
+  roomGain.gain.value = 0.4;
+  roomSrc.connect(roomLP);
+  roomLP.connect(roomGain);
+  roomGain.connect(ambientGain);
+  roomSrc.start();
 
+  // ── CHATTER LAYER: voice-like formant band (300–3400 Hz mid band) ─────────
+  const chatterBuf = createPinkNoiseBuffer(ctx, 6);
+  const chatterSrc = ctx.createBufferSource();
+  chatterSrc.buffer = chatterBuf;
+  chatterSrc.loop = true;
+
+  // Stack three bandpass filters to emulate voice formants
+  const formants = [
+    { freq: 520, Q: 3.5, gain: 0.28 },   // F1 chest resonance
+    { freq: 1050, Q: 4.0, gain: 0.22 },  // F2 vowel colour
+    { freq: 2400, Q: 5.0, gain: 0.12 },  // F3 speech clarity
+  ];
+  formants.forEach(f => {
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = f.freq;
+    bp.Q.value = f.Q;
+    const fg = ctx.createGain();
+    fg.gain.value = f.gain;
+    chatterSrc.connect(bp);
+    bp.connect(fg);
+    fg.connect(ambientGain);
+  });
+  chatterSrc.start();
+
+  // ── LFO to make crowd volume swell naturally ───────────────────────────────
+  const swellLFO = ctx.createOscillator();
+  swellLFO.type = 'sine';
+  swellLFO.frequency.value = 0.07;
+  const swellDepth = ctx.createGain();
+  swellDepth.gain.value = 0.015;
+  swellLFO.connect(swellDepth);
+  swellDepth.connect(ambientGain.gain);
+  swellLFO.start();
+
+  const swellLFO2 = ctx.createOscillator();
+  swellLFO2.type = 'sine';
+  swellLFO2.frequency.value = 0.031;
+  const swellDepth2 = ctx.createGain();
+  swellDepth2.gain.value = 0.009;
+  swellLFO2.connect(swellDepth2);
+  swellDepth2.connect(ambientGain.gain);
+  swellLFO2.start();
+
+  // ── SLOT MACHINE PINGS in background ──────────────────────────────────────
   const slotBuf = createPinkNoiseBuffer(ctx, 2);
-  const slotSource = ctx.createBufferSource();
-  slotSource.buffer = slotBuf;
-  slotSource.loop = true;
-  const slotFilter = ctx.createBiquadFilter();
-  slotFilter.type = 'bandpass';
-  slotFilter.frequency.value = 2800;
-  slotFilter.Q.value = 6;
+  const slotSrc = ctx.createBufferSource();
+  slotSrc.buffer = slotBuf;
+  slotSrc.loop = true;
+  const slotBP = ctx.createBiquadFilter();
+  slotBP.type = 'bandpass';
+  slotBP.frequency.value = 3200;
+  slotBP.Q.value = 8;
   const slotGain = ctx.createGain();
-  slotGain.gain.value = 0.12;
-  slotSource.connect(slotFilter);
-  slotFilter.connect(slotGain);
+  slotGain.gain.value = 0.06;
+  slotSrc.connect(slotBP);
+  slotBP.connect(slotGain);
   slotGain.connect(ambientGain);
-  slotSource.start();
+  slotSrc.start();
 
-  const lfoOsc = ctx.createOscillator();
-  lfoOsc.type = 'sine';
-  lfoOsc.frequency.value = 0.12;
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.012;
-  lfoOsc.connect(lfoGain);
-  lfoGain.connect(ambientGain.gain);
-  lfoOsc.start();
+  // ── RANDOM CHEER/LAUGH BURSTS ─────────────────────────────────────────────
+  let cheerIntervalId: ReturnType<typeof setInterval>;
+  let motivationIntervalId: ReturnType<typeof setInterval>;
+
+  function playCheerBurst() {
+    const now = ctx.currentTime;
+    const burstGain = ctx.createGain();
+    burstGain.gain.setValueAtTime(0, now);
+    burstGain.gain.linearRampToValueAtTime(0.08 * volume, now + 0.15);
+    burstGain.gain.setValueAtTime(0.07 * volume, now + 0.4);
+    burstGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+    burstGain.connect(master);
+
+    const noiseBuf = createPinkNoiseBuffer(ctx, 2.0);
+    const nSrc = ctx.createBufferSource();
+    nSrc.buffer = noiseBuf;
+
+    // Multiple formants for cheer character
+    [600, 1200, 2200].forEach((freq, i) => {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = freq + Math.random() * 200;
+      bp.Q.value = 2 + i;
+      const bg = ctx.createGain();
+      bg.gain.value = 0.4 - i * 0.1;
+      nSrc.connect(bp);
+      bp.connect(bg);
+      bg.connect(burstGain);
+    });
+    nSrc.start(now);
+    nSrc.stop(now + 2.0);
+  }
+
+  function playMotivationRise() {
+    const now = ctx.currentTime;
+    // Crowd pitch rise — filtered noise sweeping upward
+    const riseGain = ctx.createGain();
+    riseGain.gain.setValueAtTime(0, now);
+    riseGain.gain.linearRampToValueAtTime(0.05 * volume, now + 0.6);
+    riseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+    riseGain.connect(master);
+
+    const buf = createPinkNoiseBuffer(ctx, 1.6);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(400, now);
+    bp.frequency.linearRampToValueAtTime(1400, now + 1.0);
+    bp.Q.value = 3;
+    src.connect(bp);
+    bp.connect(riseGain);
+    src.start(now);
+    src.stop(now + 1.6);
+  }
+
+  // Random cheers every 8–20 seconds
+  cheerIntervalId = setInterval(() => {
+    if (Math.random() < 0.65) playCheerBurst();
+  }, 8000 + Math.random() * 12000);
+
+  // Motivation chant/rise every 15–35 seconds
+  motivationIntervalId = setInterval(() => {
+    if (Math.random() < 0.55) playMotivationRise();
+  }, 15000 + Math.random() * 20000);
 
   ambientNodes = {
     stop: () => {
       try {
-        crowdSource.stop();
-        slotSource.stop();
-        lfoOsc.stop();
+        roomSrc.stop();
+        chatterSrc.stop();
+        slotSrc.stop();
+        swellLFO.stop();
+        swellLFO2.stop();
         ambientGain.disconnect();
+        clearInterval(cheerIntervalId);
+        clearInterval(motivationIntervalId);
       } catch (_) {}
     },
   };
 
   return {
     updateVolume: (v: number) => {
-      ambientGain.gain.setTargetAtTime(0.04 * v, ctx.currentTime, 0.1);
+      ambientGain.gain.setTargetAtTime(0.055 * v, ctx.currentTime, 0.3);
     },
   };
 }
@@ -641,7 +748,13 @@ export function useSoundEffects() {
     return stored ? parseFloat(stored) : 0.7;
   });
 
-  const [ambientEnabled, setAmbientEnabled] = useState(false);
+  const [ambientEnabled, setAmbientEnabled] = useState(() => {
+    try {
+      const s = localStorage.getItem('pcasino_game_settings');
+      if (s) return JSON.parse(s).casinoSoundEnabled ?? true;
+    } catch {}
+    return true; // casino crowd sound on by default
+  });
   const ambientControlRef = useRef<{ updateVolume: (v: number) => void } | null>(null);
 
   useEffect(() => {

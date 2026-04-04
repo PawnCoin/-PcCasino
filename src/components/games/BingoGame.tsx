@@ -1,18 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft, Volume2, VolumeX, RefreshCw, Info, Users, Award,
-  Plus, Minus, ChevronLeft, ChevronRight,
+  Plus, Minus, ChevronLeft, ChevronRight, Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useGameVoice } from '@/hooks/useGameVoice';
+import { InGameTopBar } from '@/components/InGameTopBar';
 
 interface BingoGameProps {
   balance: number;
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onAddBalance?: (amount: number) => void;
+}
+
+function fmtPc(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000 % 1 === 0 ? (n / 1_000_000).toFixed(0) : (n / 1_000_000).toFixed(1))}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString();
 }
 
 type GamePhase = 'setup' | 'playing' | 'won' | 'gameover';
@@ -46,7 +55,7 @@ const HOPPER_BALLS = [
 ];
 
 const WIN_PAYOUTS: Record<string, number> = { Line: 3, Diagonal: 5, '4 Corners': 7, BLACKOUT: 20 };
-const BET_OPTIONS = [5, 10, 25, 50, 100];
+const BET_OPTIONS = [1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -436,10 +445,10 @@ function ConfettiPiece({ x, y, color, delay, shape }: { x: number; y: number; co
 }
 
 // ── MAIN GAME ────────────────────────────────────────────────────────────────
-export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
+export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: BingoGameProps) {
   const [phase, setPhase] = useState<GamePhase>('setup');
   const [numCards, setNumCards] = useState(1);
-  const [betAmount, setBetAmount] = useState(25);
+  const [betAmount, setBetAmount] = useState(5_000_000);
   const [cards, setCards] = useState<(number | 'FREE')[][][]>([]);
   const [daubed, setDaubed] = useState<boolean[][][]>([]);
   const [hinted, setHinted] = useState<Set<string>>(new Set());
@@ -550,7 +559,7 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
 
           isDrawing.current = false;
         }, 700);
-      }, 1000);
+      }, 2500);
 
       return rest;
     });
@@ -613,7 +622,7 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
       setPhase('won');
       setBingoFeedback('valid');
       setAutoPlay(false);
-      setMessage(`BINGO! ${bestPattern} — You win ${prize.toLocaleString()} $Pc (${mult}×)!`);
+      setMessage(`BINGO! ${bestPattern} — You win ${fmtPc(prize)} $Pc (${mult}×)!`);
       if (voiceOn && voiceSupported) speak(`BINGO! ${bestPattern}! You win ${prize} pawn coin!`, 0.88);
 
       const colors = ['#D4AF37', '#FFD700', '#43A047', '#1E88E5', '#E53935', '#9C27B0', '#FF9800', '#fff', '#00BCD4'];
@@ -676,43 +685,34 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
       {confetti.map(p => <ConfettiPiece key={p.id} x={p.x} y={p.y} color={p.color} delay={p.delay} shape={p.shape} />)}
 
       {/* NAV */}
-      <nav style={{ background: 'rgba(8,8,8,0.97)', borderBottom: '1px solid rgba(212,175,55,0.25)', flexShrink: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9ca3af'}>
-            <ArrowLeft style={{ width: 18, height: 18 }} />
-            <span style={{ fontFamily: "'Cinzel',serif", fontWeight: 700, color: '#D4AF37', fontSize: 14, letterSpacing: '0.12em' }}>BINGO 75-BALL</span>
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Online players badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 12px', borderRadius: 16, background: 'rgba(67,160,71,0.12)', border: '1px solid rgba(67,160,71,0.3)' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
-              <Users style={{ width: 13, height: 13, color: '#66BB6A' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayers.toLocaleString()}</span>
-              <span style={{ fontSize: 9, color: '#4b5563' }}>ONLINE</span>
+      <InGameTopBar
+        gameName="Bingo 75-Ball"
+        balance={balance}
+        onBack={onBack}
+        onAddBalance={onAddBalance}
+        winAmount={phase === 'won' ? betAmount * numCards * WIN_PAYOUTS.Line : undefined}
+        showShare={phase === 'won'}
+        rightSlot={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 14, background: 'rgba(67,160,71,0.1)', border: '1px solid rgba(67,160,71,0.25)' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
+              <Users style={{ width: 11, height: 11, color: '#66BB6A' }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayers.toLocaleString()}</span>
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 12px', borderRadius: 16, background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)' }}>
-              <img src="/logos/pc-logo.png" alt="" style={{ width: 16, height: 16 }} />
-              <span style={{ fontWeight: 700, color: '#D4AF37', fontSize: 13 }}>{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              <span style={{ fontSize: 10, color: '#6b7280' }}>$Pc</span>
-            </div>
-
             {voiceSupported && (
-              <button onClick={() => setVoiceOn(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: voiceOn ? '#D4AF37' : '#374151', padding: 5, borderRadius: 8 }} title="Voice caller">
-                <Volume2 style={{ width: 16, height: 16 }} />
+              <button onClick={() => setVoiceOn(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: voiceOn ? '#D4AF37' : '#374151', padding: 4, borderRadius: 6 }} title="Voice caller">
+                <Volume2 style={{ width: 14, height: 14 }} />
               </button>
             )}
-            <button onClick={() => setIsMuted(m => !m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#374151' : '#6b7280', padding: 5, borderRadius: 8 }}>
-              {isMuted ? <VolumeX style={{ width: 16, height: 16 }} /> : <Volume2 style={{ width: 16, height: 16 }} />}
+            <button onClick={() => setIsMuted(m => !m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#374151' : '#6b7280', padding: 4, borderRadius: 6 }}>
+              {isMuted ? <VolumeX style={{ width: 14, height: 14 }} /> : <Volume2 style={{ width: 14, height: 14 }} />}
             </button>
-            <button onClick={() => setShowRules(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: 5, borderRadius: 8 }}>
-              <Info style={{ width: 16, height: 16 }} />
+            <button onClick={() => setShowRules(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: 4, borderRadius: 6 }}>
+              <Info style={{ width: 14, height: 14 }} />
             </button>
           </div>
-        </div>
-      </nav>
+        }
+      />
 
       {/* CALLED TICKER */}
       {calledTicker.length > 0 && (
@@ -773,14 +773,14 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
                     background: betAmount === v ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
                     border: `1.5px solid ${betAmount === v ? 'rgba(212,175,55,0.7)' : 'rgba(255,255,255,0.1)'}`,
                     color: betAmount === v ? '#D4AF37' : '#9ca3af',
-                  }}>{v} $Pc</button>
+                  }}>{fmtPc(v)}</button>
                 ))}
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.07)', marginBottom: 20 }}>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#4b5563' }}>TOTAL COST</div><div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{(betAmount * numCards)} $Pc</div></div>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#4b5563' }}>BLACKOUT WIN</div><div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{(betAmount * numCards * WIN_PAYOUTS.BLACKOUT)} $Pc</div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#4b5563' }}>TOTAL COST</div><div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{fmtPc(betAmount * numCards)} $Pc</div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#4b5563' }}>BLACKOUT WIN</div><div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{fmtPc(betAmount * numCards * WIN_PAYOUTS.BLACKOUT)} $Pc</div></div>
             </div>
 
             <button onClick={startGame} style={{
@@ -1002,7 +1002,7 @@ export function BingoGame({ balance, onBack, onBet, onWin }: BingoGameProps) {
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>LINE WIN</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{betAmount * numCards * WIN_PAYOUTS.Line} $Pc</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{fmtPc(betAmount * numCards * WIN_PAYOUTS.Line)} $Pc</div>
               </div>
             </div>
           </div>

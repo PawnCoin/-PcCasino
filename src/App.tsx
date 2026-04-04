@@ -22,6 +22,8 @@ import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
 import { DominoesGame } from '@/components/games/DominoesGame';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
+import { GlobalGameProvider } from '@/contexts/GlobalGameContext';
+import { CasinoBackground } from '@/components/CasinoBackground';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -102,7 +104,7 @@ function App() {
         email: data?.email,
         walletAddress: data?.address,
         socialProvider: method !== 'wallet' ? method : undefined,
-        balance: 1000, // Welcome bonus
+        balance: 1_000_000_000, // Welcome bonus (1B $Pc)
         avatar: ['👤', '🎰', '💎', '🎲', '🃏'][Math.floor(Math.random() * 5)],
       };
     }
@@ -112,8 +114,8 @@ function App() {
     localStorage.setItem('pcasino_user', JSON.stringify(userData));
     
     if (!existingUser) {
-      addTransaction('deposit', 1000, 'Welcome Bonus');
-      toast.success('Welcome! 1000 $Pc bonus added!');
+      addTransaction('deposit', 1_000_000_000, 'Welcome Bonus');
+      toast.success('Welcome! 1B $Pc bonus added!');
     } else {
       toast.success(`${method.charAt(0).toUpperCase() + method.slice(1)} connected to your profile!`);
     }
@@ -215,6 +217,16 @@ function App() {
     }
   };
 
+  // In-game $Pc reload (used from InGameTopBar quick-buy)
+  const handleAddBalance = (amount: number) => {
+    if (user) {
+      updateBalance(user.balance + amount);
+      addTransaction('deposit', amount, 'Quick Reload');
+      const fmt = amount >= 1_000_000 ? `${(amount / 1_000_000).toFixed(0)}M` : amount.toLocaleString();
+      toast.success(`${fmt} $Pc added to your balance!`);
+    }
+  };
+
   // Daily bonus
   const claimDailyBonus = () => {
     if (dailyBonusClaimed) {
@@ -222,10 +234,10 @@ function App() {
       return;
     }
     if (user) {
-      updateBalance(user.balance + 50);
-      addTransaction('deposit', 50, 'Daily Bonus');
+      updateBalance(user.balance + 50_000_000);
+      addTransaction('deposit', 50_000_000, 'Daily Bonus');
       setDailyBonusClaimed(true);
-      toast.success('Claimed 50 $Pc daily bonus!');
+      toast.success('Claimed 50M $Pc daily bonus!');
     }
   };
 
@@ -325,6 +337,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onAddBalance={handleAddBalance}
           />
         );
       case 'dominoes':
@@ -443,7 +456,9 @@ function App() {
   };
 
   return (
+    <GlobalGameProvider balance={user?.balance || 0}>
     <div className="min-h-screen">
+      <CasinoBackground />
       <Toaster 
         position="top-right" 
         toastOptions={{
@@ -664,7 +679,7 @@ function App() {
                 disabled={dailyBonusClaimed}
                 className="w-full btn-primary"
               >
-                {dailyBonusClaimed ? 'Already Claimed' : 'Claim 50 $Pc'}
+                {dailyBonusClaimed ? 'Already Claimed' : 'Claim 50M $Pc'}
               </Button>
             </div>
             
@@ -795,6 +810,7 @@ function App() {
         </div>
       )}
     </div>
+    </GlobalGameProvider>
   );
 }
 
