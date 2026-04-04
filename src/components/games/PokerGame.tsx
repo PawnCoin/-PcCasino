@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { createDeck, shuffleDeck, evaluatePokerHand } from '@/hooks/useGameEngine';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { usePokerVoice } from '@/hooks/useGameVoice';
-import { PokerChip, DealerVegasProps } from '@/components/PokerChip';
+import { PokerChip, ChipSelector, DealerVegasProps } from '@/components/PokerChip';
 import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
@@ -858,10 +858,13 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                   )}
                 </div>
 
-                <div ref={chipAreaRef} className="flex gap-2">
-                  {CHIP_VALUES.map(value => (
-                    <PokerChip key={value} amount={value} size="sm" selected={selectedChip === value} onClick={() => setSelectedChip(value)} />
-                  ))}
+                <div ref={chipAreaRef}>
+                  <ChipSelector
+                    selectedChip={selectedChip}
+                    onSelect={setSelectedChip}
+                    balance={balance}
+                    compact
+                  />
                 </div>
               </div>
             </div>

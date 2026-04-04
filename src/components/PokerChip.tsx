@@ -215,18 +215,30 @@ export const CHIP_PX = { sm: 44, md: 58, lg: 74 };
 
 export function PokerChip({ amount, size = 'md', onClick, selected, className = '' }: PokerChipProps) {
   const px = CHIP_PX[size];
-  return (
-    <button
-      onClick={onClick}
-      className={`relative inline-flex items-center justify-center transition-all duration-200 ${onClick ? 'cursor-pointer hover:scale-110 hover:-translate-y-1.5 active:scale-95' : 'cursor-default'} ${selected ? 'scale-110 -translate-y-1' : ''} ${className}`}
-      style={{ width: px, height: px, background: 'none', border: 'none', padding: 0 }}
-    >
+  const inner = (
+    <>
       {selected && (
         <div className="absolute inset-0 rounded-full pointer-events-none"
           style={{ boxShadow: '0 0 0 2.5px #D4AF37, 0 0 14px rgba(212,175,55,0.8)', borderRadius: '50%' }} />
       )}
       <ChipFace amount={amount} size={px} />
-    </button>
+    </>
+  );
+
+  const baseStyle: React.CSSProperties = { width: px, height: px, background: 'none', border: 'none', padding: 0 };
+  const baseClass = `relative inline-flex items-center justify-center transition-all duration-200 ${selected ? 'scale-110 -translate-y-1' : ''} ${className}`;
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={`${baseClass} cursor-pointer hover:scale-110 hover:-translate-y-1.5 active:scale-95`} style={baseStyle}>
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <div className={`${baseClass} cursor-default`} style={baseStyle}>
+      {inner}
+    </div>
   );
 }
 

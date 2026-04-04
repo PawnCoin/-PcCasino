@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft, Volume2, VolumeX, RefreshCw, Info, Users, Award,
-  Plus, Minus, ChevronLeft, ChevronRight, Share2,
+  Plus, Minus, ChevronLeft, ChevronRight, Share2, PlusCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useGameVoice } from '@/hooks/useGameVoice';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { PokerChip, ALL_CHIP_DENOMS, formatChipLabel } from '@/components/PokerChip';
 
 interface BingoGameProps {
   balance: number;
@@ -55,7 +56,7 @@ const HOPPER_BALLS = [
 ];
 
 const WIN_PAYOUTS: Record<string, number> = { Line: 3, Diagonal: 5, '4 Corners': 7, BLACKOUT: 20 };
-const BET_OPTIONS = [1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000];
+const BET_OPTIONS = ALL_CHIP_DENOMS;
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -764,16 +765,33 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
               <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6 }}>max 5 cards</div>
             </div>
 
+            {/* Balance + Get More */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(212,175,55,0.15)' }}>
+              <div>
+                <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', fontWeight: 700 }}>YOUR BALANCE</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#D4AF37' }}>{fmtPc(balance)} $Pc</div>
+              </div>
+              {onAddBalance && (
+                <button
+                  onClick={() => onAddBalance(10_000)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)', color: '#66BB6A', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <PlusCircle size={13} /> Get $Pc
+                </button>
+              )}
+            </div>
+
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 10 }}>COST PER CARD</div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
                 {BET_OPTIONS.map(v => (
-                  <button key={v} onClick={() => setBetAmount(v)} style={{
-                    padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                    background: betAmount === v ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
-                    border: `1.5px solid ${betAmount === v ? 'rgba(212,175,55,0.7)' : 'rgba(255,255,255,0.1)'}`,
-                    color: betAmount === v ? '#D4AF37' : '#9ca3af',
-                  }}>{fmtPc(v)}</button>
+                  <PokerChip
+                    key={v}
+                    amount={v}
+                    size="sm"
+                    selected={betAmount === v}
+                    onClick={() => setBetAmount(v)}
+                  />
                 ))}
               </div>
             </div>

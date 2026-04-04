@@ -3,7 +3,7 @@ import { Info, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PokerChip, ChipStack, DealerVegasProps } from '@/components/PokerChip';
+import { PokerChip, ChipStack, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -1124,20 +1124,27 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
             </div>
           )}
 
+          {/* Balance + Get More */}
+          <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
+            <div>
+              <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
+              <div className="text-base font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
+            </div>
+            {onAddBalance && (
+              <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
+                + Get $Pc
+              </button>
+            )}
+          </div>
           {/* Chip Selection */}
           <div className="mb-4">
-            <div className="text-center text-[#C0C0C0] text-sm mb-2 tracking-wider">SELECT CHIP</div>
-            <div className="flex gap-2 flex-wrap justify-center">
-              {CHIP_VALUES.map(amount => (
-                <PokerChip
-                  key={amount}
-                  amount={amount}
-                  size="md"
-                  selected={selectedChip === amount}
-                  onClick={() => setSelectedChip(amount)}
-                />
-              ))}
-            </div>
+            <div className="text-center text-[#C0C0C0] text-xs mb-2 tracking-wider">SELECT CHIP</div>
+            <ChipSelector
+              selectedChip={selectedChip}
+              onSelect={setSelectedChip}
+              balance={balance}
+              compact
+            />
           </div>
 
           {/* Total Bet */}

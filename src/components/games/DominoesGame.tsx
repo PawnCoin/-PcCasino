@@ -1,8 +1,9 @@
 import React, { useState, useReducer, useEffect, useRef } from 'react';
-import { Settings, RotateCcw, Zap, GraduationCap } from 'lucide-react';
+import { Settings, RotateCcw, Zap, GraduationCap, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Tile { left: number; right: number; id: string }
@@ -716,17 +717,31 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
               </button>
             </div>
 
-            {/* Real money */}
-            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Play for $Pc</div>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
-              {[5,10,25,50,100].map(b => (
-                <button key={b} onClick={() => { dispatch({ type: 'SET_BET', bet: b }); setBetConfirmed(false); }} style={{
-                  flex: '1 1 55px', padding: '9px 0', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14,
-                  background: gs.bet === b ? 'rgba(212,175,55,.22)' : 'rgba(255,255,255,.04)',
-                  border: `2px solid ${gs.bet === b ? '#D4AF37' : 'rgba(255,255,255,.08)'}`,
-                  color: gs.bet === b ? '#D4AF37' : '#666',
-                }}>{b}</button>
-              ))}
+            {/* Balance + Get More */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(212,175,55,0.15)' }}>
+              <div>
+                <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', fontWeight: 700 }}>YOUR BALANCE</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#D4AF37' }}>{formatChipLabel(balance)} $Pc</div>
+              </div>
+              {onAddBalance && (
+                <button
+                  onClick={() => onAddBalance(10_000)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)', color: '#66BB6A', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <PlusCircle size={13} /> Get $Pc
+                </button>
+              )}
+            </div>
+
+            {/* Real money — chip selector */}
+            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 12, marginBottom: 8, letterSpacing: '0.1em' }}>PLAY FOR $Pc — SELECT BET</div>
+            <div style={{ marginBottom: 12 }}>
+              <ChipSelector
+                selectedChip={gs.bet}
+                onSelect={(amt) => { dispatch({ type: 'SET_BET', bet: amt }); setBetConfirmed(false); }}
+                balance={balance}
+                compact
+              />
             </div>
             <div style={{ color: '#444', fontSize: 11, textAlign: 'center', marginBottom: 12 }}>Win 3× your bet on domino-out!</div>
             {!betConfirmed ? (
@@ -735,7 +750,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                 cursor: balance >= gs.bet ? 'pointer' : 'not-allowed',
                 background: balance >= gs.bet ? 'linear-gradient(135deg,#D4AF37,#9A7A20)' : '#2a2a2a',
                 color: balance >= gs.bet ? '#000' : '#555', fontWeight: 700, fontSize: 15,
-              }}>Lock Bet ({gs.bet} $Pc)</button>
+              }}>Lock Bet ({formatChipLabel(gs.bet)} $Pc)</button>
             ) : (
               <button onClick={() => startGame('real')} style={{
                 width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: 'pointer',

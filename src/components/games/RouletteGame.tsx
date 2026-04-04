@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PokerChip, DealerVegasProps } from '@/components/PokerChip';
+import { PokerChip, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRouletteVoice } from '@/hooks/useGameVoice';
 import RouletteWheel3D from '@/components/games/RouletteWheel3D';
@@ -906,22 +906,14 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
       >
         <div className="max-w-4xl mx-auto px-3 py-2">
           <div className="flex items-center justify-between gap-2">
-            {/* Chips - scrollable */}
-            <div
-              ref={chipScrollRef}
-              className="flex gap-1 overflow-x-auto chip-scroll"
-              style={{ maxWidth: '320px', paddingBottom: '2px' }}
-            >
-              {CHIP_VALUES.map(value => (
-                <div key={value} className="flex-shrink-0">
-                  <PokerChip
-                    amount={value}
-                    size="sm"
-                    selected={selectedChip === value}
-                    onClick={() => setSelectedChip(value)}
-                  />
-                </div>
-              ))}
+            {/* Chips */}
+            <div className="flex-shrink-0">
+              <ChipSelector
+                selectedChip={selectedChip}
+                onSelect={setSelectedChip}
+                balance={balance}
+                compact
+              />
             </div>
 
             {/* Total */}

@@ -3,7 +3,7 @@ import { Info, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, F
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
-import { PokerChip, ChipStack } from '@/components/PokerChip';
+import { PokerChip, ChipStack, ChipSelector, formatChipLabel, ALL_CHIP_DENOMS } from '@/components/PokerChip';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { chooseAICard, calculateAIBid } from '@/hooks/useSpadesAI';
@@ -46,7 +46,7 @@ interface HouseRules {
 interface PlayerStats { wins: number; losses: number; mmr: number; }
 interface Reaction { id: string; player: string; emoji: string; }
 
-const CHIP_VALUES = [5, 10, 25, 50, 100, 500];
+const CHIP_VALUES = ALL_CHIP_DENOMS;
 const REACTIONS = ['🔥', '👏', '😤', '🎉', '💀', '🤙'];
 
 const TIERS = [
@@ -802,9 +802,25 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
               <div className="text-2xl font-casino text-gradient-gold font-bold">Place Your Bet</div>
               <div className="text-sm text-gray-400">Win 2× your bet if your team reaches {houseRules.targetScore} pts first</div>
 
-              <div className="flex gap-2 flex-wrap justify-center">
-                {CHIP_VALUES.map(a => <PokerChip key={a} amount={a} size="md" selected={selectedChip === a} onClick={() => setSelectedChip(a)} />)}
+              {/* Balance + Get More */}
+              <div className="flex items-center justify-between w-full max-w-sm px-4 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
+                <div>
+                  <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
+                  <div className="text-lg font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
+                </div>
+                {onAddBalance && (
+                  <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
+                    + Get $Pc
+                  </button>
+                )}
               </div>
+
+              {/* Full chip selector */}
+              <ChipSelector
+                selectedChip={selectedChip}
+                onSelect={setSelectedChip}
+                balance={balance}
+              />
 
               <div className="flex items-center gap-6">
                 <div className="text-center">

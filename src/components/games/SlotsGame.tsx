@@ -3,7 +3,7 @@ import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { PokerChip } from '@/components/PokerChip';
+import { PokerChip, ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -650,19 +650,26 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance }: Slots
               background: 'linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%)',
             }}
           >
-            <div className="mb-4">
-              <div className="text-center text-[#C0C0C0] text-sm mb-2 tracking-wider">SELECT CHIP VALUE</div>
-              <div className="flex justify-center gap-2 flex-wrap">
-                {CHIP_VALUES.map(amount => (
-                  <PokerChip
-                    key={amount}
-                    amount={amount}
-                    size="md"
-                    selected={selectedChip === amount}
-                    onClick={() => setSelectedChip(amount)}
-                  />
-                ))}
+            {/* Balance + Get More */}
+            <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
+              <div>
+                <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
+                <div className="text-base font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
               </div>
+              {onAddBalance && (
+                <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
+                  + Get $Pc
+                </button>
+              )}
+            </div>
+            <div className="mb-4">
+              <div className="text-center text-[#C0C0C0] text-xs mb-2 tracking-wider">SELECT CHIP VALUE</div>
+              <ChipSelector
+                selectedChip={selectedChip}
+                onSelect={setSelectedChip}
+                balance={balance}
+                compact
+              />
             </div>
 
             <div className="flex items-center justify-center gap-6 mb-4">
