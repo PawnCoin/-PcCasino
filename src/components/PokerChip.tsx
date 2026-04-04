@@ -10,36 +10,36 @@ type ChipTier = 'standard' | 'thousands' | 'millions';
 interface CS {
   body: string; bodyL: string; bodyD: string;
   notch: string; notch2: string;
-  ring: string; star: string; label: string;
+  ring: string; label: string;
   tierRing: string; tier: ChipTier;
 }
 
 const STYLES: Record<number, CS> = {
   // ─── Standard — classic casino palette ──────────────────────────────────
-  1:   { body:'#b0b0b0', bodyL:'#e8e8e8', bodyD:'#707070', notch:'#e0e0e0', notch2:'#888', ring:'#888', star:'#aaa', label:'#222', tierRing:'transparent', tier:'standard' },
-  5:   { body:'#c0002a', bodyL:'#ff4060', bodyD:'#7a0000', notch:'#ff6080', notch2:'#900020', ring:'#ff8a80', star:'#e57373', label:'#fff', tierRing:'transparent', tier:'standard' },
-  10:  { body:'#1050b0', bodyL:'#4080f0', bodyD:'#002880', notch:'#6090ff', notch2:'#0030a0', ring:'#82b1ff', star:'#90caf9', label:'#fff', tierRing:'transparent', tier:'standard' },
-  25:  { body:'#196a20', bodyL:'#40b040', bodyD:'#003810', notch:'#60d060', notch2:'#105020', ring:'#69f0ae', star:'#a5d6a7', label:'#fff', tierRing:'transparent', tier:'standard' },
-  50:  { body:'#c04000', bodyL:'#ff7020', bodyD:'#801800', notch:'#ff9040', notch2:'#a03000', ring:'#ffd740', star:'#ffb74d', label:'#fff', tierRing:'transparent', tier:'standard' },
-  100: { body:'#181818', bodyL:'#383838', bodyD:'#000', notch:'#D4AF37', notch2:'#8a7020', ring:'#D4AF37', star:'#c9a227', label:'#D4AF37', tierRing:'transparent', tier:'standard' },
-  500: { body:'#5a0e8a', bodyL:'#8030c0', bodyD:'#2a0048', notch:'#d870fc', notch2:'#6020a0', ring:'#e040fb', star:'#ce93d8', label:'#fff', tierRing:'transparent', tier:'standard' },
+  1:   { body:'#b0b0b0', bodyL:'#e8e8e8', bodyD:'#707070', notch:'#e0e0e0', notch2:'#888',   ring:'#888',    label:'#111', tierRing:'transparent', tier:'standard' },
+  5:   { body:'#c0002a', bodyL:'#ff4060', bodyD:'#7a0000', notch:'#ff6080', notch2:'#900020', ring:'#ff8a80', label:'#111', tierRing:'transparent', tier:'standard' },
+  10:  { body:'#1050b0', bodyL:'#4080f0', bodyD:'#002880', notch:'#6090ff', notch2:'#0030a0', ring:'#82b1ff', label:'#111', tierRing:'transparent', tier:'standard' },
+  25:  { body:'#196a20', bodyL:'#40b040', bodyD:'#003810', notch:'#60d060', notch2:'#105020', ring:'#69f0ae', label:'#111', tierRing:'transparent', tier:'standard' },
+  50:  { body:'#c04000', bodyL:'#ff7020', bodyD:'#801800', notch:'#ff9040', notch2:'#a03000', ring:'#ffd740', label:'#111', tierRing:'transparent', tier:'standard' },
+  100: { body:'#181818', bodyL:'#383838', bodyD:'#000',    notch:'#D4AF37', notch2:'#8a7020', ring:'#D4AF37', label:'#111', tierRing:'transparent', tier:'standard' },
+  500: { body:'#5a0e8a', bodyL:'#8030c0', bodyD:'#2a0048', notch:'#d870fc', notch2:'#6020a0', ring:'#e040fb', label:'#111', tierRing:'transparent', tier:'standard' },
 
-  // ─── Thousands — warm amber/copper/gold — gold tier ring ────────────────
-  1_000:   { body:'#6a0000', bodyL:'#a01010', bodyD:'#380000', notch:'#FFD600', notch2:'#8a5000', ring:'#FFD600', star:'#FFAB40', label:'#FFD600', tierRing:'#FFD600', tier:'thousands' },
-  5_000:   { body:'#a02800', bodyL:'#e05010', bodyD:'#601000', notch:'#FFEA00', notch2:'#a06000', ring:'#FFEA00', star:'#FFD740', label:'#fff', tierRing:'#FFB300', tier:'thousands' },
-  10_000:  { body:'#3e2018', bodyL:'#6a4030', bodyD:'#180800', notch:'#FF9500', notch2:'#804000', ring:'#FFA000', star:'#FFB300', label:'#fff', tierRing:'#FF8F00', tier:'thousands' },
-  25_000:  { body:'#4a2c1a', bodyL:'#7a5040', bodyD:'#280c00', notch:'#FFD060', notch2:'#906020', ring:'#FFCA28', star:'#FFB300', label:'#fff', tierRing:'#FFC400', tier:'thousands' },
-  50_000:  { body:'#6a6000', bodyL:'#a09020', bodyD:'#383400', notch:'#FFFFA0', notch2:'#808000', ring:'#FFF176', star:'#F9A825', label:'#1a1a1a', tierRing:'#F9A825', tier:'thousands' },
-  100_000: { body:'#181818', bodyL:'#383838', bodyD:'#000', notch:'#FF8000', notch2:'#a04000', ring:'#FF8F00', star:'#FFA000', label:'#FF8F00', tierRing:'#FF6D00', tier:'thousands' },
-  500_000: { body:'#700040', bodyL:'#a83068', bodyD:'#380018', notch:'#FFD700', notch2:'#986020', ring:'#FFD700', star:'#FDD835', label:'#fff', tierRing:'#FFD700', tier:'thousands' },
+  // ─── Thousands — distinct colors, gold tier ring ─────────────────────────
+  1_000:   { body:'#6a0000', bodyL:'#a01010', bodyD:'#380000', notch:'#FFD600', notch2:'#8a5000', ring:'#FFD600', label:'#111', tierRing:'#FFD600', tier:'thousands' },
+  5_000:   { body:'#a02800', bodyL:'#e05010', bodyD:'#601000', notch:'#FFEA00', notch2:'#a06000', ring:'#FFEA00', label:'#111', tierRing:'#FFB300', tier:'thousands' },
+  10_000:  { body:'#3e2018', bodyL:'#6a4030', bodyD:'#180800', notch:'#FF9500', notch2:'#804000', ring:'#FFA000', label:'#111', tierRing:'#FF8F00', tier:'thousands' },
+  25_000:  { body:'#1a4a6a', bodyL:'#2a7aaa', bodyD:'#0a1e30', notch:'#60C8FF', notch2:'#1060a0', ring:'#40B0FF', label:'#111', tierRing:'#0090FF', tier:'thousands' },
+  50_000:  { body:'#6a6000', bodyL:'#a09020', bodyD:'#383400', notch:'#FFFFA0', notch2:'#808000', ring:'#FFF176', label:'#111', tierRing:'#F9A825', tier:'thousands' },
+  100_000: { body:'#181818', bodyL:'#383838', bodyD:'#000',    notch:'#FF8000', notch2:'#a04000', ring:'#FF8F00', label:'#111', tierRing:'#FF6D00', tier:'thousands' },
+  500_000: { body:'#700040', bodyL:'#a83068', bodyD:'#380018', notch:'#FFD700', notch2:'#986020', ring:'#FFD700', label:'#111', tierRing:'#FFD700', tier:'thousands' },
 
-  // ─── Millions — cool teal/cyan/platinum — cyan tier ring ────────────────
-  1_000_000:   { body:'#005048', bodyL:'#308878', bodyD:'#002028', notch:'#80FFF0', notch2:'#007060', ring:'#69F0AE', star:'#4DD0E1', label:'#E0FFF8', tierRing:'#00E5FF', tier:'millions' },
-  5_000_000:   { body:'#003838', bodyL:'#206858', bodyD:'#001818', notch:'#60E8E0', notch2:'#005050', ring:'#4DD0E1', star:'#00E5FF', label:'#E0F7FA', tierRing:'#00BCD4', tier:'millions' },
-  10_000_000:  { body:'#003070', bodyL:'#2860b0', bodyD:'#001040', notch:'#60D8FF', notch2:'#004088', ring:'#40C4FF', star:'#00B0FF', label:'#fff', tierRing:'#0091EA', tier:'millions' },
-  20_000_000:  { body:'#380070', bodyL:'#6028a8', bodyD:'#100030', notch:'#D060FF', notch2:'#600090', ring:'#E040FB', star:'#CE93D8', label:'#fff', tierRing:'#D500F9', tier:'millions' },
-  50_000_000:  { body:'#182028', bodyL:'#384858', bodyD:'#080c10', notch:'#B0D0E0', notch2:'#304050', ring:'#B0BEC5', star:'#90A4AE', label:'#CFD8DC', tierRing:'#78909C', tier:'millions' },
-  100_000_000: { body:'#140800', bodyL:'#3a2000', bodyD:'#000', notch:'#FFE060', notch2:'#906800', ring:'#FFD700', star:'#FFC400', label:'#FFD700', tierRing:'#FFD700', tier:'millions' },
+  // ─── Millions — distinct tones, cyan tier ring ───────────────────────────
+  1_000_000:   { body:'#005048', bodyL:'#308878', bodyD:'#002028', notch:'#80FFF0', notch2:'#007060', ring:'#69F0AE', label:'#111', tierRing:'#00E5FF', tier:'millions' },
+  5_000_000:   { body:'#7a0050', bodyL:'#b02080', bodyD:'#3a0020', notch:'#FF80D0', notch2:'#900060', ring:'#F06292', label:'#111', tierRing:'#E040FB', tier:'millions' },
+  10_000_000:  { body:'#003070', bodyL:'#2860b0', bodyD:'#001040', notch:'#60D8FF', notch2:'#004088', ring:'#40C4FF', label:'#111', tierRing:'#0091EA', tier:'millions' },
+  20_000_000:  { body:'#380070', bodyL:'#6028a8', bodyD:'#100030', notch:'#D060FF', notch2:'#600090', ring:'#E040FB', label:'#111', tierRing:'#D500F9', tier:'millions' },
+  50_000_000:  { body:'#004030', bodyL:'#208070', bodyD:'#001818', notch:'#60F0B0', notch2:'#006040', ring:'#00E676', label:'#111', tierRing:'#00C853', tier:'millions' },
+  100_000_000: { body:'#140800', bodyL:'#3a2000', bodyD:'#000',    notch:'#FFE060', notch2:'#906800', ring:'#FFD700', label:'#111', tierRing:'#FFD700', tier:'millions' },
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -60,15 +60,6 @@ function getStyle(amount: number): CS {
   if (amount >= 1_000_000) return STYLES[1_000_000];
   if (amount >= 1_000)     return STYLES[1_000];
   return STYLES[1];
-}
-
-function starPoints(cx: number, cy: number, rOut: number, rIn: number, pts: number): string {
-  const step = Math.PI / pts;
-  return Array.from({ length: pts * 2 }, (_, i) => {
-    const r = i % 2 === 0 ? rOut : rIn;
-    const a = i * step - Math.PI / 2;
-    return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`;
-  }).join(' ');
 }
 
 // ─── SVG Chip Face ─────────────────────────────────────────────────────────
@@ -154,42 +145,37 @@ function ChipFace({ amount, size }: { amount: number; size: number }) {
       <circle cx={cx} cy={cy} r={rMed} fill={`url(#${uid}-med)`} />
       <circle cx={cx} cy={cy} r={rMed} fill="none" stroke={s.ring} strokeWidth={1.0} opacity={0.4} />
 
-      {/* Star — more opaque to match reference image */}
-      <polygon
-        points={starPoints(cx, cy, rMed * 0.80, rMed * 0.36, 5)}
-        fill={s.star}
-        opacity={0.55}
-      />
-
-      {/* $Pc — top of medallion */}
+      {/* $Pc — top of medallion — always dark for readability */}
       <text
-        x={cx} y={cy - rMed * 0.48}
+        x={cx} y={cy - rMed * 0.44}
         textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.105} fontWeight="900"
-        fill={s.label} fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="0.2"
+        fontSize={size * 0.10} fontWeight="900"
+        fill="#111" fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="0.2"
+        style={{ paintOrder: 'stroke fill', stroke: 'rgba(255,255,255,0.4)', strokeWidth: 0.8 }}
       >
         $Pc
       </text>
 
-      {/* Amount — center */}
+      {/* Amount — center — always dark for readability */}
       <text
-        x={cx} y={cy + rMed * 0.14}
+        x={cx} y={cy + rMed * 0.12}
         textAnchor="middle" dominantBaseline="middle"
         fontSize={numFS} fontWeight="900"
-        fill={s.label} fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="-0.5"
-        style={{ paintOrder: 'stroke fill', stroke: 'rgba(0,0,0,0.2)', strokeWidth: 0.5 }}
+        fill="#111" fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="-0.5"
+        style={{ paintOrder: 'stroke fill', stroke: 'rgba(255,255,255,0.5)', strokeWidth: 0.8 }}
       >
         {lbl}
       </text>
 
-      {/* Tier bottom label — small curved indicator text */}
+      {/* Tier bottom label */}
       {s.tier !== 'standard' && (
         <text
-          x={cx} y={cy + rMed * 0.68}
+          x={cx} y={cy + rMed * 0.66}
           textAnchor="middle" dominantBaseline="middle"
-          fontSize={size * 0.075} fontWeight="800"
+          fontSize={size * 0.070} fontWeight="800"
           fill={s.tierRing} fontFamily="Arial, sans-serif" letterSpacing="1.5"
           opacity={0.9}
+          style={{ paintOrder: 'stroke fill', stroke: 'rgba(0,0,0,0.5)', strokeWidth: 0.6 }}
         >
           {s.tier === 'thousands' ? '— K —' : '— M —'}
         </text>
@@ -209,11 +195,13 @@ interface PokerChipProps {
   onClick?: () => void;
   selected?: boolean;
   className?: string;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent, amount: number) => void;
 }
 
 export const CHIP_PX = { sm: 44, md: 58, lg: 74 };
 
-export function PokerChip({ amount, size = 'md', onClick, selected, className = '' }: PokerChipProps) {
+export function PokerChip({ amount, size = 'md', onClick, selected, className = '', draggable: isDraggable, onDragStart }: PokerChipProps) {
   const px = CHIP_PX[size];
   const inner = (
     <>
@@ -225,18 +213,35 @@ export function PokerChip({ amount, size = 'md', onClick, selected, className = 
     </>
   );
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('chip-amount', String(amount));
+    e.dataTransfer.effectAllowed = 'copy';
+    onDragStart?.(e, amount);
+  };
+
   const baseStyle: React.CSSProperties = { width: px, height: px, background: 'none', border: 'none', padding: 0 };
   const baseClass = `relative inline-flex items-center justify-center transition-all duration-200 ${selected ? 'scale-110 -translate-y-1' : ''} ${className}`;
 
   if (onClick) {
     return (
-      <button onClick={onClick} className={`${baseClass} cursor-pointer hover:scale-110 hover:-translate-y-1.5 active:scale-95`} style={baseStyle}>
+      <button
+        onClick={onClick}
+        draggable={isDraggable}
+        onDragStart={isDraggable ? handleDragStart : undefined}
+        className={`${baseClass} cursor-pointer hover:scale-110 hover:-translate-y-1.5 active:scale-95`}
+        style={baseStyle}
+      >
         {inner}
       </button>
     );
   }
   return (
-    <div className={`${baseClass} cursor-default`} style={baseStyle}>
+    <div
+      className={`${baseClass} ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+      style={baseStyle}
+      draggable={isDraggable}
+      onDragStart={isDraggable ? handleDragStart : undefined}
+    >
       {inner}
     </div>
   );
