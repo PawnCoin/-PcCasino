@@ -62,6 +62,9 @@ const gameIcons: Record<GameType, string> = {
   sports: '🏈',
   bingo: '🎱',
   dominoes: '🁣',
+  pool: '🎱',
+  darts: '🎯',
+  vip: '👑',
 };
 
 const gameNames: Record<GameType, string> = {
@@ -74,6 +77,9 @@ const gameNames: Record<GameType, string> = {
   sports: 'Sportsbook',
   bingo: 'Bingo 75-Ball',
   dominoes: 'Dominoes',
+  pool: 'Pool Table',
+  darts: 'Darts',
+  vip: 'V.I.P. Lounge',
 };
 
 export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance }: MultiplayerLobbyProps) {

@@ -146,7 +146,7 @@ export interface Notification {
   duration?: number;
 }
 
-export type GameType = 'poker' | 'blackjack' | 'roulette' | 'craps' | 'spades' | 'slots' | 'bingo' | 'dominoes' | 'sports' | 'pool' | 'darts';
+export type GameType = 'poker' | 'blackjack' | 'roulette' | 'craps' | 'spades' | 'slots' | 'bingo' | 'dominoes' | 'sports' | 'pool' | 'darts' | 'vip';
 
 export type PokerHand = 
   | 'high_card' 

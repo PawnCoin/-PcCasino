@@ -8,8 +8,11 @@ interface GameCard {
   image: string;
   minBet: number;
   activeTables: number;
-  badge: 'LIVE' | 'HOT' | 'NEW' | 'CLASSIC' | 'JACKPOT';
+  badge: 'LIVE' | 'HOT' | 'NEW' | 'CLASSIC' | 'JACKPOT' | 'VIP' | 'SPORTS';
   href: string;
+  isExternal?: boolean;
+  externalUrl?: string;
+  isSpecial?: 'sports' | 'vip';
 }
 
 const games: GameCard[] = [
@@ -113,6 +116,30 @@ const games: GameCard[] = [
     badge: 'NEW',
     href: '/game/darts',
   },
+  {
+    id: 'sports',
+    name: 'Sports Gambling',
+    description: 'NFL, NBA, MLB, UFC & more. Live betting, parlays, and spreads powered by WeParlay Inc.',
+    image: '/logos/game-sports.png',
+    minBet: 10,
+    activeTables: 0,
+    badge: 'SPORTS',
+    href: 'https://weparlay.com',
+    isExternal: true,
+    externalUrl: 'https://weparlay.com',
+    isSpecial: 'sports',
+  },
+  {
+    id: 'vip',
+    name: 'Adult V.I.P. Area',
+    description: 'Exclusive 18+ private lounge. Invite-only gaming, private dance rooms, and all casino games.',
+    image: '/logos/game-vip.png',
+    minBet: 500,
+    activeTables: 7,
+    badge: 'VIP',
+    href: '/vip',
+    isSpecial: 'vip',
+  },
 ];
 
 const badgeStyles: Record<string, string> = {
@@ -121,6 +148,8 @@ const badgeStyles: Record<string, string> = {
   NEW: 'bg-[#1E88E5]/40 text-[#42A5F5] border-[#1E88E5]/60 shadow-[0_0_15px_rgba(30,136,229,0.5)]',
   CLASSIC: 'bg-[#D4AF37]/40 text-[#F4D03F] border-[#D4AF37]/60 shadow-[0_0_15px_rgba(212,175,55,0.5)]',
   JACKPOT: 'bg-[#C2185B]/40 text-[#F06292] border-[#C2185B]/60 shadow-[0_0_15px_rgba(194,24,87,0.5)]',
+  SPORTS: 'bg-[#1565C0]/40 text-[#64B5F6] border-[#1565C0]/60 shadow-[0_0_15px_rgba(21,101,192,0.5)]',
+  VIP: 'bg-[#6A0DAD]/50 text-[#E040FB] border-[#6A0DAD]/70 shadow-[0_0_20px_rgba(106,13,173,0.7)]',
 };
 
 const badgeGlowAnimation: Record<string, string> = {
@@ -129,6 +158,8 @@ const badgeGlowAnimation: Record<string, string> = {
   NEW: 'animate-badge-glow-blue',
   CLASSIC: 'animate-badge-glow-gold',
   JACKPOT: 'animate-badge-glow-pink',
+  SPORTS: 'animate-badge-glow-blue',
+  VIP: 'animate-badge-glow-pink',
 };
 
 interface GamesGridProps {
@@ -264,7 +295,13 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
           {games.map((game, index) => (
             <div
               key={game.id}
-              onClick={() => onSelectGame(game.id)}
+              onClick={() => {
+                if (game.isExternal && game.externalUrl) {
+                  window.open(game.externalUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                  onSelectGame(game.id);
+                }
+              }}
               onMouseMove={(e) => handleMouseMove(e, game.id)}
               onMouseLeave={handleMouseLeave}
               className="group relative cursor-pointer z-10 game-card-entrance"
@@ -273,7 +310,11 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
-                  onSelectGame(game.id);
+                  if (game.isExternal && game.externalUrl) {
+                    window.open(game.externalUrl, '_blank', 'noopener,noreferrer');
+                  } else {
+                    onSelectGame(game.id);
+                  }
                 }
               }}
             >
@@ -305,21 +346,32 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                 <div 
                   className="relative rounded-2xl overflow-hidden transition-all duration-500 group-hover:translate-y-[-12px]"
                   style={{ 
-                    background: 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)',
-                    border: '1px solid rgba(93,64,55,0.6)',
-                    boxShadow: `
-                      0 25px 50px rgba(0,0,0,0.8),
-                      0 10px 20px rgba(0,0,0,0.5),
-                      inset 0 1px 0 rgba(255,255,255,0.08),
-                      inset 0 -1px 0 rgba(0,0,0,0.5)
-                    `,
+                    background: game.isSpecial === 'vip'
+                      ? 'linear-gradient(180deg, #1a0a2e 0%, #0d0018 100%)'
+                      : game.isSpecial === 'sports'
+                      ? 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)'
+                      : 'linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%)',
+                    border: game.isSpecial === 'vip'
+                      ? '1px solid rgba(160,32,240,0.6)'
+                      : game.isSpecial === 'sports'
+                      ? '1px solid rgba(21,101,192,0.6)'
+                      : '1px solid rgba(93,64,55,0.6)',
+                    boxShadow: game.isSpecial === 'vip'
+                      ? '0 25px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(160,32,240,0.15), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : game.isSpecial === 'sports'
+                      ? '0 25px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(21,101,192,0.15), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : '0 25px 50px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.5)',
                     transform: 'translateZ(0)'
                   }}
                 >
                   <div 
                     className="absolute top-0 left-0 right-0 h-1"
                     style={{ 
-                      background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.4), transparent)'
+                      background: game.isSpecial === 'vip'
+                        ? 'linear-gradient(90deg, transparent, rgba(224,64,251,0.6), transparent)'
+                        : game.isSpecial === 'sports'
+                        ? 'linear-gradient(90deg, transparent, rgba(64,140,251,0.6), transparent)'
+                        : 'linear-gradient(90deg, transparent, rgba(212,175,55,0.4), transparent)'
                     }}
                   />
 
@@ -328,8 +380,22 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                       src={game.image} 
                       alt={game.name}
                       className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
-                      style={{ 
-                        filter: 'brightness(0.85) contrast(1.1)',
+                      style={{ filter: 'brightness(0.85) contrast(1.1)' }}
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.img-fallback')) {
+                          const fallback = document.createElement('div');
+                          fallback.className = 'img-fallback w-full h-full flex items-center justify-center';
+                          fallback.style.cssText = game.isSpecial === 'vip'
+                            ? 'background: linear-gradient(135deg, #1a0a2e, #0d0018); font-size: 5rem;'
+                            : game.isSpecial === 'sports'
+                            ? 'background: linear-gradient(135deg, #0a1628, #060d1a); font-size: 5rem;'
+                            : 'background: linear-gradient(135deg, #1a1a1a, #0a0a0a); font-size: 5rem;';
+                          fallback.innerText = game.isSpecial === 'vip' ? '👑' : game.isSpecial === 'sports' ? '🏈' : '🎰';
+                          parent.insertBefore(fallback, parent.firstChild);
+                        }
                       }}
                     />
                     <div 
@@ -364,9 +430,14 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
 
                   <div className="p-5 relative">
                     <h3 
-                      className="font-casino text-xl font-bold mb-2 text-white group-hover:text-[#D4AF37] transition-all duration-300"
+                      className="font-casino text-xl font-bold mb-2 text-white transition-all duration-300"
                       style={{ 
                         textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                        color: hoveredCard === game.id
+                          ? game.isSpecial === 'vip' ? '#E040FB'
+                          : game.isSpecial === 'sports' ? '#64B5F6'
+                          : '#D4AF37'
+                          : 'white',
                       }}
                     >
                       {game.name}
@@ -376,21 +447,43 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                     </p>
 
                     <div 
-                      className="flex items-center justify-between text-sm pt-4 border-t border-[#5D4037]/40"
-                      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
+                      className="flex items-center justify-between text-sm pt-4"
+                      style={{ 
+                        borderTop: game.isSpecial === 'vip'
+                          ? '1px solid rgba(160,32,240,0.3)'
+                          : game.isSpecial === 'sports'
+                          ? '1px solid rgba(21,101,192,0.3)'
+                          : '1px solid rgba(93,64,55,0.4)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
+                      }}
                     >
                       <span className="text-[#707070]">
-                        {game.activeTables > 0 ? `${game.activeTables} tables` : '500K Jackpot'}
+                        {game.isSpecial === 'sports' ? '🏈 WeParlay Inc.' :
+                         game.isSpecial === 'vip' ? '🔞 18+ Only' :
+                         game.activeTables > 0 ? `${game.activeTables} tables` : '500K Jackpot'}
                       </span>
                       <span 
-                        className="text-[#D4AF37] font-bold px-3 py-1 rounded-full"
+                        className="font-bold px-3 py-1 rounded-full"
                         style={{ 
-                          background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))',
-                          border: '1px solid rgba(212,175,55,0.4)',
-                          boxShadow: '0 0 15px rgba(212,175,55,0.2), inset 0 1px 0 rgba(255,255,255,0.1)'
+                          color: game.isSpecial === 'vip' ? '#E040FB' : game.isSpecial === 'sports' ? '#64B5F6' : '#D4AF37',
+                          background: game.isSpecial === 'vip'
+                            ? 'linear-gradient(135deg, rgba(160,32,240,0.2), rgba(160,32,240,0.05))'
+                            : game.isSpecial === 'sports'
+                            ? 'linear-gradient(135deg, rgba(21,101,192,0.2), rgba(21,101,192,0.05))'
+                            : 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))',
+                          border: game.isSpecial === 'vip'
+                            ? '1px solid rgba(160,32,240,0.4)'
+                            : game.isSpecial === 'sports'
+                            ? '1px solid rgba(21,101,192,0.4)'
+                            : '1px solid rgba(212,175,55,0.4)',
+                          boxShadow: game.isSpecial === 'vip'
+                            ? '0 0 15px rgba(160,32,240,0.3)'
+                            : game.isSpecial === 'sports'
+                            ? '0 0 15px rgba(21,101,192,0.3)'
+                            : '0 0 15px rgba(212,175,55,0.2)',
                         }}
                       >
-                        {game.minBet} $Pc
+                        {game.isSpecial === 'sports' ? 'Free Picks' : game.isSpecial === 'vip' ? 'INVITE ONLY' : `${game.minBet} $Pc`}
                       </span>
                     </div>
                   </div>

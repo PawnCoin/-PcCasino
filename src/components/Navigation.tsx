@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { UnifiedUser } from '@/types';
@@ -15,6 +15,7 @@ interface NavigationProps {
   onShowRewards: () => void;
   onShowFinancial?: () => void;
   onShowCardDeck?: () => void;
+  onShowMultiplayer?: () => void;
 }
 
 export function Navigation({ 
@@ -27,7 +28,8 @@ export function Navigation({
   onShowHistory, 
   onShowRewards,
   onShowFinancial,
-  onShowCardDeck
+  onShowCardDeck,
+  onShowMultiplayer,
 }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -111,6 +113,27 @@ export function Navigation({
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   <p>Claim bonuses & daily rewards</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onShowMultiplayer}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all hover:scale-105"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(147,51,234,0.3), rgba(79,70,229,0.3))',
+                      border: '1px solid rgba(147,51,234,0.5)',
+                      color: '#C084FC',
+                      boxShadow: '0 0 15px rgba(147,51,234,0.2)',
+                    }}
+                  >
+                    <Users className="w-4 h-4" />
+                    Multiplayer
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Join or create live multiplayer tables</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -340,6 +363,14 @@ export function Navigation({
                   className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors text-left"
                 >
                   Rewards
+                </button>
+                <button
+                  onClick={() => { onShowMultiplayer?.(); setIsMenuOpen(false); }}
+                  className="p-3 rounded-lg transition-colors text-left flex items-center gap-2"
+                  style={{ background: 'rgba(147,51,234,0.15)', color: '#C084FC' }}
+                >
+                  <Users className="w-4 h-4" />
+                  Multiplayer
                 </button>
                 
                 {isAuthenticated && (

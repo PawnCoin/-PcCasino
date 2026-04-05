@@ -3,7 +3,17 @@
 A React + Vite + TypeScript casino web application featuring multiple card and casino games with premium visual effects, part of the Pawn Coin ecosystem. The Command Center is an external app at pawncoinpc.com — not included in this application.
 
 ## Games
-Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Edition), Slots, Bingo 75-Ball
+Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Pool (coming soon), Darts (coming soon)
+
+### Special Sections
+- **Sports Gambling card** → links to WeParlay Inc. (external, opens in new tab)
+- **Adult V.I.P. Area** → age-gated 18+ exclusive lounge with all games at higher limits. Component: `src/components/VipArea.tsx`
+
+### Multiplayer
+- `MultiplayerLobby.tsx` — modal with live table browsing, create/join tables, game filters. Accessible via Multiplayer button in the nav bar.
+
+### Casino Environment
+- `CasinoBackground.tsx` — fixed-position canvas renderer. Supports 3 perspective modes: **Overview**, **3rd Person**, **1st Person** (switch via floating toggle in bottom-right corner). Also supports `videoUrl` prop for streaming an Unreal Engine environment as background video.
 
 ### Spades — Elite Competitive Edition
 - **4-level AI**: Easy / Medium / Hard / Elite (strategic, partner-aware, nil-aware play)

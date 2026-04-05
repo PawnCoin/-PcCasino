@@ -22,6 +22,7 @@ import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
 import { DominoesGame } from '@/components/games/DominoesGame';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
+import { VipArea } from '@/components/VipArea';
 import { GlobalGameProvider } from '@/contexts/GlobalGameContext';
 import { CasinoBackground } from '@/components/CasinoBackground';
 
@@ -390,6 +391,40 @@ function App() {
             </div>
           </div>
         );
+      case 'sports':
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
+            <div className="text-center p-12 rounded-2xl" style={{ border: '1px solid rgba(21,101,192,0.4)', background: 'rgba(0,0,0,0.7)' }}>
+              <div className="text-7xl mb-6">🏈</div>
+              <h2 className="font-casino text-4xl font-bold mb-3" style={{ color: '#64B5F6' }}>Sports Gambling</h2>
+              <p className="text-[#A0A0A0] text-lg mb-8">Powered by WeParlay Inc. — Opening in new tab...</p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={() => { window.open('https://weparlay.com', '_blank', 'noopener,noreferrer'); setCurrentView('lobby'); }}
+                  className="px-8 py-3 rounded-xl font-bold text-white transition-all"
+                  style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', boxShadow: '0 0 20px rgba(21,101,192,0.4)' }}
+                >
+                  Go to WeParlay →
+                </button>
+                <button
+                  onClick={() => setCurrentView('lobby')}
+                  className="px-8 py-3 rounded-xl font-bold text-white transition-all"
+                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                >
+                  Back to Lobby
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      case 'vip':
+        return (
+          <VipArea
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onSelectGame={(game) => setCurrentView(game)}
+          />
+        );
       default:
         return (
           <>
@@ -489,6 +524,7 @@ function App() {
           onShowRewards={() => setShowRewards(true)}
           onShowFinancial={() => setShowFinancial(true)}
           onShowCardDeck={() => setShowCardDeck(true)}
+          onShowMultiplayer={() => setShowLobby(true)}
         />
       )}
 
