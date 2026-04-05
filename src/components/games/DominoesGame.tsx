@@ -44,6 +44,12 @@ interface GS {
   lastMoveScore: number;
   openEndTotal: number;
   humanReplaced: boolean;
+  spinnerPlaced: boolean;
+  spinnerVal: number;
+  topChain: PlacedTile[];
+  bottomChain: PlacedTile[];
+  topVal: number;
+  bottomVal: number;
 }
 
 type Action =
