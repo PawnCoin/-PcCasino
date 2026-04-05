@@ -255,7 +255,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [dealStep, setDealStep] = useState(0);
   const [isShuffling, setIsShuffling] = useState(false);
-  const [tossCard, setTossCard] = useState<{ card: Card; rotation: number } | null>(null);
+  const [tossCard, setTossCard] = useState<{ card: Card; rotation: number; fromPlayer?: boolean } | null>(null);
+  const [pendingBid, setPendingBid] = useState<{ amount: number; isNil: boolean; isBlindNil: boolean } | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
   const [gameSpeed, setGameSpeed] = useState(1);
@@ -433,9 +434,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
     }
 
     const rotation = (Math.random() - 0.5) * 28;
-    setTossCard({ card, rotation });
+    setTossCard({ card, rotation, fromPlayer: true });
     playSound('card');
-    setTimeout(() => setTossCard(null), 450);
+    setTimeout(() => setTossCard(null), 700);
 
     if (card.suit === 'spades' && !spadesBroken) { setSpadesBroken(true); triggerSpadesBroken(); }
 
@@ -551,15 +552,23 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
     setLastTrick(completed);
     setCurrentTrick([]);
     setTrickWinner(winner);
-    const wname = ['you', 'p2', 'p3', 'p4'].indexOf(winner) >= 0 ? PLAYER_NAMES[['you', 'p2', 'p3', 'p4'].indexOf(winner)] : 'Unknown';
-    setMessage(`${wname} won the trick!`);
-    playSound('chip');
+    const playerIdOrder = ['you', 'p2', 'p3', 'p4'];
+    const wname = PLAYER_NAMES[playerIdOrder.indexOf(winner)] ?? 'Unknown';
+    playSound('shuffle');
     setTimeout(() => setTrickWinner(null), Math.round(1300 / gameSpeed));
     const winnerIdx = newPlayers.findIndex(p => p.id === winner);
     setCurrentPlayer(winnerIdx);
     if (newCompleted.length >= 13) {
+      setMessage(`${wname} won the last trick!`);
       setTimeout(() => scoreRound(newPlayers), Math.round(1700 / gameSpeed));
-    } else if (winnerIdx !== 0) {
+    } else if (winnerIdx === 0) {
+      // Player won — they lead next
+      setTimeout(() => {
+        setIsAIThinking(false);
+        setMessage('You won the trick! Your lead — play a card!');
+      }, Math.round(1300 / gameSpeed));
+    } else {
+      setMessage(`${wname} won the trick!`);
       setTimeout(() => startNewTrick(winnerIdx, newPlayers, spadesBroken), Math.round(1600 / gameSpeed));
     }
   };
@@ -793,6 +802,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
             35% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.18); opacity: 1; }
             70% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
             100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.85); opacity: 0; }
+          }
+          @keyframes playerCardFly {
+            0%   { transform: translate(-50%, 280px) rotate(2deg) scale(0.75); opacity: 1; filter: drop-shadow(0 12px 30px rgba(0,0,0,0.8)); }
+            55%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.15); opacity: 1; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.6)); }
+            80%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.88); opacity: 0; }
           }
           @keyframes slideToCenter-0 {
             0%  { transform: translateY(80px) scale(0.8) rotate(var(--tr)); opacity: 0; }
@@ -1275,12 +1290,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
-                      transform: 'translate(-50%, -50%)',
                       zIndex: 50,
                       pointerEvents: 'none',
-                      animation: 'tossCardIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
+                      animation: tossCard.fromPlayer
+                        ? 'playerCardFly 0.7s cubic-bezier(0.22,1,0.36,1) forwards'
+                        : 'tossCardIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
                       '--tr': `${tossCard.rotation}deg`,
-                      filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.7))',
                     } as React.CSSProperties}
                   >
                     {renderCardFace(tossCard.card, undefined, { size: 'lg' })}
@@ -1305,20 +1320,20 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
                 )}
 
                 {/* ── BIDDING OVERLAY (on the table center) ── */}
-                {gamePhase === 'bidding' && (
+                {gamePhase === 'bidding' && !pendingBid && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 25 }}>
                     <div className="pointer-events-auto bg-black/85 backdrop-blur-md rounded-2xl px-5 py-4 border border-[#D4AF37]/30 shadow-2xl"
                       style={{ animation: 'bidPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both' }}>
                       <div className="text-center text-white font-bold text-base mb-3">Your Bid</div>
                       <div className="flex flex-wrap justify-center gap-2 mb-2" style={{ maxWidth: '280px' }}>
                         {houseRules.nilAllowed && (
-                          <button onClick={() => placeBid(0, true, false)}
+                          <button onClick={() => setPendingBid({ amount: 0, isNil: true, isBlindNil: false })}
                             className="w-10 h-10 rounded-full font-black text-xs bg-blue-600 hover:bg-blue-500 text-white transition-all hover:scale-110 shadow-lg flex items-center justify-center">
                             Nil
                           </button>
                         )}
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(n => (
-                          <button key={n} onClick={() => placeBid(n)}
+                          <button key={n} onClick={() => setPendingBid({ amount: n, isNil: false, isBlindNil: false })}
                             className="w-10 h-10 rounded-full font-black text-sm transition-all hover:scale-110 shadow-md flex items-center justify-center"
                             style={{ background: n <= 6 ? 'white' : '#d0d0c0', color: '#111' }}
                             onMouseEnter={e => (e.currentTarget.style.background = '#D4AF37')}
@@ -1329,12 +1344,41 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
                       </div>
                       {houseRules.blindNilAllowed && (
                         <div className="mt-2">
-                          <button onClick={() => placeBid(0, false, true)}
+                          <button onClick={() => setPendingBid({ amount: 0, isNil: false, isBlindNil: true })}
                             className="w-full py-1.5 rounded-full font-bold text-xs border-2 border-purple-500 text-purple-300 bg-purple-900/30 hover:bg-purple-800/50 transition-all hover:scale-105">
                             🔮 Blind NIL (±200)
                           </button>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── BID CONFIRMATION ── */}
+                {pendingBid && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 30 }}>
+                    <div className="pointer-events-auto bg-black/92 backdrop-blur-md rounded-2xl px-6 py-5 border border-[#D4AF37]/60 shadow-2xl text-center"
+                      style={{ animation: 'bidPop 0.25s cubic-bezier(0.34,1.56,0.64,1) both', minWidth: 220 }}>
+                      <div className="text-[#D4AF37] font-bold text-lg mb-1">Confirm Bid</div>
+                      <div className="text-white text-3xl font-black mb-1">
+                        {pendingBid.isNil ? 'NIL' : pendingBid.isBlindNil ? 'BLIND NIL' : pendingBid.amount}
+                      </div>
+                      <div className="text-xs text-gray-400 mb-4">
+                        {pendingBid.isNil ? 'You are betting you will win 0 tricks (+/−100 pts)' : pendingBid.isBlindNil ? 'Bid NIL without seeing your hand (+/−200 pts)' : `You are bidding ${pendingBid.amount} trick${pendingBid.amount !== 1 ? 's' : ''}`}
+                      </div>
+                      <div className="flex gap-3 justify-center">
+                        <button
+                          onClick={() => setPendingBid(null)}
+                          className="px-4 py-2 rounded-full text-sm font-bold border border-white/20 text-white/70 hover:bg-white/10 transition-all">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => { const b = pendingBid; setPendingBid(null); placeBid(b.amount, b.isNil, b.isBlindNil); }}
+                          className="px-5 py-2 rounded-full text-sm font-black text-black transition-all hover:scale-105"
+                          style={{ background: 'linear-gradient(135deg,#D4AF37,#B8860B)' }}>
+                          Lock It In ♠
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

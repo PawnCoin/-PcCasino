@@ -193,6 +193,7 @@ interface PokerChipProps {
   amount: number;
   size?: 'sm' | 'md' | 'lg';
   onClick?: () => void;
+  onDoubleClick?: (amount: number) => void;
   selected?: boolean;
   className?: string;
   draggable?: boolean;
@@ -201,7 +202,7 @@ interface PokerChipProps {
 
 export const CHIP_PX = { sm: 44, md: 58, lg: 74 };
 
-export function PokerChip({ amount, size = 'md', onClick, selected, className = '', draggable: isDraggable, onDragStart }: PokerChipProps) {
+export function PokerChip({ amount, size = 'md', onClick, onDoubleClick, selected, className = '', draggable: isDraggable, onDragStart }: PokerChipProps) {
   const px = CHIP_PX[size];
   const inner = (
     <>
@@ -222,10 +223,16 @@ export function PokerChip({ amount, size = 'md', onClick, selected, className = 
   const baseStyle: React.CSSProperties = { width: px, height: px, background: 'none', border: 'none', padding: 0 };
   const baseClass = `relative inline-flex items-center justify-center transition-all duration-200 ${selected ? 'scale-110 -translate-y-1' : ''} ${className}`;
 
+  const handleDblClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onDoubleClick?.(amount);
+  };
+
   if (onClick) {
     return (
       <button
         onClick={onClick}
+        onDoubleClick={onDoubleClick ? handleDblClick : undefined}
         draggable={isDraggable}
         onDragStart={isDraggable ? handleDragStart : undefined}
         className={`${baseClass} cursor-pointer hover:scale-110 hover:-translate-y-1.5 active:scale-95`}
@@ -241,6 +248,7 @@ export function PokerChip({ amount, size = 'md', onClick, selected, className = 
       style={baseStyle}
       draggable={isDraggable}
       onDragStart={isDraggable ? handleDragStart : undefined}
+      onDoubleClick={onDoubleClick ? handleDblClick : undefined}
     >
       {inner}
     </div>
@@ -253,11 +261,12 @@ type SelectorTab = 'standard' | 'thousands' | 'millions' | 'all';
 interface ChipSelectorProps {
   selectedChip: number;
   onSelect: (amount: number) => void;
+  onDoubleClick?: (amount: number) => void;
   balance?: number;
   compact?: boolean;
 }
 
-export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipSelectorProps) {
+export function ChipSelector({ selectedChip, onSelect, onDoubleClick, balance, compact }: ChipSelectorProps) {
   const initTab = (): SelectorTab => {
     if (selectedChip >= 1_000_000) return 'millions';
     if (selectedChip >= 1_000) return 'thousands';
@@ -351,7 +360,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
             <div style={{ fontSize: 9, color: '#D4AF37', fontWeight: 700, letterSpacing: '1px', opacity: 0.8 }}>STANDARD</div>
             <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
               {STANDARD_CHIPS.map(amt => (
-                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
+                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} onDoubleClick={onDoubleClick} draggable />
               ))}
             </div>
           </div>
@@ -360,7 +369,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
             <div style={{ fontSize: 9, color: '#FF8F00', fontWeight: 700, letterSpacing: '1px', opacity: 0.8 }}>THOUSANDS ⸻ K</div>
             <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
               {THOUSAND_CHIPS.map(amt => (
-                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
+                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} onDoubleClick={onDoubleClick} draggable />
               ))}
             </div>
           </div>
@@ -369,7 +378,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
             <div style={{ fontSize: 9, color: '#00BCD4', fontWeight: 700, letterSpacing: '1px', opacity: 0.8 }}>MILLIONS ⸻ M</div>
             <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
               {MILLION_CHIPS.map(amt => (
-                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
+                <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} onDoubleClick={onDoubleClick} draggable />
               ))}
             </div>
           </div>
@@ -377,7 +386,7 @@ export function ChipSelector({ selectedChip, onSelect, balance, compact }: ChipS
       ) : (
         <div style={{ display: 'flex', gap: compact ? 3 : 5, flexWrap: 'wrap', justifyContent: 'center' }}>
           {chips.map(amt => (
-            <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} draggable />
+            <PokerChip key={amt} amount={amt} size={chipSize} selected={selectedChip === amt} onClick={() => onSelect(amt)} onDoubleClick={onDoubleClick} draggable />
           ))}
         </div>
       )}
