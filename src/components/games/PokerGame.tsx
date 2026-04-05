@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Info, RotateCcw, Mic, MicOff, User, Camera } from 'lucide-react';
+import { Info, RotateCcw, Mic, MicOff, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createDeck, shuffleDeck, evaluatePokerHand } from '@/hooks/useGameEngine';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { usePokerVoice } from '@/hooks/useGameVoice';
-import { PokerChip, ChipSelector, DealerVegasProps } from '@/components/PokerChip';
+import { PokerChip, ChipSelector } from '@/components/PokerChip';
+import { AvatarSprite, getAvatarStyle, ALL_AVATARS } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
@@ -151,7 +153,7 @@ interface OpponentData {
   bet: number;
   active: boolean;
   position: string;
-  avatarSeed: string;
+  avatarIdx: number;
 }
 
 function OpponentSeat({
@@ -213,11 +215,13 @@ function OpponentSeat({
 
         {/* avatar */}
         <div style={{
-          width: 52, height: 60, flexShrink: 0,
-          background: `url(https://api.dicebear.com/7.x/personas/svg?seed=${opponent.avatarSeed}) center/cover`,
+          width: 52, height: 60, flexShrink: 0, overflow: 'hidden',
           borderRight: isLeft ? 'none' : '1px solid rgba(255,255,255,0.08)',
           borderLeft: isLeft ? '1px solid rgba(255,255,255,0.08)' : 'none',
-        }} />
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <AvatarSprite avatar={ALL_AVATARS[opponent.avatarIdx % ALL_AVATARS.length]} size={52} style={{ borderRadius: 0 }} />
+        </div>
 
         {/* name & balance */}
         <div style={{ padding: '6px 10px', flex: 1 }}>
@@ -258,23 +262,59 @@ function UserSeat({
   onAvatarChange: (url: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedDef, setSelectedDef] = useState<AvatarDef>(ALL_AVATARS[0]);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => { if (ev.target?.result) onAvatarChange(ev.target.result as string); };
+    reader.onload = ev => { if (ev.target?.result) { onAvatarChange(ev.target.result as string); setPickerOpen(false); } };
     reader.readAsDataURL(file);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, position: 'relative' }}>
+
+      {/* avatar picker popup */}
+      {pickerOpen && (
+        <div style={{
+          position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(10,10,18,0.97)', border: '1px solid rgba(212,175,55,0.4)',
+          borderRadius: 12, padding: 12, zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+          minWidth: 260,
+        }}>
+          <div style={{ fontSize: 10, color: '#D4AF37', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>CHOOSE YOUR AVATAR</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, marginBottom: 8 }}>
+            {ALL_AVATARS.slice(0, 24).map((av, i) => (
+              <div
+                key={i}
+                onClick={() => { setSelectedDef(av); onAvatarChange(''); setPickerOpen(false); }}
+                style={{
+                  cursor: 'pointer', borderRadius: 6, overflow: 'hidden',
+                  border: (selectedDef === av && !userAvatar) ? '2px solid #D4AF37' : '2px solid transparent',
+                  transition: 'border-color 0.15s',
+                }}
+              >
+                <AvatarSprite avatar={av} size={36} style={{ borderRadius: 0 }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8, textAlign: 'center' }}>
+            <button
+              onClick={() => fileRef.current?.click()}
+              style={{ fontSize: 10, color: '#9ca3af', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}
+            >
+              📷 Upload photo instead
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* hole cards */}
       <div style={{ display: 'flex', gap: 10 }}>
         {playerHand.map((card, i) => (
-          <div key={i} style={{
-            filter: showdownWinner === 'player' ? 'drop-shadow(0 0 14px rgba(212,175,55,0.7))' : undefined,
-          }}>
+          <div key={i} style={{ filter: showdownWinner === 'player' ? 'drop-shadow(0 0 14px rgba(212,175,55,0.7))' : undefined }}>
             <PlayingCard card={card} size="xl" />
           </div>
         ))}
@@ -289,37 +329,27 @@ function UserSeat({
         boxShadow: showdownWinner === 'player' ? '0 0 20px rgba(212,175,55,0.35)' : '0 4px 16px rgba(0,0,0,0.6)',
         minWidth: 160,
       }}>
-        {/* avatar / upload */}
+        {/* avatar — click to open picker */}
         <div
-          style={{
-            width: 56, height: 64, flexShrink: 0, position: 'relative', cursor: 'pointer',
-            background: userAvatar ? `url(${userAvatar}) center/cover` : 'linear-gradient(135deg,#5D4037,#3E2723)',
-            borderRight: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onClick={() => fileRef.current?.click()}
-          title="Click to upload your photo"
+          style={{ width: 56, height: 64, flexShrink: 0, position: 'relative', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setPickerOpen(p => !p)}
+          title="Click to choose avatar"
         >
-          {!userAvatar && <User style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.5)' }} />}
-          <div style={{
-            position: 'absolute', bottom: 2, right: 2,
-            background: 'rgba(212,175,55,0.85)', borderRadius: '50%',
-            width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+          {userAvatar
+            ? <div style={{ width: 56, height: 64, backgroundImage: `url(${userAvatar})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+            : <AvatarSprite avatar={selectedDef} size={56} style={{ borderRadius: 0 }} />
+          }
+          <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'rgba(212,175,55,0.85)', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Camera style={{ width: 9, height: 9, color: '#000' }} />
           </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
         </div>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
 
         {/* info */}
         <div style={{ padding: '6px 12px', flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: showdownWinner === 'player' ? '#D4AF37' : '#fff' }}>You</div>
-          <div style={{ fontSize: 11, color: '#43A047', fontWeight: 700, marginTop: 2 }}>
-            {balance.toLocaleString()}
-          </div>
-          {playerBet > 0 && (
-            <div style={{ fontSize: 9, color: '#D4AF37', marginTop: 2 }}>{playerBet} $Pc bet</div>
-          )}
+          <div style={{ fontSize: 11, color: '#43A047', fontWeight: 700, marginTop: 2 }}>{balance.toLocaleString()}</div>
+          {playerBet > 0 && <div style={{ fontSize: 9, color: '#D4AF37', marginTop: 2 }}>{playerBet} $Pc bet</div>}
         </div>
       </div>
     </div>
@@ -347,13 +377,13 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const [winText, setWinText] = useState('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [opponents, setOpponents] = useState<OpponentData[]>([
-    { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarSeed: 'Taylor' },
-    { id: 2, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarSeed: 'Casey' },
-    { id: 3, name: 'Morgan', balance: 2475, bet: 0, active: true, position: '', avatarSeed: 'Morgan' },
-    { id: 4, name: 'Jordan', balance: 2500, bet: 0, active: true, position: 'SB', avatarSeed: 'Jordan' },
-    { id: 5, name: 'Riley', balance: 3883, bet: 0, active: true, position: '', avatarSeed: 'Riley' },
-    { id: 6, name: '', balance: 0, bet: 0, active: false, position: '', avatarSeed: '' },
-    { id: 7, name: '', balance: 0, bet: 0, active: false, position: '', avatarSeed: '' },
+    { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1 },
+    { id: 2, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarIdx: 2 },
+    { id: 3, name: 'Morgan', balance: 2475, bet: 0, active: true, position: '', avatarIdx: 3 },
+    { id: 4, name: 'Jordan', balance: 2500, bet: 0, active: true, position: 'SB', avatarIdx: 4 },
+    { id: 5, name: 'Riley', balance: 3883, bet: 0, active: true, position: '', avatarIdx: 5 },
+    { id: 6, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 6 },
+    { id: 7, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 7 },
   ]);
 
   const [showdownData, setShowdownData] = useState<{
@@ -565,7 +595,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
 
   return (
     <CasinoEnvironment gameType="poker">
-      <div className="min-h-screen bg-[#0a0a0a] relative flex flex-col">
+      <div className="h-screen bg-[#0a0a0a] relative flex flex-col overflow-hidden">
         <style>{`
           @keyframes pokerTrailFade { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(0.3)} }
           @keyframes pokerPotGlow { 0%,100%{box-shadow:0 0 20px rgba(212,175,55,0.3),0 0 40px rgba(212,175,55,0.1)} 50%{box-shadow:0 0 30px rgba(212,175,55,0.5),0 0 60px rgba(212,175,55,0.2)} }
@@ -733,12 +763,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 <div style={{ fontSize:9, color:'#C0C0C0' }}>MAX 500 $Pc</div>
               </div>
 
-              {/* Dealer side Vegas props — chip tray + dice + card fan */}
-              <div className="absolute z-[15] pointer-events-none" style={{ top:'4%', left:'50%', transform:'translateX(-50%)' }}>
-                <DealerVegasProps />
-              </div>
-
-              {/* Card shoe */}
+              {/* (chip tray and card shoe removed) */}
               <div className="absolute z-[15] pointer-events-none" style={{ top:'12%', right:'14%', width:35, height:50, background:'linear-gradient(180deg,#1a1a1a,#0a0a0a)', border:'2px solid rgba(212,175,55,0.5)', borderRadius:4 }}>
                 {[3,10,17].map(t => <div key={t} style={{ position:'absolute', top:t, left:4, right:4, height:5, background:'linear-gradient(180deg,#283593,#1a237e)', borderRadius:2 }} />)}
                 <div style={{ position:'absolute', bottom:3, left:'50%', transform:'translateX(-50%)', fontSize:6, color:'rgba(212,175,55,0.6)', fontWeight:700 }}>SHOE</div>
