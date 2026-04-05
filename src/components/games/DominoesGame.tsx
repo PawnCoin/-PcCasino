@@ -206,6 +206,9 @@ function placeLeft(tile: Tile, lv: number, by: string): { pt: PlacedTile; newLef
 function handPips(hand: Tile[]) { return hand.reduce((s, t) => s + t.left + t.right, 0); }
 /** Standard Caribbean domino scoring: raw pip total rounded to nearest multiple of 5. */
 function roundToFive(n: number): number { return Math.round(n / 5) * 5; }
+/** All-Fives mid-game scoring: only totals of 10–30 score (5 is excluded). */
+const VALID_MID_SCORES = new Set([10, 15, 20, 25, 30]);
+function isScoringTotal(n: number): boolean { return VALID_MID_SCORES.has(n); }
 function highestDouble(hand: Tile[]): { tile: Tile; val: number } | null {
   const doubles = hand.filter(t => t.left === t.right).sort((a, b) => b.left - a.left);
   if (!doubles.length) return null;
@@ -297,7 +300,7 @@ function aiChoose(
     for (const end of ends) {
       if (!canPlayEnd(tile, end, lv, rv, spinnerPlaced, tv, bv, topBottomOpen)) continue;
       const total = simulatePlay(chain, topChain, bottomChain, tile, end, lv, rv, tv, bv, spinnerPlaced);
-      candidates.push({ tile, end, score: total % 5 === 0 ? total : 0, pips: tile.left + tile.right });
+      candidates.push({ tile, end, score: isScoringTotal(total) ? total : 0, pips: tile.left + tile.right });
     }
   }
   candidates.sort((a, b) => b.score - a.score || b.pips - a.pips);
@@ -464,7 +467,7 @@ function gsReducer(state: GS, action: Action): GS {
 
       // Calculate open-end pip total for All-Fives mid-game scoring (4 ends when spinner active)
       const openEndTotal = calcOpenEndPips(newChain, newLeft, newRight, newTopChain, newBottomChain, newTopVal, newBottomVal, newSpinnerPlaced);
-      const midGameScore = (openEndTotal > 0 && openEndTotal % 5 === 0) ? openEndTotal : 0;
+      const midGameScore = isScoringTotal(openEndTotal) ? openEndTotal : 0;
 
       const baseState = {
         ...state, players: newPlayers,
@@ -1724,17 +1727,22 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                     <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.leftVal}</div>
                     <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.rightVal}</div>
                     {/* Ends counter — always at bottom-left so it is never blocked by other UI */}
-                    <div style={{
-                      position: 'absolute', left: 10, bottom: 8, zIndex: 8,
-                      padding: '3px 12px', borderRadius: 12, fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap',
-                      background: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? 'rgba(67,160,71,0.92)' : 'rgba(0,0,0,.8)',
-                      border: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '1px solid #66BB6A' : '1px solid rgba(255,255,255,.18)',
-                      color: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '#fff' : '#ddd',
-                      transition: 'all .2s',
-                      boxShadow: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '0 0 12px rgba(67,160,71,0.5)' : 'none',
-                    }}>
-                      {gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? `✓ ${gs.openEndTotal} pts!` : `Ends: ${gs.openEndTotal}`}
-                    </div>
+                    {(() => {
+                      const scoring = isScoringTotal(gs.openEndTotal);
+                      return (
+                        <div style={{
+                          position: 'absolute', left: 10, bottom: 8, zIndex: 8,
+                          padding: '3px 12px', borderRadius: 12, fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap',
+                          background: scoring ? 'rgba(67,160,71,0.92)' : 'rgba(0,0,0,.8)',
+                          border: scoring ? '1px solid #66BB6A' : '1px solid rgba(255,255,255,.18)',
+                          color: scoring ? '#fff' : '#ddd',
+                          transition: 'all .2s',
+                          boxShadow: scoring ? '0 0 12px rgba(67,160,71,0.5)' : 'none',
+                        }}>
+                          {scoring ? `✓ ${gs.openEndTotal} pts!` : `Ends: ${gs.openEndTotal}`}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
                 <div ref={boardRef} className="dom-board" style={{ position: 'absolute', inset: 0, overflow: 'auto', cursor: 'grab' }}>
