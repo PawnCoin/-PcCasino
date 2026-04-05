@@ -184,6 +184,8 @@ function placeLeft(tile: Tile, lv: number, by: string): { pt: PlacedTile; newLef
   return { pt: { tile, dispLeft: tile.right, dispRight: tile.left, isDouble, placedBy: by }, newLeft: tile.right };
 }
 function handPips(hand: Tile[]) { return hand.reduce((s, t) => s + t.left + t.right, 0); }
+/** Standard Caribbean domino scoring: raw pip total rounded to nearest multiple of 5. */
+function roundToFive(n: number): number { return Math.round(n / 5) * 5; }
 function highestDouble(hand: Tile[]): { tile: Tile; val: number } | null {
   const doubles = hand.filter(t => t.left === t.right).sort((a, b) => b.left - a.left);
   if (!doubles.length) return null;
@@ -322,10 +324,11 @@ function gsReducer(state: GS, action: Action): GS {
       };
 
       if (newHand.length === 0) {
-        const score = newPlayers.filter((_, i) => i !== pIdx).reduce((sum, p) => sum + handPips(p.hand), 0);
+        const rawPips = newPlayers.filter((_, i) => i !== pIdx).reduce((sum, p) => sum + handPips(p.hand), 0);
+        const score = roundToFive(rawPips); // round to nearest 5 (standard Caribbean rules)
         const updatedPlayers = newPlayers.map((p, i) => i === pIdx ? { ...p, score: p.score + score } : p);
         const roundLoser = findRoundLoser(updatedPlayers, pIdx);
-        return { ...baseState, players: updatedPlayers, phase: 'roundOver', roundWinner: player.name, roundScore: score, lastScorer: player.name, lastScoreAmount: score, roundLoser };
+        return { ...baseState, players: updatedPlayers, phase: 'roundOver', roundWinner: player.name, roundScore: score, lastScorer: player.name, lastScoreAmount: score, roundLoser, rawRoundPips: rawPips };
       }
       return baseState;
     }
