@@ -3,14 +3,7 @@ import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music 
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
-
-const CARD_SKINS = [
-  { id: 'default', name: 'Classic', color: '#D4AF37' },
-  { id: 'midnight', name: 'Midnight', color: '#1565C0' },
-  { id: 'crimson', name: 'Crimson', color: '#B71C1C' },
-  { id: 'emerald', name: 'Emerald', color: '#1B5E20' },
-  { id: 'violet', name: 'Violet', color: '#4A148C' },
-];
+import { useCardDeck, BUILTIN_DECKS } from '@/hooks/useCardDeck';
 
 interface InGameOptionsPanelProps {
   isOpen: boolean;
@@ -20,6 +13,7 @@ interface InGameOptionsPanelProps {
 
 export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsPanelProps) {
   const { settings, updateSettings } = useGlobalGame();
+  const { selectedDeck, selectDeck } = useCardDeck();
   const [nameInput, setNameInput] = useState(settings.displayName);
 
   let currentAvatarDef: AvatarDef = ALL_AVATARS[0];
@@ -140,18 +134,44 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
           </section>
 
           <section>
-            <SectionLabel icon={<Palette size={12} />} label="CARD SKIN" />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {CARD_SKINS.map(s => (
-                <button key={s.id} onClick={() => updateSettings({ cardSkin: s.id })} style={{
-                  padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  background: settings.cardSkin === s.id ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.05)',
-                  border: `1.5px solid ${settings.cardSkin === s.id ? s.color : 'rgba(255,255,255,0.1)'}`,
-                  color: settings.cardSkin === s.id ? s.color : '#6b7280',
-                }}>
-                  {s.name}
-                </button>
-              ))}
+            <SectionLabel icon={<Palette size={12} />} label="CARD DECK" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+              {BUILTIN_DECKS.map(deck => {
+                const isSelected = selectedDeck === deck.id;
+                return (
+                  <button
+                    key={deck.id}
+                    onClick={() => selectDeck(deck.id)}
+                    title={deck.name}
+                    style={{
+                      border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: 8, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                      background: isSelected ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.04)',
+                      boxShadow: isSelected ? '0 0 8px rgba(212,175,55,0.4)' : 'none',
+                      transition: 'all 0.15s',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ width: '100%', height: 50, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {deck.image ? (
+                        <img src={deck.image} alt={deck.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{
+                          width: '100%', height: '100%',
+                          background: 'repeating-linear-gradient(45deg,#1a237e 0px,#1a237e 6px,#283593 6px,#283593 12px)',
+                        }} />
+                      )}
+                    </div>
+                    <div style={{
+                      fontSize: 8, fontWeight: 700, color: isSelected ? '#D4AF37' : '#6b7280',
+                      padding: '3px 2px', textAlign: 'center', whiteSpace: 'nowrap',
+                      overflow: 'hidden', textOverflow: 'ellipsis', width: '100%',
+                    }}>
+                      {deck.name.split(' ')[0]}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </section>
 

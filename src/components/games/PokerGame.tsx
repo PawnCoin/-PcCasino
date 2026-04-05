@@ -630,24 +630,18 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
     }
   };
 
-  /* 9-seat layout: 8 opponents around oval + user at bottom center */
+  /* 8-seat layout: 4 opponents on each side + dealer at top center + user at bottom center */
   const seatPositions: { style: React.CSSProperties; dir: 'up' | 'left' | 'right' | 'down'; betOffset: { x: number; y: number } }[] = [
-    // seat 0 → top-left
-    { style: { top: '2%', left: '18%', transform: 'translateX(-50%)' }, dir: 'up', betOffset: { x: -65, y: -55 } },
-    // seat 1 → top-center
-    { style: { top: '0%', left: '50%', transform: 'translateX(-50%)' }, dir: 'up', betOffset: { x: 0, y: -62 } },
-    // seat 2 → top-right
-    { style: { top: '2%', right: '18%', transform: 'translateX(50%)' }, dir: 'up', betOffset: { x: 65, y: -55 } },
-    // seat 3 → right upper
-    { style: { top: '20%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: -15 } },
-    // seat 4 → right lower
-    { style: { top: '52%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: 15 } },
-    // seat 5 → bottom-right
-    { style: { bottom: '4%', right: '14%' }, dir: 'up', betOffset: { x: 52, y: 52 } },
-    // seat 6 → bottom-left
-    { style: { bottom: '4%', left: '14%' }, dir: 'up', betOffset: { x: -52, y: 52 } },
-    // seat 7 → left side
-    { style: { top: '36%', left: '-4px' }, dir: 'right', betOffset: { x: -80, y: 0 } },
+    // LEFT SIDE — 4 seats top-to-bottom (dir: right = cards fly right)
+    { style: { top: '6%',  left: '-4px' }, dir: 'right', betOffset: { x: -80, y: 0 } },
+    { style: { top: '25%', left: '-4px' }, dir: 'right', betOffset: { x: -80, y: 0 } },
+    { style: { top: '44%', left: '-4px' }, dir: 'right', betOffset: { x: -80, y: 0 } },
+    { style: { top: '63%', left: '-4px' }, dir: 'right', betOffset: { x: -80, y: 0 } },
+    // RIGHT SIDE — 4 seats top-to-bottom (dir: left = cards fly left)
+    { style: { top: '6%',  right: '-4px' }, dir: 'left', betOffset: { x: 80, y: 0 } },
+    { style: { top: '25%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: 0 } },
+    { style: { top: '44%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: 0 } },
+    { style: { top: '63%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: 0 } },
   ];
 
   return (
@@ -903,17 +897,15 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 </div>
               </div>
 
-              {/* Opponent seats — seat 1 (top-center) is the dealer position */}
+              {/* Dealer seat — always top center */}
+              <div className="absolute z-[20]" style={{ top: '0%', left: '50%', transform: 'translateX(-50%)' }}>
+                <DealerSeat dealer={dealer} />
+              </div>
+
+              {/* Opponent seats — 4 on left side, 4 on right side */}
               {opponents.map((opp, idx) => {
                 const pos = seatPositions[idx];
                 if (!pos) return null;
-                if (idx === 1) {
-                  return (
-                    <div key="dealer-seat" className="absolute z-[20]" style={pos.style}>
-                      <DealerSeat dealer={dealer} />
-                    </div>
-                  );
-                }
                 return (
                   <div key={opp.id} className="absolute z-[20]" style={pos.style}>
                     <OpponentSeat opponent={opp} cardBackStyle={cardBackStyle} cardDirection={pos.dir} />
@@ -921,8 +913,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 );
               })}
 
-              {/* User seat at 8 o'clock (bottom-left) */}
-              <div className="absolute z-[20]" style={{ bottom: '3%', left: '10%' }}>
+              {/* User seat — bottom center */}
+              <div className="absolute z-[20]" style={{ bottom: '2%', left: '50%', transform: 'translateX(-50%)' }}>
                 <UserSeat
                   balance={balance}
                   playerBet={playerBet}
