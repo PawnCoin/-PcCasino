@@ -347,7 +347,7 @@ function gsReducer(state: GS, action: Action): GS {
         currentPlayer: 0, consecutivePasses: 0,
         roundWinner: '', roundScore: 0,
         firstPlayTileId: null, lastPlayedBy: null, lastPlayedLeft: 0, lastPlayedRight: 0,
-        lastPassedBy: null, roundLoser: null, lastScorer: null, lastScoreAmount: 0,
+        lastPassedBy: null, roundLoser: action.freshGame ? null : state.roundLoser, lastScorer: null, lastScoreAmount: 0,
         lastMoveScore: 0, openEndTotal: 0, humanReplaced: false,
         spinnerPlaced: false, spinnerVal: -1, spinnerLeftPlayed: false, spinnerRightPlayed: false, topChain: [], bottomChain: [], topVal: -1, bottomVal: -1,
         roundNumber: action.freshGame ? 1 : state.roundNumber + 1,
