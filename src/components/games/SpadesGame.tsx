@@ -436,7 +436,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
     const rotation = (Math.random() - 0.5) * 28;
     setTossCard({ card, rotation, fromPlayer: true });
     playSound('card');
-    setTimeout(() => setTossCard(null), 700);
+    setTimeout(() => setTossCard(null), 850);
 
     if (card.suit === 'spades' && !spadesBroken) { setSpadesBroken(true); triggerSpadesBroken(); }
 
@@ -804,10 +804,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
             100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.85); opacity: 0; }
           }
           @keyframes playerCardFly {
-            0%   { transform: translate(-50%, 280px) rotate(2deg) scale(0.75); opacity: 1; filter: drop-shadow(0 12px 30px rgba(0,0,0,0.8)); }
-            55%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.15); opacity: 1; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.6)); }
-            80%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
-            100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.88); opacity: 0; }
+            0%   { transform: translate(-50%, 400px) rotate(4deg) scale(0.58); opacity: 1; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.95)); }
+            30%  { transform: translate(-50%, 180px) rotate(2deg) scale(0.8); opacity: 1; filter: drop-shadow(0 18px 42px rgba(0,0,0,0.85)); }
+            62%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.2); opacity: 1; filter: drop-shadow(0 24px 55px rgba(0,0,0,0.7)); }
+            82%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.06); opacity: 1; filter: none; }
+            94%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.95); opacity: 1; }
+            100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
           }
           @keyframes slideToCenter-0 {
             0%  { transform: translateY(80px) scale(0.8) rotate(var(--tr)); opacity: 0; }
@@ -1293,7 +1295,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
                       zIndex: 50,
                       pointerEvents: 'none',
                       animation: tossCard.fromPlayer
-                        ? 'playerCardFly 0.7s cubic-bezier(0.22,1,0.36,1) forwards'
+                        ? 'playerCardFly 0.85s cubic-bezier(0.22,1,0.36,1) forwards'
                         : 'tossCardIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
                       '--tr': `${tossCard.rotation}deg`,
                     } as React.CSSProperties}

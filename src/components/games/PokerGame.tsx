@@ -39,6 +39,19 @@ const handRankings: Record<string, string> = {
   high_card: 'High Card',
 };
 
+const DEALER_ROSTER = [
+  { name: 'Marcus Vega', avatarIdx: 6 },
+  { name: 'Sophia Lane', avatarIdx: 9 },
+  { name: 'Victor Noir', avatarIdx: 12 },
+  { name: 'Diana Cole', avatarIdx: 15 },
+  { name: 'Lorenzo King', avatarIdx: 18 },
+  { name: 'Bianca Rush', avatarIdx: 21 },
+  { name: 'Rafael Stone', avatarIdx: 24 },
+  { name: 'Celeste Hart', avatarIdx: 27 },
+  { name: 'Anton Cruz', avatarIdx: 30 },
+  { name: 'Vivienne Bell', avatarIdx: 33 },
+];
+
 
 function AnimatedChipFly({ amount, onComplete }: { amount: number; onComplete: () => void }) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -141,6 +154,30 @@ function PotChipStack({ pot }: { pot: number }) {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+function DealerSeat({ dealer }: { dealer: { name: string; avatarIdx: number } }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <div style={{
+        display: 'flex', flexDirection: 'row', alignItems: 'center',
+        background: 'linear-gradient(135deg, rgba(12,8,28,0.97), rgba(22,14,36,0.99))',
+        border: '1.5px solid rgba(212,175,55,0.7)',
+        borderRadius: 10, overflow: 'hidden',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.8), 0 0 18px rgba(212,175,55,0.2)',
+        minWidth: 140,
+      }}>
+        <div style={{ width: 54, height: 62, flexShrink: 0, overflow: 'hidden', borderRight: '1px solid rgba(212,175,55,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(212,175,55,0.06)' }}>
+          <AvatarSprite avatar={ALL_AVATARS[dealer.avatarIdx % ALL_AVATARS.length]} size={54} style={{ borderRadius: 0 }} />
+        </div>
+        <div style={{ padding: '6px 10px', flex: 1 }}>
+          <div style={{ fontSize: 8, color: '#D4AF37', letterSpacing: '0.2em', fontWeight: 800, textTransform: 'uppercase' }}>♠ Dealer</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginTop: 2, whiteSpace: 'nowrap' }}>{dealer.name}</div>
+          <div style={{ fontSize: 7.5, color: 'rgba(212,175,55,0.55)', marginTop: 2, letterSpacing: '0.1em' }}>$Pc Casino</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -377,13 +414,14 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const [winText, setWinText] = useState('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [potSweepToUser, setPotSweepToUser] = useState(false);
+  const [dealer, setDealer] = useState(DEALER_ROSTER[0]);
   const [opponents, setOpponents] = useState<OpponentData[]>([
     { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1 },
-    { id: 2, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarIdx: 2 },
+    { id: 2, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 0 },
     { id: 3, name: 'Morgan', balance: 2475, bet: 0, active: true, position: '', avatarIdx: 3 },
     { id: 4, name: 'Jordan', balance: 2500, bet: 0, active: true, position: 'SB', avatarIdx: 4 },
     { id: 5, name: 'Riley', balance: 3883, bet: 0, active: true, position: '', avatarIdx: 5 },
-    { id: 6, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 6 },
+    { id: 6, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarIdx: 2 },
     { id: 7, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 7 },
     { id: 8, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 8 },
   ]);
@@ -403,11 +441,12 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const chipAreaRef = useRef<HTMLDivElement>(null);
 
   const startNewHand = useCallback(() => {
+    setDealer(DEALER_ROSTER[Math.floor(Math.random() * DEALER_ROSTER.length)]);
     const newDeck = shuffleDeck(createDeck());
     const playerCards = [newDeck[0], newDeck[1]];
     const newOpponents = opponents.map((opp, idx) => ({
       ...opp, bet: 0,
-      active: opp.id <= 5 ? (idx < 3 || Math.random() > 0.3) : false,
+      active: opp.name !== '' ? (idx < 4 || Math.random() > 0.3) : false,
     }));
     setDeck(newDeck.slice(8));
     setPlayerHand(playerCards);
@@ -800,16 +839,20 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 );
               })}
 
-              {/* Pot — also a drop target for chips */}
+              {/* Pot — also a drop target for chips (with large invisible hit area) */}
               <div
-                className="absolute top-[22%] left-1/2 -translate-x-1/2 text-center z-[15]"
-                style={{ animation: pot > 0 ? 'pokerPotGlow 2s ease-in-out infinite' : 'none', background:'radial-gradient(ellipse at center,rgba(212,175,55,0.08) 0%,transparent 70%)', borderRadius:20, padding:'6px 20px', minWidth: 80 }}
+                className="absolute top-[14%] left-1/2 -translate-x-1/2 text-center z-[15]"
+                style={{ width: 200, paddingTop: 20, paddingBottom: 14 }}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
                 onDrop={(e) => {
                   e.preventDefault();
                   const amount = parseInt(e.dataTransfer.getData('chip-amount'), 10);
                   if (amount > 0) placeBet(amount);
                 }}
+              >
+              <div
+                className="mx-auto"
+                style={{ animation: pot > 0 ? 'pokerPotGlow 2s ease-in-out infinite' : 'none', background:'radial-gradient(ellipse at center,rgba(212,175,55,0.08) 0%,transparent 70%)', borderRadius:20, padding:'6px 20px', minWidth: 80, display:'inline-block' }}
               >
                 <div style={{ fontSize:9, color:'#C0C0C0', letterSpacing:'0.3em', fontWeight:700, marginBottom:2 }}>POT</div>
                 <div className="text-2xl font-bold text-[#D4AF37] gold-text">{pot.toLocaleString()}</div>
@@ -826,6 +869,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                     )}
                   </div>
                 )}
+              </div>
               </div>
 
               {/* Community cards — larger, centered */}
@@ -848,10 +892,17 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 </div>
               </div>
 
-              {/* Opponent seats */}
+              {/* Opponent seats — seat 1 (top-center) is the dealer position */}
               {opponents.map((opp, idx) => {
                 const pos = seatPositions[idx];
                 if (!pos) return null;
+                if (idx === 1) {
+                  return (
+                    <div key="dealer-seat" className="absolute z-[20]" style={pos.style}>
+                      <DealerSeat dealer={dealer} />
+                    </div>
+                  );
+                }
                 return (
                   <div key={opp.id} className="absolute z-[20]" style={pos.style}>
                     <OpponentSeat opponent={opp} cardBackStyle={cardBackStyle} cardDirection={pos.dir} />
@@ -859,8 +910,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 );
               })}
 
-              {/* User seat at bottom center */}
-              <div className="absolute z-[20]" style={{ bottom: '-2%', left: '50%', transform: 'translateX(-50%)' }}>
+              {/* User seat at 8 o'clock (bottom-left) */}
+              <div className="absolute z-[20]" style={{ bottom: '3%', left: '10%' }}>
                 <UserSeat
                   balance={balance}
                   playerBet={playerBet}
@@ -874,44 +925,68 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
               {/* Showdown overlay */}
               {showdownData && (
                 <div className="absolute inset-0 z-[25] flex items-center justify-center pointer-events-none">
-                  <div className="text-center p-6 rounded-2xl" style={{ background: 'radial-gradient(ellipse at center,rgba(0,0,0,0.94) 0%,rgba(0,0,0,0.65) 60%,transparent 100%)', minWidth: 340 }}>
-                    <div style={{ fontSize: 10, letterSpacing: '0.3em', marginBottom: 10, fontWeight: 700, color: 'rgba(212,175,55,0.7)' }}>SHOWDOWN</div>
+                  <div className="text-center px-6 py-4 rounded-2xl" style={{ background: 'radial-gradient(ellipse at center,rgba(0,0,0,0.97) 0%,rgba(0,0,0,0.82) 70%,transparent 100%)', minWidth: 360, maxWidth: 480 }}>
+                    <div style={{ fontSize: 10, letterSpacing: '0.35em', marginBottom: 6, fontWeight: 800, color: 'rgba(212,175,55,0.75)' }}>♠ SHOWDOWN ♠</div>
+                    <div className="text-2xl font-casino font-bold mb-1" style={{ color: showdownData.winner === 'player' ? '#D4AF37' : '#ef4444', textShadow: showdownData.winner === 'player' ? '0 0 24px rgba(212,175,55,0.7)' : '0 0 24px rgba(239,68,68,0.5)' }}>
+                      {showdownData.handName.toUpperCase()}
+                    </div>
+                    <div className="text-base font-bold mb-4" style={{ color: showdownData.winner === 'player' ? '#43A047' : '#9ca3af' }}>
+                      {showdownData.winner === 'player' ? `🏆 YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!` : `${showdownData.opponentName} wins this hand`}
+                    </div>
 
-                    {/* Player's winning hand */}
-                    {showdownData.winner === 'player' && showdownData.playerCards && (
-                      <div className="mb-4">
-                        <div style={{ fontSize: 9, color: '#D4AF37', letterSpacing: '0.25em', fontWeight: 700, marginBottom: 6 }}>YOUR HAND</div>
-                        <div className="flex justify-center gap-2 items-center">
-                          {showdownData.playerCards.map((c, i) => (
-                            <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.12}s both` }}>
-                              <PlayingCard card={c} size="md" />
+                    {/* Community cards (board) */}
+                    {communityCards.length > 0 && (
+                      <div className="mb-3">
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.25em', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>Board</div>
+                        <div className="flex justify-center gap-1.5 items-center">
+                          {communityCards.map((c, i) => (
+                            <div key={i} style={{ animation: `pokerCommunityReveal 0.45s ease-out ${i * 0.08}s both` }}>
+                              <PlayingCard card={c} size="sm" />
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Opponent cards */}
-                    {showdownData.opponentCards && (
-                      <div className="flex justify-center gap-2 mb-3 items-center">
-                        <div style={{ fontSize: 9, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>
-                          {showdownData.winner === 'opponent' ? showdownData.opponentName : 'Opponent'}
-                        </div>
-                        {showdownData.opponentCards.map((c, i) => (
-                          <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.15 + 0.3}s both` }}>
-                            <PlayingCard card={c} size="sm" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {/* Divider */}
+                    <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(212,175,55,0.35),transparent)', marginBottom: 10 }} />
 
-                    <div className="text-2xl font-casino font-bold mb-1" style={{ color: showdownData.winner === 'player' ? '#D4AF37' : '#ef4444', textShadow: showdownData.winner === 'player' ? '0 0 20px rgba(212,175,55,0.6)' : '0 0 20px rgba(239,68,68,0.4)' }}>
-                      {showdownData.handName.toUpperCase()}
+                    {/* Hole cards row: player + opponent side by side */}
+                    <div className="flex justify-center gap-6 items-start">
+                      {/* Player hole cards */}
+                      {showdownData.playerCards && (
+                        <div>
+                          <div style={{ fontSize: 8, color: showdownData.winner === 'player' ? '#D4AF37' : 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>
+                            {showdownData.winner === 'player' ? '★ Your Cards' : 'Your Cards'}
+                          </div>
+                          <div className="flex justify-center gap-1.5 items-center">
+                            {showdownData.playerCards.map((c, i) => (
+                              <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.12 + 0.2}s both`, filter: showdownData.winner === 'player' ? 'drop-shadow(0 0 8px rgba(212,175,55,0.6))' : 'none' }}>
+                                <PlayingCard card={c} size="sm" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Opponent hole cards */}
+                      {showdownData.opponentCards && (
+                        <div>
+                          <div style={{ fontSize: 8, color: showdownData.winner === 'opponent' ? '#ef4444' : 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>
+                            {showdownData.winner === 'opponent' ? `★ ${showdownData.opponentName}` : showdownData.opponentName}
+                          </div>
+                          <div className="flex justify-center gap-1.5 items-center">
+                            {showdownData.opponentCards.map((c, i) => (
+                              <div key={i} style={{ animation: `pokerCommunityReveal 0.5s ease-out ${i * 0.12 + 0.35}s both`, filter: showdownData.winner === 'opponent' ? 'drop-shadow(0 0 8px rgba(239,68,68,0.5))' : 'none' }}>
+                                <PlayingCard card={c} size="sm" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-lg font-bold mb-2" style={{ color: '#fff' }}>
-                      {showdownData.winner === 'player' ? `YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!` : `${showdownData.opponentName} wins`}
-                    </div>
-                    <div className="text-xs text-gray-400">Next hand in {showdownTimer}s</div>
+
+                    <div className="text-xs text-gray-500 mt-4">Next hand in {showdownTimer}s</div>
                   </div>
                 </div>
               )}
