@@ -70,3 +70,61 @@ export const SPADES_AVATARS: AvatarDef[] = [
   { sheet: 1, row: 1, col: 1, name: 'Doc' },
   { sheet: 2, row: 1, col: 3, name: 'Champ' },
 ];
+
+// ─── Dealer Avatar System ────────────────────────────────────────────────────
+// Dealer sprite sheet: /avatars/dealers.png — 4 cols × 5 rows = 20 dealer portraits
+// EXCLUSIVELY used for dealer seats — never for player seats
+
+const DEALER_COLS = 4;
+const DEALER_ROWS = 5;
+
+export interface DealerAvatarDef {
+  row: number; // 0–4
+  col: number; // 0–3
+}
+
+export function getDealerAvatarStyle(avatar: DealerAvatarDef, sizePx: number): React.CSSProperties {
+  const colPct = avatar.col === 0 ? 0 : (avatar.col / (DEALER_COLS - 1)) * 100;
+  const rowPct = avatar.row === 0 ? 0 : (avatar.row / (DEALER_ROWS - 1)) * 100;
+  return {
+    backgroundImage: 'url(/avatars/dealers.png)',
+    backgroundSize: `${DEALER_COLS * 100}% ${DEALER_ROWS * 100}%`,
+    backgroundPosition: `${colPct}% ${rowPct}%`,
+    backgroundRepeat: 'no-repeat',
+    width: `${sizePx}px`,
+    height: `${sizePx}px`,
+    borderRadius: '50%',
+    flexShrink: 0,
+  };
+}
+
+interface DealerAvatarSpriteProps {
+  avatar: DealerAvatarDef;
+  size?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function DealerAvatarSprite({ avatar, size = 48, className = '', style = {} }: DealerAvatarSpriteProps) {
+  return (
+    <div
+      className={className}
+      style={{
+        ...getDealerAvatarStyle(avatar, size),
+        boxShadow: '0 0 0 2px rgba(212,175,55,0.5), 0 4px 16px rgba(0,0,0,0.6)',
+        ...style,
+      }}
+    />
+  );
+}
+
+// All 20 dealer avatar positions (row 0–4, col 0–3)
+export const ALL_DEALER_AVATARS: DealerAvatarDef[] = (() => {
+  const list: DealerAvatarDef[] = [];
+  for (let row = 0; row < DEALER_ROWS; row++) {
+    for (let col = 0; col < DEALER_COLS; col++) {
+      list.push({ row, col });
+    }
+  }
+  return list;
+})();

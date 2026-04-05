@@ -7,8 +7,8 @@ import { createDeck, shuffleDeck, evaluatePokerHand } from '@/hooks/useGameEngin
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { usePokerVoice } from '@/hooks/useGameVoice';
 import { PokerChip, ChipSelector } from '@/components/PokerChip';
-import { AvatarSprite, getAvatarStyle, ALL_AVATARS } from '@/components/AvatarSprite';
-import type { AvatarDef } from '@/components/AvatarSprite';
+import { AvatarSprite, getAvatarStyle, ALL_AVATARS, DealerAvatarSprite } from '@/components/AvatarSprite';
+import type { AvatarDef, DealerAvatarDef } from '@/components/AvatarSprite';
 import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
@@ -39,17 +39,28 @@ const handRankings: Record<string, string> = {
   high_card: 'High Card',
 };
 
-const DEALER_ROSTER = [
-  { name: 'Marcus Vega', avatarIdx: 6 },
-  { name: 'Sophia Lane', avatarIdx: 9 },
-  { name: 'Victor Noir', avatarIdx: 12 },
-  { name: 'Diana Cole', avatarIdx: 15 },
-  { name: 'Lorenzo King', avatarIdx: 18 },
-  { name: 'Bianca Rush', avatarIdx: 21 },
-  { name: 'Rafael Stone', avatarIdx: 24 },
-  { name: 'Celeste Hart', avatarIdx: 27 },
-  { name: 'Anton Cruz', avatarIdx: 30 },
-  { name: 'Vivienne Bell', avatarIdx: 33 },
+// Dealer roster — uses the dealer sprite sheet exclusively (4 cols × 5 rows = 20 dealers)
+const DEALER_ROSTER: { name: string; avatar: DealerAvatarDef }[] = [
+  { name: 'Marcus Vega',    avatar: { row: 0, col: 0 } },
+  { name: 'Sophia Lane',    avatar: { row: 0, col: 1 } },
+  { name: 'Victor Noir',    avatar: { row: 0, col: 2 } },
+  { name: 'Diana Cole',     avatar: { row: 0, col: 3 } },
+  { name: 'Lorenzo King',   avatar: { row: 1, col: 0 } },
+  { name: 'Bianca Rush',    avatar: { row: 1, col: 1 } },
+  { name: 'Rafael Stone',   avatar: { row: 1, col: 2 } },
+  { name: 'Celeste Hart',   avatar: { row: 1, col: 3 } },
+  { name: 'Anton Cruz',     avatar: { row: 2, col: 0 } },
+  { name: 'Vivienne Bell',  avatar: { row: 2, col: 1 } },
+  { name: 'Jackson Reed',   avatar: { row: 2, col: 2 } },
+  { name: 'Nina Frost',     avatar: { row: 2, col: 3 } },
+  { name: 'Damon West',     avatar: { row: 3, col: 0 } },
+  { name: 'Leila Storm',    avatar: { row: 3, col: 1 } },
+  { name: 'Felix Mara',     avatar: { row: 3, col: 2 } },
+  { name: 'Zara Blaze',     avatar: { row: 3, col: 3 } },
+  { name: 'Oscar Raines',   avatar: { row: 4, col: 0 } },
+  { name: 'Camille Fox',    avatar: { row: 4, col: 1 } },
+  { name: 'Theo Blackwood', avatar: { row: 4, col: 2 } },
+  { name: 'Isabel Cruz',    avatar: { row: 4, col: 3 } },
 ];
 
 
@@ -158,7 +169,7 @@ function PotChipStack({ pot }: { pot: number }) {
   );
 }
 
-function DealerSeat({ dealer }: { dealer: { name: string; avatarIdx: number } }) {
+function DealerSeat({ dealer }: { dealer: { name: string; avatar: DealerAvatarDef } }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
       <div style={{
@@ -170,7 +181,7 @@ function DealerSeat({ dealer }: { dealer: { name: string; avatarIdx: number } })
         minWidth: 140,
       }}>
         <div style={{ width: 54, height: 62, flexShrink: 0, overflow: 'hidden', borderRight: '1px solid rgba(212,175,55,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(212,175,55,0.06)' }}>
-          <AvatarSprite avatar={ALL_AVATARS[dealer.avatarIdx % ALL_AVATARS.length]} size={54} style={{ borderRadius: 0 }} />
+          <DealerAvatarSprite avatar={dealer.avatar} size={54} style={{ borderRadius: 0 }} />
         </div>
         <div style={{ padding: '6px 10px', flex: 1 }}>
           <div style={{ fontSize: 8, color: '#D4AF37', letterSpacing: '0.2em', fontWeight: 800, textTransform: 'uppercase' }}>♠ Dealer</div>
