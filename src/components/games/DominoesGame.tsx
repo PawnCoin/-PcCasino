@@ -692,12 +692,14 @@ const PIPS: Record<number, [number, number][]> = {
   4: [[28,28],[72,28],[28,72],[72,72]], 5: [[28,28],[72,28],[50,50],[28,72],[72,72]],
   6: [[28,22],[72,22],[28,50],[72,50],[28,78],[72,78]],
 };
-function PipFace({ value, color, size }: { value: number; color: string; size: number }) {
+function PipFace({ value, color, size, rotate90 }: { value: number; color: string; size: number; rotate90?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flexShrink: 0 }}>
-      {PIPS[value]?.map(([cx, cy], i) => (
-        <circle key={i} cx={cx} cy={cy} r={13} fill={color} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.65))' }} />
-      ))}
+      <g transform={rotate90 ? 'rotate(90,50,50)' : undefined}>
+        {PIPS[value]?.map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r={13} fill={color} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.65))' }} />
+        ))}
+      </g>
     </svg>
   );
 }
@@ -747,9 +749,10 @@ function DominoTileView({
       )}
       {!faceDown && (
         <>
-          <PipFace value={dispLeft} color={skin.pip} size={dims.pip} />
+          {/* Rotate 6-pip faces 90° on any tile that is NOT the double-6 */}
+          <PipFace value={dispLeft}  color={skin.pip} size={dims.pip} rotate90={dispLeft  === 6 && !(dispLeft === 6 && dispRight === 6)} />
           <div style={{ background: skin.divider, flexShrink: 0, width: isVert ? '78%' : 2, height: isVert ? 2 : '78%' }} />
-          <PipFace value={dispRight} color={skin.pip} size={dims.pip} />
+          <PipFace value={dispRight} color={skin.pip} size={dims.pip} rotate90={dispRight === 6 && !(dispLeft === 6 && dispRight === 6)} />
         </>
       )}
     </div>
