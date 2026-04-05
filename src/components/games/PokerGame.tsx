@@ -565,7 +565,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
 
   return (
     <CasinoEnvironment gameType="poker">
-      <div className="min-h-screen bg-[#0a0a0a] relative">
+      <div className="min-h-screen bg-[#0a0a0a] relative flex flex-col">
         <style>{`
           @keyframes pokerTrailFade { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(0.3)} }
           @keyframes pokerPotGlow { 0%,100%{box-shadow:0 0 20px rgba(212,175,55,0.3),0 0 40px rgba(212,175,55,0.1)} 50%{box-shadow:0 0 30px rgba(212,175,55,0.5),0 0 60px rgba(212,175,55,0.2)} }
