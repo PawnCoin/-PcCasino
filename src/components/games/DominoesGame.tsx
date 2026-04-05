@@ -695,14 +695,16 @@ const PIPS: Record<number, [number, number][]> = {
   4: [[28,28],[72,28],[28,72],[72,72]], 5: [[28,28],[72,28],[50,50],[28,72],[72,72]],
   6: [[28,22],[72,22],[28,50],[72,50],[28,78],[72,78]],
 };
+// 6-pip layout rotated 90°: 3 across × 2 down (used on non-double-6 tiles)
+const PIPS_6_ROTATED: [number, number][] = [[22,28],[50,28],[78,28],[22,72],[50,72],[78,72]];
+
 function PipFace({ value, color, size, rotate90 }: { value: number; color: string; size: number; rotate90?: boolean }) {
+  const dots = (rotate90 && value === 6) ? PIPS_6_ROTATED : (PIPS[value] ?? []);
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flexShrink: 0 }}>
-      <g transform={rotate90 ? 'rotate(90,50,50)' : undefined}>
-        {PIPS[value]?.map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r={13} fill={color} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.65))' }} />
-        ))}
-      </g>
+      {dots.map(([cx, cy], i) => (
+        <circle key={i} cx={cx} cy={cy} r={13} fill={color} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.65))' }} />
+      ))}
     </svg>
   );
 }
