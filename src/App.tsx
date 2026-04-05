@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 import { Navigation } from '@/components/Navigation';
+import { ALL_AVATARS } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 import { HeroSection } from '@/components/HeroSection';
 import { GamesGrid } from '@/components/GamesGrid';
 import { WeParlaySection } from '@/components/WeParlaySection';
@@ -45,6 +47,14 @@ interface UnifiedUser {
 function App() {
   const [user, setUser] = useState<UnifiedUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userAvatarDef, setUserAvatarDef] = useState<AvatarDef>(() => {
+    try {
+      const stored = localStorage.getItem('pcasino_user_avatar_def');
+      return stored ? JSON.parse(stored) : ALL_AVATARS[Math.floor(Math.random() * 12)];
+    } catch {
+      return ALL_AVATARS[0];
+    }
+  });
   
   const [currentView, setCurrentView] = useState<'lobby' | GameType>('lobby');
   const [showAuth, setShowAuth] = useState(false);
@@ -62,7 +72,7 @@ function App() {
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
 
   // Card deck preference
-  const { selectedDeck, selectDeck, getCardBackStyle } = useCardDeck();
+  const { selectedDeck, selectDeck, getCardBackStyle, addCustomDeck, allDecks } = useCardDeck();
 
   // Check for existing session
   useEffect(() => {
@@ -517,6 +527,7 @@ function App() {
           user={user}
           isAuthenticated={isAuthenticated}
           balance={user?.balance || 0}
+          avatarDef={userAvatarDef}
           onConnect={() => setShowAuth(true)}
           onConnectWallet={() => setShowWalletModal(true)}
           onDisconnect={logout}
@@ -763,7 +774,9 @@ function App() {
         isOpen={showCardDeck}
         onClose={() => setShowCardDeck(false)}
         selectedDeck={selectedDeck}
+        allDecks={allDecks}
         onSelectDeck={selectDeck}
+        onUploadDeck={addCustomDeck}
       />
 
       {/* Share Modal */}

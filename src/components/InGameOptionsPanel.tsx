@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 
-const AVATARS = ['🎲', '💎', '👑', '🃏', '🎰', '🦈', '🔥', '⚡', '🐉', '🎯', '♠️', '🍀', '🌟', '💰', '🦁'];
 const CARD_SKINS = [
   { id: 'default', name: 'Classic', color: '#D4AF37' },
   { id: 'midnight', name: 'Midnight', color: '#1565C0' },
@@ -21,6 +22,9 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
   const { settings, updateSettings } = useGlobalGame();
   const [nameInput, setNameInput] = useState(settings.displayName);
 
+  let currentAvatarDef: AvatarDef = ALL_AVATARS[0];
+  try { currentAvatarDef = JSON.parse(settings.avatarDef); } catch {}
+
   if (!isOpen) return null;
 
   const toggle = (key: keyof typeof settings) => {
@@ -31,6 +35,10 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
     if (nameInput.trim()) updateSettings({ displayName: nameInput.trim() });
   };
 
+  const selectAvatar = (av: AvatarDef) => {
+    updateSettings({ avatarDef: JSON.stringify(av) });
+  };
+
   return (
     <div
       style={{
@@ -39,10 +47,8 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Backdrop */}
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
 
-      {/* Panel */}
       <div style={{
         position: 'relative', zIndex: 1,
         width: 320, height: '100%',
@@ -52,7 +58,6 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
         display: 'flex', flexDirection: 'column',
         overflowY: 'auto',
       }}>
-        {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: "'Cinzel',serif", fontSize: 16, fontWeight: 900, color: '#D4AF37', letterSpacing: '0.1em' }}>OPTIONS</div>
@@ -65,12 +70,11 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
 
         <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {/* Avatar + Name */}
           <section>
             <SectionLabel icon={<User size={12} />} label="PROFILE" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <div style={{ fontSize: 36, lineHeight: 1, width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(212,175,55,0.08)', borderRadius: 12, border: '1px solid rgba(212,175,55,0.2)' }}>
-                {settings.avatar}
+              <div style={{ width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(212,175,55,0.08)', borderRadius: 12, border: '1px solid rgba(212,175,55,0.2)', overflow: 'hidden', flexShrink: 0 }}>
+                <AvatarSprite avatar={currentAvatarDef} size={48} style={{ borderRadius: 8 }} />
               </div>
               <div style={{ flex: 1 }}>
                 <input
@@ -83,20 +87,28 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {AVATARS.map(a => (
-                <button key={a} onClick={() => updateSettings({ avatar: a })} style={{
-                  width: 36, height: 36, fontSize: 20, borderRadius: 8, border: `2px solid ${settings.avatar === a ? 'rgba(212,175,55,0.8)' : 'rgba(255,255,255,0.08)'}`,
-                  background: settings.avatar === a ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.04)',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {a}
-                </button>
-              ))}
+            <div style={{ fontSize: 9, color: '#4b5563', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 6 }}>CHOOSE AVATAR</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+              {ALL_AVATARS.map((av, i) => {
+                const isSelected = currentAvatarDef.sheet === av.sheet && currentAvatarDef.row === av.row && currentAvatarDef.col === av.col;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => selectAvatar(av)}
+                    style={{
+                      width: 38, height: 38, borderRadius: 8, overflow: 'hidden',
+                      border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                      background: isSelected ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.04)',
+                      cursor: 'pointer', padding: 0, transition: 'border-color 0.15s',
+                    }}
+                  >
+                    <AvatarSprite avatar={av} size={34} style={{ borderRadius: 0 }} />
+                  </button>
+                );
+              })}
             </div>
           </section>
 
-          {/* Volume */}
           <section>
             <SectionLabel icon={<Volume2 size={12} />} label="VOLUME" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -114,51 +126,19 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
             </div>
           </section>
 
-          {/* Toggles */}
           <section>
             <SectionLabel icon={<Music size={12} />} label="AUDIO & DISPLAY" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <ToggleRow
-                icon={<Music size={13} />}
-                label="Casino Crowd Sound"
-                sub="Ambient crowd noise"
-                value={settings.casinoSoundEnabled}
-                onChange={() => toggle('casinoSoundEnabled')}
-              />
-              <ToggleRow
-                icon={<Mic size={13} />}
-                label="Voice Caller"
-                sub="Spoken ball / dealer calls"
-                value={settings.voiceEnabled}
-                onChange={() => toggle('voiceEnabled')}
-              />
-              <ToggleRow
-                icon={<MessageSquare size={13} />}
-                label="On-Screen Text"
-                sub="Captions and tips"
-                value={settings.textEnabled}
-                onChange={() => toggle('textEnabled')}
-              />
-              <ToggleRow
-                icon={<Bot size={13} />}
-                label="AI Help"
-                sub="Strategy hints and tips"
-                value={settings.aiHelpEnabled}
-                onChange={() => toggle('aiHelpEnabled')}
-              />
+              <ToggleRow icon={<Music size={13} />} label="Casino Crowd Sound" sub="Ambient crowd noise" value={settings.casinoSoundEnabled} onChange={() => toggle('casinoSoundEnabled')} />
+              <ToggleRow icon={<Mic size={13} />} label="Voice Caller" sub="Spoken ball / dealer calls" value={settings.voiceEnabled} onChange={() => toggle('voiceEnabled')} />
+              <ToggleRow icon={<MessageSquare size={13} />} label="On-Screen Text" sub="Captions and tips" value={settings.textEnabled} onChange={() => toggle('textEnabled')} />
+              <ToggleRow icon={<Bot size={13} />} label="AI Help" sub="Strategy hints and tips" value={settings.aiHelpEnabled} onChange={() => toggle('aiHelpEnabled')} />
               {isMember && (
-                <ToggleRow
-                  icon={<Tv size={13} />}
-                  label="VappTV Overlay"
-                  sub="Watch TV while you play"
-                  value={settings.vappTVEnabled}
-                  onChange={() => toggle('vappTVEnabled')}
-                />
+                <ToggleRow icon={<Tv size={13} />} label="VappTV Overlay" sub="Watch TV while you play" value={settings.vappTVEnabled} onChange={() => toggle('vappTVEnabled')} />
               )}
             </div>
           </section>
 
-          {/* Card skin */}
           <section>
             <SectionLabel icon={<Palette size={12} />} label="CARD SKIN" />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -175,7 +155,6 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
             </div>
           </section>
 
-          {/* Membership info */}
           <section style={{ marginTop: 'auto' }}>
             <div style={{ background: isMember ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isMember ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: isMember ? '#D4AF37' : '#6b7280', letterSpacing: '0.1em', marginBottom: 4 }}>

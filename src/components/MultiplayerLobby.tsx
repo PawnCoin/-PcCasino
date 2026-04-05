@@ -4,7 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { GameTable, GameType } from '@/types';
+
+function nameToAvatar(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return ALL_AVATARS[h % ALL_AVATARS.length];
+}
 
 interface MultiplayerLobbyProps {
   isOpen: boolean;
@@ -38,7 +45,7 @@ const generateMockTables = (): GameTable[] => {
       players: Array(playerCount).fill(null).map((_, j) => ({
         id: `player_${j}`,
         username: `Player${Math.floor(Math.random() * 999)}`,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Math.random()}`,
+        avatar: '',
         balance: Math.floor(Math.random() * 10000),
         seat: j,
         isActive: true,
@@ -363,7 +370,9 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance }: 
                 <div className="space-y-2">
                   {selectedTable.players.map((player, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/5">
-                      <img src={player.avatar} alt={player.username} className="w-8 h-8 rounded-full" />
+                      <div className="w-8 h-8 rounded-full overflow-hidden">
+                        <AvatarSprite avatar={nameToAvatar(player.username)} size={32} style={{ borderRadius: 0 }} />
+                      </div>
                       <span className="font-medium">{player.username}</span>
                       <span className="ml-auto text-sm text-gray-400">{player.balance.toLocaleString()} $Pc</span>
                     </div>

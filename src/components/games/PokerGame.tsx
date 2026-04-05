@@ -376,6 +376,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const [loseEffect, setLoseEffect] = useState(false);
   const [winText, setWinText] = useState('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [potSweepToUser, setPotSweepToUser] = useState(false);
   const [opponents, setOpponents] = useState<OpponentData[]>([
     { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1 },
     { id: 2, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarIdx: 2 },
@@ -384,6 +385,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
     { id: 5, name: 'Riley', balance: 3883, bet: 0, active: true, position: '', avatarIdx: 5 },
     { id: 6, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 6 },
     { id: 7, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 7 },
+    { id: 8, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 8 },
   ]);
 
   const [showdownData, setShowdownData] = useState<{
@@ -534,6 +536,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
       const winAmount = pot;
       onWin(winAmount);
       setWinEffect(true);
+      setPotSweepToUser(true);
+      setTimeout(() => setPotSweepToUser(false), 1200);
       setWinText(`${handName} — ${winAmount} $Pc!`);
       setMessage(`YOU WIN! ${handName}`);
       playSound('win');
@@ -575,22 +579,24 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
     }
   };
 
-  /* seat positions around the table */
-  const seatPositions: { style: React.CSSProperties; dir: 'up' | 'left' | 'right' | 'down' }[] = [
-    // opponent 0 → top-left area
-    { style: { top: '4%', left: '20%', transform: 'translateX(-50%)' }, dir: 'up' },
-    // opponent 1 → top-right area
-    { style: { top: '4%', right: '20%', transform: 'translateX(50%)' }, dir: 'up' },
-    // opponent 2 → left upper
-    { style: { top: '28%', left: '-4px' }, dir: 'right' },
-    // opponent 3 → left lower
-    { style: { top: '58%', left: '-4px' }, dir: 'right' },
-    // opponent 4 → bottom-left
-    { style: { bottom: '4%', left: '10%' }, dir: 'up' },
-    // opponent 5 → right upper
-    { style: { top: '20%', right: '-4px' }, dir: 'left' },
-    // opponent 6 → right lower
-    { style: { top: '52%', right: '-4px' }, dir: 'left' },
+  /* 9-seat layout: 8 opponents around oval + user at bottom center */
+  const seatPositions: { style: React.CSSProperties; dir: 'up' | 'left' | 'right' | 'down'; betOffset: { x: number; y: number } }[] = [
+    // seat 0 → top-left
+    { style: { top: '2%', left: '18%', transform: 'translateX(-50%)' }, dir: 'up', betOffset: { x: -65, y: -55 } },
+    // seat 1 → top-center
+    { style: { top: '0%', left: '50%', transform: 'translateX(-50%)' }, dir: 'up', betOffset: { x: 0, y: -62 } },
+    // seat 2 → top-right
+    { style: { top: '2%', right: '18%', transform: 'translateX(50%)' }, dir: 'up', betOffset: { x: 65, y: -55 } },
+    // seat 3 → right upper
+    { style: { top: '20%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: -15 } },
+    // seat 4 → right lower
+    { style: { top: '52%', right: '-4px' }, dir: 'left', betOffset: { x: 80, y: 15 } },
+    // seat 5 → bottom-right
+    { style: { bottom: '4%', right: '14%' }, dir: 'up', betOffset: { x: 52, y: 52 } },
+    // seat 6 → bottom-left
+    { style: { bottom: '4%', left: '14%' }, dir: 'up', betOffset: { x: -52, y: 52 } },
+    // seat 7 → left side
+    { style: { top: '36%', left: '-4px' }, dir: 'right', betOffset: { x: -80, y: 0 } },
   ];
 
   return (
@@ -622,7 +628,9 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
           @keyframes pokerGoldRing {
             0%{transform:translate(-50%,-50%) scale(0.3);opacity:1;border-width:4px} 100%{transform:translate(-50%,-50%) scale(2.5);opacity:0;border-width:1px}
           }
-          @keyframes pokerChipsSweep { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(0,120px) scale(0.5);opacity:0} }
+          @keyframes pokerChipsSweep { 0%{transform:translate(-50%,0) scale(1);opacity:1} 100%{transform:translate(-50%,160px) scale(0.3);opacity:0} }
+          @keyframes chipToss { 0%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0.4)} 30%{opacity:1} 80%{opacity:0.9;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(0,0) scale(0.6)} }
+          @keyframes betChipAppear { 0%{opacity:0;transform:scale(0) translateY(8px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
           @keyframes pokerSpotlight { 0%,100%{opacity:0.5} 50%{opacity:0.8} }
         `}</style>
 
@@ -769,14 +777,43 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 <div style={{ position:'absolute', bottom:3, left:'50%', transform:'translateX(-50%)', fontSize:6, color:'rgba(212,175,55,0.6)', fontWeight:700 }}>SHOE</div>
               </div>
 
+              {/* Opponent bet chip indicators near the pot */}
+              {opponents.map((opp, idx) => {
+                const pos = seatPositions[idx];
+                if (!pos || !opp.active || opp.bet <= 0) return null;
+                const offset = pos.betOffset;
+                return (
+                  <div key={`bet-${opp.id}`} className="absolute z-[16] pointer-events-none"
+                    style={{
+                      top: '32%', left: '50%',
+                      transform: `translate(calc(-50% + ${offset.x}px), ${offset.y}px)`,
+                      animation: 'betChipAppear 0.3s ease-out forwards',
+                    }}
+                  >
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#D4AF37,#8B6914)', border: '2px solid rgba(255,255,255,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#fff', boxShadow:'0 2px 6px rgba(0,0,0,0.5)' }}>
+                        {opp.bet >= 1000 ? `${Math.round(opp.bet/1000)}k` : opp.bet}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
               {/* Pot */}
               <div className="absolute top-[22%] left-1/2 -translate-x-1/2 text-center z-[15]" style={{ animation: pot > 0 ? 'pokerPotGlow 2s ease-in-out infinite' : 'none', background:'radial-gradient(ellipse at center,rgba(212,175,55,0.08) 0%,transparent 70%)', borderRadius:20, padding:'6px 20px' }}>
                 <div style={{ fontSize:9, color:'#C0C0C0', letterSpacing:'0.3em', fontWeight:700, marginBottom:2 }}>POT</div>
                 <div className="text-2xl font-bold text-[#D4AF37] gold-text">{pot.toLocaleString()}</div>
                 <div className="text-xs text-[#C0C0C0]">$Pc</div>
                 {pot > 0 && (
-                  <div className="mt-1" style={{ animation: winEffect ? 'pokerChipsSweep 1s ease-in 0.5s forwards' : undefined }}>
+                  <div className="mt-1 relative" style={{ animation: potSweepToUser ? 'pokerChipsSweep 0.9s ease-in forwards' : undefined }}>
                     <PotChipStack pot={pot} />
+                    {potSweepToUser && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#D4AF37', textShadow: '0 0 10px #D4AF37', whiteSpace: 'nowrap', marginTop: -24 }}>
+                          +{pot.toLocaleString()}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

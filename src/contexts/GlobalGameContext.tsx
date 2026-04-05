@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { ALL_AVATARS } from '@/components/AvatarSprite';
 
 export interface GameSettings {
   displayName: string;
   avatar: string;
+  avatarDef: string;
   volumeLevel: number;
   voiceEnabled: boolean;
   textEnabled: boolean;
@@ -34,6 +36,7 @@ const MEMBER_THRESHOLD = 100_000_000;
 const DEFAULT_SETTINGS: GameSettings = {
   displayName: 'Player',
   avatar: '🎲',
+  avatarDef: JSON.stringify(ALL_AVATARS[0]),
   volumeLevel: 0.7,
   voiceEnabled: true,
   textEnabled: true,
@@ -57,7 +60,9 @@ export function GlobalGameProvider({ children, balance }: { children: ReactNode;
   const [settings, setSettings] = useState<GameSettings>(() => {
     try {
       const stored = localStorage.getItem('pcasino_game_settings');
-      return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
+      const parsed = stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
+      if (!parsed.avatarDef) parsed.avatarDef = JSON.stringify(ALL_AVATARS[0]);
+      return parsed;
     } catch {
       return DEFAULT_SETTINGS;
     }

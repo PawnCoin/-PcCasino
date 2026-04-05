@@ -8,7 +8,10 @@ export type CardDeckStyle =
   | 'silver_holographic'
   | 'midnight_purple'
   | 'neon_cyberpunk'
-  | 'retro_classic';
+  | 'retro_classic'
+  | 'custom_1'
+  | 'custom_2'
+  | 'custom_3';
 
 export interface CardDeck {
   id: CardDeckStyle;
@@ -16,14 +19,15 @@ export interface CardDeck {
   description: string;
   image: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  isCustom?: boolean;
 }
 
-export const CARD_DECKS: CardDeck[] = [
+export const BUILTIN_DECKS: CardDeck[] = [
   {
     id: 'classic',
     name: 'Classic Vegas',
     description: 'Traditional blue diamond pattern',
-    image: '', // Uses CSS pattern
+    image: '',
     rarity: 'common',
   },
   {
@@ -77,11 +81,28 @@ export const CARD_DECKS: CardDeck[] = [
   },
 ];
 
+function loadCustomDecks(): CardDeck[] {
+  try {
+    const stored = localStorage.getItem('pcasino_custom_decks');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomDecks(decks: CardDeck[]) {
+  localStorage.setItem('pcasino_custom_decks', JSON.stringify(decks));
+}
+
+export let CARD_DECKS: CardDeck[] = [...BUILTIN_DECKS, ...loadCustomDecks()];
+
 export function useCardDeck() {
   const [selectedDeck, setSelectedDeck] = useState<CardDeckStyle>(() => {
     const stored = localStorage.getItem('pcasino_card_deck');
     return (stored as CardDeckStyle) || 'classic';
   });
+
+  const [allDecks, setAllDecks] = useState<CardDeck[]>(() => [...BUILTIN_DECKS, ...loadCustomDecks()]);
 
   useEffect(() => {
     localStorage.setItem('pcasino_card_deck', selectedDeck);
@@ -92,14 +113,33 @@ export function useCardDeck() {
   }, []);
 
   const getCurrentDeck = useCallback(() => {
-    return CARD_DECKS.find(d => d.id === selectedDeck) || CARD_DECKS[0];
-  }, [selectedDeck]);
+    return allDecks.find(d => d.id === selectedDeck) || allDecks[0];
+  }, [selectedDeck, allDecks]);
+
+  const addCustomDeck = useCallback((name: string, imageDataUrl: string) => {
+    const customDecks = loadCustomDecks();
+    const idx = customDecks.length;
+    const deckId = (['custom_1', 'custom_2', 'custom_3'] as CardDeckStyle[])[idx % 3];
+    const newDeck: CardDeck = {
+      id: deckId,
+      name,
+      description: 'Custom uploaded card back',
+      image: imageDataUrl,
+      rarity: 'epic',
+      isCustom: true,
+    };
+    const updated = customDecks.filter(d => d.id !== deckId).concat(newDeck);
+    saveCustomDecks(updated);
+    const newAll = [...BUILTIN_DECKS, ...updated];
+    CARD_DECKS = newAll;
+    setAllDecks(newAll);
+    setSelectedDeck(deckId);
+  }, []);
 
   const getCardBackStyle = useCallback(() => {
     const deck = getCurrentDeck();
     
     if (deck.id === 'classic' || !deck.image) {
-      // Return CSS-based classic pattern
       return {
         type: 'css' as const,
         style: {
@@ -128,6 +168,7 @@ export function useCardDeck() {
     selectDeck,
     getCurrentDeck,
     getCardBackStyle,
-    allDecks: CARD_DECKS,
+    addCustomDeck,
+    allDecks,
   };
 }

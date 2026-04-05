@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 import type { UnifiedUser } from '@/types';
 
 interface NavigationProps {
   user: UnifiedUser | null;
   isAuthenticated: boolean;
   balance: number;
+  avatarDef?: AvatarDef;
   onConnect: () => void;
   onConnectWallet: () => void;
   onDisconnect: () => void;
@@ -21,7 +24,8 @@ interface NavigationProps {
 export function Navigation({ 
   user, 
   isAuthenticated, 
-  balance, 
+  balance,
+  avatarDef,
   onConnect, 
   onConnectWallet,
   onDisconnect, 
@@ -31,6 +35,7 @@ export function Navigation({
   onShowCardDeck,
   onShowMultiplayer,
 }: NavigationProps) {
+  const displayAvatar = avatarDef || ALL_AVATARS[0];
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
@@ -197,7 +202,9 @@ export function Navigation({
                           onClick={() => setShowUserDropdown(!showUserDropdown)}
                           className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-[#5D4037]/30 transition-colors"
                         >
-                          <span className="text-2xl">{user?.avatar}</span>
+                          <div className="rounded-full overflow-hidden" style={{ width: 28, height: 28 }}>
+                            <AvatarSprite avatar={displayAvatar} size={28} style={{ borderRadius: 0 }} />
+                          </div>
                           <span className="hidden sm:block font-medium text-white">{user?.username}</span>
                           {user?.walletAddress && (
                             <span className="hidden md:block text-xs text-[#43A047]">
@@ -223,8 +230,10 @@ export function Navigation({
                       >
                         <div className="p-4 border-b border-[#5D4037]/30">
                           <div className="flex items-center gap-3">
-                            <span className="text-3xl">{user?.avatar}</span>
-                            <div>
+                            <div className="rounded-full overflow-hidden" style={{ width: 44, height: 44 }}>
+                            <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
+                          </div>
+                          <div>
                               <div className="font-bold text-white">{user?.username}</div>
                               {user?.email && (
                                 <div className="text-xs text-[#808080]">{user.email}</div>
