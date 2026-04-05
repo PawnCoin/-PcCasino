@@ -96,6 +96,8 @@ function saveCustomDecks(decks: CardDeck[]) {
 
 export let CARD_DECKS: CardDeck[] = [...BUILTIN_DECKS, ...loadCustomDecks()];
 
+const DECK_CHANGE_EVENT = 'pcasino_deck_change';
+
 export function useCardDeck() {
   const [selectedDeck, setSelectedDeck] = useState<CardDeckStyle>(() => {
     const stored = localStorage.getItem('pcasino_card_deck');
@@ -105,11 +107,18 @@ export function useCardDeck() {
   const [allDecks, setAllDecks] = useState<CardDeck[]>(() => [...BUILTIN_DECKS, ...loadCustomDecks()]);
 
   useEffect(() => {
-    localStorage.setItem('pcasino_card_deck', selectedDeck);
-  }, [selectedDeck]);
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent).detail as CardDeckStyle;
+      setSelectedDeck(id);
+    };
+    window.addEventListener(DECK_CHANGE_EVENT, handler);
+    return () => window.removeEventListener(DECK_CHANGE_EVENT, handler);
+  }, []);
 
   const selectDeck = useCallback((deckId: CardDeckStyle) => {
     setSelectedDeck(deckId);
+    localStorage.setItem('pcasino_card_deck', deckId);
+    window.dispatchEvent(new CustomEvent(DECK_CHANGE_EVENT, { detail: deckId }));
   }, []);
 
   const getCurrentDeck = useCallback(() => {

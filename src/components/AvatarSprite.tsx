@@ -74,26 +74,34 @@ export const SPADES_AVATARS: AvatarDef[] = [
 // ─── Dealer Avatar System ────────────────────────────────────────────────────
 // Dealer sprite sheet: /avatars/dealers.png — 4 cols × 5 rows = 20 dealer portraits
 // EXCLUSIVELY used for dealer seats — never for player seats
+// Sheet dimensions: 1024 × 1536 px → each cell is 256 × 307.2 px
 
 const DEALER_COLS = 4;
 const DEALER_ROWS = 5;
+const DEALER_SHEET_W = 1024;
+const DEALER_SHEET_H = 1536;
+const DEALER_CELL_W = DEALER_SHEET_W / DEALER_COLS; // 256
+const DEALER_CELL_H = DEALER_SHEET_H / DEALER_ROWS; // 307.2
 
 export interface DealerAvatarDef {
   row: number; // 0–4
   col: number; // 0–3
 }
 
-export function getDealerAvatarStyle(avatar: DealerAvatarDef, sizePx: number): React.CSSProperties {
-  const colPct = avatar.col === 0 ? 0 : (avatar.col / (DEALER_COLS - 1)) * 100;
-  const rowPct = avatar.row === 0 ? 0 : (avatar.row / (DEALER_ROWS - 1)) * 100;
+export function getDealerAvatarStyle(avatar: DealerAvatarDef, widthPx: number): React.CSSProperties {
+  const displayW = widthPx;
+  const displayH = Math.round(widthPx * DEALER_CELL_H / DEALER_CELL_W);
+  const bgW = displayW * DEALER_COLS;
+  const bgH = displayH * DEALER_ROWS;
+  const posX = avatar.col * displayW;
+  const posY = avatar.row * displayH;
   return {
     backgroundImage: 'url(/avatars/dealers.png)',
-    backgroundSize: `${DEALER_COLS * 100}% ${DEALER_ROWS * 100}%`,
-    backgroundPosition: `${colPct}% ${rowPct}%`,
+    backgroundSize: `${bgW}px ${bgH}px`,
+    backgroundPosition: `-${posX}px -${posY}px`,
     backgroundRepeat: 'no-repeat',
-    width: `${sizePx}px`,
-    height: `${sizePx}px`,
-    borderRadius: '50%',
+    width: `${displayW}px`,
+    height: `${displayH}px`,
     flexShrink: 0,
   };
 }
@@ -106,12 +114,12 @@ interface DealerAvatarSpriteProps {
 }
 
 export function DealerAvatarSprite({ avatar, size = 48, className = '', style = {} }: DealerAvatarSpriteProps) {
+  const baseStyle = getDealerAvatarStyle(avatar, size);
   return (
     <div
       className={className}
       style={{
-        ...getDealerAvatarStyle(avatar, size),
-        boxShadow: '0 0 0 2px rgba(212,175,55,0.5), 0 4px 16px rgba(0,0,0,0.6)',
+        ...baseStyle,
         ...style,
       }}
     />

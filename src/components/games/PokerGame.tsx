@@ -173,17 +173,17 @@ function DealerSeat({ dealer }: { dealer: { name: string; avatar: DealerAvatarDe
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
       <div style={{
-        display: 'flex', flexDirection: 'row', alignItems: 'center',
+        display: 'flex', flexDirection: 'row', alignItems: 'stretch',
         background: 'linear-gradient(135deg, rgba(12,8,28,0.97), rgba(22,14,36,0.99))',
         border: '1.5px solid rgba(212,175,55,0.7)',
         borderRadius: 10, overflow: 'hidden',
         boxShadow: '0 4px 20px rgba(0,0,0,0.8), 0 0 18px rgba(212,175,55,0.2)',
         minWidth: 140,
       }}>
-        <div style={{ width: 54, height: 62, flexShrink: 0, overflow: 'hidden', borderRight: '1px solid rgba(212,175,55,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(212,175,55,0.06)' }}>
-          <DealerAvatarSprite avatar={dealer.avatar} size={54} style={{ borderRadius: 0 }} />
+        <div style={{ flexShrink: 0, overflow: 'hidden', borderRight: '1px solid rgba(212,175,55,0.4)', background: 'rgba(212,175,55,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <DealerAvatarSprite avatar={dealer.avatar} size={54} />
         </div>
-        <div style={{ padding: '6px 10px', flex: 1 }}>
+        <div style={{ padding: '6px 10px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <div style={{ fontSize: 8, color: '#D4AF37', letterSpacing: '0.2em', fontWeight: 800, textTransform: 'uppercase' }}>♠ Dealer</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginTop: 2, whiteSpace: 'nowrap' }}>{dealer.name}</div>
           <div style={{ fontSize: 7.5, color: 'rgba(212,175,55,0.55)', marginTop: 2, letterSpacing: '0.1em' }}>$Pc Casino</div>
@@ -204,14 +204,25 @@ interface OpponentData {
   avatarIdx: number;
 }
 
+const ACTION_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  'FOLD':   { bg: 'rgba(239,68,68,0.85)',   border: '#ef4444', text: '#fff' },
+  'CHECK':  { bg: 'rgba(59,130,246,0.85)',   border: '#3b82f6', text: '#fff' },
+  'CALL':   { bg: 'rgba(34,197,94,0.85)',    border: '#22c55e', text: '#fff' },
+  'RAISE':  { bg: 'rgba(212,175,55,0.9)',    border: '#D4AF37', text: '#000' },
+  'ALL IN': { bg: 'rgba(168,85,247,0.9)',    border: '#a855f7', text: '#fff' },
+  '...':    { bg: 'rgba(40,40,60,0.9)',      border: 'rgba(255,255,255,0.25)', text: '#9ca3af' },
+};
+
 function OpponentSeat({
   opponent,
   cardBackStyle,
   cardDirection = 'up',
+  action,
 }: {
   opponent: OpponentData;
   cardBackStyle?: PokerGameProps['cardBackStyle'];
   cardDirection?: 'up' | 'left' | 'right' | 'down';
+  action?: { label: string; thinking: boolean } | null;
 }) {
   if (!opponent.active) {
     return (
@@ -239,8 +250,34 @@ function OpponentSeat({
   const isLeft = cardDirection === 'left';
   const isRight = cardDirection === 'right';
 
+  const actionTheme = action ? (ACTION_COLORS[action.label] || ACTION_COLORS['...']) : null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative' }}>
+
+      {/* action badge overlay */}
+      {action && actionTheme && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 30, pointerEvents: 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'oppActionIn 0.2s ease-out both',
+        }}>
+          <div style={{
+            background: actionTheme.bg,
+            border: `2px solid ${actionTheme.border}`,
+            color: actionTheme.text,
+            borderRadius: 8, padding: '4px 12px',
+            fontSize: action.thinking ? 18 : 13,
+            fontWeight: 900, letterSpacing: action.thinking ? '0.3em' : '0.15em',
+            textTransform: 'uppercase',
+            boxShadow: `0 0 20px ${actionTheme.border}88`,
+            backdropFilter: 'blur(4px)',
+          }}>
+            {action.label}
+          </div>
+        </div>
+      )}
+
       {/* cards above for top seats */}
       {cardDirection === 'up' && (
         <div style={{ display: 'flex', gap: 3, marginBottom: 2 }}>
@@ -251,12 +288,13 @@ function OpponentSeat({
 
       <div style={{
         display: 'flex', flexDirection: 'row', alignItems: 'center',
-        background: 'rgba(10,10,18,0.88)',
-        border: '1.5px solid rgba(255,255,255,0.12)',
+        background: action && !action.thinking ? `${actionTheme?.bg ?? 'rgba(10,10,18,0.88)'}` : 'rgba(10,10,18,0.88)',
+        border: action ? `1.5px solid ${actionTheme?.border ?? 'rgba(255,255,255,0.12)'}` : '1.5px solid rgba(255,255,255,0.12)',
         borderRadius: 10,
         overflow: 'hidden',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+        boxShadow: action && !action.thinking ? `0 0 18px ${actionTheme?.border ?? 'transparent'}66` : '0 4px 16px rgba(0,0,0,0.6)',
         minWidth: 140,
+        transition: 'border 0.2s, box-shadow 0.2s',
       }}>
         {/* cards left for left-side seats */}
         {isLeft && <div style={{ marginRight: 4, marginLeft: 4 }}>{cards}</div>}
@@ -425,7 +463,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const [winText, setWinText] = useState('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [potSweepToUser, setPotSweepToUser] = useState(false);
-  const [dealer, setDealer] = useState(DEALER_ROSTER[0]);
+  const [dealer] = useState(() => DEALER_ROSTER[Math.floor(Math.random() * DEALER_ROSTER.length)]);
+  const [oppAction, setOppAction] = useState<{ idx: number; label: string; thinking: boolean } | null>(null);
   const [opponents, setOpponents] = useState<OpponentData[]>([
     { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1 },
     { id: 2, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 0 },
@@ -451,8 +490,27 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const { announceEvent, stop, isSupported: voiceSupported } = usePokerVoice();
   const chipAreaRef = useRef<HTMLDivElement>(null);
 
+  const simulateOpponentActions = useCallback((callback: () => void) => {
+    const activeOpps = opponents
+      .map((o, idx) => ({ ...o, idx }))
+      .filter(o => o.active && o.name);
+    const count = Math.min(activeOpps.length, Math.floor(Math.random() * 3) + 1);
+    const acting = activeOpps.slice(0, count);
+    const ACTION_POOL = ['CHECK', 'CALL', 'RAISE', 'FOLD', 'ALL IN'];
+    let delay = 0;
+    acting.forEach(opp => {
+      setTimeout(() => setOppAction({ idx: opp.idx, label: '...', thinking: true }), delay);
+      delay += 700;
+      const label = ACTION_POOL[Math.floor(Math.random() * ACTION_POOL.length)];
+      setTimeout(() => setOppAction({ idx: opp.idx, label, thinking: false }), delay);
+      delay += 950;
+      setTimeout(() => setOppAction(null), delay);
+      delay += 150;
+    });
+    setTimeout(callback, delay + 200);
+  }, [opponents]);
+
   const startNewHand = useCallback(() => {
-    setDealer(DEALER_ROSTER[Math.floor(Math.random() * DEALER_ROSTER.length)]);
     const newDeck = shuffleDeck(createDeck());
     const playerCards = [newDeck[0], newDeck[1]];
     const newOpponents = opponents.map((opp, idx) => ({
@@ -547,7 +605,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   };
 
   const advancePhase = () => {
-    setTimeout(() => {
+    simulateOpponentActions(() => {
       switch (gamePhase) {
         case 'preflop':
           dealCommunity(3); setGamePhase('flop'); setCurrentBet(0); setPlayerBet(0);
@@ -571,7 +629,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
           setGamePhase('showdown'); resolveHand();
           break;
       }
-    }, 500);
+    });
   };
 
   const resolveHand = () => {
@@ -677,6 +735,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
           @keyframes chipToss { 0%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0.4)} 30%{opacity:1} 80%{opacity:0.9;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(0,0) scale(0.6)} }
           @keyframes betChipAppear { 0%{opacity:0;transform:scale(0) translateY(8px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
           @keyframes pokerSpotlight { 0%,100%{opacity:0.5} 50%{opacity:0.8} }
+          @keyframes oppActionIn { 0%{opacity:0;transform:scale(0.6)} 60%{transform:scale(1.12)} 100%{opacity:1;transform:scale(1)} }
         `}</style>
 
         {flyingChips.map((amount, i) => (
@@ -906,9 +965,10 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
               {opponents.map((opp, idx) => {
                 const pos = seatPositions[idx];
                 if (!pos) return null;
+                const myAction = oppAction?.idx === idx ? { label: oppAction.label, thinking: oppAction.thinking } : null;
                 return (
                   <div key={opp.id} className="absolute z-[20]" style={pos.style}>
-                    <OpponentSeat opponent={opp} cardBackStyle={cardBackStyle} cardDirection={pos.dir} />
+                    <OpponentSeat opponent={opp} cardBackStyle={cardBackStyle} cardDirection={pos.dir} action={myAction} />
                   </div>
                 );
               })}
