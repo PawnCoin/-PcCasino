@@ -47,6 +47,8 @@ interface GS {
   drawTrigger: number;
   spinnerPlaced: boolean;
   spinnerVal: number;
+  spinnerLeftPlayed: boolean;
+  spinnerRightPlayed: boolean;
   topChain: PlacedTile[];
   bottomChain: PlacedTile[];
   topVal: number;
@@ -176,19 +178,19 @@ function shuffle<T>(arr: T[]): T[] {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
-function canPlay(tile: Tile, lv: number, rv: number, empty: boolean, spinnerPlaced?: boolean, tv?: number, bv?: number): boolean {
+function canPlay(tile: Tile, lv: number, rv: number, empty: boolean, spinnerPlaced?: boolean, tv?: number, bv?: number, topBottomOpen?: boolean): boolean {
   if (empty) return true;
   if (tile.left === lv || tile.right === lv || tile.left === rv || tile.right === rv) return true;
-  if (spinnerPlaced && tv !== undefined && bv !== undefined) {
+  if (spinnerPlaced && topBottomOpen && tv !== undefined && bv !== undefined) {
     if (tile.left === tv || tile.right === tv || tile.left === bv || tile.right === bv) return true;
   }
   return false;
 }
-function canPlayEnd(tile: Tile, end: 'left' | 'right' | 'top' | 'bottom', lv: number, rv: number, spinnerPlaced?: boolean, tv?: number, bv?: number): boolean {
+function canPlayEnd(tile: Tile, end: 'left' | 'right' | 'top' | 'bottom', lv: number, rv: number, spinnerPlaced?: boolean, tv?: number, bv?: number, topBottomOpen?: boolean): boolean {
   if (end === 'left')   return tile.left === lv || tile.right === lv;
   if (end === 'right')  return tile.left === rv || tile.right === rv;
-  if (end === 'top')    return !!(spinnerPlaced && tv !== undefined && (tile.left === tv || tile.right === tv));
-  if (end === 'bottom') return !!(spinnerPlaced && bv !== undefined && (tile.left === bv || tile.right === bv));
+  if (end === 'top')    return !!(spinnerPlaced && topBottomOpen && tv !== undefined && (tile.left === tv || tile.right === tv));
+  if (end === 'bottom') return !!(spinnerPlaced && topBottomOpen && bv !== undefined && (tile.left === bv || tile.right === bv));
   return false;
 }
 function placeRight(tile: Tile, rv: number, by: string): { pt: PlacedTile; newRight: number } {
@@ -276,24 +278,24 @@ function simulatePlay(
 function aiChoose(
   hand: Tile[], lv: number, rv: number, empty: boolean, firstTileId: string | null,
   chain: PlacedTile[], topChain: PlacedTile[], bottomChain: PlacedTile[],
-  tv: number, bv: number, spinnerPlaced: boolean
+  tv: number, bv: number, spinnerPlaced: boolean, topBottomOpen: boolean
 ): { tile: Tile; end: 'left' | 'right' | 'top' | 'bottom' } | null {
   if (empty && firstTileId) {
     const t = hand.find(h => h.id === firstTileId);
     return t ? { tile: t, end: 'right' } : null;
   }
-  const playable = hand.filter(t => canPlay(t, lv, rv, empty, spinnerPlaced, tv, bv));
+  const playable = hand.filter(t => canPlay(t, lv, rv, empty, spinnerPlaced, tv, bv, topBottomOpen));
   if (!playable.length) return null;
   if (empty) {
     const tile = [...playable].sort((a, b) => (b.left + b.right) - (a.left + a.right))[0];
     return { tile, end: 'right' };
   }
   const ends: ('left' | 'right' | 'top' | 'bottom')[] = ['left', 'right'];
-  if (spinnerPlaced) ends.push('top', 'bottom');
+  if (spinnerPlaced && topBottomOpen) ends.push('top', 'bottom');
   const candidates: { tile: Tile; end: 'left' | 'right' | 'top' | 'bottom'; score: number; pips: number }[] = [];
   for (const tile of playable) {
     for (const end of ends) {
-      if (!canPlayEnd(tile, end, lv, rv, spinnerPlaced, tv, bv)) continue;
+      if (!canPlayEnd(tile, end, lv, rv, spinnerPlaced, tv, bv, topBottomOpen)) continue;
       const total = simulatePlay(chain, topChain, bottomChain, tile, end, lv, rv, tv, bv, spinnerPlaced);
       candidates.push({ tile, end, score: total % 5 === 0 ? total : 0, pips: tile.left + tile.right });
     }
@@ -320,7 +322,7 @@ function initGS(): GS {
     roundNumber: 0, targetScore: TARGET_SCORE, roundLoser: null, drawTrigger: 0,
     pickingPool: [], pickingClaims: {}, freshGame: true,
     lastMoveScore: 0, openEndTotal: 0, humanReplaced: false,
-    spinnerPlaced: false, spinnerVal: -1,
+    spinnerPlaced: false, spinnerVal: -1, spinnerLeftPlayed: false, spinnerRightPlayed: false,
     topChain: [], bottomChain: [], topVal: -1, bottomVal: -1,
   };
 }
@@ -344,7 +346,7 @@ function gsReducer(state: GS, action: Action): GS {
         firstPlayTileId: null, lastPlayedBy: null, lastPlayedLeft: 0, lastPlayedRight: 0,
         lastPassedBy: null, roundLoser: null, lastScorer: null, lastScoreAmount: 0,
         lastMoveScore: 0, openEndTotal: 0, humanReplaced: false,
-        spinnerPlaced: false, spinnerVal: -1, topChain: [], bottomChain: [], topVal: -1, bottomVal: -1,
+        spinnerPlaced: false, spinnerVal: -1, spinnerLeftPlayed: false, spinnerRightPlayed: false, topChain: [], bottomChain: [], topVal: -1, bottomVal: -1,
         roundNumber: action.freshGame ? 1 : state.roundNumber + 1,
         targetScore: action.targetScore ?? state.targetScore,
         practiceGamesLeft: action.mode === 'practice' ? state.practiceGamesLeft - 1 : state.practiceGamesLeft,
@@ -397,12 +399,10 @@ function gsReducer(state: GS, action: Action): GS {
       if (!tile) return state;
       const chainEmpty = state.chain.length === 0;
       if (chainEmpty && state.firstPlayTileId && tile.id !== state.firstPlayTileId) return state;
-      // Validate end
+      // Validate end — mismatched numbers are illegal; top/bottom blocked until both sides played
+      const tbo = state.spinnerLeftPlayed && state.spinnerRightPlayed;
       if (!chainEmpty) {
-        if ((action.end === 'left' || action.end === 'right') &&
-            !canPlayEnd(tile, action.end, state.leftVal, state.rightVal, state.spinnerPlaced, state.topVal, state.bottomVal)) return state;
-        if ((action.end === 'top' || action.end === 'bottom') &&
-            !canPlayEnd(tile, action.end, state.leftVal, state.rightVal, state.spinnerPlaced, state.topVal, state.bottomVal)) return state;
+        if (!canPlayEnd(tile, action.end, state.leftVal, state.rightVal, state.spinnerPlaced, state.topVal, state.bottomVal, tbo)) return state;
       }
 
       const newHand = player.hand.filter(t => t.id !== tile.id);
@@ -414,25 +414,32 @@ function gsReducer(state: GS, action: Action): GS {
       let newSpinnerPlaced = state.spinnerPlaced;
       let newSpinnerVal = state.spinnerVal;
 
+      let newSpinnerLeftPlayed = state.spinnerLeftPlayed;
+      let newSpinnerRightPlayed = state.spinnerRightPlayed;
+
       if (chainEmpty) {
         const isDouble = tile.left === tile.right;
         newChain = [{ tile, dispLeft: tile.left, dispRight: tile.right, isDouble, placedBy: player.name }];
         newLeft = tile.left; newRight = tile.right;
         if (isDouble) {
-          // First double = spinner: opens all 4 sides
+          // First double = spinner: arms open only after BOTH sides have tiles
           newSpinnerPlaced = true;
           newSpinnerVal = tile.left;
           newTopVal = tile.left;
           newBottomVal = tile.left;
           newTopChain = [];
           newBottomChain = [];
+          newSpinnerLeftPlayed = false;
+          newSpinnerRightPlayed = false;
         }
       } else if (action.end === 'right') {
         const { pt, newRight: nr } = placeRight(tile, state.rightVal, player.name);
         newChain = [...state.chain, pt]; newRight = nr;
+        if (state.spinnerPlaced) newSpinnerRightPlayed = true;
       } else if (action.end === 'left') {
         const { pt, newLeft: nl } = placeLeft(tile, state.leftVal, player.name);
         newChain = [pt, ...state.chain]; newLeft = nl;
+        if (state.spinnerPlaced) newSpinnerLeftPlayed = true;
       } else if (action.end === 'top') {
         // Play on top arm of spinner — dispLeft=openEnd, dispRight=connectEnd
         // Tiles are rendered rotated 90° CW so dispRight (connect) faces downward toward spinner
@@ -464,6 +471,7 @@ function gsReducer(state: GS, action: Action): GS {
         chain: newChain, leftVal: newLeft, rightVal: newRight,
         topChain: newTopChain, bottomChain: newBottomChain, topVal: newTopVal, bottomVal: newBottomVal,
         spinnerPlaced: newSpinnerPlaced, spinnerVal: newSpinnerVal,
+        spinnerLeftPlayed: newSpinnerLeftPlayed, spinnerRightPlayed: newSpinnerRightPlayed,
         currentPlayer: (pIdx + 1) % newPlayers.length, consecutivePasses: 0,
         lastPlayedBy: player.id, lastPlayedLeft: tile.left, lastPlayedRight: tile.right,
         lastPassedBy: null,
@@ -537,31 +545,46 @@ class DominoAudio {
     if (!this.ctx) this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     return this.ctx;
   }
-  private woodClack(loudness = 0.7) {
+  // Soft thud on carpet — dominoes placed on a felt/carpeted surface
+  private carpetThud(loudness = 0.7) {
     if (this.muted) return;
     try {
-      const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.14);
+      const ctx = this.getCtx(); const sr = ctx.sampleRate;
+      const n = Math.floor(sr * 0.22);
       const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
       for (let i = 0; i < n; i++) {
-        const t = i / sr, att = Math.min(t / 0.0006, 1.0);
-        d[i] = att * ((Math.random() * 2 - 1) * Math.exp(-t * 200) * 0.9 + Math.sin(2 * Math.PI * 1100 * t) * Math.exp(-t * 55) * 0.55 + Math.sin(2 * Math.PI * 780 * t) * Math.exp(-t * 38) * 0.45 + Math.sin(2 * Math.PI * 320 * t) * Math.exp(-t * 28) * 0.65 + Math.sin(2 * Math.PI * 110 * t) * Math.exp(-t * 32) * 0.75) * loudness;
+        const t = i / sr;
+        const att = Math.min(t / 0.002, 1.0);
+        const env = Math.exp(-t * 18);
+        // Low thud from the impact
+        const thud = Math.sin(2 * Math.PI * 70 * t) * Math.exp(-t * 30) * 1.2;
+        // Mid crunch from the tile surface
+        const mid  = Math.sin(2 * Math.PI * 280 * t) * Math.exp(-t * 55) * 0.5;
+        // High-freq friction dampened by carpet
+        const fric = (Math.random() * 2 - 1) * Math.exp(-t * 90) * 0.3;
+        d[i] = att * env * (thud + mid + fric) * loudness;
       }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const g = ctx.createGain(); g.gain.value = 0.9;
-      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -6; comp.ratio.value = 4;
-      src.connect(comp); comp.connect(g); g.connect(ctx.destination); src.start();
+      const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 1200; lp.Q.value = 0.8;
+      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -4; comp.ratio.value = 5; comp.knee.value = 6;
+      const g   = ctx.createGain(); g.gain.value = 1.1;
+      src.connect(lp); lp.connect(comp); comp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
   }
   private slideNoise(loudness = 0.3) {
     if (this.muted) return;
     try {
-      const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.07);
+      const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.09);
       const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
-      for (let i = 0; i < n; i++) { const t = i / sr; d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 30) * loudness; }
+      for (let i = 0; i < n; i++) {
+        const t = i / sr;
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 28) * loudness;
+      }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2000;
-      const g = ctx.createGain(); g.gain.value = 0.5;
-      src.connect(f); f.connect(g); g.connect(ctx.destination); src.start();
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 5000;
+      const g  = ctx.createGain(); g.gain.value = 0.55;
+      src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
   }
   private chime(freq: number, delay: number, vol = 0.45) {
@@ -580,41 +603,54 @@ class DominoAudio {
       } catch (_) {}
     }, delay);
   }
+  // Real knuckle rap on wood table — 3 distinct knocks
   knock() {
     if (this.muted) return;
-    [0, 110, 220].forEach(delay => setTimeout(() => {
+    const delays = [0, 95, 190];
+    delays.forEach((delay, ki) => setTimeout(() => {
       try {
-        const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.13);
+        const ctx = this.getCtx(); const sr = ctx.sampleRate;
+        const n = Math.floor(sr * 0.18);
         const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
+        const baseFreq = 310 - ki * 15; // slight pitch variation per knock
         for (let i = 0; i < n; i++) {
-          const t = i / sr, att = Math.min(t / 0.001, 1.0);
-          d[i] = att * ((Math.random() * 2 - 1) * Math.exp(-t * 130) * 0.5 + Math.sin(2 * Math.PI * 380 * t) * Math.exp(-t * 55) * 0.85 + Math.sin(2 * Math.PI * 190 * t) * Math.exp(-t * 38) * 0.65) * 0.8;
+          const t = i / sr;
+          const att = Math.min(t / 0.0008, 1.0);
+          // Bone impact transient
+          const bone = (Math.random() * 2 - 1) * Math.exp(-t * 280) * 0.6;
+          // Table resonance
+          const res  = Math.sin(2 * Math.PI * baseFreq * t) * Math.exp(-t * 45) * 0.9;
+          // Sub thump from the table body
+          const sub  = Math.sin(2 * Math.PI * 120 * t) * Math.exp(-t * 22) * 0.7;
+          d[i] = att * (bone + res + sub) * 0.75;
         }
         const src = ctx.createBufferSource(); src.buffer = buf;
-        const g = ctx.createGain(); g.gain.value = 0.75;
-        src.connect(g); g.connect(ctx.destination); src.start();
+        const bp  = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 400; bp.Q.value = 0.6;
+        const g   = ctx.createGain(); g.gain.value = 0.85;
+        src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
       } catch (_) {}
     }, delay));
   }
   washSound() {
     if (this.muted) return;
-    for (let k = 0; k < 14; k++) {
+    for (let k = 0; k < 16; k++) {
       setTimeout(() => {
         try {
-          const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.08);
+          const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.09);
           const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
-          for (let i = 0; i < n; i++) { const t = i / sr; d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 55) * 0.5; }
+          for (let i = 0; i < n; i++) { const t = i / sr; d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 50) * 0.6; }
           const src = ctx.createBufferSource(); src.buffer = buf;
-          const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 0.7;
-          const g = ctx.createGain(); g.gain.value = 0.35;
+          const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.6;
+          const g = ctx.createGain(); g.gain.value = 0.4;
           src.connect(f); f.connect(g); g.connect(ctx.destination); src.start();
         } catch (_) {}
-      }, k * 160 + Math.random() * 70);
+      }, k * 145 + Math.random() * 60);
     }
   }
-  pickUp() { this.slideNoise(0.4); }
-  place()  { this.woodClack(0.7); }
-  draw()   { this.slideNoise(0.25); this.woodClack(0.3); }
+  pickUp() { this.slideNoise(0.45); }
+  // Tile placed on carpeted surface — soft thud + brief friction
+  place()  { this.carpetThud(0.75); setTimeout(() => this.slideNoise(0.18), 30); }
+  draw()   { this.slideNoise(0.3); setTimeout(() => this.carpetThud(0.35), 40); }
   win()    { [0,130,260,400].forEach((d, i) => this.chime([523.25, 659.25, 784.00, 1046.50][i], d, 0.5)); }
   slam() {
     if (this.muted) return;
@@ -630,7 +666,7 @@ class DominoAudio {
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600;
       src.connect(lp); lp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
-    this.woodClack(1.0);
+    this.carpetThud(1.0);
   }
   crack() {
     if (this.muted) return;
@@ -668,15 +704,16 @@ function PipFace({ value, color, size }: { value: number; color: string; size: n
 
 // ─── Domino Tile (face-up or face-down on board) ──────────────────────────────
 function DominoTileView({
-  dispLeft, dispRight, isDouble, selected, playable, faceDown, skinKey, dims, onClick,
+  dispLeft, dispRight, isDouble, selected, playable, faceDown, skinKey, dims, onClick, forceVertical,
 }: {
   dispLeft: number; dispRight: number; isDouble: boolean;
   selected?: boolean; playable?: boolean; faceDown?: boolean;
   skinKey: SkinKey; dims: { long: number; short: number; pip: number };
-  onClick?: () => void;
+  onClick?: () => void; forceVertical?: boolean;
 }) {
   const skin = DOMINO_SKINS[skinKey] ?? DOMINO_SKINS.ivory;
-  const isVert = isDouble;
+  // Board doubles are always vertical (perpendicular); hand tiles always vertical too
+  const isVert = forceVertical ? true : isDouble;
   const W = isVert ? dims.short : dims.long;
   const H = isVert ? dims.long  : dims.short;
   const flexDir: React.CSSProperties['flexDirection'] = isVert ? 'column' : 'row';
@@ -807,20 +844,20 @@ function ScoreBoard({ players, currentPlayer, lastScorer, lastScoreAmount, round
             <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 60 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 {isLeader && <span style={{ fontSize: 9 }}>👑</span>}
-                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? '#D4AF37' : '#777' }}>{p.name}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? '#D4AF37' : '#ccc' }}>{p.name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', minWidth: 45 }}>
+                <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.12)', minWidth: 45 }}>
                   <div style={{ height: '100%', borderRadius: 2, width: `${pct * 100}%`, background: p.color, transition: 'width .5s ease' }} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 800, color: isActive ? '#D4AF37' : '#555', minWidth: 26, textAlign: 'right' }}>{p.score}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: isActive ? '#D4AF37' : '#aaa', minWidth: 26, textAlign: 'right' }}>{p.score}</span>
               </div>
             </div>
           );
         })}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-        <span style={{ fontSize: 9, color: '#444', fontWeight: 600 }}>ROUND {roundNumber} · GOAL {targetScore}</span>
+        <span style={{ fontSize: 9, color: '#aaa', fontWeight: 600 }}>ROUND {roundNumber} · GOAL {targetScore}</span>
         {lastScorer && lastScoreAmount > 0 && <span style={{ fontSize: 9, color: '#D4AF37', fontWeight: 700 }}>Last: {lastScorer} +{lastScoreAmount} pts</span>}
       </div>
     </div>
@@ -868,7 +905,7 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
           {player.name}
           {active && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#D4AF37', marginLeft: 3, animation: 'pulse 1s infinite', verticalAlign: 'middle' }} />}
         </div>
-        <div style={{ color: '#555', fontSize: 9 }}>{tileCount} tile{tileCount !== 1 ? 's' : ''}</div>
+        <div style={{ color: '#aaa', fontSize: 9 }}>{tileCount} tile{tileCount !== 1 ? 's' : ''}</div>
         <div style={{ color: player.color, fontSize: 11, fontWeight: 800 }}>{player.score} pts</div>
       </div>
       {/* Standing tiles — one row, side by side, portrait orientation */}
@@ -887,40 +924,46 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
 function WashingScreen({ onDone, skinKey, washerName, isNewGame }: { onDone: () => void; skinKey: SkinKey; washerName: string; isNewGame?: boolean }) {
   const [frame, setFrame] = useState(0);
   const [washing, setWashing] = useState(false);
+  const washedRef = useRef(false);
 
-  const doWash = () => {
+  const doWash = useCallback(() => {
+    if (washedRef.current) return;
+    washedRef.current = true;
     setWashing(true);
     audio.washSound();
     const iv = setInterval(() => setFrame(f => f + 1), 80);
     const tm = setTimeout(() => { clearInterval(iv); onDone(); }, 2800);
     return () => { clearInterval(iv); clearTimeout(tm); };
-  };
+  }, [onDone]);
 
-  // Auto-start washing for a brand-new game (computer shuffles)
+  // Auto-start: new game always auto-washes. CPU washer also auto-washes — only human sees the button.
+  const autoWash = isNewGame || (washerName !== 'You' && washerName !== '');
   useEffect(() => {
-    if (isNewGame) {
+    if (autoWash) {
       const tm = setTimeout(() => doWash(), 800);
       return () => clearTimeout(tm);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNewGame]);
+  }, [autoWash]);
 
   const skin = DOMINO_SKINS[skinKey] ?? DOMINO_SKINS.ivory;
   const count = 18;
 
   const titleText = isNewGame
     ? (washing ? '🔀 COMPUTER IS SHUFFLING…' : '🃏 NEW GAME — Computer Shuffles the Bones')
-    : (washing ? '🔀 WASHING THE BONES…' : `${washerName === 'You' ? '🫵 YOU HAVE THE LOWEST SCORE' : `😤 ${washerName.toUpperCase()} HAS THE LOWEST SCORE`} — MUST WASH!`);
+    : washerName === 'You'
+      ? (washing ? '🔀 WASHING THE BONES…' : '🫵 YOU HAVE THE LOWEST SCORE — MUST WASH!')
+      : (washing ? `🔀 ${washerName.toUpperCase()} IS WASHING…` : `😤 ${washerName.toUpperCase()} HAS THE LOWEST SCORE — WASHING…`);
 
   const subText = isNewGame
     ? 'Dealer shuffles all 28 bones face-down…'
-    : (washing ? 'Mixing all 28 dominoes face-down…' : 'Lowest score washes the bones for next round');
+    : (washing ? 'Mixing all 28 dominoes face-down…' : washerName === 'You' ? 'Lowest score washes the bones for next round' : `${washerName} is washing the bones…`);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#D4AF37', marginBottom: 4 }}>{titleText}</div>
-        <div style={{ color: '#555', fontSize: 12 }}>{subText}</div>
+        <div style={{ color: '#aaa', fontSize: 12 }}>{subText}</div>
       </div>
 
       {/* Animated bone pile */}
@@ -947,15 +990,15 @@ function WashingScreen({ onDone, skinKey, washerName, isNewGame }: { onDone: () 
         })}
       </div>
 
-      {/* Manual wash button only shown for non-new games and when not yet washing */}
-      {!isNewGame && !washing && (
+      {/* Manual wash button only shown when human has lowest score and not yet washing */}
+      {washerName === 'You' && !washing && (
         <button onClick={doWash} style={{
           padding: '14px 40px', borderRadius: 12, border: 'none', cursor: 'pointer',
           background: 'linear-gradient(135deg,#D4AF37,#9A7A20)', color: '#000',
           fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10,
           boxShadow: '0 0 20px rgba(212,175,55,0.4)', animation: 'pulse 1.2s infinite',
         }}>
-          🔀 {washerName === 'You' ? 'Wash the Bones!' : `${washerName} Washes!`}
+          🔀 Wash the Bones!
         </button>
       )}
     </div>
@@ -982,33 +1025,45 @@ function PickingScreen({
   // Pick countdown timer — auto-fill human's bones if time runs out
   const [pickTimeLeft, setPickTimeLeft] = useState(PICK_TIME_LIMIT);
   const autoFillRef = useRef(false);
+
   useEffect(() => {
     if (humanDone || allDone) return;
     const iv = setInterval(() => {
-      setPickTimeLeft(t => {
-        if (t <= 1 && !autoFillRef.current) {
-          autoFillRef.current = true;
-          const unclaimed = pickingPool.filter(tile => !pickingClaims[tile.id]);
-          const needed = 7 - humanClaims;
-          const shuffled = [...unclaimed].sort(() => Math.random() - 0.5);
-          shuffled.slice(0, needed).forEach(tile => onClaim(tile.id, 'human'));
-          return 0;
-        }
-        return Math.max(t - 1, 0);
-      });
+      setPickTimeLeft(t => Math.max(t - 1, 0));
     }, 1000);
     return () => clearInterval(iv);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [humanDone, allDone]);
 
+  // Separate effect: auto-fill human tiles when countdown hits 0 (NOT inside setState updater)
+  useEffect(() => {
+    if (pickTimeLeft === 0 && !humanDone && !autoFillRef.current) {
+      autoFillRef.current = true;
+      const unclaimed = pickingPool.filter(tile => !pickingClaims[tile.id]);
+      const needed = 7 - humanClaims;
+      const shuffled = [...unclaimed].sort(() => Math.random() - 0.5);
+      shuffled.slice(0, needed).forEach(tile => onClaim(tile.id, 'human'));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickTimeLeft, humanDone]);
+
   // AI auto-picking — picks one tile at a time at speed-based intervals
   useEffect(() => {
     if (allDone) return;
     const aiIds = ['ai1', 'ai2', 'ai3'];
-    const delay = SPEED_DELAYS[gameSpeed] * 0.5;
+    const delay = SPEED_DELAYS[gameSpeed] * 0.45;
     const iv = setInterval(() => {
       const unclaimed = pickingPool.filter(t => !pickingClaims[t.id]);
       if (!unclaimed.length) { clearInterval(iv); return; }
+      // If only ONE player still needs tiles, give them all remaining at once
+      const playersNeeding = players.filter(p => Object.values(pickingClaims).filter(pid => pid === p.id).length < 7);
+      if (playersNeeding.length === 1) {
+        const needer = playersNeeding[0];
+        const neededCount = 7 - Object.values(pickingClaims).filter(pid => pid === needer.id).length;
+        unclaimed.slice(0, neededCount).forEach(t => onClaim(t.id, needer.id));
+        clearInterval(iv);
+        return;
+      }
       for (const aiId of aiIds) {
         const aiCount = Object.values(pickingClaims).filter(pid => pid === aiId).length;
         if (aiCount < 7) {
@@ -1022,6 +1077,7 @@ function PickingScreen({
       }
     }, delay);
     return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickingClaims, allDone, pickingPool, gameSpeed]);
 
   // Auto-start when all done
@@ -1294,6 +1350,8 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   const aiPlayers   = gs.players.filter(p => !p.isHuman);
   const chainEmpty  = gs.chain.length === 0;
 
+  const topBottomOpen = gs.spinnerLeftPlayed && gs.spinnerRightPlayed;
+
   const playableIds = useMemo(() => {
     const set = new Set<string>();
     if (!isHumanTurn || !humanPlayer) return set;
@@ -1301,19 +1359,19 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
       if (humanPlayer.hand.find(t => t.id === gs.firstPlayTileId)) set.add(gs.firstPlayTileId);
       return set;
     }
-    humanPlayer.hand.forEach(t => { if (canPlay(t, gs.leftVal, gs.rightVal, chainEmpty, gs.spinnerPlaced, gs.topVal, gs.bottomVal)) set.add(t.id); });
+    humanPlayer.hand.forEach(t => { if (canPlay(t, gs.leftVal, gs.rightVal, chainEmpty, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen)) set.add(t.id); });
     return set;
-  }, [isHumanTurn, humanPlayer, chainEmpty, gs.firstPlayTileId, gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal]);
+  }, [isHumanTurn, humanPlayer, chainEmpty, gs.firstPlayTileId, gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen]);
 
   const canDraw    = isHumanTurn && playableIds.size === 0 && gs.boneyard.length > 0;
   const canPass    = isHumanTurn && playableIds.size === 0 && gs.boneyard.length === 0;
   const selectedTile = humanPlayer?.hand.find(t => t.id === selectedTileId) ?? null;
-  const canPlayLeft   = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'left',   gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal);
-  const canPlayRight  = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'right',  gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal);
-  const canPlayTop    = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'top',    gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal);
-  const canPlayBottom = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'bottom', gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal);
+  const canPlayLeft   = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'left',   gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const canPlayRight  = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'right',  gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const canPlayTop    = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'top',    gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const canPlayBottom = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'bottom', gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
 
-  // AI turn
+  // AI turn — draws from boneyard if no playable tile before passing
   useEffect(() => {
     if (gs.phase !== 'playing') return;
     const player = gs.players[gs.currentPlayer];
@@ -1321,13 +1379,22 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
     if (aiTimer.current) clearTimeout(aiTimer.current);
     const delay = SPEED_DELAYS[gameSpeed] + Math.random() * (SPEED_DELAYS[gameSpeed] * 0.25);
     aiTimer.current = setTimeout(() => {
-      const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId, gs.chain, gs.topChain, gs.bottomChain, gs.topVal, gs.bottomVal, gs.spinnerPlaced);
-      if (choice) { audio.place(); dispatch({ type: 'PLAY_TILE', playerId: player.id, tileId: choice.tile.id, end: choice.end }); }
-      else { audio.knock(); dispatch({ type: 'PASS' }); }
+      const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId, gs.chain, gs.topChain, gs.bottomChain, gs.topVal, gs.bottomVal, gs.spinnerPlaced, topBottomOpen);
+      if (choice) {
+        audio.place();
+        dispatch({ type: 'PLAY_TILE', playerId: player.id, tileId: choice.tile.id, end: choice.end });
+      } else if (gs.boneyard.length > 0) {
+        // AI draws from boneyard — will retry on next drawTrigger cycle
+        audio.draw();
+        dispatch({ type: 'DRAW', playerId: player.id });
+      } else {
+        audio.knock();
+        dispatch({ type: 'PASS' });
+      }
     }, delay);
     return () => { if (aiTimer.current) clearTimeout(aiTimer.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gs.currentPlayer, gs.phase, gameSpeed]);
+  }, [gs.currentPlayer, gs.phase, gameSpeed, gs.drawTrigger]);
 
   // Round over effects
   const prevPhase = useRef<Phase>('setup');
@@ -1645,7 +1712,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                 <CrackOverlay active={cracking} />
                 {lastPlayBanner && <LastPlayBanner playerName={lastPlayBanner.playerName} left={lastPlayBanner.left} right={lastPlayBanner.right} skinKey={dominoSkin} />}
                 <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 6, display: 'flex', gap: 5, alignItems: 'center' }}>
-                  <div style={{ padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.6)', border: '1px solid rgba(255,255,255,.07)', color: '#666', fontSize: 11 }}>🁣 {gs.boneyard.length}</div>
+                  <div style={{ padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(255,255,255,.2)', color: '#ddd', fontSize: 11, fontWeight: 600 }}>🁣 {gs.boneyard.length}</div>
                   <button onClick={() => setBoardZoom(z => Math.min(z + 0.15, 2.2))} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(212,175,55,.3)', background: 'rgba(0,0,0,.6)', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomIn size={13} /></button>
                   <button onClick={() => setBoardZoom(z => Math.max(z - 0.15, 0.4))} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(212,175,55,.3)', background: 'rgba(0,0,0,.6)', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomOut size={13} /></button>
                 </div>
@@ -1653,15 +1720,17 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                   <>
                     <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.leftVal}</div>
                     <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.rightVal}</div>
+                    {/* Ends counter — always at bottom-left so it is never blocked by other UI */}
                     <div style={{
-                      position: 'absolute', left: '50%', bottom: 8, transform: 'translateX(-50%)', zIndex: 6,
+                      position: 'absolute', left: 10, bottom: 8, zIndex: 8,
                       padding: '3px 12px', borderRadius: 12, fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap',
-                      background: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? 'rgba(67,160,71,0.85)' : 'rgba(0,0,0,.7)',
-                      border: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '1px solid #66BB6A' : '1px solid rgba(255,255,255,.1)',
-                      color: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '#fff' : '#555',
+                      background: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? 'rgba(67,160,71,0.92)' : 'rgba(0,0,0,.8)',
+                      border: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '1px solid #66BB6A' : '1px solid rgba(255,255,255,.18)',
+                      color: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '#fff' : '#ddd',
                       transition: 'all .2s',
+                      boxShadow: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '0 0 12px rgba(67,160,71,0.5)' : 'none',
                     }}>
-                      {gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? `✓ ${gs.openEndTotal} — SCORES!` : `Ends: ${gs.openEndTotal}`}
+                      {gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? `✓ ${gs.openEndTotal} pts!` : `Ends: ${gs.openEndTotal}`}
                     </div>
                   </>
                 )}
@@ -1750,20 +1819,26 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                           }
                           return elements;
                         })()}
-                        {/* Open-end indicators for top/bottom arms */}
+                        {/* Open-end indicators for top/bottom arms — only shown when both sides are played */}
                         {gs.spinnerPlaced && (() => {
                           const spinnerPos = chainPositions[chainCenterIdx];
                           if (!spinnerPos) return null;
                           const spinnerCX = spinnerPos.x + spinnerPos.w / 2;
-                          const topOpen   = gs.topChain.length === 0;
+                          const topOpen    = gs.topChain.length === 0;
                           const bottomOpen = gs.bottomChain.length === 0;
                           return (
                             <>
-                              {topOpen && (
-                                <div style={{ position: 'absolute', left: spinnerCX - 14, top: spinnerPos.y - 28, fontSize: 9, color: 'rgba(212,175,55,0.7)', fontWeight: 700, textAlign: 'center', width: 28 }}>▲{gs.topVal}</div>
+                              {/* If arms not yet open, show lock indicator */}
+                              {!topBottomOpen && (
+                                <div style={{ position: 'absolute', left: spinnerCX - 60, top: spinnerPos.y - 32, fontSize: 9, color: 'rgba(255,100,100,0.85)', fontWeight: 700, textAlign: 'center', width: 120, background: 'rgba(0,0,0,0.7)', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(255,100,100,0.4)' }}>
+                                  🔒 Play both sides first
+                                </div>
                               )}
-                              {bottomOpen && (
-                                <div style={{ position: 'absolute', left: spinnerCX - 14, top: spinnerPos.y + spinnerPos.h + 10, fontSize: 9, color: 'rgba(212,175,55,0.7)', fontWeight: 700, textAlign: 'center', width: 28 }}>▼{gs.bottomVal}</div>
+                              {topBottomOpen && topOpen && (
+                                <div style={{ position: 'absolute', left: spinnerCX - 14, top: spinnerPos.y - 28, fontSize: 9, color: 'rgba(212,175,55,0.9)', fontWeight: 700, textAlign: 'center', width: 28 }}>▲{gs.topVal}</div>
+                              )}
+                              {topBottomOpen && bottomOpen && (
+                                <div style={{ position: 'absolute', left: spinnerCX - 14, top: spinnerPos.y + spinnerPos.h + 10, fontSize: 9, color: 'rgba(212,175,55,0.9)', fontWeight: 700, textAlign: 'center', width: 28 }}>▼{gs.bottomVal}</div>
                               )}
                             </>
                           );
@@ -1795,7 +1870,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '3px 16px', flexShrink: 0, minHeight: 24 }}>
-            <span style={{ color: isHumanTurn ? '#D4AF37' : '#555', fontSize: 12, fontWeight: 500 }}>{statusMsg}</span>
+            <span style={{ color: isHumanTurn ? '#D4AF37' : '#bbb', fontSize: 12, fontWeight: 500 }}>{statusMsg}</span>
             {isHumanTurn && !gs.humanReplaced && (
               <span style={{
                 fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 8,
@@ -1828,16 +1903,17 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
             )}
           </div>
 
-          {/* Human hand */}
-          <div style={{ padding: '5px 14px 10px', background: 'rgba(0,0,0,.5)', borderTop: '1px solid rgba(212,175,55,.1)', flexShrink: 0 }}>
+          {/* Human hand — all tiles shown vertically (portrait) */}
+          <div style={{ padding: '5px 14px 10px', background: 'rgba(0,0,0,.55)', borderTop: '1px solid rgba(212,175,55,.15)', flexShrink: 0 }}>
             <div style={{ color: '#D4AF37', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>
               Your Hand — {humanPlayer?.hand.length ?? 0} tile{(humanPlayer?.hand.length ?? 0) !== 1 ? 's' : ''}
-              {!isHumanTurn && <span style={{ color: '#555', fontWeight: 400, marginLeft: 8, fontSize: 9 }}>Waiting…</span>}
+              {!isHumanTurn && <span style={{ color: '#888', fontWeight: 400, marginLeft: 8, fontSize: 9 }}>Waiting…</span>}
             </div>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-end' }}>
               {humanPlayer?.hand.map(tile => (
                 <div key={tile.id} style={{ animation: 'pop .25s ease' }}>
                   <DominoTileView dispLeft={tile.left} dispRight={tile.right} isDouble={tile.left === tile.right}
+                    forceVertical
                     selected={selectedTileId === tile.id}
                     playable={isHumanTurn && playableIds.has(tile.id) && selectedTileId !== tile.id}
                     skinKey={dominoSkin} dims={dims}
