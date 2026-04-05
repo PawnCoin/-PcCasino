@@ -202,6 +202,7 @@ interface OpponentData {
   active: boolean;
   position: string;
   avatarIdx: number;
+  folded: boolean;
 }
 
 const ACTION_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -236,6 +237,44 @@ function OpponentSeat({
       }}>
         <div style={{ fontSize: 9, color: 'rgba(212,175,55,0.6)', letterSpacing: '0.15em', fontWeight: 700 }}>SEAT {opponent.id}</div>
         <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>Sit Here</div>
+      </div>
+    );
+  }
+
+  if (opponent.folded) {
+    const isLeft = cardDirection === 'left';
+    const isRight = cardDirection === 'right';
+    const foldedCards = (
+      <div style={{ position: 'relative', display: 'flex', gap: 3, flexShrink: 0 }}>
+        <div style={{ opacity: 0.4, filter: 'grayscale(1)' }}>
+          <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+        </div>
+        <div style={{ opacity: 0.4, filter: 'grayscale(1)' }}>
+          <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
+        </div>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#ef4444', textShadow: '0 0 8px rgba(239,68,68,0.6)', pointerEvents: 'none' }}>✕</div>
+      </div>
+    );
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative', opacity: 0.55 }}>
+        {cardDirection === 'up' && <div style={{ marginBottom: 2 }}>{foldedCards}</div>}
+        <div style={{
+          display: 'flex', flexDirection: 'row', alignItems: 'center',
+          background: 'rgba(8,8,8,0.75)', border: '1.5px solid rgba(239,68,68,0.25)',
+          borderRadius: 10, overflow: 'hidden', minWidth: 140, filter: 'grayscale(0.7)',
+        }}>
+          {isLeft && <div style={{ marginRight: 4, marginLeft: 4 }}>{foldedCards}</div>}
+          <div style={{ width: 52, height: 60, flexShrink: 0, overflow: 'hidden', borderRight: isLeft ? 'none' : '1px solid rgba(255,255,255,0.06)', borderLeft: isLeft ? '1px solid rgba(255,255,255,0.06)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AvatarSprite avatar={ALL_AVATARS[opponent.avatarIdx % ALL_AVATARS.length]} size={52} style={{ borderRadius: 0 }} />
+          </div>
+          <div style={{ padding: '6px 10px', flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#555', whiteSpace: 'nowrap' }}>{opponent.name}</div>
+            <div style={{ fontSize: 11, color: '#374151', fontWeight: 700, marginTop: 2 }}>{opponent.balance.toLocaleString()}</div>
+            <div style={{ marginTop: 3, display: 'inline-block', padding: '1px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', fontSize: 8, color: '#ef4444', fontWeight: 700, letterSpacing: '0.1em' }}>FOLDED</div>
+          </div>
+          {isRight && <div style={{ marginRight: 6, marginLeft: 2 }}>{foldedCards}</div>}
+        </div>
+        {cardDirection === 'down' && <div style={{ marginTop: 2 }}>{foldedCards}</div>}
       </div>
     );
   }
@@ -341,9 +380,9 @@ function OpponentSeat({
 
 /* ── User seat at bottom ── */
 function UserSeat({
-  balance, playerBet, playerHand, showdownWinner, userAvatar, onAvatarChange,
+  balance, playerBet, playerTotalBet, playerHand, showdownWinner, userAvatar, onAvatarChange,
 }: {
-  balance: number; playerBet: number; playerHand: Card[];
+  balance: number; playerBet: number; playerTotalBet: number; playerHand: Card[];
   showdownWinner?: 'player' | 'opponent' | null; userAvatar: string | null;
   onAvatarChange: (url: string) => void;
 }) {
@@ -435,7 +474,12 @@ function UserSeat({
         <div style={{ padding: '6px 12px', flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: showdownWinner === 'player' ? '#D4AF37' : '#fff' }}>You</div>
           <div style={{ fontSize: 11, color: '#43A047', fontWeight: 700, marginTop: 2 }}>{balance.toLocaleString()}</div>
-          {playerBet > 0 && <div style={{ fontSize: 9, color: '#D4AF37', marginTop: 2 }}>{playerBet} $Pc bet</div>}
+          {playerTotalBet > 0 && (
+            <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#D4AF37', flexShrink: 0 }} />
+              <div style={{ fontSize: 9, color: '#D4AF37', fontWeight: 700 }}>In pot: {playerTotalBet.toLocaleString()} $Pc</div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -451,6 +495,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const [pot, setPot] = useState(0);
   const [currentBet, setCurrentBet] = useState(0);
   const [playerBet, setPlayerBet] = useState(0);
+  const [playerTotalBet, setPlayerTotalBet] = useState(0);
   const [selectedChip, setSelectedChip] = useState(25);
   const [showRules, setShowRules] = useState(false);
   const [showAnalyzer, setShowAnalyzer] = useState(true);
@@ -466,14 +511,14 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const [dealer] = useState(() => DEALER_ROSTER[Math.floor(Math.random() * DEALER_ROSTER.length)]);
   const [oppAction, setOppAction] = useState<{ idx: number; label: string; thinking: boolean } | null>(null);
   const [opponents, setOpponents] = useState<OpponentData[]>([
-    { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1 },
-    { id: 2, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 0 },
-    { id: 3, name: 'Morgan', balance: 2475, bet: 0, active: true, position: '', avatarIdx: 3 },
-    { id: 4, name: 'Jordan', balance: 2500, bet: 0, active: true, position: 'SB', avatarIdx: 4 },
-    { id: 5, name: 'Riley', balance: 3883, bet: 0, active: true, position: '', avatarIdx: 5 },
-    { id: 6, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarIdx: 2 },
-    { id: 7, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 7 },
-    { id: 8, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 8 },
+    { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1, folded: false },
+    { id: 2, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 0, folded: false },
+    { id: 3, name: 'Morgan', balance: 2475, bet: 0, active: true, position: '', avatarIdx: 3, folded: false },
+    { id: 4, name: 'Jordan', balance: 2500, bet: 0, active: true, position: 'SB', avatarIdx: 4, folded: false },
+    { id: 5, name: 'Riley', balance: 3883, bet: 0, active: true, position: '', avatarIdx: 5, folded: false },
+    { id: 6, name: 'Casey', balance: 1190, bet: 0, active: true, position: '', avatarIdx: 2, folded: false },
+    { id: 7, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 7, folded: false },
+    { id: 8, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 8, folded: false },
   ]);
 
   const [showdownData, setShowdownData] = useState<{
@@ -493,7 +538,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const simulateOpponentActions = useCallback((callback: () => void) => {
     const activeOpps = opponents
       .map((o, idx) => ({ ...o, idx }))
-      .filter(o => o.active && o.name);
+      .filter(o => o.active && o.name && !o.folded);
     const count = Math.min(activeOpps.length, Math.floor(Math.random() * 3) + 1);
     const acting = activeOpps.slice(0, count);
     const ACTION_POOL = ['CHECK', 'CALL', 'RAISE', 'FOLD', 'ALL IN'];
@@ -502,9 +547,25 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
       setTimeout(() => setOppAction({ idx: opp.idx, label: '...', thinking: true }), delay);
       delay += 700;
       const label = ACTION_POOL[Math.floor(Math.random() * ACTION_POOL.length)];
-      setTimeout(() => setOppAction({ idx: opp.idx, label, thinking: false }), delay);
+      setTimeout(() => {
+        setOppAction({ idx: opp.idx, label, thinking: false });
+      }, delay);
       delay += 950;
-      setTimeout(() => setOppAction(null), delay);
+      setTimeout(() => {
+        setOppAction(null);
+        if (label === 'FOLD') {
+          setOpponents(prev => prev.map(o => o.id === opp.id ? { ...o, folded: true } : o));
+        } else if (label === 'CALL' || label === 'RAISE' || label === 'ALL IN') {
+          const betAdd = label === 'ALL IN' ? opp.balance : label === 'RAISE' ? 50 : 20;
+          const actual = Math.min(betAdd, opp.balance);
+          setPot(prev => prev + actual);
+          setOpponents(prev => prev.map(o =>
+            o.id === opp.id
+              ? { ...o, balance: Math.max(0, o.balance - actual), bet: o.bet + actual }
+              : o
+          ));
+        }
+      }, delay);
       delay += 150;
     });
     setTimeout(callback, delay + 200);
@@ -513,21 +574,34 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   const startNewHand = useCallback(() => {
     const newDeck = shuffleDeck(createDeck());
     const playerCards = [newDeck[0], newDeck[1]];
+    // SB=10 (player), BB=20 (one opponent), pot starts at 30
     const newOpponents = opponents.map((opp, idx) => ({
-      ...opp, bet: 0,
+      ...opp, bet: 0, folded: false,
       active: opp.name !== '' ? (idx < 4 || Math.random() > 0.3) : false,
     }));
+    // Pick one active opponent as BB (bet=20), rest bet=10 (call SB)
+    const activeOppIds = newOpponents.filter(o => o.active && o.name).map(o => o.id);
+    const bbId = activeOppIds[0] ?? -1;
+    const finalOpps = newOpponents.map(o => {
+      if (!o.active) return o;
+      if (o.id === bbId) return { ...o, bet: 20, balance: o.balance - 20, position: 'BB' };
+      return { ...o, bet: 10, balance: o.balance - 10, position: o.position === 'BB' ? '' : o.position };
+    });
+    // Pot = player SB(10) + BB(20) + each other active caller(10)
+    const oppPot = finalOpps.reduce((s, o) => s + o.bet, 0);
+    const startPot = 10 + oppPot;
     setDeck(newDeck.slice(8));
     setPlayerHand(playerCards);
     setCommunityCards([]);
     setRevealedCommunity(0);
-    setPot(60);
+    setPot(startPot);
     setCurrentBet(20);
-    setPlayerBet(20);
-    setPlayerChips([{ amount: 20, count: 1 }]);
-    setOpponents(newOpponents.map(o => ({ ...o, bet: o.active ? 20 : 0 })));
+    setPlayerBet(10);
+    setPlayerTotalBet(10);
+    setPlayerChips([{ amount: 10, count: 1 }]);
+    setOpponents(finalOpps);
     setGamePhase('preflop');
-    setMessage("Pre-flop: Your turn. Call, raise, or fold?");
+    setMessage("Pre-flop: Call 10 more to match the BB, raise, or fold?");
     setWinEffect(false);
     setLoseEffect(false);
     setWinText('');
@@ -555,6 +629,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
     else setPlayerChips([...playerChips, { amount, count: 1 }]);
     setPot(prev => prev + amount);
     setPlayerBet(prev => prev + amount);
+    setPlayerTotalBet(prev => prev + amount);
     return true;
   };
 
@@ -978,6 +1053,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
                 <UserSeat
                   balance={balance}
                   playerBet={playerBet}
+                  playerTotalBet={playerTotalBet}
                   playerHand={playerHand}
                   showdownWinner={showdownData?.winner}
                   userAvatar={userAvatar}

@@ -55,6 +55,58 @@ const HOPPER_BALLS = [
   { x: 148, y: 20,  col: 'B', sz: 25 },
 ];
 
+// ── BINGO CARD SKINS ─────────────────────────────────────────────────────────
+type BingoCardSkin = 'classic' | 'royal' | 'neon' | 'vintage' | 'space';
+interface CardSkinDef {
+  id: BingoCardSkin; name: string; emoji: string;
+  cardBg: string; cardBorder: string; winBorder: string; winGlow: string;
+  cellBg: string; cellHinted: string; cellDaubed: string; cellWin: string;
+  borderNormal: string; borderHinted: string; borderDaubed: string; borderWin: string;
+  daubBg: string; textColor: string; hintedText: string; daubedText: string;
+}
+const BINGO_SKINS: CardSkinDef[] = [
+  {
+    id: 'classic', name: 'Classic', emoji: '🎰',
+    cardBg: 'linear-gradient(160deg,rgba(28,28,28,0.97),rgba(12,12,12,0.99))',
+    cardBorder: 'rgba(212,175,55,0.4)', winBorder: 'rgba(212,175,55,0.9)', winGlow: '#D4AF37',
+    cellBg: 'rgba(28,28,28,0.8)', cellHinted: 'rgba(40,32,8,0.95)', cellDaubed: 'rgba(15,15,15,0.95)', cellWin: 'rgba(212,175,55,0.18)',
+    borderNormal: 'rgba(255,255,255,0.07)', borderHinted: 'rgba(212,175,55,0.8)', borderDaubed: '', borderWin: 'rgba(212,175,55,0.9)',
+    daubBg: '', textColor: '#e5e7eb', hintedText: '#D4AF37', daubedText: 'rgba(255,255,255,0.5)',
+  },
+  {
+    id: 'royal', name: 'Royal', emoji: '👑',
+    cardBg: 'linear-gradient(160deg,rgba(30,15,60,0.98),rgba(10,5,30,0.99))',
+    cardBorder: 'rgba(147,112,219,0.5)', winBorder: 'rgba(186,156,255,0.95)', winGlow: '#9370DB',
+    cellBg: 'rgba(25,10,50,0.85)', cellHinted: 'rgba(55,25,100,0.95)', cellDaubed: 'rgba(14,5,30,0.97)', cellWin: 'rgba(147,112,219,0.22)',
+    borderNormal: 'rgba(147,112,219,0.12)', borderHinted: 'rgba(186,156,255,0.9)', borderDaubed: 'rgba(147,112,219,0.28)', borderWin: 'rgba(186,156,255,0.9)',
+    daubBg: 'linear-gradient(135deg,rgba(80,0,140,0.9),rgba(147,112,219,0.88))', textColor: '#d8b4fe', hintedText: '#c084fc', daubedText: 'rgba(216,180,254,0.45)',
+  },
+  {
+    id: 'neon', name: 'Neon', emoji: '⚡',
+    cardBg: 'linear-gradient(160deg,rgba(0,5,15,0.99),rgba(0,2,10,0.99))',
+    cardBorder: 'rgba(0,255,200,0.45)', winBorder: 'rgba(0,255,200,0.95)', winGlow: '#00ffc8',
+    cellBg: 'rgba(0,10,20,0.9)', cellHinted: 'rgba(0,38,38,0.95)', cellDaubed: 'rgba(0,4,10,0.98)', cellWin: 'rgba(0,255,200,0.12)',
+    borderNormal: 'rgba(0,200,150,0.1)', borderHinted: 'rgba(0,255,200,0.88)', borderDaubed: 'rgba(0,200,150,0.28)', borderWin: 'rgba(0,255,200,0.9)',
+    daubBg: 'linear-gradient(135deg,rgba(0,100,80,0.9),rgba(0,220,180,0.9))', textColor: '#67e8f9', hintedText: '#00ffc8', daubedText: 'rgba(0,255,200,0.38)',
+  },
+  {
+    id: 'vintage', name: 'Vintage', emoji: '📜',
+    cardBg: 'linear-gradient(160deg,rgba(55,35,15,0.97),rgba(38,24,10,0.99))',
+    cardBorder: 'rgba(180,140,80,0.45)', winBorder: 'rgba(200,160,90,0.95)', winGlow: '#C8A050',
+    cellBg: 'rgba(48,30,12,0.85)', cellHinted: 'rgba(78,52,18,0.95)', cellDaubed: 'rgba(28,18,6,0.97)', cellWin: 'rgba(180,140,80,0.2)',
+    borderNormal: 'rgba(180,140,80,0.14)', borderHinted: 'rgba(200,160,90,0.88)', borderDaubed: 'rgba(180,140,80,0.22)', borderWin: 'rgba(200,160,90,0.9)',
+    daubBg: 'linear-gradient(135deg,rgba(100,62,20,0.9),rgba(180,132,58,0.88))', textColor: '#d4b896', hintedText: '#c8a96e', daubedText: 'rgba(180,140,80,0.45)',
+  },
+  {
+    id: 'space', name: 'Space', emoji: '🚀',
+    cardBg: 'linear-gradient(160deg,rgba(5,5,25,0.99),rgba(2,2,15,0.99))',
+    cardBorder: 'rgba(100,149,237,0.45)', winBorder: 'rgba(130,175,255,0.95)', winGlow: '#6495ED',
+    cellBg: 'rgba(8,8,30,0.9)', cellHinted: 'rgba(18,18,65,0.95)', cellDaubed: 'rgba(4,4,18,0.98)', cellWin: 'rgba(100,149,237,0.16)',
+    borderNormal: 'rgba(100,149,237,0.1)', borderHinted: 'rgba(130,175,255,0.88)', borderDaubed: 'rgba(100,149,237,0.22)', borderWin: 'rgba(130,175,255,0.9)',
+    daubBg: 'linear-gradient(135deg,rgba(25,25,112,0.9),rgba(100,149,237,0.88))', textColor: '#bfdbfe', hintedText: '#93c5fd', daubedText: 'rgba(147,197,253,0.38)',
+  },
+];
+
 const WIN_PAYOUTS: Record<string, number> = { Line: 3, Diagonal: 5, '4 Corners': 7, BLACKOUT: 20 };
 const BET_OPTIONS = ALL_CHIP_DENOMS;
 
@@ -293,11 +345,13 @@ interface BingoCardProps {
   phase: GamePhase;
   onClaimBingo: () => void;
   bingoFeedback: 'none' | 'valid' | 'invalid';
+  skin: BingoCardSkin;
 }
 
-function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, isWinner, label, phase, onClaimBingo, bingoFeedback }: BingoCardProps) {
+function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, isWinner, label, phase, onClaimBingo, bingoFeedback, skin }: BingoCardProps) {
   const fontSize = cellSize >= 54 ? 18 : cellSize >= 44 ? 15 : cellSize >= 36 ? 13 : 11;
   const headerFont = cellSize >= 54 ? 22 : cellSize >= 44 ? 18 : cellSize >= 36 ? 15 : 13;
+  const sk = BINGO_SKINS.find(s => s.id === skin) ?? BINGO_SKINS[0];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -305,11 +359,11 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
         <div style={{ textAlign: 'center', fontSize: 9, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 4 }}>{label}</div>
       )}
       <div style={{
-        background: 'linear-gradient(160deg,rgba(28,28,28,0.97),rgba(12,12,12,0.99))',
-        border: `2px solid ${isWinner ? 'rgba(212,175,55,0.9)' : 'rgba(212,175,55,0.4)'}`,
+        background: sk.cardBg,
+        border: `2px solid ${isWinner ? sk.winBorder : sk.cardBorder}`,
         borderRadius: 14,
         overflow: 'hidden',
-        boxShadow: isWinner ? '0 0 30px rgba(212,175,55,0.6), 0 8px 32px rgba(0,0,0,0.8)' : '0 6px 28px rgba(0,0,0,0.7)',
+        boxShadow: isWinner ? `0 0 30px ${sk.winGlow}66, 0 8px 32px rgba(0,0,0,0.8)` : '0 6px 28px rgba(0,0,0,0.7)',
         animation: isWinner ? 'cardWinPulse 1s ease-in-out infinite' : 'none',
       }}>
         {/* BINGO header */}
@@ -344,14 +398,14 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
                   width: cellSize, height: cellSize,
                   borderRadius: 8,
                   position: 'relative',
-                  background: isWin ? 'rgba(212,175,55,0.18)' : isDaubed ? 'rgba(15,15,15,0.95)' : isHinted ? 'rgba(40,32,8,0.95)' : 'rgba(28,28,28,0.8)',
-                  border: isWin ? '2px solid rgba(212,175,55,0.9)' : isDaubed ? `1.5px solid ${bc.solid}44` : isHinted ? '1.5px solid rgba(212,175,55,0.8)' : '1.5px solid rgba(255,255,255,0.07)',
+                  background: isWin ? sk.cellWin : isDaubed ? sk.cellDaubed : isHinted ? sk.cellHinted : sk.cellBg,
+                  border: isWin ? `2px solid ${sk.borderWin}` : isDaubed ? `1.5px solid ${sk.borderDaubed || `${bc.solid}44`}` : isHinted ? `1.5px solid ${sk.borderHinted}` : `1.5px solid ${sk.borderNormal}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: canDaub ? 'pointer' : 'default',
                   overflow: 'hidden',
                   transition: 'all 0.25s ease',
                   animation: isWin ? 'cellWinPulse 1s ease-in-out infinite' : isHinted && !isDaubed ? 'hintGlow 1.3s ease-in-out infinite' : 'none',
-                  boxShadow: isHinted && !isDaubed ? `0 0 12px rgba(212,175,55,0.5), inset 0 0 8px rgba(212,175,55,0.1)` : 'none',
+                  boxShadow: isHinted && !isDaubed ? `0 0 12px ${sk.winGlow}55, inset 0 0 8px ${sk.winGlow}18` : 'none',
                 }}
                 onMouseEnter={e => { if (canDaub) { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.zIndex = '5'; } }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.zIndex = '1'; }}
@@ -360,7 +414,7 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
                 {isDaubed && (
                   <div style={{
                     position: 'absolute', inset: 3, borderRadius: 6,
-                    background: isFree ? 'linear-gradient(135deg,rgba(212,175,55,0.45),rgba(212,175,55,0.65))' : bc.bg,
+                    background: isFree ? 'linear-gradient(135deg,rgba(212,175,55,0.45),rgba(212,175,55,0.65))' : (sk.daubBg || bc.bg),
                     opacity: 0.88,
                     animation: 'daubAppear 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards',
                     boxShadow: `inset 0 0 6px rgba(0,0,0,0.35), 0 0 6px ${bc.shadow}`,
@@ -372,19 +426,19 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
                   position: 'relative', zIndex: 2,
                   fontSize: isFree ? fontSize * 0.62 : fontSize,
                   fontWeight: 800,
-                  color: isHinted && !isDaubed ? '#D4AF37' : isDaubed ? 'rgba(255,255,255,0.5)' : '#e5e7eb',
+                  color: isHinted && !isDaubed ? sk.hintedText : isDaubed ? sk.daubedText : sk.textColor,
                   letterSpacing: isFree ? '0.04em' : 0,
                   userSelect: 'none',
                 }}>{isFree ? 'FREE' : val}</span>
 
                 {/* Hint indicator */}
                 {isHinted && !isDaubed && (
-                  <div style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#D4AF37', animation: 'hintDot 0.8s ease-in-out infinite' }} />
+                  <div style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: sk.hintedText, animation: 'hintDot 0.8s ease-in-out infinite' }} />
                 )}
 
                 {/* Win star */}
                 {isWin && (
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'radial-gradient(circle,rgba(212,175,55,0.3) 0%,transparent 70%)' }} />
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: 8, background: `radial-gradient(circle,${sk.winGlow}40 0%,transparent 70%)` }} />
                 )}
               </div>
             );
@@ -470,6 +524,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
   const [message, setMessage] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
+  const [cardSkin, setCardSkin] = useState<BingoCardSkin>(() => (localStorage.getItem('pcasino_bingo_skin') as BingoCardSkin) || 'classic');
   const confId = useRef(0);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDrawing = useRef(false);
@@ -754,6 +809,32 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
           <div style={{ background: 'rgba(15,15,15,0.95)', border: '2px solid rgba(212,175,55,0.4)', borderRadius: 20, padding: '40px 48px', maxWidth: 520, width: '100%', textAlign: 'center' }}>
             <div style={{ fontSize: 32, fontWeight: 900, fontFamily: "'Cinzel',serif", background: 'linear-gradient(135deg,#D4AF37,#FFD700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 4 }}>BINGO 75-BALL</div>
             <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 32 }}>American 75-ball bingo — daub your card, call BINGO!</div>
+
+            {/* Card skin selector */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 10 }}>CARD SKIN</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {BINGO_SKINS.map(sk => (
+                  <button
+                    key={sk.id}
+                    onClick={() => { setCardSkin(sk.id); localStorage.setItem('pcasino_bingo_skin', sk.id); }}
+                    style={{
+                      padding: '8px 14px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.2s',
+                      background: cardSkin === sk.id ? sk.cardBg : 'rgba(255,255,255,0.05)',
+                      border: `2px solid ${cardSkin === sk.id ? sk.cardBorder : 'rgba(255,255,255,0.1)'}`,
+                      color: cardSkin === sk.id ? sk.textColor : '#6b7280',
+                      fontWeight: cardSkin === sk.id ? 800 : 600,
+                      fontSize: 12,
+                      boxShadow: cardSkin === sk.id ? `0 0 12px ${sk.winGlow}44` : 'none',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 64,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>{sk.emoji}</span>
+                    <span style={{ fontSize: 10, letterSpacing: '0.08em' }}>{sk.name.toUpperCase()}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 11, color: '#6b7280', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 12 }}>NUMBER OF CARDS</div>
