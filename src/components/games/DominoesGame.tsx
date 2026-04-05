@@ -222,28 +222,53 @@ function highestDouble(hand: Tile[]): { tile: Tile; val: number } | null {
  * Doubles at arm tips count both sides (e.g. double-4 = 8).
  * When spinner is placed we don't double-count the spinner itself for left/right.
  */
+/**
+ * Calculate total open-end pips for All-Fives scoring.
+ * Rules:
+ *  - The spinner tile itself is NEVER counted as an open end.
+ *  - Left arm only counted when spinnerLeftPlayed (a non-spinner tile exists there).
+ *  - Right arm only counted when spinnerRightPlayed.
+ *  - Top/bottom arms only counted when tiles exist there.
+ *  - Doubles at any open end count both pips (value × 2).
+ */
 function calcOpenEndPips(
   chain: PlacedTile[], lv: number, rv: number,
   topChain: PlacedTile[], bottomChain: PlacedTile[], tv: number, bv: number,
-  spinnerPlaced: boolean
+  spinnerPlaced: boolean,
+  spinnerLeftPlayed = true, spinnerRightPlayed = true
 ): number {
   if (chain.length === 0) return 0;
-  let leftPips: number, rightPips: number;
-  if (spinnerPlaced) {
-    leftPips  = lv;
-    rightPips = rv;
-  } else {
+
+  let total = 0;
+
+  if (!spinnerPlaced) {
+    // No spinner: standard two-ended chain
     if (chain.length === 1) return lv + rv;
-    leftPips  = chain[0].isDouble               ? lv * 2 : lv;
-    rightPips = chain[chain.length - 1].isDouble ? rv * 2 : rv;
+    total += chain[0].isDouble               ? lv * 2 : lv;
+    total += chain[chain.length - 1].isDouble ? rv * 2 : rv;
+    return total;
   }
-  let total = leftPips + rightPips;
-  if (spinnerPlaced) {
-    const topEnd    = topChain.length    > 0 ? topChain[topChain.length - 1]       : null;
-    const bottomEnd = bottomChain.length > 0 ? bottomChain[bottomChain.length - 1] : null;
-    total += topEnd?.isDouble    ? tv * 2 : tv;
-    total += bottomEnd?.isDouble ? bv * 2 : bv;
+
+  // Spinner placed: count each arm only when a non-spinner tile occupies that end.
+  // Left arm — only when spinnerLeftPlayed (chain[0] is a real tile, not the spinner)
+  if (spinnerLeftPlayed && chain.length > 0) {
+    total += chain[0].isDouble ? lv * 2 : lv;
   }
+  // Right arm — only when spinnerRightPlayed (chain[last] is a real tile, not the spinner)
+  if (spinnerRightPlayed && chain.length > 0) {
+    total += chain[chain.length - 1].isDouble ? rv * 2 : rv;
+  }
+  // Top arm — only when tiles exist there
+  if (topChain.length > 0) {
+    const topEnd = topChain[topChain.length - 1];
+    total += topEnd.isDouble ? tv * 2 : tv;
+  }
+  // Bottom arm — only when tiles exist there
+  if (bottomChain.length > 0) {
+    const bottomEnd = bottomChain[bottomChain.length - 1];
+    total += bottomEnd.isDouble ? bv * 2 : bv;
+  }
+
   return total;
 }
 
@@ -253,19 +278,23 @@ function calcOpenEndPips(
 function simulatePlay(
   chain: PlacedTile[], topChain: PlacedTile[], bottomChain: PlacedTile[],
   tile: Tile, end: 'left' | 'right' | 'top' | 'bottom',
-  lv: number, rv: number, tv: number, bv: number, spinnerPlaced: boolean
+  lv: number, rv: number, tv: number, bv: number, spinnerPlaced: boolean,
+  spinnerLeftPlayed: boolean, spinnerRightPlayed: boolean
 ): number {
   const isDouble = tile.left === tile.right;
   let newLv = lv, newRv = rv, newTv = tv, newBv = bv;
   let newChain = chain, newTopChain = topChain, newBottomChain = bottomChain;
+  let newSLP = spinnerLeftPlayed, newSRP = spinnerRightPlayed;
   if (end === 'right') {
     const pt: PlacedTile = { tile, dispLeft: tile.left === rv ? tile.left : tile.right, dispRight: tile.left === rv ? tile.right : tile.left, isDouble, placedBy: 'ai' };
     newRv = tile.left === rv ? tile.right : tile.left;
     newChain = [...chain, pt];
+    if (spinnerPlaced) newSRP = true;
   } else if (end === 'left') {
     const pt: PlacedTile = { tile, dispLeft: tile.right === lv ? tile.left : tile.right, dispRight: tile.right === lv ? tile.right : tile.left, isDouble, placedBy: 'ai' };
     newLv = tile.right === lv ? tile.left : tile.right;
     newChain = [pt, ...chain];
+    if (spinnerPlaced) newSLP = true;
   } else if (end === 'top') {
     const pt: PlacedTile = { tile, dispLeft: tile.left, dispRight: tile.right, isDouble, placedBy: 'ai' };
     newTv = tile.left === tv ? tile.right : tile.left;
@@ -275,13 +304,14 @@ function simulatePlay(
     newBv = tile.left === bv ? tile.right : tile.left;
     newBottomChain = [...bottomChain, pt];
   }
-  return calcOpenEndPips(newChain, newLv, newRv, newTopChain, newBottomChain, newTv, newBv, spinnerPlaced);
+  return calcOpenEndPips(newChain, newLv, newRv, newTopChain, newBottomChain, newTv, newBv, spinnerPlaced, newSLP, newSRP);
 }
 
 function aiChoose(
   hand: Tile[], lv: number, rv: number, empty: boolean, firstTileId: string | null,
   chain: PlacedTile[], topChain: PlacedTile[], bottomChain: PlacedTile[],
-  tv: number, bv: number, spinnerPlaced: boolean, topBottomOpen: boolean
+  tv: number, bv: number, spinnerPlaced: boolean, topBottomOpen: boolean,
+  spinnerLeftPlayed: boolean, spinnerRightPlayed: boolean
 ): { tile: Tile; end: 'left' | 'right' | 'top' | 'bottom' } | null {
   if (empty && firstTileId) {
     const t = hand.find(h => h.id === firstTileId);
@@ -299,7 +329,7 @@ function aiChoose(
   for (const tile of playable) {
     for (const end of ends) {
       if (!canPlayEnd(tile, end, lv, rv, spinnerPlaced, tv, bv, topBottomOpen)) continue;
-      const total = simulatePlay(chain, topChain, bottomChain, tile, end, lv, rv, tv, bv, spinnerPlaced);
+      const total = simulatePlay(chain, topChain, bottomChain, tile, end, lv, rv, tv, bv, spinnerPlaced, spinnerLeftPlayed, spinnerRightPlayed);
       candidates.push({ tile, end, score: isScoringTotal(total) ? total : 0, pips: tile.left + tile.right });
     }
   }
