@@ -38,13 +38,15 @@ interface GS {
   lastPassedBy: string | null;
   roundNumber: number; targetScore: number;
   roundLoser: string | null;
-  pickingPool: Tile[];           // all 28 tiles available to claim
-  pickingClaims: Record<string, string>; // tileId → playerId
+  pickingPool: Tile[];
+  pickingClaims: Record<string, string>;
   freshGame: boolean;
+  lastMoveScore: number;
+  openEndTotal: number;
 }
 
 type Action =
-  | { type: 'INIT_WASH'; mode: GameMode; bet: number; freshGame: boolean }
+  | { type: 'INIT_WASH'; mode: GameMode; bet: number; freshGame: boolean; targetScore?: number }
   | { type: 'FINISH_WASH' }
   | { type: 'CLAIM_TILE'; tileId: string; playerId: string }
   | { type: 'START_PLAYING' }
@@ -191,18 +193,62 @@ function highestDouble(hand: Tile[]): { tile: Tile; val: number } | null {
   if (!doubles.length) return null;
   return { tile: doubles[0], val: doubles[0].left };
 }
-function aiChoose(hand: Tile[], lv: number, rv: number, empty: boolean, firstTileId: string | null): { tile: Tile; end: 'left' | 'right' } | null {
+
+/**
+ * Calculate total open-end pips for All-Fives scoring.
+ * Doubles at the ends count both sides (e.g. double-4 at end = 4+4 = 8).
+ * Single tile: count left + right pips directly.
+ */
+function calcOpenEndPips(chain: PlacedTile[], leftVal: number, rightVal: number): number {
+  if (chain.length === 0) return 0;
+  if (chain.length === 1) return leftVal + rightVal;
+  const leftPips  = chain[0].isDouble               ? leftVal * 2  : leftVal;
+  const rightPips = chain[chain.length - 1].isDouble ? rightVal * 2 : rightVal;
+  return leftPips + rightPips;
+}
+
+/**
+ * Simulate placing a tile and return resulting open-end pip total.
+ */
+function simulatePlay(chain: PlacedTile[], tile: Tile, end: 'left' | 'right', lv: number, rv: number): number {
+  const isDouble = tile.left === tile.right;
+  let newLeft = lv, newRight = rv;
+  let pt: PlacedTile;
+  if (end === 'right') {
+    const newR = tile.left === rv ? tile.right : tile.left;
+    pt = { tile, dispLeft: tile.left, dispRight: tile.right, isDouble, placedBy: 'ai' };
+    newRight = newR;
+  } else {
+    const newL = tile.right === lv ? tile.left : tile.right;
+    pt = { tile, dispLeft: tile.right, dispRight: tile.left, isDouble, placedBy: 'ai' };
+    newLeft = newL;
+  }
+  const simChain = end === 'right' ? [...chain, pt] : [pt, ...chain];
+  return calcOpenEndPips(simChain, newLeft, newRight);
+}
+
+function aiChoose(hand: Tile[], lv: number, rv: number, empty: boolean, firstTileId: string | null, chain: PlacedTile[]): { tile: Tile; end: 'left' | 'right' } | null {
   if (empty && firstTileId) {
     const t = hand.find(h => h.id === firstTileId);
     return t ? { tile: t, end: 'right' } : null;
   }
   const playable = hand.filter(t => canPlay(t, lv, rv, empty));
   if (!playable.length) return null;
-  playable.sort((a, b) => (b.left + b.right) - (a.left + a.right));
-  const tile = playable[0];
-  if (empty) return { tile, end: 'right' };
-  const end = canPlayEnd(tile, 'right', lv, rv) ? 'right' : 'left';
-  return { tile, end };
+  if (empty) {
+    const tile = [...playable].sort((a, b) => (b.left + b.right) - (a.left + a.right))[0];
+    return { tile, end: 'right' };
+  }
+  // Prefer moves that score (open end total divisible by 5)
+  const candidates: { tile: Tile; end: 'left' | 'right'; score: number; pips: number }[] = [];
+  for (const tile of playable) {
+    for (const end of ['left', 'right'] as const) {
+      if (!canPlayEnd(tile, end, lv, rv)) continue;
+      const total = simulatePlay(chain, tile, end, lv, rv);
+      candidates.push({ tile, end, score: total % 5 === 0 ? total : 0, pips: tile.left + tile.right });
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score || b.pips - a.pips);
+  return candidates[0] ? { tile: candidates[0].tile, end: candidates[0].end } : null;
 }
 function findRoundLoser(players: DomPlayer[], winnerIdx: number): string {
   let maxPips = -1, loserName = '';
@@ -226,6 +272,7 @@ function initGS(): GS {
     lastScorer: null, lastScoreAmount: 0, lastPassedBy: null,
     roundNumber: 0, targetScore: TARGET_SCORE, roundLoser: null,
     pickingPool: [], pickingClaims: {}, freshGame: true,
+    lastMoveScore: 0, openEndTotal: 0,
   };
 }
 
@@ -246,8 +293,10 @@ function gsReducer(state: GS, action: Action): GS {
         currentPlayer: 0, consecutivePasses: 0,
         roundWinner: '', roundScore: 0,
         firstPlayTileId: null, lastPlayedBy: null, lastPlayedLeft: 0, lastPlayedRight: 0,
-        lastPassedBy: null, roundLoser: null,
+        lastPassedBy: null, roundLoser: null, lastScorer: null, lastScoreAmount: 0,
+        lastMoveScore: 0, openEndTotal: 0,
         roundNumber: action.freshGame ? 1 : state.roundNumber + 1,
+        targetScore: action.targetScore ?? state.targetScore,
         practiceGamesLeft: action.mode === 'practice' ? state.practiceGamesLeft - 1 : state.practiceGamesLeft,
         freshGame: action.freshGame,
       };
@@ -315,22 +364,40 @@ function gsReducer(state: GS, action: Action): GS {
       }
 
       const newPlayers = state.players.map((p, i) => i === pIdx ? { ...p, hand: newHand } : p);
+
+      // Calculate open-end pip total for All-Fives mid-game scoring
+      const openEndTotal = calcOpenEndPips(newChain, newLeft, newRight);
+      const midGameScore = (openEndTotal > 0 && openEndTotal % 5 === 0) ? openEndTotal : 0;
+
       const baseState = {
         ...state, players: newPlayers, chain: newChain, leftVal: newLeft, rightVal: newRight,
         currentPlayer: (pIdx + 1) % newPlayers.length, consecutivePasses: 0,
         lastPlayedBy: player.id, lastPlayedLeft: tile.left, lastPlayedRight: tile.right,
         lastPassedBy: null,
         firstPlayTileId: chainEmpty ? null : state.firstPlayTileId,
+        openEndTotal,
+        lastMoveScore: midGameScore,
       };
 
       if (newHand.length === 0) {
+        // Player dominoes out — score opponents' remaining pips + any mid-game score from this move
         const rawPips = newPlayers.filter((_, i) => i !== pIdx).reduce((sum, p) => sum + handPips(p.hand), 0);
-        const score = roundToFive(rawPips); // round to nearest 5 (standard Caribbean rules)
-        const updatedPlayers = newPlayers.map((p, i) => i === pIdx ? { ...p, score: p.score + score } : p);
+        const roundEndScore = roundToFive(rawPips);
+        const totalScore = roundEndScore + midGameScore;
+        const updatedPlayers = newPlayers.map((p, i) => i === pIdx ? { ...p, score: p.score + totalScore } : p);
         const roundLoser = findRoundLoser(updatedPlayers, pIdx);
-        return { ...baseState, players: updatedPlayers, phase: 'roundOver', roundWinner: player.name, roundScore: score, lastScorer: player.name, lastScoreAmount: score, roundLoser, rawRoundPips: rawPips };
+        return { ...baseState, players: updatedPlayers, phase: 'roundOver', roundWinner: player.name, roundScore: totalScore, lastScorer: player.name, lastScoreAmount: totalScore, roundLoser };
       }
-      return baseState;
+
+      // Mid-game scoring: award points immediately if open ends divisible by 5
+      if (midGameScore > 0) {
+        const scoringPlayers = newPlayers.map((p, i) =>
+          i === pIdx ? { ...p, score: p.score + midGameScore } : p
+        );
+        return { ...baseState, players: scoringPlayers, lastScorer: player.name, lastScoreAmount: midGameScore };
+      }
+
+      return { ...baseState, lastScorer: state.lastScorer, lastScoreAmount: state.lastScoreAmount };
     }
 
     case 'DRAW': {
@@ -346,12 +413,13 @@ function gsReducer(state: GS, action: Action): GS {
       if (newPasses >= state.players.length) {
         const pipsArr = state.players.map((p, i) => ({ idx: i, name: p.name, pips: handPips(p.hand) }));
         const winnerEntry = pipsArr.reduce((a, b) => a.pips <= b.pips ? a : b);
-        const score = pipsArr.filter(p => p.idx !== winnerEntry.idx).reduce((s, p) => s + p.pips, 0);
+        const rawScore = pipsArr.filter(p => p.idx !== winnerEntry.idx).reduce((s, p) => s + p.pips, 0);
+        const score = roundToFive(rawScore);
         const updatedPlayers = state.players.map((p, i) => i === winnerEntry.idx ? { ...p, score: p.score + score } : p);
         const loserEntry = pipsArr.reduce((a, b) => a.pips >= b.pips ? a : b);
-        return { ...state, players: updatedPlayers, phase: 'roundOver', roundWinner: winnerEntry.name, roundScore: score, consecutivePasses: newPasses, lastPassedBy: currentPlayerName, lastScorer: winnerEntry.name, lastScoreAmount: score, roundLoser: loserEntry.name };
+        return { ...state, players: updatedPlayers, phase: 'roundOver', roundWinner: winnerEntry.name, roundScore: score, consecutivePasses: newPasses, lastPassedBy: currentPlayerName, lastScorer: winnerEntry.name, lastScoreAmount: score, roundLoser: loserEntry.name, lastMoveScore: 0 };
       }
-      return { ...state, currentPlayer: next, consecutivePasses: newPasses, lastPassedBy: currentPlayerName };
+      return { ...state, currentPlayer: next, consecutivePasses: newPasses, lastPassedBy: currentPlayerName, lastMoveScore: 0 };
     }
 
     case 'NEXT_ROUND': return { ...state, phase: 'setup' };
@@ -947,6 +1015,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const [muted, setMuted] = useState(false);
   const [slamOn, setSlamOn] = useState(true);
+  const [selectedTargetScore, setSelectedTargetScore] = useState<number>(150);
   const [dominoSkin, setDominoSkin] = useState<SkinKey>('ivory');
   const [tableSkin, setTableSkin] = useState<TableKey>('wood');
   const [tileSize, setTileSize] = useState<TileSize>('md');
@@ -1033,6 +1102,19 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gs.chain.length]);
 
+  // Mid-game score notification
+  useEffect(() => {
+    if (gs.phase !== 'playing' || !gs.lastMoveScore || gs.lastMoveScore <= 0) return;
+    const scorer = gs.lastScorer ?? '';
+    const isHuman = scorer === 'You';
+    if (isHuman) {
+      toast.success(`🎯 +${gs.lastMoveScore} pts! (${gs.openEndTotal} open ends)`);
+    } else {
+      toast.info(`${scorer} scored +${gs.lastMoveScore} pts`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs.chain.length, gs.lastMoveScore]);
+
   // Derived state
   const isHumanTurn = gs.phase === 'playing' && gs.players[gs.currentPlayer]?.id === 'human';
   const humanPlayer = gs.players.find(p => p.isHuman);
@@ -1064,7 +1146,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
     if (aiTimer.current) clearTimeout(aiTimer.current);
     const delay = SPEED_DELAYS[gameSpeed] + Math.random() * (SPEED_DELAYS[gameSpeed] * 0.25);
     aiTimer.current = setTimeout(() => {
-      const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId);
+      const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId, gs.chain);
       if (choice) { audio.place(); dispatch({ type: 'PLAY_TILE', playerId: player.id, tileId: choice.tile.id, end: choice.end }); }
       else { audio.knock(); dispatch({ type: 'PASS' }); }
     }, delay);
@@ -1114,7 +1196,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   };
   const startWash = (mode: GameMode, fresh: boolean) => {
     if (mode === 'real') { if (!betConfirmed) return; if (fresh && !onBet(gs.bet)) return; }
-    dispatch({ type: 'INIT_WASH', mode, bet: gs.bet, freshGame: fresh });
+    dispatch({ type: 'INIT_WASH', mode, bet: gs.bet, freshGame: fresh, targetScore: fresh ? selectedTargetScore : gs.targetScore });
     setSelectedTileId(null);
   };
 
@@ -1214,14 +1296,17 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
             </div>
           </div>
           <div style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 10, padding: '10px 12px' }}>
-            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, marginBottom: 6 }}>📜 Rules</div>
-            <div style={{ color: '#555', fontSize: 10, lineHeight: 1.6 }}>
+            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, marginBottom: 6 }}>📜 Rules (Draw · All-Fives)</div>
+            <div style={{ color: '#555', fontSize: 10, lineHeight: 1.7 }}>
               • Highest double plays first<br />
-              • Domino-out: score all opponents' pips<br />
-              • Blocked: lowest pip total wins<br />
-              • Knock on table when you cannot play<br />
+              • <span style={{ color: '#43A047' }}>Score during play:</span> open ends sum ÷ 5 = points<br />
+              • Doubles at ends count both sides (e.g. [4|4] = 8)<br />
+              • Domino-out: opponents' remaining pips (÷5)<br />
+              • Blocked: lowest pip total wins (÷5)<br />
+              • Draw from boneyard when you can't play<br />
+              • Knock (pass) only when boneyard is empty<br />
               • Loser washes bones for next round<br />
-              • First to {TARGET_SCORE} pts wins
+              • First to {gs.targetScore || selectedTargetScore} pts wins
             </div>
           </div>
         </div>
@@ -1234,7 +1319,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
             <div style={{ textAlign: 'center', marginBottom: 22 }}>
               <div style={{ fontSize: 46, marginBottom: 8 }}>🁣🁢🁡</div>
               <div style={{ fontFamily: 'Georgia,serif', fontSize: 24, fontWeight: 800, color: '#D4AF37', letterSpacing: 3 }}>DOMINOES</div>
-              <div style={{ color: '#555', fontSize: 12, marginTop: 3 }}>Classic Draw · Double-Six · 4 Players · First to {TARGET_SCORE} pts</div>
+              <div style={{ color: '#555', fontSize: 12, marginTop: 3 }}>Draw · All-Fives · Double-Six · 4 Players</div>
             </div>
             {gs.roundNumber > 0 && gs.players.length > 0 && (
               <div style={{ marginBottom: 14, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 10, padding: '10px 14px' }}>
@@ -1266,6 +1351,14 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(212,175,55,0.15)' }}>
               <div><div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', fontWeight: 700 }}>YOUR BALANCE</div><div style={{ fontSize: 18, fontWeight: 900, color: '#D4AF37' }}>{formatChipLabel(balance)} $Pc</div></div>
               {onAddBalance && <button onClick={() => onAddBalance(10_000)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)', color: '#66BB6A', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}><PlusCircle size={13} /> Get $Pc</button>}
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 12, marginBottom: 8, letterSpacing: '0.1em' }}>WIN GOAL</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[100, 150, 200].map(pts => (
+                  <button key={pts} onClick={() => setSelectedTargetScore(pts)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, background: selectedTargetScore === pts ? 'rgba(212,175,55,.18)' : 'rgba(255,255,255,.04)', border: `2px solid ${selectedTargetScore === pts ? '#D4AF37' : 'rgba(255,255,255,.08)'}`, color: selectedTargetScore === pts ? '#D4AF37' : '#666' }}>{pts} pts</button>
+                ))}
+              </div>
             </div>
             <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 12, marginBottom: 8, letterSpacing: '0.1em' }}>SELECT BET</div>
             <div style={{ marginBottom: 12 }}><ChipSelector selectedChip={gs.bet} onSelect={(amt) => { dispatch({ type: 'SET_BET', bet: amt }); setBetConfirmed(false); }} balance={balance} compact /></div>
@@ -1382,6 +1475,16 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                   <>
                     <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.leftVal}</div>
                     <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.rightVal}</div>
+                    <div style={{
+                      position: 'absolute', left: '50%', bottom: 8, transform: 'translateX(-50%)', zIndex: 6,
+                      padding: '3px 12px', borderRadius: 12, fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap',
+                      background: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? 'rgba(67,160,71,0.85)' : 'rgba(0,0,0,.7)',
+                      border: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '1px solid #66BB6A' : '1px solid rgba(255,255,255,.1)',
+                      color: gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? '#fff' : '#555',
+                      transition: 'all .2s',
+                    }}>
+                      {gs.openEndTotal > 0 && gs.openEndTotal % 5 === 0 ? `✓ ${gs.openEndTotal} — SCORES!` : `Ends: ${gs.openEndTotal}`}
+                    </div>
                   </>
                 )}
                 <div ref={boardRef} className="dom-board" style={{ position: 'absolute', inset: 0, overflow: 'auto', cursor: 'grab' }}>

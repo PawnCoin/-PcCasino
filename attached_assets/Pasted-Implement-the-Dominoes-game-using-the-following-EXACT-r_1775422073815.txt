@@ -1,0 +1,120 @@
+Implement the Dominoes game using the following EXACT rules and scoring system. Do not simplify or guess. Follow this precisely.
+
+GAME TYPE:
+
+* Draw Dominoes with scoring during gameplay (not just at the end)
+
+SET:
+
+* Double-six set (28 tiles, values 0–6)
+
+PLAYERS:
+
+* 2–4 players
+
+START:
+
+* Each player draws 7 tiles (2 players) or 5 tiles (3–4 players)
+* Remaining tiles go to the boneyard
+* First player is:
+
+  * Highest double (preferred), OR
+  * Random if none
+
+GAMEPLAY:
+
+* Players take turns placing tiles
+* Tiles must match numbers on open ends of the layout
+* If player cannot play:
+
+  * They MUST draw from boneyard until they can play
+  * If boneyard empty → pass turn
+
+BOARD RULE:
+
+* Layout can expand in multiple directions (not just a straight line)
+* Doubles may be placed crosswise (optional toggle)
+
+SCORING SYSTEM (IMPORTANT — THIS IS THE MAIN PART):
+
+SCORING OCCURS DURING GAMEPLAY AFTER EACH TILE IS PLACED
+
+1. COUNT OPEN ENDS:
+
+* After each move, count the exposed ends of the layout
+* If a double is at an end, count BOTH sides of that double
+
+2. TOTAL PIPS:
+
+* Add all open end values together
+
+3. SCORING CONDITION:
+
+* If total is divisible by 5 → player scores points
+
+EXAMPLES:
+
+* Ends: 2 and 3 → total = 5 → score 5 points
+* Ends: 6 and 4 → total = 10 → score 10 points
+* Ends: 5, 5, 5 → total = 15 → score 15 points
+* Ends: 6 and double-6 → counts as 6 + 6 + 6 = 18 → no score
+
+4. DOUBLE RULE:
+
+* Doubles count as BOTH ends if exposed
+* Example:
+
+  * Double 4 at end = counts as 4 + 4
+
+5. MULTI-END BOARDS:
+
+* If layout branches:
+
+  * Count ALL open ends
+  * Then apply divisible-by-5 rule
+
+END OF ROUND:
+
+ROUND ENDS WHEN:
+
+* A player plays their last tile (DOMINO)
+  OR
+* Game is blocked (no moves possible)
+
+SCORING AT END:
+
+IF PLAYER DOMINOES OUT:
+
+* They receive:
+
+  * All remaining pips from opponents’ tiles
+  * Rounded to nearest multiple of 5
+
+IF GAME BLOCKS:
+
+* Player/team with LOWEST pip count wins
+* They score difference between their pips and opponents
+* Rounded to nearest multiple of 5
+
+WIN CONDITION:
+
+* First player/team to reach 100, 150, or 200 points (configurable)
+
+SPECIAL EFFECT (MY CUSTOM FEATURE):
+
+* When a player plays their LAST tile:
+
+  * Trigger "DOMINO SLAM"
+  * Hard impact animation
+  * Table crack visual effect
+  * Screen shake
+  * Add toggle ON/OFF in settings
+
+UI REQUIREMENTS:
+
+* Show running score LIVE during gameplay
+* Show points gained after each move
+* Highlight scoring moves
+
+DO NOT SIMPLIFY ANY RULES.
+IMPLEMENT EXACTLY AS DESCRIBED.
