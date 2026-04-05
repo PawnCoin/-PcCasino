@@ -609,9 +609,11 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
   }, [opponents, showVoice, announceEvent]);
 
   const dealCommunity = useCallback((count: number) => {
-    const newCards = deck.slice(0, count);
+    // Burn the top card (standard poker procedure) before dealing community cards
+    const afterBurn = deck.slice(1);
+    const newCards = afterBurn.slice(0, count);
     setCommunityCards(prev => [...prev, ...newCards]);
-    setDeck(prev => prev.slice(count));
+    setDeck(afterBurn.slice(count));
     setTimeout(() => setRevealedCommunity(prev => prev + count), 100);
   }, [deck]);
 
