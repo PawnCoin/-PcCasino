@@ -44,6 +44,7 @@ interface GS {
   lastMoveScore: number;
   openEndTotal: number;
   humanReplaced: boolean;
+  drawTrigger: number;
   spinnerPlaced: boolean;
   spinnerVal: number;
   topChain: PlacedTile[];
@@ -58,7 +59,7 @@ type Action =
   | { type: 'CLAIM_TILE'; tileId: string; playerId: string }
   | { type: 'START_PLAYING' }
   | { type: 'PLAY_TILE'; playerId: string; tileId: string; end: 'left' | 'right' | 'top' | 'bottom' }
-  | { type: 'DRAW' } | { type: 'PASS' } | { type: 'RESET' }
+  | { type: 'DRAW'; playerId?: string } | { type: 'PASS' } | { type: 'RESET' }
   | { type: 'NEXT_ROUND' }
   | { type: 'SET_BET'; bet: number }
   | { type: 'REPLACE_HUMAN' };
@@ -316,7 +317,7 @@ function initGS(): GS {
     firstPlayTileId: null,
     lastPlayedBy: null, lastPlayedLeft: 0, lastPlayedRight: 0,
     lastScorer: null, lastScoreAmount: 0, lastPassedBy: null,
-    roundNumber: 0, targetScore: TARGET_SCORE, roundLoser: null,
+    roundNumber: 0, targetScore: TARGET_SCORE, roundLoser: null, drawTrigger: 0,
     pickingPool: [], pickingClaims: {}, freshGame: true,
     lastMoveScore: 0, openEndTotal: 0, humanReplaced: false,
     spinnerPlaced: false, spinnerVal: -1,
@@ -493,7 +494,13 @@ function gsReducer(state: GS, action: Action): GS {
     case 'DRAW': {
       if (!state.boneyard.length) return state;
       const drawn = state.boneyard[0];
-      return { ...state, boneyard: state.boneyard.slice(1), players: state.players.map(p => p.isHuman ? { ...p, hand: [...p.hand, drawn] } : p) };
+      const targetId = action.playerId ?? 'human';
+      return {
+        ...state,
+        boneyard: state.boneyard.slice(1),
+        drawTrigger: state.drawTrigger + 1,
+        players: state.players.map(p => p.id === targetId ? { ...p, hand: [...p.hand, drawn] } : p),
+      };
     }
 
     case 'PASS': {
