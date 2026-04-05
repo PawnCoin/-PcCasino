@@ -43,6 +43,7 @@ interface GS {
   freshGame: boolean;
   lastMoveScore: number;
   openEndTotal: number;
+  humanReplaced: boolean;
 }
 
 type Action =
@@ -53,7 +54,8 @@ type Action =
   | { type: 'PLAY_TILE'; playerId: string; tileId: string; end: 'left' | 'right' }
   | { type: 'DRAW' } | { type: 'PASS' } | { type: 'RESET' }
   | { type: 'NEXT_ROUND' }
-  | { type: 'SET_BET'; bet: number };
+  | { type: 'SET_BET'; bet: number }
+  | { type: 'REPLACE_HUMAN' };
 
 // ─── Player colors (used in picking phase) ────────────────────────────────────
 const PLAYER_COLORS: Record<string, string> = {
@@ -250,14 +252,10 @@ function aiChoose(hand: Tile[], lv: number, rv: number, empty: boolean, firstTil
   candidates.sort((a, b) => b.score - a.score || b.pips - a.pips);
   return candidates[0] ? { tile: candidates[0].tile, end: candidates[0].end } : null;
 }
-function findRoundLoser(players: DomPlayer[], winnerIdx: number): string {
-  let maxPips = -1, loserName = '';
-  players.forEach((p, i) => {
-    if (i === winnerIdx) return;
-    const pips = handPips(p.hand);
-    if (pips > maxPips) { maxPips = pips; loserName = p.name; }
-  });
-  return loserName || players[(winnerIdx + 1) % players.length].name;
+/** The washer for next round is whoever has the LOWEST accumulated score. */
+function findRoundLoser(players: DomPlayer[]): string {
+  if (!players.length) return '';
+  return players.reduce((a, b) => a.score <= b.score ? a : b).name;
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -272,7 +270,7 @@ function initGS(): GS {
     lastScorer: null, lastScoreAmount: 0, lastPassedBy: null,
     roundNumber: 0, targetScore: TARGET_SCORE, roundLoser: null,
     pickingPool: [], pickingClaims: {}, freshGame: true,
-    lastMoveScore: 0, openEndTotal: 0,
+    lastMoveScore: 0, openEndTotal: 0, humanReplaced: false,
   };
 }
 
@@ -294,7 +292,7 @@ function gsReducer(state: GS, action: Action): GS {
         roundWinner: '', roundScore: 0,
         firstPlayTileId: null, lastPlayedBy: null, lastPlayedLeft: 0, lastPlayedRight: 0,
         lastPassedBy: null, roundLoser: null, lastScorer: null, lastScoreAmount: 0,
-        lastMoveScore: 0, openEndTotal: 0,
+        lastMoveScore: 0, openEndTotal: 0, humanReplaced: false,
         roundNumber: action.freshGame ? 1 : state.roundNumber + 1,
         targetScore: action.targetScore ?? state.targetScore,
         practiceGamesLeft: action.mode === 'practice' ? state.practiceGamesLeft - 1 : state.practiceGamesLeft,
@@ -385,7 +383,7 @@ function gsReducer(state: GS, action: Action): GS {
         const roundEndScore = roundToFive(rawPips);
         const totalScore = roundEndScore + midGameScore;
         const updatedPlayers = newPlayers.map((p, i) => i === pIdx ? { ...p, score: p.score + totalScore } : p);
-        const roundLoser = findRoundLoser(updatedPlayers, pIdx);
+        const roundLoser = findRoundLoser(updatedPlayers);
         return { ...baseState, players: updatedPlayers, phase: 'roundOver', roundWinner: player.name, roundScore: totalScore, lastScorer: player.name, lastScoreAmount: totalScore, roundLoser };
       }
 
@@ -416,12 +414,16 @@ function gsReducer(state: GS, action: Action): GS {
         const rawScore = pipsArr.filter(p => p.idx !== winnerEntry.idx).reduce((s, p) => s + p.pips, 0);
         const score = roundToFive(rawScore);
         const updatedPlayers = state.players.map((p, i) => i === winnerEntry.idx ? { ...p, score: p.score + score } : p);
-        const loserEntry = pipsArr.reduce((a, b) => a.pips >= b.pips ? a : b);
-        return { ...state, players: updatedPlayers, phase: 'roundOver', roundWinner: winnerEntry.name, roundScore: score, consecutivePasses: newPasses, lastPassedBy: currentPlayerName, lastScorer: winnerEntry.name, lastScoreAmount: score, roundLoser: loserEntry.name, lastMoveScore: 0 };
+        const roundLoser = findRoundLoser(updatedPlayers);
+        return { ...state, players: updatedPlayers, phase: 'roundOver', roundWinner: winnerEntry.name, roundScore: score, consecutivePasses: newPasses, lastPassedBy: currentPlayerName, lastScorer: winnerEntry.name, lastScoreAmount: score, roundLoser, lastMoveScore: 0 };
       }
       return { ...state, currentPlayer: next, consecutivePasses: newPasses, lastPassedBy: currentPlayerName, lastMoveScore: 0 };
     }
 
+    case 'REPLACE_HUMAN': {
+      const updatedPlayers = state.players.map(p => p.isHuman ? { ...p, isHuman: false } : p);
+      return { ...state, players: updatedPlayers, humanReplaced: true };
+    }
     case 'NEXT_ROUND': return { ...state, phase: 'setup' };
     case 'RESET': return { ...initGS(), practiceGamesLeft: state.practiceGamesLeft };
     default: return state;
@@ -783,11 +785,11 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
 }
 
 // ─── Washing Screen ───────────────────────────────────────────────────────────
-function WashingScreen({ onDone, skinKey, washerName }: { onDone: () => void; skinKey: SkinKey; washerName: string }) {
+function WashingScreen({ onDone, skinKey, washerName, isNewGame }: { onDone: () => void; skinKey: SkinKey; washerName: string; isNewGame?: boolean }) {
   const [frame, setFrame] = useState(0);
   const [washing, setWashing] = useState(false);
 
-  const startWash = () => {
+  const doWash = () => {
     setWashing(true);
     audio.washSound();
     const iv = setInterval(() => setFrame(f => f + 1), 80);
@@ -795,17 +797,31 @@ function WashingScreen({ onDone, skinKey, washerName }: { onDone: () => void; sk
     return () => { clearInterval(iv); clearTimeout(tm); };
   };
 
+  // Auto-start washing for a brand-new game (computer shuffles)
+  useEffect(() => {
+    if (isNewGame) {
+      const tm = setTimeout(() => doWash(), 800);
+      return () => clearTimeout(tm);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNewGame]);
+
   const skin = DOMINO_SKINS[skinKey] ?? DOMINO_SKINS.ivory;
   const count = 18;
+
+  const titleText = isNewGame
+    ? (washing ? '🔀 COMPUTER IS SHUFFLING…' : '🃏 NEW GAME — Computer Shuffles the Bones')
+    : (washing ? '🔀 WASHING THE BONES…' : `${washerName === 'You' ? '🫵 YOU HAVE THE LOWEST SCORE' : `😤 ${washerName.toUpperCase()} HAS THE LOWEST SCORE`} — MUST WASH!`);
+
+  const subText = isNewGame
+    ? 'Dealer shuffles all 28 bones face-down…'
+    : (washing ? 'Mixing all 28 dominoes face-down…' : 'Lowest score washes the bones for next round');
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#D4AF37', marginBottom: 4 }}>
-          {washing ? '🔀 WASHING THE BONES…' : `${washerName === 'You' ? '🫵 YOU LOST' : `😤 ${washerName.toUpperCase()} LOST`} — MUST WASH!`}
-        </div>
-        <div style={{ color: '#555', fontSize: 12 }}>
-          {washing ? 'Mixing all 28 dominoes face-down…' : 'The loser washes (mixes) the bones for the next round'}
-        </div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#D4AF37', marginBottom: 4 }}>{titleText}</div>
+        <div style={{ color: '#555', fontSize: 12 }}>{subText}</div>
       </div>
 
       {/* Animated bone pile */}
@@ -832,8 +848,9 @@ function WashingScreen({ onDone, skinKey, washerName }: { onDone: () => void; sk
         })}
       </div>
 
-      {!washing && (
-        <button onClick={startWash} style={{
+      {/* Manual wash button only shown for non-new games and when not yet washing */}
+      {!isNewGame && !washing && (
+        <button onClick={doWash} style={{
           padding: '14px 40px', borderRadius: 12, border: 'none', cursor: 'pointer',
           background: 'linear-gradient(135deg,#D4AF37,#9A7A20)', color: '#000',
           fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10,
@@ -845,6 +862,8 @@ function WashingScreen({ onDone, skinKey, washerName }: { onDone: () => void; sk
     </div>
   );
 }
+
+const PICK_TIME_LIMIT = 20;
 
 // ─── Picking Screen (full table visible, simultaneous picking) ────────────────
 function PickingScreen({
@@ -860,6 +879,28 @@ function PickingScreen({
   const humanClaims = Object.entries(pickingClaims).filter(([, pid]) => pid === 'human').length;
   const humanDone = humanClaims >= 7;
   const allDone = players.every(p => Object.values(pickingClaims).filter(pid => pid === p.id).length >= 7);
+
+  // Pick countdown timer — auto-fill human's bones if time runs out
+  const [pickTimeLeft, setPickTimeLeft] = useState(PICK_TIME_LIMIT);
+  const autoFillRef = useRef(false);
+  useEffect(() => {
+    if (humanDone || allDone) return;
+    const iv = setInterval(() => {
+      setPickTimeLeft(t => {
+        if (t <= 1 && !autoFillRef.current) {
+          autoFillRef.current = true;
+          const unclaimed = pickingPool.filter(tile => !pickingClaims[tile.id]);
+          const needed = 7 - humanClaims;
+          const shuffled = [...unclaimed].sort(() => Math.random() - 0.5);
+          shuffled.slice(0, needed).forEach(tile => onClaim(tile.id, 'human'));
+          return 0;
+        }
+        return Math.max(t - 1, 0);
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [humanDone, allDone]);
 
   // AI auto-picking — picks one tile at a time at speed-based intervals
   useEffect(() => {
@@ -926,10 +967,21 @@ function PickingScreen({
             <div style={{ position: 'absolute', inset: 0, opacity: .05, pointerEvents: 'none', backgroundImage: `repeating-linear-gradient(0deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px),repeating-linear-gradient(90deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px)` }} />
 
             {/* Header */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '8px 12px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '8px 12px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <div style={{ background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '4px 10px', color: '#D4AF37', fontWeight: 700, fontSize: 12 }}>
                 {humanDone ? '✓ 7 Bones — Ready!' : `Pick ${7 - humanClaims} more`}
               </div>
+              {!humanDone && (
+                <div style={{
+                  background: pickTimeLeft <= 5 ? 'rgba(183,28,28,0.85)' : 'rgba(0,0,0,0.7)',
+                  border: `1px solid ${pickTimeLeft <= 5 ? '#EF5350' : 'rgba(212,175,55,0.3)'}`,
+                  borderRadius: 8, padding: '4px 10px',
+                  color: pickTimeLeft <= 5 ? '#fff' : '#888', fontWeight: 700, fontSize: 12,
+                  transition: 'all .3s', animation: pickTimeLeft <= 5 ? 'pulse .6s infinite' : 'none',
+                }}>
+                  ⏱ Auto-pick in {pickTimeLeft}s
+                </div>
+              )}
               {humanDone && (
                 <button onClick={onStart} style={{ padding: '5px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#43A047,#1B5E20)', color: '#fff', fontWeight: 700, fontSize: 12 }}>
                   Start Game →
@@ -1027,6 +1079,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   const [betConfirmed, setBetConfirmed] = useState(false);
   const [gameSpeed, setGameSpeed] = useState<GameSpeed>(2);
   const [lastPlayBanner, setLastPlayBanner] = useState<{ playerName: string; left: number; right: number } | null>(null);
+  const [playSecondsLeft, setPlaySecondsLeft] = useState(30);
 
   const [chainCenterIdx, setChainCenterIdx] = useState(0);
   const prevChainRef = useRef<PlacedTile[]>([]);
@@ -1114,6 +1167,27 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gs.chain.length, gs.lastMoveScore]);
+
+  // Play timer — reset when turn changes, replace human if they go AFK
+  useEffect(() => {
+    if (gs.phase !== 'playing') return;
+    const currentIsHuman = gs.players[gs.currentPlayer]?.id === 'human' && gs.players[gs.currentPlayer]?.isHuman;
+    setPlaySecondsLeft(30);
+    if (!currentIsHuman) return;
+    const iv = setInterval(() => {
+      setPlaySecondsLeft(s => {
+        if (s <= 1) {
+          clearInterval(iv);
+          toast.error('⏱ Too slow! You were replaced by CPU.');
+          dispatch({ type: 'REPLACE_HUMAN' });
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs.currentPlayer, gs.phase]);
 
   // Derived state
   const isHumanTurn = gs.phase === 'playing' && gs.players[gs.currentPlayer]?.id === 'human';
@@ -1379,7 +1453,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
 
       {/* ── Washing ── */}
       {gs.phase === 'washing' && (
-        <WashingScreen onDone={handleWashDone} skinKey={dominoSkin} washerName={gs.roundLoser ?? 'You'} />
+        <WashingScreen onDone={handleWashDone} skinKey={dominoSkin} washerName={gs.roundLoser ?? ''} isNewGame={gs.freshGame} />
       )}
 
       {/* ── Picking (full table visible) ── */}
@@ -1529,7 +1603,20 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', padding: '3px 16px', color: isHumanTurn ? '#D4AF37' : '#555', fontSize: 12, fontWeight: 500, flexShrink: 0, minHeight: 24 }}>{statusMsg}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '3px 16px', flexShrink: 0, minHeight: 24 }}>
+            <span style={{ color: isHumanTurn ? '#D4AF37' : '#555', fontSize: 12, fontWeight: 500 }}>{statusMsg}</span>
+            {isHumanTurn && !gs.humanReplaced && (
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 8,
+                background: playSecondsLeft <= 8 ? 'rgba(183,28,28,0.7)' : 'rgba(0,0,0,0.5)',
+                color: playSecondsLeft <= 8 ? '#fff' : '#666',
+                border: `1px solid ${playSecondsLeft <= 8 ? '#EF5350' : 'rgba(255,255,255,0.08)'}`,
+                animation: playSecondsLeft <= 8 ? 'pulse .6s infinite' : 'none',
+                transition: 'all .3s',
+              }}>⏱ {playSecondsLeft}s</span>
+            )}
+            {gs.humanReplaced && <span style={{ fontSize: 11, color: '#EF5350', fontWeight: 700 }}>🤖 You were replaced by CPU</span>}
+          </div>
 
           <div style={{ display: 'flex', gap: 7, justifyContent: 'center', padding: '2px 16px 4px', flexShrink: 0, flexWrap: 'wrap' }}>
             {isHumanTurn && selectedTile && chainEmpty && (
