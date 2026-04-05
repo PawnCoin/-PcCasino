@@ -365,6 +365,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            cardBackStyle={getCardBackStyle()}
           />
         );
       case 'pool':
