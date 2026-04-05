@@ -433,21 +433,23 @@ function gsReducer(state: GS, action: Action): GS {
         const { pt, newLeft: nl } = placeLeft(tile, state.leftVal, player.name);
         newChain = [pt, ...state.chain]; newLeft = nl;
       } else if (action.end === 'top') {
-        // Play on top arm of spinner
+        // Play on top arm of spinner — dispLeft=openEnd, dispRight=connectEnd
+        // Tiles are rendered rotated 90° CW so dispRight (connect) faces downward toward spinner
         const matchVal = state.topVal;
         const isDouble = tile.left === tile.right;
-        const openEnd = tile.left === matchVal ? tile.right : tile.left;
-        const pt: PlacedTile = { tile, dispLeft: tile.left, dispRight: tile.right, isDouble, placedBy: player.name };
+        const openEndPip = tile.left === matchVal ? tile.right : tile.left;
+        const pt: PlacedTile = { tile, dispLeft: openEndPip, dispRight: matchVal, isDouble, placedBy: player.name };
         newTopChain = [...state.topChain, pt];
-        newTopVal = openEnd;
+        newTopVal = openEndPip;
       } else if (action.end === 'bottom') {
-        // Play on bottom arm of spinner
+        // Play on bottom arm of spinner — dispLeft=openEnd, dispRight=connectEnd
+        // Tiles are rendered rotated -90° CW so dispRight (connect) faces upward toward spinner
         const matchVal = state.bottomVal;
         const isDouble = tile.left === tile.right;
-        const openEnd = tile.left === matchVal ? tile.right : tile.left;
-        const pt: PlacedTile = { tile, dispLeft: tile.left, dispRight: tile.right, isDouble, placedBy: player.name };
+        const openEndPip = tile.left === matchVal ? tile.right : tile.left;
+        const pt: PlacedTile = { tile, dispLeft: openEndPip, dispRight: matchVal, isDouble, placedBy: player.name };
         newBottomChain = [...state.bottomChain, pt];
-        newBottomVal = openEnd;
+        newBottomVal = openEndPip;
       }
 
       const newPlayers = state.players.map((p, i) => i === pIdx ? { ...p, hand: newHand } : p);
@@ -1679,7 +1681,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                             </div>
                           );
                         })}
-                        {/* Top chain — extends upward from spinner */}
+                        {/* Top chain — extends upward from spinner, tiles rotated 90° CW */}
                         {gs.spinnerPlaced && gs.topChain.length > 0 && (() => {
                           const spinnerPos = chainPositions[chainCenterIdx];
                           if (!spinnerPos) return null;
@@ -1688,19 +1690,31 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                           let curY = spinnerPos.y - TILE_GAP;
                           for (let i = gs.topChain.length - 1; i >= 0; i--) {
                             const pt = gs.topChain[i];
-                            const tw = pt.isDouble ? dims.short : dims.long;
-                            const th = pt.isDouble ? dims.long : dims.short;
-                            curY -= th;
+                            // After 90° CW rotation, a horizontal tile's visual dimensions swap:
+                            // rendered width = original height (dims.short for non-double, dims.long for double)
+                            // rendered height = original width (dims.long for non-double, dims.short for double)
+                            const visW = pt.isDouble ? dims.long  : dims.short;
+                            const visH = pt.isDouble ? dims.short : dims.long;
+                            curY -= visH;
                             elements.push(
-                              <div key={`top-${pt.tile.id}`} style={{ position: 'absolute', left: spinnerCX - tw / 2, top: curY, animation: i === gs.topChain.length - 1 ? 'tileIn .28s cubic-bezier(0.34,1.56,0.64,1)' : 'none' }}>
-                                <DominoTileView dispLeft={pt.dispLeft} dispRight={pt.dispRight} isDouble={pt.isDouble} skinKey={dominoSkin} dims={dims} />
+                              <div key={`top-${pt.tile.id}`} style={{
+                                position: 'absolute',
+                                left: spinnerCX - visW / 2,
+                                top: curY,
+                                width: visW, height: visH,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                animation: i === gs.topChain.length - 1 ? 'tileIn .28s cubic-bezier(0.34,1.56,0.64,1)' : 'none',
+                              }}>
+                                <div style={{ transform: 'rotate(90deg)', transformOrigin: 'center center', flexShrink: 0 }}>
+                                  <DominoTileView dispLeft={pt.dispLeft} dispRight={pt.dispRight} isDouble={pt.isDouble} skinKey={dominoSkin} dims={dims} />
+                                </div>
                               </div>
                             );
                             curY -= TILE_GAP;
                           }
                           return elements;
                         })()}
-                        {/* Bottom chain — extends downward from spinner */}
+                        {/* Bottom chain — extends downward from spinner, tiles rotated -90° CW */}
                         {gs.spinnerPlaced && gs.bottomChain.length > 0 && (() => {
                           const spinnerPos = chainPositions[chainCenterIdx];
                           if (!spinnerPos) return null;
@@ -1709,14 +1723,23 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
                           let curY = spinnerPos.y + spinnerPos.h + TILE_GAP;
                           for (let i = 0; i < gs.bottomChain.length; i++) {
                             const pt = gs.bottomChain[i];
-                            const tw = pt.isDouble ? dims.short : dims.long;
-                            const th = pt.isDouble ? dims.long : dims.short;
+                            const visW = pt.isDouble ? dims.long  : dims.short;
+                            const visH = pt.isDouble ? dims.short : dims.long;
                             elements.push(
-                              <div key={`bottom-${pt.tile.id}`} style={{ position: 'absolute', left: spinnerCX - tw / 2, top: curY, animation: i === gs.bottomChain.length - 1 ? 'tileIn .28s cubic-bezier(0.34,1.56,0.64,1)' : 'none' }}>
-                                <DominoTileView dispLeft={pt.dispLeft} dispRight={pt.dispRight} isDouble={pt.isDouble} skinKey={dominoSkin} dims={dims} />
+                              <div key={`bottom-${pt.tile.id}`} style={{
+                                position: 'absolute',
+                                left: spinnerCX - visW / 2,
+                                top: curY,
+                                width: visW, height: visH,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                animation: i === gs.bottomChain.length - 1 ? 'tileIn .28s cubic-bezier(0.34,1.56,0.64,1)' : 'none',
+                              }}>
+                                <div style={{ transform: 'rotate(-90deg)', transformOrigin: 'center center', flexShrink: 0 }}>
+                                  <DominoTileView dispLeft={pt.dispLeft} dispRight={pt.dispRight} isDouble={pt.isDouble} skinKey={dominoSkin} dims={dims} />
+                                </div>
                               </div>
                             );
-                            curY += th + TILE_GAP;
+                            curY += visH + TILE_GAP;
                           }
                           return elements;
                         })()}
