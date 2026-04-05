@@ -422,12 +422,12 @@ function DominoTileView({
   const flexDir: React.CSSProperties['flexDirection'] = isVert ? 'column' : 'row';
   const borderColor = selected ? '#D4AF37' : playable ? '#43C450' : skin.border;
 
-  // Face-down background priority: cardBackStyle > skin.faceDownBg
+  // Face-down background priority: cardBackStyle (only if meaningful) > skin.faceDownBg
   let faceDownBackground: React.CSSProperties = {};
   if (faceDown) {
     if (cardBackStyle?.type === 'image' && cardBackStyle.image) {
       faceDownBackground = { background: `url(${cardBackStyle.image}) center/cover no-repeat` };
-    } else if (cardBackStyle?.type === 'css') {
+    } else if (cardBackStyle?.type === 'css' && Object.keys(cardBackStyle.style).length > 0) {
       faceDownBackground = cardBackStyle.style;
     } else {
       faceDownBackground = { background: skin.faceDownBg };
