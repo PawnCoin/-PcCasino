@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import authRoutes, { requireAuth, verifyToken } from './auth-routes.js';
+import { createGameRound, revealGameRound, getGameRound, hashServerSeed, deriveGameResult } from './provably-fair.js';
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
 import { initDatabase, query } from './db.js';
@@ -416,6 +417,69 @@ app.post('/api/referrals/use', (req, res) => {
 app.get('/api/referrals/:userId', (req, res) => {
   const userRefs = Array.from(referrals.values()).filter(r => r.referrerId === req.params.userId);
   res.json({ referrals: userRefs });
+});
+
+// ---- Provably Fair API routes ----
+// Create a new game round (returns serverSeedHash before round starts)
+app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
+  const { game, clientSeed, nonce } = req.body;
+  if (!game || !clientSeed || nonce === undefined) {
+    return res.status(400).json({ error: 'game, clientSeed, and nonce are required' });
+  }
+  try {
+    const { roundId, serverSeedHash, result } = await createGameRound(req.user.id, game, clientSeed, nonce);
+    res.json({ roundId, serverSeedHash });
+    // result is stored but NOT returned yet (revealed after round completes)
+    void result;
+  } catch (err) {
+    console.error('[PF] new-round error:', err.message);
+    res.status(500).json({ error: 'Failed to create game round' });
+  }
+});
+
+// Reveal server seed after a round completes
+app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => {
+  try {
+    const data = await revealGameRound(parseInt(req.params.roundId), req.user.id);
+    if (!data) return res.status(404).json({ error: 'Round not found or already revealed' });
+    res.json({
+      serverSeed: data.server_seed,
+      serverSeedHash: data.server_seed_hash,
+      clientSeed: data.client_seed,
+      nonce: data.nonce,
+      game: data.game,
+      result: data.result,
+    });
+  } catch (err) {
+    console.error('[PF] reveal error:', err.message);
+    res.status(500).json({ error: 'Failed to reveal round' });
+  }
+});
+
+// Public verification — anyone can verify any revealed round by ID
+app.get('/api/provably-fair/verify/:roundId', async (req, res) => {
+  try {
+    const round = await getGameRound(parseInt(req.params.roundId));
+    if (!round) return res.status(404).json({ error: 'Round not found' });
+    res.json(round);
+  } catch (err) {
+    res.status(500).json({ error: 'Verification lookup failed' });
+  }
+});
+
+// Client-side verification endpoint — reproduce result from seeds (no DB lookup needed)
+app.post('/api/provably-fair/verify', (req, res) => {
+  const { game, serverSeed, clientSeed, nonce } = req.body;
+  if (!game || !serverSeed || !clientSeed || nonce === undefined) {
+    return res.status(400).json({ error: 'game, serverSeed, clientSeed, nonce required' });
+  }
+  try {
+    const serverSeedHash = hashServerSeed(serverSeed);
+    const result = deriveGameResult(game, serverSeed, clientSeed, nonce);
+    res.json({ serverSeedHash, result, valid: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
 });
 
 // PcPayments API integration — admin-only endpoints

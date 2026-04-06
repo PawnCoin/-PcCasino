@@ -41,6 +41,7 @@ import { DisputeCenter } from '@/components/DisputeCenter';
 import { TournamentsPage } from '@/components/TournamentsPage';
 import { ReferralPage } from '@/components/ReferralPage';
 import { LobbyChat } from '@/components/LobbyChat';
+import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,7 @@ function App() {
   const [showCardDeck, setShowCardDeck] = useState(false);
   const [showVappTV, setShowVappTV] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showProvablyFair, setShowProvablyFair] = useState(false);
   const [showLobby, setShowLobby] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -894,6 +896,7 @@ function App() {
                   <div>
                     <h4 className="font-bold text-[#D4AF37] mb-4">Support & Legal</h4>
                     <ul className="space-y-2 text-sm text-[#808080]">
+                      <li><button onClick={() => setShowProvablyFair(true)} className="hover:text-[#D4AF37] transition-colors text-left">Provably Fair</button></li>
                       <li><button onClick={() => handleShowLegal('rules')} className="hover:text-[#D4AF37] transition-colors text-left">Game Rules</button></li>
                       <li><button onClick={() => handleShowLegal('responsible')} className="hover:text-[#D4AF37] transition-colors text-left">Responsible Gaming</button></li>
                       <li><button onClick={() => handleShowLegal('crypto')} className="hover:text-[#D4AF37] transition-colors text-left">Crypto & Money Rules</button></li>
@@ -1354,6 +1357,12 @@ function App() {
         isOpen={showReferral}
         onClose={() => setShowReferral(false)}
         user={user}
+      />
+
+      {/* Provably Fair Page */}
+      <ProvablyFairPage
+        isOpen={showProvablyFair}
+        onClose={() => setShowProvablyFair(false)}
       />
 
       {/* Quick Action Buttons */}

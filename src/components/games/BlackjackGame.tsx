@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -9,6 +9,8 @@ import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import type { Card } from '@/types';
+import { useProvablyFair } from '@/hooks/useProvablyFair';
+import { VerifyRoundModal } from '@/components/VerifyRoundModal';
 
 interface BlackjackGameProps {
   balance: number;
@@ -75,6 +77,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const [tossChips, setTossChips] = useState<{ id: number; amount: number }[]>([]);
   const tossIdRef = useRef(0);
 
+  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
+  const [showVerify, setShowVerify] = useState(false);
+  const currentPfRoundIdRef = useRef<number | null>(null);
+
   const currentHand = playerHands[currentHandIndex];
 
   const initDeck = useCallback(() => {
@@ -109,7 +115,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setMessage('Place your bet to start');
   };
 
-  const startRound = () => {
+  const startRound = async () => {
     if (currentBet === 0) {
       setMessage('Place a bet first!');
       return;
@@ -119,6 +125,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setResultOverlay(null);
     setShowWinRings(false);
     setTableShake(false);
+
+    // Provably fair: lock in server seed hash before cards are dealt
+    const pfRoundData = await pfStartRound();
+    if (pfRoundData) currentPfRoundIdRef.current = pfRoundData.roundId;
 
     const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
     
@@ -293,6 +303,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     } else {
       setMessage('Dealer wins.');
       triggerBust();
+    }
+
+    // Reveal server seed after round outcome is determined
+    if (currentPfRoundIdRef.current) {
+      pfRevealRound(currentPfRoundIdRef.current);
     }
   };
 
@@ -830,6 +845,37 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
             </div>
           </DialogContent>
         </Dialog>
+
+        {(pfRound || pfLastReveal) && gameState === 'finished' && (
+          <button
+            onClick={() => setShowVerify(true)}
+            style={{
+              position: 'absolute',
+              bottom: 16,
+              right: 16,
+              zIndex: 50,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 12,
+              color: 'rgba(212,175,55,0.7)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <Shield style={{ width: 12, height: 12 }} />
+            Verify this round
+          </button>
+        )}
+
+        <VerifyRoundModal
+          isOpen={showVerify}
+          onClose={() => setShowVerify(false)}
+          round={pfRound}
+          lastReveal={pfLastReveal}
+          onOpenProvablyFairPage={() => { setShowVerify(false); onBack(); }}
+        />
       </div>
     </CasinoEnvironment>
   );

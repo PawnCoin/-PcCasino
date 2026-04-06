@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Info, Settings, Undo2 } from 'lucide-react';
+import { Info, Settings, Undo2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -10,6 +10,8 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRouletteVoice } from '@/hooks/useGameVoice';
 import RouletteWheel3D from '@/components/games/RouletteWheel3D';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { useProvablyFair } from '@/hooks/useProvablyFair';
+import { VerifyRoundModal } from '@/components/VerifyRoundModal';
 
 interface RouletteGameProps {
   balance: number;
@@ -237,6 +239,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
   const chipScrollRef = useRef<HTMLDivElement>(null);
   const placedBetsRef = useRef<PlacedBet[]>([]);
   placedBetsRef.current = placedBets;
+
+  const { round, lastReveal, startRound, revealRound } = useProvablyFair('roulette');
+  const [showVerify, setShowVerify] = useState(false);
+  const currentRoundIdRef = useRef<number | null>(null);
   const { isMuted, toggleMute, playSound } = useSoundEffects();
   const { announceBetsOpen, announceNoMoreBets, announceResult, announceWin, announceLoss } = useRouletteVoice();
 
@@ -420,7 +426,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
     }, 3000);
   }, [useLaPartage, onWin, playSound, announceResult, announceWin, announceLoss, safeTimeout]);
 
-  const spin = useCallback(() => {
+  const spin = useCallback(async () => {
     if (isSpinning || placedBets.length === 0) return;
 
     setIsSpinning(true);
@@ -432,6 +438,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
 
     playSound('noMoreBets');
     announceNoMoreBets();
+
+    // Provably fair: capture server seed hash before outcome
+    const pfRound = await startRound();
+    if (pfRound) currentRoundIdRef.current = pfRound.roundId;
 
     const winningNum = WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
     winningNumRef.current = winningNum;
@@ -492,8 +502,12 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
       if (!mountedRef.current) return;
       setCurrentSpeed(IDLE_SPEED);
       finishSpin(winningNum);
+      // Reveal server seed after outcome
+      if (currentRoundIdRef.current) {
+        revealRound(currentRoundIdRef.current);
+      }
     }, 20300);
-  }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin]);
+  }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin, startRound, revealRound]);
 
   const dismissResult = useCallback(() => {
     setResultOverlay(null);
@@ -590,6 +604,37 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
       {resultOverlay && (
         <ResultOverlayDisplay result={resultOverlay} onDismiss={dismissResult} />
       )}
+
+      {(round || lastReveal) && !isSpinning && (
+        <button
+          onClick={() => setShowVerify(true)}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 12,
+            color: 'rgba(212,175,55,0.7)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <Shield style={{ width: 12, height: 12 }} />
+          Verify round
+        </button>
+      )}
+
+      <VerifyRoundModal
+        isOpen={showVerify}
+        onClose={() => setShowVerify(false)}
+        round={round}
+        lastReveal={lastReveal}
+        onOpenProvablyFairPage={() => { setShowVerify(false); onBack(); }}
+      />
 
       {/* Header */}
       <InGameTopBar

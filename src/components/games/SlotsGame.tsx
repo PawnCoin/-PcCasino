@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -7,6 +7,8 @@ import { PokerChip, ChipSelector, formatChipLabel } from '@/components/PokerChip
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { useProvablyFair } from '@/hooks/useProvablyFair';
+import { VerifyRoundModal } from '@/components/VerifyRoundModal';
 
 interface SlotsGameProps {
   balance: number;
@@ -136,6 +138,9 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const counterRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { isMuted, toggleMute, playSound } = useSoundEffects();
+  const { round, lastReveal, startRound, revealRound } = useProvablyFair('slots');
+  const [showVerify, setShowVerify] = useState(false);
+  const currentRoundIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (lastWin > 0) {
@@ -174,7 +179,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     playSound('clear');
   };
 
-  const spin = useCallback(() => {
+  const spin = useCallback(async () => {
     if (currentBet === 0) {
       setMessage('Place a bet first!');
       return;
@@ -188,6 +193,10 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setLastWin(0);
     setMessage('Spinning...');
     playSound('spin');
+
+    // Start provably fair round — get server seed hash before outcome
+    const pfRound = await startRound();
+    if (pfRound) currentRoundIdRef.current = pfRound.roundId;
 
     const finalGrid = generateGrid();
 
@@ -221,6 +230,11 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             setGrid(finalGrid);
             setSpinning(false);
 
+            // Reveal server seed after round completes
+            if (currentRoundIdRef.current) {
+              revealRound(currentRoundIdRef.current);
+            }
+
             if (totalWin > 0) {
               setWinLines(lines);
               setLastWin(totalWin);
@@ -244,7 +258,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       }, delay);
       spinTimers.current.push(timer);
     }
-  }, [currentBet, spinning, onBet, onWin, playSound]);
+  }, [currentBet, spinning, onBet, onWin, playSound, startRound, revealRound]);
 
   useEffect(() => {
     return () => {
@@ -566,6 +580,15 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                     >
                       {message}
                     </div>
+                    {(round || lastReveal) && !spinning && (
+                      <button
+                        onClick={() => setShowVerify(true)}
+                        className="mt-2 flex items-center gap-1 text-xs text-[#D4AF37]/70 hover:text-[#D4AF37] mx-auto transition-colors"
+                      >
+                        <Shield className="w-3 h-3" />
+                        Verify this round
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -835,6 +858,14 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           }
         `}</style>
       </div>
+
+      <VerifyRoundModal
+        isOpen={showVerify}
+        onClose={() => setShowVerify(false)}
+        round={round}
+        lastReveal={lastReveal}
+        onOpenProvablyFairPage={() => { setShowVerify(false); onBack(); }}
+      />
     </CasinoEnvironment>
   );
 }

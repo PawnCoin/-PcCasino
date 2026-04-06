@@ -198,6 +198,22 @@ export async function initDatabase() {
       )
     `);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS game_rounds (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        game VARCHAR(30) NOT NULL,
+        server_seed VARCHAR(64) NOT NULL,
+        server_seed_hash VARCHAR(64) NOT NULL,
+        client_seed VARCHAR(128) NOT NULL,
+        nonce INTEGER NOT NULL DEFAULT 0,
+        result JSONB,
+        revealed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_game_rounds_user ON game_rounds(user_id)`);
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);
