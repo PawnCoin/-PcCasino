@@ -1035,7 +1035,7 @@ function App() {
             >
               <div className="text-sm text-[#808080] mb-2">Your Deposit Address</div>
               <code className="block p-3 rounded-lg bg-black/50 text-xs break-all text-[#D4AF37]">
-                {depositAddress || '0x742d35Cc6634C0532925a3b8D4C9db96590b8f3a'}
+                {depositAddress || 'Loading deposit address…'}
               </code>
             </div>
             <div className="grid grid-cols-3 gap-2">

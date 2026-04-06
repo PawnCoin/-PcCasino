@@ -5,7 +5,7 @@ import cors from 'cors';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import authRoutes from './auth-routes.js';
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
@@ -420,15 +420,73 @@ app.post('/api/pcpayments/config', (req, res) => {
 });
 
 // PcPay webhook - auto-credit user balance
-app.post('/api/pcpayments/webhook', async (req, res) => {
-  const { type, userId, amount, txHash, fromAddress, network } = req.body;
-  logAdmin('pcpayments:webhook', { type, userId, amount, txHash });
+// Uses raw body for signature verification (must be registered before express.json middleware)
+app.post('/api/pcpayments/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  // --- Signature validation ---
+  const webhookSecret = process.env.PCPAY_WEBHOOK_SECRET || pcpaymentsConfig.webhookSecret;
+  const sigHeader = req.headers['x-pcpay-signature'] || req.headers['x-webhook-signature'];
 
-  if (type === 'deposit' && userId && amount > 0) {
+  if (webhookSecret) {
+    if (!sigHeader) {
+      console.warn('[PcPay webhook] Missing signature header — rejected');
+      return res.status(401).json({ error: 'Missing signature' });
+    }
     try {
+      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+      const expected = createHmac('sha256', webhookSecret)
+        .update(rawBody)
+        .digest('hex');
+      const provided = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
+      const expectedBuf = Buffer.from(expected, 'hex');
+      const providedBuf = Buffer.from(provided, 'hex');
+      if (expectedBuf.length !== providedBuf.length || !timingSafeEqual(expectedBuf, providedBuf)) {
+        console.warn('[PcPay webhook] Invalid signature — rejected');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    } catch (err) {
+      console.warn('[PcPay webhook] Signature check error:', err.message);
+      return res.status(401).json({ error: 'Signature verification failed' });
+    }
+  } else {
+    console.warn('[PcPay webhook] PCPAY_WEBHOOK_SECRET not set — processing without signature check');
+  }
+
+  // Parse body (raw buffer when signature check runs, or already-parsed object)
+  let body;
+  try {
+    body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
+  } catch {
+    return res.status(400).json({ error: 'Invalid JSON body' });
+  }
+
+  const { type, userId: bodyUserId, amount, txHash, fromAddress, network } = body;
+  logAdmin('pcpayments:webhook', { type, userId: bodyUserId, amount, txHash });
+
+  if (type === 'deposit' && amount > 0) {
+    try {
+      // Resolve user: prefer lookup by wallet_address (fromAddress), fallback to userId
+      let resolvedUserId = null;
+      if (fromAddress) {
+        const byWallet = await query(
+          'SELECT id FROM users WHERE LOWER(wallet_address) = LOWER($1) LIMIT 1',
+          [fromAddress]
+        );
+        if (byWallet.rows.length) resolvedUserId = byWallet.rows[0].id;
+      }
+      // If wallet lookup fails and userId provided in body (only trusted when signature validated)
+      if (!resolvedUserId && bodyUserId && webhookSecret) {
+        resolvedUserId = bodyUserId;
+      }
+      if (!resolvedUserId) {
+        console.warn('[PcPay webhook] Could not resolve user for deposit', { fromAddress, bodyUserId });
+        return res.status(422).json({ received: true, error: 'User not found' });
+      }
+
+      const userId = resolvedUserId;
+
       // Auto-approve deposit and credit balance
       await query('BEGIN');
-      // Check for existing pending deposit with same txHash to avoid duplicates
+      // Idempotency: skip if same txHash already recorded
       if (txHash) {
         const existing = await query('SELECT id FROM deposit_requests WHERE tx_hash = $1', [txHash]);
         if (existing.rows.length) {
@@ -436,15 +494,15 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
           return res.json({ received: true, duplicate: true });
         }
       }
-      const dep = await query(
+      await query(
         `INSERT INTO deposit_requests (user_id, amount, tx_hash, from_address, network, status, processed_at)
-         VALUES ($1, $2, $3, $4, $5, 'approved', NOW()) RETURNING *`,
+         VALUES ($1, $2, $3, $4, $5, 'confirmed', NOW())`,
         [userId, amount, txHash || null, fromAddress || null, network || 'ERC-20']
       );
       await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [amount, userId]);
       await query(
-        'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
-        [userId, 'deposit', amount, `Auto-credited via PcPay webhook - ${txHash ? txHash.slice(0, 12) : 'N/A'}`]
+        'INSERT INTO transactions (user_id, type, amount, description, status) VALUES ($1, $2, $3, $4, $5)',
+        [userId, 'deposit', amount, `Auto-credited via PcPay webhook - ${txHash ? txHash.slice(0, 12) : 'N/A'}`, 'confirmed']
       );
       // Update leaderboard
       await query(
@@ -455,10 +513,10 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
       );
       await query('COMMIT');
 
-      // Notify user
+      // Notify user in-app
       await query(
-        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', '✅ Deposit Auto-Credited!', $2)",
-        [userId, `${parseInt(amount).toLocaleString()} $Pc has been automatically credited to your account via PcPay.`]
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', '✅ Deposit Confirmed!', $2)",
+        [userId, `Deposit of ${parseInt(amount).toLocaleString()} $Pc confirmed — your balance has been updated.`]
       );
 
       const balResult = await query('SELECT balance, username FROM users WHERE id = $1', [userId]);
@@ -473,9 +531,10 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
     } catch (err) {
       await query('ROLLBACK').catch(() => {});
       console.error('[PcPay webhook] Error:', err.message);
+      return res.status(500).json({ error: 'Webhook processing failed' });
     }
-  } else if (type === 'withdrawal' && userId) {
-    io.to(`user_${userId}`).emit('payment:withdrawal', { amount, txHash });
+  } else if (type === 'withdrawal' && bodyUserId) {
+    io.to(`user_${bodyUserId}`).emit('payment:withdrawal', { amount, txHash });
   }
 
   res.json({ received: true });
