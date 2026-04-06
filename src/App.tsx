@@ -53,9 +53,14 @@ interface UnifiedUser {
   username: string;
   email?: string;
   walletAddress?: string;
+  withdrawAddress?: string;
   socialProvider?: 'google' | 'twitter' | 'discord' | 'telegram';
   balance: number;
   avatar: string;
+  isAdmin?: boolean;
+  vipTier?: string;
+  totpEnabled?: boolean;
+  emailVerified?: boolean;
 }
 
 function App() {
@@ -820,7 +825,7 @@ function App() {
             <Sportsbook
               balance={user?.balance || 0}
               isAuthenticated={!!user}
-              onPlaceBet={(amount) => {
+              onPlaceBet={(_event, _selection, amount) => {
                 if (!user) { toast.error('Please login to place bets'); return false; }
                 if (amount > user.balance) { toast.error('Insufficient balance!'); return false; }
                 updateBalance(user.balance - amount);

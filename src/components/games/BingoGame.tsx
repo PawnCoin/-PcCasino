@@ -1067,6 +1067,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                   phase={phase}
                   onClaimBingo={claimBingo}
                   bingoFeedback={bingoFeedback}
+                  skin={cardSkin}
                 />
               ))}
             </div>

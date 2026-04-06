@@ -1,8 +1,8 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
-import { defineConfig, Plugin } from "vite"
+import { defineConfig } from "vite"
+import type { Plugin } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
-import fs from 'fs'
 
 const cleanUrlsPlugin = (): Plugin => ({
   name: 'clean-urls',

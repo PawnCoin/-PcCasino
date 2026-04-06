@@ -733,7 +733,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
                   repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.004) 1px, transparent 2px, transparent 3px),
                   linear-gradient(145deg, #1B5E20 0%, #0D3312 50%, #051a08 100%)
                 `,
-                '--tw-bg-opacity': '1',
                 boxShadow: `
                   0 10px 40px rgba(0,0,0,0.6),
                   inset 0 1px 2px rgba(255,255,255,0.03),

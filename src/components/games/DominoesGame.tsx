@@ -1428,7 +1428,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     if (aiTimer.current) clearTimeout(aiTimer.current);
     const delay = SPEED_DELAYS[gameSpeed] + Math.random() * (SPEED_DELAYS[gameSpeed] * 0.25);
     aiTimer.current = setTimeout(() => {
-      const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId, gs.chain, gs.topChain, gs.bottomChain, gs.topVal, gs.bottomVal, gs.spinnerPlaced, topBottomOpen);
+      const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId, gs.chain, gs.topChain, gs.bottomChain, gs.topVal, gs.bottomVal, gs.spinnerPlaced, topBottomOpen, gs.spinnerLeftPlayed, gs.spinnerRightPlayed);
       if (choice) {
         audio.place();
         dispatch({ type: 'PLAY_TILE', playerId: player.id, tileId: choice.tile.id, end: choice.end });
@@ -1946,7 +1946,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             {isHumanTurn && activeTile && chainEmpty && (
               <>
                 <Button
-                  onClick={handlePlayFirst}
+                  onClick={() => handlePlayFirst()}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                   onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayFirst(id || undefined); }}
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#9A7A20)', color: '#000', fontWeight: 700, border: 'none' }}>Place First Tile</Button>

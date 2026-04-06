@@ -790,7 +790,7 @@ export function useSoundEffects() {
   }, []);
 
   const toggleAmbient = useCallback(() => {
-    setAmbientEnabled((prev) => !prev);
+    setAmbientEnabled((prev: boolean) => !prev);
   }, []);
 
   const playSound = useCallback((type: SoundType) => {
