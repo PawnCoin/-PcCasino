@@ -14,6 +14,7 @@ interface SlotsGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
 }
 
 const SYMBOLS = ['🍒', '🍋', '🍊', '🔔', '⭐', '💎', '7️⃣', '🎰'] as const;
@@ -119,7 +120,7 @@ const slotsRules = {
 
 const LED_COUNT = 24;
 
-export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance }: SlotsGameProps) {
+export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: SlotsGameProps) {
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
   const [currentBet, setCurrentBet] = useState(0);
@@ -259,6 +260,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance }: Slots
           balance={balance}
           onBack={onBack}
           onAddBalance={onAddBalance}
+          onShowWallet={onShowWallet}
           showShare
           rightSlot={
             <TooltipProvider delayDuration={200}>

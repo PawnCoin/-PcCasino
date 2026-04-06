@@ -1261,9 +1261,10 @@ interface DominoesGameProps {
   balance: number; onBack: () => void;
   onBet: (amount: number) => boolean; onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void; cardBackStyle?: CardBackStyle;
+  onShowWallet?: () => void;
 }
 
-export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: DominoesGameProps) {
+export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DominoesGameProps) {
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const [muted, setMuted] = useState(false);
   const [slamOn, setSlamOn] = useState(true);
@@ -1535,7 +1536,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
         .dom-board::-webkit-scrollbar-track { background: transparent; }
       `}</style>
 
-      <InGameTopBar gameName="🁣 Dominoes" balance={balance} onBack={onBack} onAddBalance={onAddBalance} showShare
+      <InGameTopBar gameName="🁣 Dominoes" balance={balance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} showShare
         rightSlot={
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {gs.mode === 'practice' && gs.phase !== 'setup' && <span style={{ padding: '2px 10px', borderRadius: 20, background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.4)', color: '#42A5F5', fontSize: 11, fontWeight: 700 }}>PRACTICE</span>}

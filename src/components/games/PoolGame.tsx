@@ -8,6 +8,7 @@ interface PoolGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
 }
 
 interface Ball {
@@ -71,7 +72,7 @@ function makeBalls(): Ball[] {
   return balls;
 }
 
-export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance }: PoolGameProps) {
+export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: PoolGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ballsRef = useRef<Ball[]>(makeBalls());
   const animRef = useRef<number>(0);
@@ -410,7 +411,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance }: PoolGa
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0a', color: '#fff' }}>
-      <InGameTopBar gameName="Pool Table" balance={ballBalance} onBack={onBack} onAddBalance={onAddBalance} />
+      <InGameTopBar gameName="Pool Table" balance={ballBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 16 }}>
         {/* Status bar */}

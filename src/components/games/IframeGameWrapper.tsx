@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
+import { InGameTopBar } from '@/components/InGameTopBar';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -10,6 +11,7 @@ interface IframeGameWrapperProps {
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onShowWallet?: () => void;
 }
 
 export function IframeGameWrapper({
@@ -21,6 +23,7 @@ export function IframeGameWrapper({
   onBack,
   onBet,
   onWin,
+  onShowWallet,
 }: IframeGameWrapperProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -90,55 +93,42 @@ export function IframeGameWrapper({
     setIsFullscreen(!isFullscreen);
   };
 
+  const rightSlot = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 20 }}>{gameEmoji}</span>
+      <button
+        onClick={handleReload}
+        title="Reload game"
+        style={{ padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; }}
+        onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; }}
+      >
+        <RefreshCw size={13} />
+      </button>
+      <button
+        onClick={handleFullscreen}
+        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        style={{ padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; }}
+        onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; }}
+      >
+        {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+      </button>
+    </div>
+  );
+
   return (
     <div
       className="min-h-screen flex flex-col"
       style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #0d0d0d 100%)' }}
     >
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: 'rgba(212,175,55,0.2)', background: 'rgba(6,6,12,0.95)' }}
-      >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-white/10 text-[#C0C0C0] hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium hidden sm:inline">Back to Lobby</span>
-          </button>
-          <div className="h-5 w-px bg-white/10" />
-          <span className="text-xl">{gameEmoji}</span>
-          <span className="font-casino font-bold text-[#D4AF37]">{gameName}</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
-            style={{ background: 'rgba(27,94,32,0.4)', border: '1px solid rgba(67,160,71,0.3)' }}
-          >
-            <img src="/logos/pc-logo.png" alt="$Pc" className="w-4 h-4" />
-            <span className="font-bold text-[#D4AF37]">{balance.toLocaleString()}</span>
-            <span className="text-[#808080] text-xs">$Pc</span>
-          </div>
-
-          <button
-            onClick={handleReload}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-[#808080] hover:text-white"
-            title="Reload game"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={handleFullscreen}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-[#808080] hover:text-white"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
+      <InGameTopBar
+        gameName={gameName}
+        balance={balance}
+        onBack={onBack}
+        onShowWallet={onShowWallet}
+        rightSlot={rightSlot}
+      />
 
       <div className="flex-1 relative">
         {!isLoaded && !loadError && (
@@ -173,7 +163,7 @@ export function IframeGameWrapper({
           ref={iframeRef}
           src={iframeSrc}
           className="w-full h-full border-0"
-          style={{ minHeight: 'calc(100vh - 57px)' }}
+          style={{ minHeight: 'calc(100vh - 52px)' }}
           allow="fullscreen"
           onLoad={() => setIsLoaded(true)}
           onError={() => { setLoadError(true); setIsLoaded(true); }}

@@ -18,6 +18,7 @@ interface SpadesGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 }
 
@@ -211,7 +212,7 @@ const PLAYER_COLORS = [
 const PLAYER_AVATARS = ['🎭', '⚔️', '🤝', '🛡️'];
 const PLAYER_TEXT_COLORS = ['text-[#D4AF37]', 'text-[#ef5350]', 'text-[#64b5f6]', 'text-[#81c784]'];
 
-export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle }: SpadesGameProps) {
+export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: SpadesGameProps) {
   const { playSound } = useSoundEffects();
 
   const mkPlayer = (idx: number): SpadesPlayer => ({
@@ -891,6 +892,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
           balance={balance}
           onBack={onBack}
           onAddBalance={onAddBalance}
+          onShowWallet={onShowWallet}
           showShare
           rightSlot={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

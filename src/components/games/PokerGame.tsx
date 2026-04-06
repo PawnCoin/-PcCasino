@@ -21,6 +21,7 @@ interface PokerGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 }
 
@@ -486,7 +487,7 @@ function UserSeat({
   );
 }
 
-export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle }: PokerGameProps) {
+export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: PokerGameProps) {
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -850,6 +851,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
           balance={balance}
           onBack={onBack}
           onAddBalance={onAddBalance}
+          onShowWallet={onShowWallet}
           showShare
           rightSlot={
             <div style={{ display: 'flex', gap: 4 }}>

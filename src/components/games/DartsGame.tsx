@@ -8,6 +8,7 @@ interface DartsGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
 }
 
 interface DartThrow {
@@ -170,7 +171,7 @@ function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: 
   });
 }
 
-export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance }: DartsGameProps) {
+export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DartsGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerScore, setPlayerScore] = useState(501);
   const [aiScore, setAiScore] = useState(501);
@@ -360,7 +361,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance }: Darts
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0a', color: '#fff' }}>
-      <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} />
+      <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
 
       <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto' }}>
         {/* Board */}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Settings, Share2, Zap, Tv, X, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Settings, Share2, Zap, Tv, X, Maximize2, Minimize2, Wallet } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { InGameOptionsPanel } from './InGameOptionsPanel';
 import { InGameQuickBuy } from './InGameQuickBuy';
@@ -11,6 +11,7 @@ interface InGameTopBarProps {
   balance: number;
   onBack: () => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
   winAmount?: number;
   rank?: number;
   showShare?: boolean;
@@ -18,7 +19,7 @@ interface InGameTopBarProps {
 }
 
 export function InGameTopBar({
-  gameName, balance, onBack, onAddBalance, winAmount, rank, showShare, rightSlot,
+  gameName, balance, onBack, onAddBalance, onShowWallet, winAmount, rank, showShare, rightSlot,
 }: InGameTopBarProps) {
   const { settings, membership, formatPc, shareWin } = useGlobalGame();
   const [showOptions, setShowOptions] = useState(false);
@@ -39,25 +40,46 @@ export function InGameTopBar({
         background: 'rgba(6,6,6,0.97)', borderBottom: '1px solid rgba(212,175,55,0.2)',
         flexShrink: 0, zIndex: 100,
         backdropFilter: 'blur(12px)',
+        position: 'sticky', top: 0,
       }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '6px 8px', borderRadius: 8, transition: 'color 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}>
-            <ArrowLeft size={16} />
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', gap: 10 }}>
+
+          {/* $Pc Casino Logo */}
+          <button
+            onClick={onBack}
+            title="Back to Lobby"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 8, flexShrink: 0, transition: 'opacity 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >
+            <img src="/logos/pc-logo.png" alt="$Pc Casino" style={{ width: 26, height: 26, borderRadius: '50%' }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontWeight: 900, color: '#D4AF37', fontSize: 13, letterSpacing: '0.12em', display: 'none' }} className="sm-show">$PC</span>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-              <AvatarSprite avatar={avatarDef} size={32} style={{ borderRadius: 0 }} />
+          {/* Back arrow */}
+          <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', color: '#9ca3af', padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, transition: 'all 0.2s', letterSpacing: '0.04em' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}>
+            <ArrowLeft size={12} />
+            <span>LOBBY</span>
+          </button>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+
+          {/* Game name + avatar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+              <AvatarSprite avatar={avatarDef} size={28} style={{ borderRadius: 0 }} />
             </div>
-            <div>
-              <div style={{ fontFamily: "'Cinzel',serif", fontWeight: 700, color: '#D4AF37', fontSize: 13, letterSpacing: '0.1em' }}>{gameName.toUpperCase()}</div>
-              <div style={{ fontSize: 9, color: '#374151' }}>{settings.displayName}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: "'Cinzel',serif", fontWeight: 700, color: '#D4AF37', fontSize: 12, letterSpacing: '0.1em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{gameName.toUpperCase()}</div>
+              <div style={{ fontSize: 9, color: '#374151', whiteSpace: 'nowrap' }}>{settings.displayName}</div>
             </div>
           </div>
 
           {membership.isMember && (
-            <div style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 9, fontWeight: 700, color: '#D4AF37', letterSpacing: '0.08em' }}>
+            <div style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 9, fontWeight: 700, color: '#D4AF37', letterSpacing: '0.08em', flexShrink: 0 }}>
               ★ MEMBER
             </div>
           )}
@@ -66,15 +88,30 @@ export function InGameTopBar({
 
           {rightSlot}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 10, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)' }}>
+          {/* Balance pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 10, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', flexShrink: 0 }}>
             <img src="/logos/pc-logo.png" alt="" style={{ width: 14, height: 14 }} />
             <span style={{ fontWeight: 700, color: '#D4AF37', fontSize: 12 }}>{formatPc(balance)}</span>
             <span style={{ fontSize: 9, color: '#4b5563' }}>$Pc</span>
           </div>
 
+          {/* Wallet quick-access */}
+          {onShowWallet && (
+            <button
+              onClick={onShowWallet}
+              title="Wallet — Deposit / Withdraw"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', cursor: 'pointer', color: '#D4AF37', fontSize: 11, fontWeight: 700, transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,175,55,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,175,55,0.1)'; }}
+            >
+              <Wallet size={13} />
+              <span style={{ display: 'none' }} className="sm:inline">WALLET</span>
+            </button>
+          )}
+
           {onAddBalance && (
             <button onClick={() => setShowBuy(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, background: 'rgba(30,136,229,0.12)', border: '1px solid rgba(30,136,229,0.3)', cursor: 'pointer', color: '#42A5F5', fontSize: 11, fontWeight: 700, transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, background: 'rgba(30,136,229,0.12)', border: '1px solid rgba(30,136,229,0.3)', cursor: 'pointer', color: '#42A5F5', fontSize: 11, fontWeight: 700, transition: 'all 0.2s', flexShrink: 0,
             }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(30,136,229,0.22)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(30,136,229,0.12)'; }}>
@@ -85,13 +122,13 @@ export function InGameTopBar({
           {membership.isMember && settings.vappTVEnabled && (
             <button
               onClick={() => setShowTV(t => !t)}
-              style={{ padding: '5px 8px', borderRadius: 8, background: showTV ? 'rgba(156,39,176,0.25)' : 'rgba(156,39,176,0.12)', border: `1px solid ${showTV ? 'rgba(156,39,176,0.6)' : 'rgba(156,39,176,0.3)'}`, cursor: 'pointer', color: '#CE93D8', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, transition: 'all 0.2s' }}>
+              style={{ padding: '5px 8px', borderRadius: 8, background: showTV ? 'rgba(156,39,176,0.25)' : 'rgba(156,39,176,0.12)', border: `1px solid ${showTV ? 'rgba(156,39,176,0.6)' : 'rgba(156,39,176,0.3)'}`, cursor: 'pointer', color: '#CE93D8', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, transition: 'all 0.2s', flexShrink: 0 }}>
               <Tv size={12} /> {showTV ? 'HIDE TV' : 'VAPPTV'}
             </button>
           )}
 
           {showShare && (
-            <button onClick={handleShare} style={{ padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, transition: 'all 0.2s' }}
+            <button onClick={handleShare} style={{ padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, transition: 'all 0.2s', flexShrink: 0 }}
               onMouseEnter={e => { e.currentTarget.style.color = '#D4AF37'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)'; }}
               onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>
               <Share2 size={12} /> SHARE WIN

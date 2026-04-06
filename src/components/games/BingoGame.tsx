@@ -16,6 +16,7 @@ interface BingoGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onShowWallet?: () => void;
 }
 
 function fmtPc(n: number): string {
@@ -521,7 +522,7 @@ function ConfettiPiece({ x, y, color, delay, shape }: { x: number; y: number; co
 }
 
 // ── MAIN GAME ────────────────────────────────────────────────────────────────
-export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: BingoGameProps) {
+export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: BingoGameProps) {
   const [phase, setPhase] = useState<GamePhase>('setup');
   const [numCards, setNumCards] = useState(1);
   const [betAmount, setBetAmount] = useState(5_000_000);
@@ -770,6 +771,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
         balance={balance}
         onBack={onBack}
         onAddBalance={onAddBalance}
+        onShowWallet={onShowWallet}
         winAmount={phase === 'won' ? wonPrize : undefined}
         showShare={phase === 'won'}
         rightSlot={

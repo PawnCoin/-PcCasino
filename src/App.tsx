@@ -26,6 +26,7 @@ import { DominoesGame } from '@/components/games/DominoesGame';
 import { PoolGame } from '@/components/games/PoolGame';
 import { DartsGame } from '@/components/games/DartsGame';
 import { IframeGameWrapper } from '@/components/games/IframeGameWrapper';
+import { InGameTopBar } from '@/components/InGameTopBar';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
 import { GameRoom } from '@/components/GameRoom';
 import { VipArea } from '@/components/VipArea';
@@ -685,6 +686,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
             cardBackStyle={getCardBackStyle()}
           />
         );
@@ -699,6 +701,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'roulette':
@@ -712,6 +715,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'craps':
@@ -725,6 +729,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'spades':
@@ -735,6 +740,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
             cardBackStyle={getCardBackStyle()}
           />
         );
@@ -746,6 +752,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'bingo':
@@ -756,6 +763,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'dominoes':
@@ -766,6 +774,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
             cardBackStyle={getCardBackStyle()}
           />
         );
@@ -780,6 +789,7 @@ function App() {
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'pool':
@@ -790,6 +800,7 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'darts':
@@ -800,20 +811,18 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onAddBalance={handleAddBalance}
+            onShowWallet={() => setShowDeposit(true)}
           />
         );
       case 'sports':
         return (
-          <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
-            <div className="flex items-center gap-3 px-4 pt-4">
-              <button
-                onClick={() => setCurrentView('lobby')}
-                className="px-4 py-2 rounded-xl font-bold text-white transition-all text-sm"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-              >
-                ← Back to Lobby
-              </button>
-            </div>
+          <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
+            <InGameTopBar
+              gameName="⚽ Sportsbook"
+              balance={user?.balance || 0}
+              onBack={() => setCurrentView('lobby')}
+              onShowWallet={() => setShowDeposit(true)}
+            />
             <Sportsbook
               balance={user?.balance || 0}
               isAuthenticated={!!user}
