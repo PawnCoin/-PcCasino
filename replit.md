@@ -3,11 +3,22 @@
 A React + Vite + TypeScript casino web application featuring multiple card and casino games with premium visual effects, part of the Pawn Coin ecosystem. The Command Center is an external app at pawncoinpc.com — not included in this application.
 
 ## Games
-Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Pool (coming soon), Darts (coming soon)
+Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe — drop files in), Craps, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Horse Racing (iframe — drop files in), Pool (coming soon), Darts (coming soon)
 
 ### Special Sections
 - **Sports Gambling card** → links to WeParlay Inc. (external, opens in new tab)
 - **Adult V.I.P. Area** → age-gated 18+ exclusive lounge with all games at higher limits. Component: `src/components/VipArea.tsx`
+
+### CodeCanyon Iframe Game Integration
+- **IframeGameWrapper** — `src/components/games/IframeGameWrapper.tsx` — reusable wrapper that embeds any standalone HTML5 game in an iframe, passes balance via URL param `?balance=`, and bridges bet/win events via `window.postMessage`. Handles both directions.
+- **Horse Racing** — route `horse-racing` — game files go in `/public/games/horse-racing/`. Placeholder page shows integration instructions. CodeCanyon ID: 20005304.
+- **French Roulette** — route `french-roulette` — game files go in `/public/games/french-roulette/`. Placeholder page shows integration instructions. CodeCanyon ID: 53831511.
+- postMessage protocol: game sends `{ type: 'bet', amount }` and `{ type: 'win', amount }`. Wrapper replies `{ type: 'bet:result', success, balance }` and `{ type: 'win:confirmed', amount, balance }`.
+
+### Bug Fixes Applied
+- **Admin auth**: Removed redundant hardcoded password (`pcadmin2024`). Admin panel now opens directly if user has `isAdmin: true` flag. Password gate removed.
+- **Game wins → Leaderboard**: `handleWin()` in App.tsx now emits `game:win` socket event to server on every win, which updates the live leaderboard and recent winners feed in real-time.
+- **Lobby chat profanity filter**: `LobbyChat.tsx` filters a list of blocked words (replacing with asterisks) before sending to server.
 
 ### Navigation Menu
 - **WeParlay.io image button** — `/public/images/weparlay-menu.png` — links externally to `weparlay.io`, shows the WeParlay branded image

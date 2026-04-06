@@ -5,19 +5,24 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 
-const ADMIN_PASSWORD = 'pcadmin2024';
 const ADMIN_KEY = 'pcasino_admin_auth';
 
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
+  isAdmin?: boolean;
 }
 
 type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'broadcast' | 'pcpayments' | 'settings';
 
-export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
-  const [isAuthed, setIsAuthed] = useState(() => localStorage.getItem(ADMIN_KEY) === 'true');
+export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps) {
+  const [isAuthed, setIsAuthed] = useState(() => isAdmin === true || localStorage.getItem(ADMIN_KEY) === 'true');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (isAdmin) setIsAuthed(true);
+  }, [isAdmin]);
+
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [stats, setStats] = useState({ playersOnline: 0, activeTables: 0, activeDisputes: 0, activeTournaments: 0, totalWon: 0 });
   const [disputes, setDisputes] = useState<any[]>([]);
@@ -34,14 +39,7 @@ export function AdminDashboard({ isOpen, onClose }: AdminDashboardProps) {
   });
 
   const authAdmin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthed(true);
-      localStorage.setItem(ADMIN_KEY, 'true');
-      toast.success('Admin access granted');
-      loadData();
-    } else {
-      toast.error('Invalid admin password');
-    }
+    toast.error('Direct admin access is disabled. Use your admin account.');
   };
 
   const loadData = async () => {

@@ -17,6 +17,20 @@ interface LobbyChatProps {
   isAuthenticated: boolean;
 }
 
+const BLOCKED_WORDS = [
+  'fuck', 'shit', 'bitch', 'asshole', 'cunt', 'nigger', 'nigga', 'faggot', 'retard',
+  'whore', 'slut', 'bastard', 'motherfucker', 'cocksucker', 'prick', 'dick', 'pussy',
+];
+
+function filterProfanity(text: string): string {
+  let filtered = text;
+  for (const word of BLOCKED_WORDS) {
+    const pattern = new RegExp(word, 'gi');
+    filtered = filtered.replace(pattern, '*'.repeat(word.length));
+  }
+  return filtered;
+}
+
 export function LobbyChat({ username, avatar, isAuthenticated }: LobbyChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -56,8 +70,9 @@ export function LobbyChat({ username, avatar, isAuthenticated }: LobbyChatProps)
 
   const sendMessage = () => {
     if (!input.trim()) return;
+    const filtered = filterProfanity(input.trim());
     socketRef.current.emit('lobby:chat', {
-      message: input.trim(),
+      message: filtered,
       username: username || 'Guest',
       avatar: avatar || '👤',
     });

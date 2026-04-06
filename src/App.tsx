@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
+import { getSocket } from '@/lib/socket';
 import { Navigation } from '@/components/Navigation';
 import { ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -23,6 +24,7 @@ import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
 import { DominoesGame } from '@/components/games/DominoesGame';
+import { IframeGameWrapper } from '@/components/games/IframeGameWrapper';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
 import { GameRoom } from '@/components/GameRoom';
 import { VipArea } from '@/components/VipArea';
@@ -216,6 +218,11 @@ function App() {
       updateBalance(user.balance + amount);
       addTransaction('win', amount, currentView === 'lobby' ? undefined : currentView);
       toast.success(`You won ${amount.toLocaleString()} $Pc!`);
+      getSocket().emit('game:win', {
+        amount,
+        game: currentView === 'lobby' ? 'Casino' : currentView,
+        username: user.username,
+      });
     }
   };
 
@@ -402,6 +409,32 @@ function App() {
             cardBackStyle={getCardBackStyle()}
           />
         );
+      case 'horse-racing':
+        return (
+          <IframeGameWrapper
+            gameId="horse-racing"
+            gameName="Horse Racing"
+            gameEmoji="🏇"
+            gamePath="/games/horse-racing/index.html"
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+          />
+        );
+      case 'french-roulette':
+        return (
+          <IframeGameWrapper
+            gameId="french-roulette"
+            gameName="French Roulette"
+            gameEmoji="🎡"
+            gamePath="/games/french-roulette/index.html"
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+          />
+        );
       case 'pool':
         return (
           <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #1a1a0a 100%)' }}>
@@ -505,6 +538,8 @@ function App() {
                       <li><button onClick={() => handleSelectGame('spades')} className="hover:text-[#D4AF37] transition-colors">Spades</button></li>
                       <li><button onClick={() => handleSelectGame('bingo')} className="hover:text-[#D4AF37] transition-colors">Bingo 75-Ball</button></li>
                       <li><button onClick={() => handleSelectGame('dominoes')} className="hover:text-[#D4AF37] transition-colors">Dominoes</button></li>
+                      <li><button onClick={() => handleSelectGame('horse-racing')} className="hover:text-[#D4AF37] transition-colors">Horse Racing</button></li>
+                      <li><button onClick={() => handleSelectGame('french-roulette')} className="hover:text-[#D4AF37] transition-colors">French Roulette</button></li>
                     </ul>
                   </div>
                   <div>
@@ -935,6 +970,7 @@ function App() {
       <AdminDashboard
         isOpen={showAdmin}
         onClose={() => setShowAdmin(false)}
+        isAdmin={user?.isAdmin}
       />
 
       {/* Legal Pages */}
