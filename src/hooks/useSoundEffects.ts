@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { getSoundMuted, getSoundVolume, setSoundMuted, setSoundVolume, subscribeSoundState } from './soundState';
+import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, subscribeSoundState } from './soundState';
 
 type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' | 'click' | 'diceRoll' | 'shuffle' | 'dealerCall' | 'jackpot' | 'ballClick' | 'wheelTick' | 'noMoreBets' | 'ballLand' | 'chipPlace';
 
@@ -743,21 +743,16 @@ export function useSoundEffects() {
   const [isMuted, setIsMuted] = useState(getSoundMuted);
   const [volume, setVolume] = useState(getSoundVolume);
 
-  const [ambientEnabled, setAmbientEnabled] = useState(() => {
-    try {
-      const s = localStorage.getItem('pcasino_game_settings');
-      if (s) return JSON.parse(s).casinoSoundEnabled ?? true;
-    } catch {}
-    return true;
-  });
+  const [ambientEnabled, setAmbientEnabled] = useState(getSoundAmbient);
   const ambientControlRef = useRef<{ updateVolume: (v: number) => void } | null>(null);
 
-  // Subscribe to singleton changes so any external update (e.g. from MusicPlayer)
+  // Subscribe to singleton changes so any external update (e.g. from MusicPlayer icon)
   // is reflected immediately in this hook instance within the same tab
   useEffect(() => {
     return subscribeSoundState(() => {
       setIsMuted(getSoundMuted());
       setVolume(getSoundVolume());
+      setAmbientEnabled(getSoundAmbient());
     });
   }, []);
 
@@ -791,7 +786,7 @@ export function useSoundEffects() {
   }, []);
 
   const toggleAmbient = useCallback(() => {
-    setAmbientEnabled((prev: boolean) => !prev);
+    setSoundAmbient(!getSoundAmbient());
   }, []);
 
   // Expose a volume setter that writes through the singleton

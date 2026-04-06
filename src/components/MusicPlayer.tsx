@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { getSoundMuted, getSoundVolume, setSoundMuted, setSoundVolume, subscribeSoundState } from '@/hooks/soundState';
+import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, subscribeSoundState } from '@/hooks/soundState';
 
 interface Track {
   id: string;
@@ -23,7 +23,7 @@ const tracks: Track[] = [
 
 export function MusicPlayer() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(getSoundAmbient);
   const [currentTrack, setCurrentTrack] = useState(0);
   const [progress, setProgress] = useState(0);
   const [audioError, setAudioError] = useState(false);
@@ -35,11 +35,13 @@ export function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Subscribe to singleton changes from any other component (e.g. in-game mute toggle)
+  // Subscribe to singleton changes from any other component
+  // (e.g. in-game mute toggle, in-game ambient toggle)
   useEffect(() => {
     return subscribeSoundState(() => {
       setIsMuted(getSoundMuted());
       setVolume(Math.round(getSoundVolume() * 100));
+      setIsPlaying(getSoundAmbient());
     });
   }, []);
 
@@ -114,15 +116,20 @@ export function MusicPlayer() {
 
   const handlePlayPause = () => {
     setAudioError(false);
-    setIsPlaying(p => !p);
+    setIsPlaying(p => {
+      const next = !p;
+      setSoundAmbient(next);
+      return next;
+    });
   };
 
-  // Clicking the music icon directly plays/pauses music
+  // Clicking the music icon directly plays/pauses music AND toggles ambient loop
   const handleIconClick = () => {
     setAudioError(false);
     setIsPlaying(p => {
       const next = !p;
       if (next) setIsOpen(true);
+      setSoundAmbient(next);
       return next;
     });
   };
