@@ -358,7 +358,7 @@ function App() {
       if (newBal !== undefined) updateBalance(newBal);
       else if (user) updateBalance(user.balance + amount);
       addTransaction('deposit', amount, 'Auto-credited');
-      toast.success(`✅ Deposit of ${parseInt(amount).toLocaleString()} $Pc auto-credited!`, { duration: 8000 });
+      toast.success(`✅ Deposit of ${parseInt(amount).toLocaleString()} $Pc confirmed — your balance has been updated`, { duration: 8000 });
       fetchNotifications();
     };
     const onCashbackCredited = ({ amount, tier }: any) => {
@@ -1211,6 +1211,7 @@ function App() {
         onWithdraw={handleWithdraw}
         onDevReload={handleDevReload}
         withdrawAddress={user?.withdrawAddress}
+        depositAddress={depositAddress}
         onSaveWithdrawAddress={(address) => {
           if (user) {
             const updated = { ...user, withdrawAddress: address };

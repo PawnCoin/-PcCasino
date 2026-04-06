@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,6 +34,7 @@ interface FinancialModalProps {
   onDevReload?: (amount: number) => void;
   withdrawAddress?: string;
   onSaveWithdrawAddress?: (address: string) => void;
+  depositAddress?: string;
 }
 
 const EXCHANGE_RATES = {
@@ -69,6 +70,7 @@ export function FinancialModal({
   onDevReload,
   withdrawAddress: savedWithdrawAddress,
   onSaveWithdrawAddress,
+  depositAddress: depositAddressProp,
 }: FinancialModalProps) {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -79,8 +81,20 @@ export function FinancialModal({
   const [historyFilter, setHistoryFilter] = useState<'all' | 'deposit' | 'withdraw' | 'bet' | 'win'>('all');
   const [historySearch, setHistorySearch] = useState('');
   const [showQR, setShowQR] = useState(false);
+  const [depositAddressFetched, setDepositAddressFetched] = useState('');
 
-  const depositAddress = '0x742d35Cc6634C0532925a3b8D4C9db96590b8f3a';
+  useEffect(() => {
+    if (!depositAddressProp && isOpen) {
+      fetch('/api/payments/address', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('pcasino_token') || ''}` },
+      })
+        .then(r => r.json())
+        .then(d => { if (d?.address) setDepositAddressFetched(d.address); })
+        .catch(() => {});
+    }
+  }, [isOpen, depositAddressProp]);
+
+  const depositAddress = depositAddressProp || depositAddressFetched || 'Loading deposit address…';
 
   const stats = useMemo(() => {
     const deposits = transactions.filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0);
