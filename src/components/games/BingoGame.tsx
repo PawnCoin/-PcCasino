@@ -590,7 +590,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setMessage('Click DRAW BALL or enable auto to start calling numbers!');
     setAutoPlay(false);
     isDrawing.current = false;
-  }, [betAmount, numCards, onBet]);
+  }, [betAmount, numCards, onBet, playSound]);
 
   const drawBall = useCallback(() => {
     if (isDrawing.current) return;
@@ -723,7 +723,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       if (voiceOn && voiceSupported) speak('Not yet. Keep playing!', 0.88);
       setTimeout(() => setBingoFeedback('none'), 2200);
     }
-  }, [phase, daubed, betAmount, numCards, onWin, voiceOn, voiceSupported, speak]);
+  }, [phase, daubed, betAmount, numCards, onWin, voiceOn, voiceSupported, speak, playSound]);
 
   const calledSet = new Set(calledNumbers);
   const totalHinted = hinted.size;
