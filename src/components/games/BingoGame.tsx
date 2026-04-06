@@ -193,19 +193,41 @@ function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, aut
       const ctx = getAudioCtx();
       const numClicks = 1 + Math.floor(Math.random() * 3);
       for (let k = 0; k < numClicks; k++) {
-        const delay = k * (0.04 + Math.random() * 0.06);
+        const delay = k * (0.055 + Math.random() * 0.07);
+        const t = ctx.currentTime + delay;
+
+        // Noise burst — wooden impact transient
+        const bufSize = Math.floor(ctx.sampleRate * 0.05);
+        const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const bpf = ctx.createBiquadFilter();
+        bpf.type = 'bandpass';
+        bpf.frequency.value = 250 + Math.random() * 180;
+        bpf.Q.value = 2.5;
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.45, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+        noise.connect(bpf);
+        bpf.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start(t);
+        noise.stop(t + 0.06);
+
+        // Low tonal thump — wood body resonance
         const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const freq = 600 + Math.random() * 1400;
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.35, ctx.currentTime + delay + 0.09);
-        gain.gain.setValueAtTime(0.22, ctx.currentTime + delay);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.11);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 0.13);
+        const oscGain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160 + Math.random() * 80, t);
+        osc.frequency.exponentialRampToValueAtTime(60, t + 0.1);
+        oscGain.gain.setValueAtTime(0.18, t);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(oscGain);
+        oscGain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.12);
       }
     } catch {}
   };
@@ -315,15 +337,14 @@ function BallMachine({ machineState, currentBall, drawKey, onDraw, autoPlay, aut
         </div>
       )}
 
-      {/* Draw controls */}
-      {phase === 'playing' && (
+      {/* Draw controls — only visible when not in autoPlay mode */}
+      {phase === 'playing' && !autoPlay && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={onDraw} disabled={autoPlay || (machineState !== 'settled' && machineState !== 'idle')} style={{
+          <button onClick={onDraw} disabled={machineState !== 'settled' && machineState !== 'idle'} style={{
             padding: '7px 20px', borderRadius: 10, fontWeight: 800, fontSize: 12,
-            background: autoPlay ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#1B5E20,#43A047)',
-            color: '#fff', border: 'none', cursor: autoPlay ? 'not-allowed' : 'pointer',
-            opacity: autoPlay ? 0.4 : 1,
-            boxShadow: autoPlay ? 'none' : '0 3px 12px rgba(27,94,32,0.6)',
+            background: 'linear-gradient(135deg,#1B5E20,#43A047)',
+            color: '#fff', border: 'none', cursor: 'pointer',
+            boxShadow: '0 3px 12px rgba(27,94,32,0.6)',
           }}>▶ DRAW</button>
         </div>
       )}
@@ -514,6 +535,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
   const [machineState, setMachineState] = useState<BallMachineState>('idle');
   const [drawKey, setDrawKey] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
+  const [wonPrize, setWonPrize] = useState(0);
   const [autoSpeed, setAutoSpeed] = useState(6000);
   const [winPattern, setWinPattern] = useState('');
   const [showRules, setShowRules] = useState(false);
@@ -556,6 +578,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
     setCurrentBall(null);
     setHinted(new Set());
     setWinCells(new Map());
+    setWonPrize(0);
     setPhase('playing');
     setWinPattern('');
     setBingoFeedback('none');
@@ -673,6 +696,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
       const mult = WIN_PAYOUTS[bestPattern] || 3;
       const prize = betAmount * numCards * mult;
       onWin(prize);
+      setWonPrize(prize);
       setWinCells(newWinCells);
       setWinPattern(bestPattern);
       setPhase('won');
@@ -746,7 +770,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
         balance={balance}
         onBack={onBack}
         onAddBalance={onAddBalance}
-        winAmount={phase === 'won' ? betAmount * numCards * WIN_PAYOUTS.Line : undefined}
+        winAmount={phase === 'won' ? wonPrize : undefined}
         showShare={phase === 'won'}
         rightSlot={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -778,16 +802,19 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
             {calledTicker.map((n, i) => {
               const l = getColumnLetter(n);
               const bc = BALL_COLORS[l];
+              const isNew = i === 0;
+              const alpha = Math.max(0.12, 0.7 - i * 0.08);
               return (
                 <div key={i} style={{
                   flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3,
-                  padding: '2px 8px', borderRadius: 8,
-                  background: i === 0 ? bc.bg : 'rgba(255,255,255,0.05)',
-                  boxShadow: i === 0 ? `0 0 10px ${bc.shadow}` : 'none',
-                  animation: i === 0 ? 'tickerSlide 0.4s ease-out' : 'none',
+                  padding: isNew ? '3px 10px' : '2px 7px', borderRadius: 8,
+                  background: isNew ? bc.bg : `${bc.solid}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`,
+                  boxShadow: isNew ? `0 0 10px ${bc.shadow}` : 'none',
+                  animation: isNew ? 'tickerSlide 0.4s ease-out' : 'none',
+                  opacity: isNew ? 1 : Math.max(0.4, 1 - i * 0.07),
                 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: i === 0 ? '#fff' : '#6b7280' }}>{l}</span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: i === 0 ? '#fff' : '#9ca3af' }}>{n}</span>
+                  <span style={{ fontSize: isNew ? 10 : 8, fontWeight: 700, color: '#fff' }}>{l}</span>
+                  <span style={{ fontSize: isNew ? 13 : 11, fontWeight: 800, color: '#fff' }}>{n}</span>
                 </div>
               );
             })}
@@ -970,7 +997,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance }: Bingo
                       }}>{l}</div>
 
                       {/* 15 number circles in a row */}
-                      <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 2, flexWrap: 'nowrap', overflowX: 'auto' }}>
                         {Array.from({ length: 15 }, (_, j) => {
                           const n = COL_RANGES[ci][0] + j;
                           const called = calledSet.has(n);

@@ -742,11 +742,13 @@ function PipFace({ value, color, size, rotate90 }: { value: number; color: strin
 // ─── Domino Tile (face-up or face-down on board) ──────────────────────────────
 function DominoTileView({
   dispLeft, dispRight, isDouble, selected, playable, faceDown, skinKey, dims, onClick, forceVertical,
+  draggable: isDraggable, onDragStart, onDragEnd, isDragging,
 }: {
   dispLeft: number; dispRight: number; isDouble: boolean;
   selected?: boolean; playable?: boolean; faceDown?: boolean;
   skinKey: SkinKey; dims: { long: number; short: number; pip: number };
   onClick?: () => void; forceVertical?: boolean;
+  draggable?: boolean; onDragStart?: (e: React.DragEvent) => void; onDragEnd?: () => void; isDragging?: boolean;
 }) {
   const skin = DOMINO_SKINS[skinKey] ?? DOMINO_SKINS.ivory;
   // Board doubles are always vertical (perpendicular); hand tiles always vertical too
@@ -768,15 +770,20 @@ function DominoTileView({
        : '0 3px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07)');
 
   return (
-    <div onClick={onClick} style={{
+    <div onClick={onClick}
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{
       width: W, height: H, flexShrink: 0, position: 'relative',
       background: faceDownBg, border: `2px solid ${borderColor}`, borderRadius: 6,
       display: 'flex', flexDirection: flexDir, alignItems: 'center', justifyContent: 'space-around',
-      cursor: onClick ? 'pointer' : 'default',
+      cursor: isDraggable ? 'grab' : onClick ? 'pointer' : 'default',
       boxShadow: glowStr,
       transform: selected ? 'translateY(-10px) scale(1.08)' : playable ? 'translateY(-4px)' : 'none',
       transition: 'all .18s ease', overflow: 'hidden',
       backdropFilter: !faceDown && skin.bg.startsWith('rgba') ? 'blur(8px)' : undefined,
+      opacity: isDragging ? 0.35 : 1,
     }}>
       {!faceDown && skin.gloss && (
         <div style={{ position: 'absolute', inset: 0, borderRadius: 4, pointerEvents: 'none', zIndex: 10,
@@ -1267,6 +1274,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   const [boardZoom, setBoardZoom] = useState(1.0);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
+  const [draggingTileId, setDraggingTileId] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
   const [cracking, setCracking] = useState(false);
   const [betConfirmed, setBetConfirmed] = useState(false);
@@ -1404,10 +1412,12 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
   const canDraw    = isHumanTurn && playableIds.size === 0 && gs.boneyard.length > 0;
   const canPass    = isHumanTurn && playableIds.size === 0 && gs.boneyard.length === 0;
   const selectedTile = humanPlayer?.hand.find(t => t.id === selectedTileId) ?? null;
-  const canPlayLeft   = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'left',   gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
-  const canPlayRight  = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'right',  gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
-  const canPlayTop    = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'top',    gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
-  const canPlayBottom = !!selectedTile && !chainEmpty && canPlayEnd(selectedTile, 'bottom', gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const draggingTile = humanPlayer?.hand.find(t => t.id === draggingTileId) ?? null;
+  const activeTile = draggingTile ?? selectedTile;
+  const canPlayLeft   = !!activeTile && !chainEmpty && canPlayEnd(activeTile, 'left',   gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const canPlayRight  = !!activeTile && !chainEmpty && canPlayEnd(activeTile, 'right',  gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const canPlayTop    = !!activeTile && !chainEmpty && canPlayEnd(activeTile, 'top',    gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
+  const canPlayBottom = !!activeTile && !chainEmpty && canPlayEnd(activeTile, 'bottom', gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
 
   // AI turn — draws from boneyard if no playable tile before passing
   useEffect(() => {
@@ -1459,13 +1469,17 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
     audio.pickUp();
     setSelectedTileId(prev => prev === tileId ? null : tileId);
   };
-  const handlePlayEnd = (end: 'left' | 'right' | 'top' | 'bottom') => {
-    if (!selectedTileId) return;
-    audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId: selectedTileId, end }); setSelectedTileId(null);
+  const handlePlayEnd = (end: 'left' | 'right' | 'top' | 'bottom', tileIdOverride?: string) => {
+    const tileId = tileIdOverride ?? selectedTileId;
+    if (!tileId) return;
+    audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId, end });
+    setSelectedTileId(null); setDraggingTileId(null);
   };
-  const handlePlayFirst = () => {
-    if (!selectedTileId) return;
-    audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId: selectedTileId, end: 'right' }); setSelectedTileId(null);
+  const handlePlayFirst = (tileIdOverride?: string) => {
+    const tileId = tileIdOverride ?? selectedTileId;
+    if (!tileId) return;
+    audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId, end: 'right' });
+    setSelectedTileId(null); setDraggingTileId(null);
   };
   const handleDraw = () => { if (!canDraw) return; audio.draw(); dispatch({ type: 'DRAW' }); toast.info('Drew a tile'); };
   const handlePass = () => { if (!canPass) return; audio.knock(); dispatch({ type: 'PASS' }); toast.info('🤜 You knocked — passing'); };
@@ -1494,7 +1508,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
       const starter = gs.players[gs.currentPlayer];
       statusMsg = starter?.id === 'human' ? 'You start! Play your highest double.' : `${starter?.name} starts with the highest double`;
     } else if (isHumanTurn) {
-      if (selectedTile) statusMsg = chainEmpty ? 'Play your tile to start the chain' : gs.spinnerPlaced ? 'Choose an end — Left, Right, ▲ Top, or ▼ Bottom ↓' : 'Choose which end ↓';
+      if (activeTile) statusMsg = chainEmpty ? 'Drag or place your tile to start the chain' : gs.spinnerPlaced ? 'Drop on an end — ← Left, Right →, ▲ Top, or ▼ Bottom' : 'Drop or choose which end ↓';
       else if (canDraw) statusMsg = 'No playable tile — draw from the boneyard';
       else if (canPass) statusMsg = 'No moves — knock on the table to pass';
       else statusMsg = 'Your turn — tap a highlighted tile';
@@ -1928,19 +1942,38 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
           </div>
 
           <div style={{ display: 'flex', gap: 7, justifyContent: 'center', padding: '2px 16px 4px', flexShrink: 0, flexWrap: 'wrap' }}>
-            {isHumanTurn && selectedTile && chainEmpty && (
-              <><Button onClick={handlePlayFirst} style={{ background: 'linear-gradient(135deg,#D4AF37,#9A7A20)', color: '#000', fontWeight: 700, border: 'none' }}>Place First Tile</Button><Button onClick={() => setSelectedTileId(null)} variant="ghost" style={{ color: '#555' }}>Cancel</Button></>
-            )}
-            {isHumanTurn && selectedTile && !chainEmpty && (
+            {isHumanTurn && activeTile && chainEmpty && (
               <>
-                {canPlayLeft   && <Button onClick={() => handlePlayEnd('left')}   style={{ background: 'rgba(212,175,55,.15)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 700 }}>← Left ({gs.leftVal})</Button>}
-                {canPlayRight  && <Button onClick={() => handlePlayEnd('right')}  style={{ background: 'rgba(212,175,55,.15)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 700 }}>Right ({gs.rightVal}) →</Button>}
-                {canPlayTop    && <Button onClick={() => handlePlayEnd('top')}    style={{ background: 'rgba(212,175,55,.12)', border: '1px solid rgba(212,175,55,.35)', color: '#D4AF37', fontWeight: 700 }}>▲ Top ({gs.topVal})</Button>}
-                {canPlayBottom && <Button onClick={() => handlePlayEnd('bottom')} style={{ background: 'rgba(212,175,55,.12)', border: '1px solid rgba(212,175,55,.35)', color: '#D4AF37', fontWeight: 700 }}>▼ Bottom ({gs.bottomVal})</Button>}
-                <Button onClick={() => setSelectedTileId(null)} variant="ghost" style={{ color: '#555' }}>Cancel</Button>
+                <Button
+                  onClick={handlePlayFirst}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayFirst(id || undefined); }}
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#9A7A20)', color: '#000', fontWeight: 700, border: 'none' }}>Place First Tile</Button>
+                <Button onClick={() => { setSelectedTileId(null); setDraggingTileId(null); }} variant="ghost" style={{ color: '#555' }}>Cancel</Button>
               </>
             )}
-            {isHumanTurn && !selectedTile && (
+            {isHumanTurn && activeTile && !chainEmpty && (
+              <>
+                {canPlayLeft   && <Button onClick={() => handlePlayEnd('left')}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('left', id || undefined); }}
+                  style={{ background: 'rgba(212,175,55,.15)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 700 }}>← Left ({gs.leftVal})</Button>}
+                {canPlayRight  && <Button onClick={() => handlePlayEnd('right')}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('right', id || undefined); }}
+                  style={{ background: 'rgba(212,175,55,.15)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 700 }}>Right ({gs.rightVal}) →</Button>}
+                {canPlayTop    && <Button onClick={() => handlePlayEnd('top')}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('top', id || undefined); }}
+                  style={{ background: 'rgba(212,175,55,.12)', border: '1px solid rgba(212,175,55,.35)', color: '#D4AF37', fontWeight: 700 }}>▲ Top ({gs.topVal})</Button>}
+                {canPlayBottom && <Button onClick={() => handlePlayEnd('bottom')}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('bottom', id || undefined); }}
+                  style={{ background: 'rgba(212,175,55,.12)', border: '1px solid rgba(212,175,55,.35)', color: '#D4AF37', fontWeight: 700 }}>▼ Bottom ({gs.bottomVal})</Button>}
+                <Button onClick={() => { setSelectedTileId(null); setDraggingTileId(null); }} variant="ghost" style={{ color: '#555' }}>Cancel</Button>
+              </>
+            )}
+            {isHumanTurn && !activeTile && (
               <>{canDraw && <Button onClick={handleDraw} style={{ background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.45)', color: '#42A5F5', fontWeight: 700 }}>Draw from Boneyard</Button>}
               {canPass && <Button onClick={handlePass} style={{ background: 'rgba(183,28,28,.18)', border: '1px solid rgba(183,28,28,.45)', color: '#EF5350', fontWeight: 700 }}>🤜 Knock (Pass)</Button>}</>
             )}
@@ -1953,16 +1986,31 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance }: Do
               {!isHumanTurn && <span style={{ color: '#888', fontWeight: 400, marginLeft: 8, fontSize: 9 }}>Waiting…</span>}
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-end' }}>
-              {humanPlayer?.hand.map(tile => (
+              {humanPlayer?.hand.map(tile => {
+                const isPlayable = isHumanTurn && playableIds.has(tile.id);
+                const isSelected = selectedTileId === tile.id;
+                const isDragging = draggingTileId === tile.id;
+                return (
                 <div key={tile.id} style={{ animation: 'pop .25s ease' }}>
                   <DominoTileView dispLeft={tile.left} dispRight={tile.right} isDouble={tile.left === tile.right}
                     forceVertical
-                    selected={selectedTileId === tile.id}
-                    playable={isHumanTurn && playableIds.has(tile.id) && selectedTileId !== tile.id}
+                    selected={isSelected}
+                    playable={isPlayable && !isSelected}
+                    isDragging={isDragging}
                     skinKey={dominoSkin} dims={dims}
-                    onClick={() => handleTileClick(tile.id)} />
+                    onClick={() => handleTileClick(tile.id)}
+                    draggable={isPlayable}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('tileId', tile.id);
+                      setDraggingTileId(tile.id);
+                      setSelectedTileId(tile.id);
+                    }}
+                    onDragEnd={() => setDraggingTileId(null)}
+                  />
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

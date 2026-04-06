@@ -200,6 +200,8 @@ const PARTNER_INDEX: Record<number, number> = { 0: 2, 1: 3, 2: 0, 3: 1 };
 
 const SUIT_SYMBOLS: Record<string, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
 const PLAYER_NAMES = ['You', 'West', 'Partner', 'East'];
+const SPADES_RANK: Record<string, number> = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+const QUICK_TEXTS = ['Nice play! 👌', 'Good job! 👍', 'Thanks partner! 🤝', 'Nice! 🎉', 'Well played! 🔥', 'Ouch! 😬', 'Lucky! 🍀'];
 const PLAYER_COLORS = [
   'from-[#D4AF37] to-[#8B6914]',
   'from-[#B71C1C] to-[#7B1111]',
@@ -256,6 +258,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
   const [dealStep, setDealStep] = useState(0);
   const [isShuffling, setIsShuffling] = useState(false);
   const [tossCard, setTossCard] = useState<{ card: Card; rotation: number; fromPlayer?: boolean } | null>(null);
+  const [firstPlayer, setFirstPlayer] = useState(0);
   const [pendingBid, setPendingBid] = useState<{ amount: number; isNil: boolean; isBlindNil: boolean } | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
@@ -396,9 +399,16 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
     }
     setPlayers(newPlayers);
     setGamePhase('playing');
-    setCurrentPlayer(0);
-    setMessage('Your lead — play a card!');
-    showTip('Spades cannot be led until broken.');
+    if (firstPlayer === 0) {
+      setCurrentPlayer(0);
+      setMessage('Your lead — play a card!');
+      showTip('Spades cannot be led until broken.');
+    } else {
+      setCurrentPlayer(firstPlayer);
+      setMessage(`${PLAYER_NAMES[firstPlayer]} leads the first trick!`);
+      showTip('Spades cannot be led until broken.');
+      setTimeout(() => startNewTrick(firstPlayer, newPlayers, false), 700);
+    }
   };
 
   const getLegalIndices = (hand: Card[], trick: TrickCard[]): number[] => {
@@ -536,12 +546,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
   const resolveTrick = (cards: TrickCard[], curPlayers: SpadesPlayer[]) => {
     const lead = cards[0].card.suit;
     let winCard = cards[0].card, winner = cards[0].player;
+    const rank = (c: Card) => SPADES_RANK[c.rank] ?? c.value;
     for (let i = 1; i < cards.length; i++) {
       const { card, player } = cards[i];
       if (card.suit === 'spades') {
-        if (winCard.suit !== 'spades' || card.value > winCard.value) { winCard = card; winner = player; }
+        if (winCard.suit !== 'spades' || rank(card) > rank(winCard)) { winCard = card; winner = player; }
       } else if (card.suit === lead && winCard.suit !== 'spades') {
-        if (card.value > winCard.value) { winCard = card; winner = player; }
+        if (rank(card) > rank(winCard)) { winCard = card; winner = player; }
       }
     }
     const newPlayers = curPlayers.map(p => ({ ...p, tricks: p.id === winner ? p.tricks + 1 : p.tricks }));
@@ -607,9 +618,11 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
     setRound(r => r + 1);
     setMessage(`Round ${round} done! You: ${ys > 0 ? '+' : ''}${ys} pts`);
 
+    const nextFirst = (firstPlayer + 3) % 4;
     const doNextRound = () => {
       setShowHandResult(false);
       setHandResult(null);
+      setFirstPlayer(nextFirst);
       if (ny >= houseRules.targetScore || no >= houseRules.targetScore) {
         const won = ny > no;
         if (won) {
@@ -1084,10 +1097,32 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
                 {/* Inner border */}
                 <div className="absolute inset-[10px] pointer-events-none rounded-sm" style={{ border: '1px solid rgba(212,175,55,0.15)', boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)' }} />
 
-                {/* $Pc logo engraving in table center */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1]" style={{ opacity: 0.07 }}>
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 36, color: '#D4AF37', letterSpacing: '0.2em', textAlign: 'center', lineHeight: 1.1 }}>♠</div>
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: '#D4AF37', letterSpacing: '0.35em', textAlign: 'center', marginTop: 2 }}>$Pc CASINO</div>
+                {/* $Pc logo engraving in table center — realistic felt engraving */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1]" style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontFamily: "'Cinzel',serif", fontSize: 52, lineHeight: 1,
+                    color: 'transparent',
+                    WebkitTextStroke: '1px rgba(0,0,0,0.25)',
+                    textShadow: '1px 1px 0px rgba(255,255,255,0.07), -1px -1px 0px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.4)',
+                    filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))',
+                    opacity: 0.55,
+                  }}>♠</div>
+                  <div style={{
+                    fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: '0.45em',
+                    color: 'transparent',
+                    WebkitTextStroke: '0.5px rgba(0,0,0,0.3)',
+                    textShadow: '0.5px 0.5px 0px rgba(255,255,255,0.06), -0.5px -0.5px 0px rgba(0,0,0,0.4)',
+                    opacity: 0.45,
+                    marginTop: 4,
+                  }}>$Pc CASINO</div>
+                  <div style={{
+                    fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: '0.3em',
+                    color: 'transparent',
+                    WebkitTextStroke: '0.5px rgba(0,0,0,0.25)',
+                    textShadow: '0.5px 0.5px 0px rgba(255,255,255,0.05), -0.5px -0.5px 0px rgba(0,0,0,0.35)',
+                    opacity: 0.35,
+                    marginTop: 2,
+                  }}>EST. MMI</div>
                 </div>
 
                 {/* 3D Table prop - user selected */}
@@ -1418,14 +1453,24 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, cardBa
               {/* ── YOUR HAND ── shown during bidding AND playing */}
               {(gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
                 <div style={{ background: 'linear-gradient(180deg, rgba(8,8,14,0.95) 0%, rgba(5,5,10,1) 100%)', borderTop: '2px solid rgba(93,64,55,0.5)', padding: '10px 8px 12px', position: 'relative' }}>
-                  {/* Reaction button */}
-                  <div className="absolute right-2 top-2 flex gap-1">
-                    {REACTIONS.map(emoji => (
-                      <button key={emoji} onClick={() => addReaction(emoji)}
-                        className="text-lg hover:scale-125 transition-transform" style={{ lineHeight: 1 }}>
-                        {emoji}
-                      </button>
-                    ))}
+                  {/* Reaction + Quick Text buttons */}
+                  <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
+                    <div className="flex gap-1">
+                      {REACTIONS.map(emoji => (
+                        <button key={emoji} onClick={() => addReaction(emoji)}
+                          className="text-base hover:scale-125 transition-transform" style={{ lineHeight: 1 }}>
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-1 flex-wrap justify-end" style={{ maxWidth: 280 }}>
+                      {QUICK_TEXTS.map(txt => (
+                        <button key={txt} onClick={() => addReaction(txt)}
+                          style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)', color: '#D4AF37', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                          {txt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex justify-center items-end" style={{ minHeight: '120px', gap: '-8px' }}>
