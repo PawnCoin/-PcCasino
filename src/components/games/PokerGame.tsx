@@ -593,6 +593,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     const startPot = 10 + oppPot;
     setDeck(newDeck.slice(8));
     setPlayerHand(playerCards);
+    playSound('card');
     setCommunityCards([]);
     setRevealedCommunity(0);
     setPot(startPot);
@@ -607,7 +608,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setLoseEffect(false);
     setWinText('');
     if (showVoice) announceEvent('New hand. Pre-flop betting.');
-  }, [opponents, showVoice, announceEvent]);
+  }, [opponents, showVoice, announceEvent, playSound]);
 
   const dealCommunity = useCallback((count: number) => {
     // Burn the top card (standard poker procedure) before dealing community cards
@@ -615,8 +616,9 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     const newCards = afterBurn.slice(0, count);
     setCommunityCards(prev => [...prev, ...newCards]);
     setDeck(afterBurn.slice(count));
+    playSound('card');
     setTimeout(() => setRevealedCommunity(prev => prev + count), 100);
-  }, [deck]);
+  }, [deck, playSound]);
 
   const animateChip = (amount: number) => {
     setFlyingChips(prev => [...prev, amount]);
