@@ -382,18 +382,12 @@ function App() {
   };
 
   const handleSocialConnect = (provider: 'google' | 'twitter' | 'discord' | 'telegram') => {
-    // For Google, Discord, Twitter — do real OAuth redirect
-    if (provider === 'google' || provider === 'discord' || provider === 'twitter') {
+    // Google and Discord: real OAuth redirect
+    if (provider === 'google' || provider === 'discord') {
       handleOAuthRedirect(provider as any);
       return;
     }
-    const mockData = {
-      google: { email: 'player@gmail.com', username: 'GooglePlayer' },
-      twitter: { email: 'player@twitter.com', username: 'TwitterPlayer' },
-      discord: { email: 'player@discord.com', username: 'DiscordPlayer' },
-      telegram: { email: 'player@telegram.com', username: 'TelegramPlayer' },
-    };
-    handleUnifiedLogin(provider, mockData[provider]);
+    // Twitter and Telegram are "Coming Soon" — do nothing
   };
 
   const logout = async () => {

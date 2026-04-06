@@ -115,10 +115,29 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
         </svg>
       ),
       color: '#EA4335',
+      comingSoon: false,
     },
-    { id: 'twitter' as const, name: 'Twitter / X', icon: <Twitter className="w-5 h-5" />, color: '#1DA1F2' },
-    { id: 'discord' as const, name: 'Discord', icon: <MessageCircle className="w-5 h-5" />, color: '#5865F2' },
-    { id: 'telegram' as const, name: 'Telegram', icon: <Send className="w-5 h-5" />, color: '#0088cc' },
+    {
+      id: 'discord' as const,
+      name: 'Discord',
+      icon: <MessageCircle className="w-5 h-5" />,
+      color: '#5865F2',
+      comingSoon: false,
+    },
+    {
+      id: 'twitter' as const,
+      name: 'Twitter / X',
+      icon: <Twitter className="w-5 h-5" />,
+      color: '#1DA1F2',
+      comingSoon: true,
+    },
+    {
+      id: 'telegram' as const,
+      name: 'Telegram',
+      icon: <Send className="w-5 h-5" />,
+      color: '#0088cc',
+      comingSoon: true,
+    },
   ];
 
   const inputCls = `w-full bg-black/40 border border-[#5D4037]/50 rounded-xl px-4 py-3 text-white placeholder-[#606060] text-sm
@@ -344,26 +363,37 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
             {socialProviders.map((provider) => (
               <button
                 key={provider.id}
-                onClick={() => handleSocialConnect(provider.id)}
-                disabled={connecting !== null}
-                className="w-full p-3 rounded-xl flex items-center gap-4 transition-all duration-300 group relative overflow-hidden disabled:opacity-50"
+                onClick={() => !provider.comingSoon && handleSocialConnect(provider.id)}
+                disabled={connecting !== null || provider.comingSoon}
+                className="w-full p-3 rounded-xl flex items-center gap-4 transition-all duration-300 group relative overflow-hidden"
                 style={{
                   background: 'rgba(20,20,20,0.8)',
                   border: '1px solid rgba(93,64,55,0.5)',
+                  opacity: provider.comingSoon ? 0.55 : 1,
+                  cursor: provider.comingSoon ? 'default' : 'pointer',
                 }}
               >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ background: `linear-gradient(90deg, ${provider.color}15, transparent)` }} />
+                {!provider.comingSoon && (
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: `linear-gradient(90deg, ${provider.color}15, transparent)` }} />
+                )}
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center relative z-10"
                   style={{ background: `linear-gradient(135deg, ${provider.color}40, ${provider.color}20)`, border: `1px solid ${provider.color}60`, color: provider.color }}>
                   {provider.icon}
                 </div>
                 <div className="flex-1 text-left relative z-10">
-                  <div className="font-bold text-white group-hover:text-[#D4AF37] transition-colors">{provider.name}</div>
+                  <div className="font-bold text-white transition-colors" style={{ color: provider.comingSoon ? '#606060' : undefined }}>
+                    {provider.name}
+                  </div>
                 </div>
-                {connecting === provider.id && (
+                {provider.comingSoon ? (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full relative z-10"
+                    style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}>
+                    Soon
+                  </span>
+                ) : connecting === provider.id ? (
                   <div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-                )}
+                ) : null}
               </button>
             ))}
           </div>

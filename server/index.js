@@ -560,11 +560,22 @@ app.get('/api/auth/oauth/google/callback', async (req, res) => {
     const { default: jwt } = await import('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
     let user;
-    const existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['google', profile.id]);
+    // 1. Check by social provider + id
+    let existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['google', profile.id]);
     if (existing.rows.length) {
       user = existing.rows[0];
-      await query('UPDATE users SET last_seen = NOW(), email = COALESCE($1, email) WHERE id = $2', [profile.email, user.id]);
-    } else {
+      await query('UPDATE users SET last_seen = NOW(), email = COALESCE(email, $1) WHERE id = $2', [profile.email, user.id]);
+    } else if (profile.email) {
+      // 2. Check if email already registered — link social to existing account
+      const byEmail = await query('SELECT * FROM users WHERE email = $1', [profile.email]);
+      if (byEmail.rows.length) {
+        user = byEmail.rows[0];
+        await query('UPDATE users SET social_provider = $1, social_id = $2, email_verified = true, last_seen = NOW() WHERE id = $3',
+          ['google', profile.id, user.id]);
+      }
+    }
+    if (!user) {
+      // 3. Create new user
       const username = (profile.name || profile.email.split('@')[0]).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
       const result = await query(
         `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar)
@@ -618,11 +629,22 @@ app.get('/api/auth/oauth/discord/callback', async (req, res) => {
     const { default: jwt } = await import('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
     let user;
-    const existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['discord', profile.id]);
+    // 1. Check by social provider + id
+    let existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['discord', profile.id]);
     if (existing.rows.length) {
       user = existing.rows[0];
       await query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
-    } else {
+    } else if (profile.email) {
+      // 2. Check if email already registered — link social to existing account
+      const byEmail = await query('SELECT * FROM users WHERE email = $1', [profile.email]);
+      if (byEmail.rows.length) {
+        user = byEmail.rows[0];
+        await query('UPDATE users SET social_provider = $1, social_id = $2, email_verified = true, last_seen = NOW() WHERE id = $3',
+          ['discord', profile.id, user.id]);
+      }
+    }
+    if (!user) {
+      // 3. Create new user
       const username = (profile.username || 'Discord').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
       const result = await query(
         `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar)
