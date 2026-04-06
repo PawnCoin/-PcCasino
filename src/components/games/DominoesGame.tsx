@@ -496,7 +496,7 @@ function gsReducer(state: GS, action: Action): GS {
       const newPlayers = state.players.map((p, i) => i === pIdx ? { ...p, hand: newHand } : p);
 
       // Calculate open-end pip total for All-Fives mid-game scoring (4 ends when spinner active)
-      const openEndTotal = calcOpenEndPips(newChain, newLeft, newRight, newTopChain, newBottomChain, newTopVal, newBottomVal, newSpinnerPlaced);
+      const openEndTotal = calcOpenEndPips(newChain, newLeft, newRight, newTopChain, newBottomChain, newTopVal, newBottomVal, newSpinnerPlaced, newSpinnerLeftPlayed, newSpinnerRightPlayed);
       const midGameScore = isScoringTotal(openEndTotal) ? openEndTotal : 0;
 
       const baseState = {
