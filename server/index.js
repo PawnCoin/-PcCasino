@@ -6,7 +6,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
-import authRoutes from './auth-routes.js';
+import authRoutes, { requireAuth, verifyToken } from './auth-routes.js';
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
 import { initDatabase, query } from './db.js';
@@ -418,17 +418,22 @@ app.get('/api/referrals/:userId', (req, res) => {
   res.json({ referrals: userRefs });
 });
 
-// PcPayments API integration
-app.get('/api/pcpayments/config', (req, res) => { res.json({ config: { ...pcpaymentsConfig, apiKey: pcpaymentsConfig.apiKey ? '***configured***' : '' } }); });
+// PcPayments API integration — admin-only endpoints
+app.get('/api/pcpayments/config', requireAuth, (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  res.json({ config: { ...pcpaymentsConfig, apiKey: pcpaymentsConfig.apiKey ? '***configured***' : '', webhookSecret: pcpaymentsConfig.webhookSecret ? '***set***' : '' } });
+});
 
-app.post('/api/pcpayments/config', (req, res) => {
+app.post('/api/pcpayments/config', requireAuth, (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
   const { apiKey, webhookSecret, endpoint, enabled } = req.body;
   if (apiKey) pcpaymentsConfig.apiKey = apiKey;
-  if (webhookSecret) pcpaymentsConfig.webhookSecret = webhookSecret;
+  // Only allow setting webhookSecret via runtime config if env var is not already set
+  if (webhookSecret && !process.env.PCPAY_WEBHOOK_SECRET) pcpaymentsConfig.webhookSecret = webhookSecret;
   if (endpoint) pcpaymentsConfig.endpoint = endpoint;
   if (enabled !== undefined) pcpaymentsConfig.enabled = enabled;
   logAdmin('pcpayments:configured', { endpoint: pcpaymentsConfig.endpoint, enabled: pcpaymentsConfig.enabled });
-  res.json({ success: true, config: { ...pcpaymentsConfig, apiKey: '***set***' } });
+  res.json({ success: true, config: { ...pcpaymentsConfig, apiKey: '***set***', webhookSecret: '***set***' } });
 });
 
 // PcPay webhook - auto-credit user balance
