@@ -42,8 +42,14 @@ export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionPro
             </div>
 
             {/* Hero image area */}
-            <div className="h-44 flex items-center justify-center" style={{ background: 'linear-gradient(180deg, rgba(21,101,192,0.1) 0%, rgba(13,27,46,0.8) 100%)' }}>
-              <div className="text-8xl drop-shadow-2xl group-hover:scale-110 transition-transform duration-300">🏈</div>
+            <div className="h-44 relative overflow-hidden">
+              <img
+                src="/images/weparlay-menu.png"
+                alt="WeParlay Sports Betting"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                style={{ filter: 'brightness(0.75) saturate(1.2)' }}
+              />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,27,46,0.1) 0%, rgba(13,27,46,0.7) 100%)' }} />
             </div>
 
             {/* Content */}
@@ -100,8 +106,15 @@ export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionPro
             <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-300" style={{ background: 'radial-gradient(ellipse at 50% 30%, rgba(160,32,240,0.4) 0%, transparent 60%)' }} />
 
             {/* Hero image area */}
-            <div className="h-44 flex items-center justify-center relative" style={{ background: 'linear-gradient(180deg, rgba(160,32,240,0.1) 0%, rgba(13,0,24,0.8) 100%)' }}>
-              <div className="text-8xl drop-shadow-2xl group-hover:scale-110 transition-transform duration-300">👑</div>
+            <div className="h-44 relative overflow-hidden">
+              <img
+                src="/images/adult-menu-banner.png"
+                alt="Adult VIP Area"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                style={{ filter: 'brightness(0.65) saturate(1.3) hue-rotate(10deg)' }}
+              />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(80,0,120,0.2) 0%, rgba(13,0,24,0.75) 100%)' }} />
+              <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(160,32,240,0.5) 0%, transparent 70%)' }} />
             </div>
 
             {/* Content */}
