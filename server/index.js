@@ -16,6 +16,18 @@ const publicDir = join(__dirname, '..', 'public');
 
 const app = express();
 app.use(cors({ origin: '*', credentials: true }));
+
+// Capture raw body for the PcPay webhook BEFORE express.json() parses it
+// This must be registered first so the raw bytes are preserved for HMAC verification
+app.use('/api/pcpayments/webhook', (req, _res, next) => {
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    req.rawBody = Buffer.concat(chunks);
+    next();
+  });
+});
+
 app.use(express.json());
 
 // ---- API Routes ----
@@ -420,41 +432,45 @@ app.post('/api/pcpayments/config', (req, res) => {
 });
 
 // PcPay webhook - auto-credit user balance
-// Uses raw body for signature verification (must be registered before express.json middleware)
-app.post('/api/pcpayments/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  // --- Signature validation ---
+// Raw body captured by the path-specific middleware registered before express.json()
+app.post('/api/pcpayments/webhook', async (req, res) => {
+  // --- Signature validation (fail-closed) ---
   const webhookSecret = process.env.PCPAY_WEBHOOK_SECRET || pcpaymentsConfig.webhookSecret;
-  const sigHeader = req.headers['x-pcpay-signature'] || req.headers['x-webhook-signature'];
 
-  if (webhookSecret) {
-    if (!sigHeader) {
-      console.warn('[PcPay webhook] Missing signature header — rejected');
-      return res.status(401).json({ error: 'Missing signature' });
-    }
-    try {
-      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
-      const expected = createHmac('sha256', webhookSecret)
-        .update(rawBody)
-        .digest('hex');
-      const provided = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
-      const expectedBuf = Buffer.from(expected, 'hex');
-      const providedBuf = Buffer.from(provided, 'hex');
-      if (expectedBuf.length !== providedBuf.length || !timingSafeEqual(expectedBuf, providedBuf)) {
-        console.warn('[PcPay webhook] Invalid signature — rejected');
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
-    } catch (err) {
-      console.warn('[PcPay webhook] Signature check error:', err.message);
-      return res.status(401).json({ error: 'Signature verification failed' });
-    }
-  } else {
-    console.warn('[PcPay webhook] PCPAY_WEBHOOK_SECRET not set — processing without signature check');
+  // If no secret is configured, refuse all webhook requests to prevent unauthenticated credits
+  if (!webhookSecret) {
+    console.error('[PcPay webhook] PCPAY_WEBHOOK_SECRET is not configured — rejecting webhook');
+    return res.status(503).json({ error: 'Webhook not configured. Set PCPAY_WEBHOOK_SECRET.' });
   }
 
-  // Parse body (raw buffer when signature check runs, or already-parsed object)
+  const sigHeader = req.headers['x-pcpay-signature'] || req.headers['x-webhook-signature'];
+  if (!sigHeader) {
+    console.warn('[PcPay webhook] Missing signature header — rejected');
+    return res.status(401).json({ error: 'Missing signature' });
+  }
+
+  try {
+    // Use req.rawBody captured before express.json() consumed the stream
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+    const expected = createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    const provided = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
+    const expectedBuf = Buffer.from(expected, 'hex');
+    const providedBuf = Buffer.from(provided, 'hex');
+    if (expectedBuf.length !== providedBuf.length || !timingSafeEqual(expectedBuf, providedBuf)) {
+      console.warn('[PcPay webhook] Invalid signature — rejected');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+  } catch (err) {
+    console.warn('[PcPay webhook] Signature check error:', err.message);
+    return res.status(401).json({ error: 'Signature verification failed' });
+  }
+
+  // Parse body from raw bytes (express.json() may or may not have run depending on content-type)
   let body;
   try {
-    body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
+    body = req.rawBody ? JSON.parse(req.rawBody.toString()) : req.body;
   } catch {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
