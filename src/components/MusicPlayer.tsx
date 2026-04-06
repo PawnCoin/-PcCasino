@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { getSoundMuted, getSoundVolume, setSoundMuted, setSoundVolume, subscribeSoundState } from '@/hooks/soundState';
 
 interface Track {
   id: string;
@@ -20,9 +21,6 @@ const tracks: Track[] = [
   { id: '5', title: 'Vegas Lights', artist: 'Neon Collective', duration: 225, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3' },
 ];
 
-const STORAGE_MUTED = 'pcasino_muted';
-const STORAGE_VOLUME = 'pcasino_volume';
-
 export function MusicPlayer() {
   const [isOpen, setIsOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,43 +28,19 @@ export function MusicPlayer() {
   const [progress, setProgress] = useState(0);
   const [audioError, setAudioError] = useState(false);
 
-  // Use the same localStorage keys as the global sound system
-  const [isMuted, setIsMuted] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_MUTED) || 'false'); } catch { return false; }
-  });
-  const [volume, setVolume] = useState(() => {
-    try { return Math.round((parseFloat(localStorage.getItem(STORAGE_VOLUME) || '0.7')) * 100); } catch { return 70; }
-  });
+  // Use the shared singleton store — same source of truth as useSoundEffects
+  const [isMuted, setIsMuted] = useState(getSoundMuted);
+  const [volume, setVolume] = useState(() => Math.round(getSoundVolume() * 100));
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sync mute to global storage so SFX + music share the same mute flag
+  // Subscribe to singleton changes from any other component (e.g. in-game mute toggle)
   useEffect(() => {
-    localStorage.setItem(STORAGE_MUTED, JSON.stringify(isMuted));
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume / 100;
-    }
-  }, [isMuted, volume]);
-
-  // Sync volume to global storage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_VOLUME, String(volume / 100));
-  }, [volume]);
-
-  // Listen for external mute changes (e.g. from useSoundEffects in game components)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_MUTED && e.newValue !== null) {
-        try { setIsMuted(JSON.parse(e.newValue)); } catch {}
-      }
-      if (e.key === STORAGE_VOLUME && e.newValue !== null) {
-        const v = parseFloat(e.newValue);
-        if (!isNaN(v)) setVolume(Math.round(v * 100));
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    return subscribeSoundState(() => {
+      setIsMuted(getSoundMuted());
+      setVolume(Math.round(getSoundVolume() * 100));
+    });
   }, []);
 
   const currentTrackData = tracks[currentTrack];
@@ -260,7 +234,7 @@ export function MusicPlayer() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setIsMuted((m: boolean) => !m)} className="h-8 w-8 flex-shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => setSoundMuted(!getSoundMuted())} className="h-8 w-8 flex-shrink-0">
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </Button>
               <Slider
@@ -268,8 +242,9 @@ export function MusicPlayer() {
                 max={100}
                 step={1}
                 onValueChange={(value) => {
-                  setVolume(value[0]);
-                  setIsMuted(value[0] === 0);
+                  setSoundVolume(value[0] / 100);
+                  if (value[0] === 0) setSoundMuted(true);
+                  else if (isMuted) setSoundMuted(false);
                 }}
                 className="flex-1"
               />

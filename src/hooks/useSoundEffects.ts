@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { getSoundMuted, getSoundVolume, setSoundMuted, setSoundVolume, subscribeSoundState } from './soundState';
 
 type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' | 'click' | 'diceRoll' | 'shuffle' | 'dealerCall' | 'jackpot' | 'ballClick' | 'wheelTick' | 'noMoreBets' | 'ballLand' | 'chipPlace';
 
@@ -738,31 +739,30 @@ function stopAmbientSound() {
 }
 
 export function useSoundEffects() {
-  const [isMuted, setIsMuted] = useState(() => {
-    const stored = localStorage.getItem('pcasino_muted');
-    return stored ? JSON.parse(stored) : false;
-  });
-
-  const [volume, setVolume] = useState(() => {
-    const stored = localStorage.getItem('pcasino_volume');
-    return stored ? parseFloat(stored) : 0.7;
-  });
+  // Read initial state from the shared singleton store
+  const [isMuted, setIsMuted] = useState(getSoundMuted);
+  const [volume, setVolume] = useState(getSoundVolume);
 
   const [ambientEnabled, setAmbientEnabled] = useState(() => {
     try {
       const s = localStorage.getItem('pcasino_game_settings');
       if (s) return JSON.parse(s).casinoSoundEnabled ?? true;
     } catch {}
-    return true; // casino crowd sound on by default
+    return true;
   });
   const ambientControlRef = useRef<{ updateVolume: (v: number) => void } | null>(null);
 
+  // Subscribe to singleton changes so any external update (e.g. from MusicPlayer)
+  // is reflected immediately in this hook instance within the same tab
   useEffect(() => {
-    localStorage.setItem('pcasino_muted', JSON.stringify(isMuted));
-  }, [isMuted]);
+    return subscribeSoundState(() => {
+      setIsMuted(getSoundMuted());
+      setVolume(getSoundVolume());
+    });
+  }, []);
 
+  // Keep Web Audio master gain in sync with mute/volume
   useEffect(() => {
-    localStorage.setItem('pcasino_volume', String(volume));
     if (masterGainNode) {
       const ctx = getAudioContext();
       masterGainNode.gain.setTargetAtTime(isMuted ? 0 : volume, ctx.currentTime, 0.05);
@@ -785,12 +785,18 @@ export function useSoundEffects() {
     };
   }, [ambientEnabled, isMuted]);
 
+  // toggleMute writes to the singleton (notifies all hooks and MusicPlayer)
   const toggleMute = useCallback(() => {
-    setIsMuted((prev: boolean) => !prev);
+    setSoundMuted(!getSoundMuted());
   }, []);
 
   const toggleAmbient = useCallback(() => {
     setAmbientEnabled((prev: boolean) => !prev);
+  }, []);
+
+  // Expose a volume setter that writes through the singleton
+  const setVolumeGlobal = useCallback((val: number) => {
+    setSoundVolume(val);
   }, []);
 
   const playSound = useCallback((type: SoundType) => {
@@ -807,7 +813,7 @@ export function useSoundEffects() {
     toggleMute,
     playSound,
     volume,
-    setVolume,
+    setVolume: setVolumeGlobal,
     ambientEnabled,
     toggleAmbient,
   };
