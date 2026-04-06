@@ -709,69 +709,13 @@ app.get('/api/auth/oauth/discord/callback', async (req, res) => {
   }
 });
 
-// Twitter OAuth (PKCE - OAuth 2.0)
+// Twitter OAuth — Coming Soon (disabled until production-grade PKCE + state handling is implemented)
 app.get('/api/auth/oauth/twitter', (req, res) => {
-  const clientId = process.env.TWITTER_CLIENT_ID;
-  if (!clientId) return res.redirect(`/?oauth_error=twitter_not_configured`);
-  const redirectUri = `${OAUTH_BASE}/api/auth/oauth/twitter/callback`;
-  const state = Math.random().toString(36).slice(2);
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    scope: 'tweet.read users.read offline.access',
-    state,
-    code_challenge: 'challenge',
-    code_challenge_method: 'plain',
-  });
-  res.redirect(`https://twitter.com/i/oauth2/authorize?${params}`);
+  res.redirect(`/?oauth_error=twitter_coming_soon`);
 });
 
-app.get('/api/auth/oauth/twitter/callback', async (req, res) => {
-  const { code, error } = req.query;
-  if (error || !code) return res.redirect(`/?oauth_error=${error || 'cancelled'}`);
-  try {
-    const clientId = process.env.TWITTER_CLIENT_ID;
-    const clientSecret = process.env.TWITTER_CLIENT_SECRET;
-    const redirectUri = `${OAUTH_BASE}/api/auth/oauth/twitter/callback`;
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-    const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${credentials}` },
-      body: new URLSearchParams({ code, grant_type: 'authorization_code', redirect_uri: redirectUri, code_verifier: 'challenge' }),
-    });
-    const tokens = await tokenRes.json();
-    if (!tokens.access_token) throw new Error('No access token');
-    const profileRes = await fetch('https://api.twitter.com/2/users/me?user.fields=name,username', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` }
-    });
-    const profileData = await profileRes.json();
-    const profile = profileData.data;
-    const { default: jwt } = await import('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
-    let user;
-    const existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['twitter', profile.id]);
-    if (existing.rows.length) {
-      user = existing.rows[0];
-      await query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
-    } else {
-      const username = (profile.username || 'Twitter').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
-      const result = await query(
-        `INSERT INTO users (username, social_provider, social_id, email_verified, balance, avatar)
-         VALUES ($1, 'twitter', $2, false, 1000000000, 'wizard') RETURNING *`,
-        [username, profile.id]
-      );
-      user = result.rows[0];
-      await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
-        [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]);
-    }
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
-    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
-    res.redirect(`/?oauth_token=${token}&oauth_provider=twitter`);
-  } catch (err) {
-    console.error('Twitter OAuth error:', err);
-    res.redirect(`/?oauth_error=twitter_failed`);
-  }
+app.get('/api/auth/oauth/twitter/callback', (req, res) => {
+  res.redirect(`/?oauth_error=twitter_coming_soon`);
 });
 
 // ---- Socket.io events ----
