@@ -24,3 +24,9 @@ id = "n035q8_nMSqh1wvJ0_go5"
 uri = "file://public/logos/game-darts.png"
 type = "image"
 title = "darts game card"
+
+[[generated]]
+id = "S7gmVeUsHFMFyjVFHcn6-"
+uri = "file://public/images/adult-menu-banner.png"
+type = "image"
+title = "generated_image"

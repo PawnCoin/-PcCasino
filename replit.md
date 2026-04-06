@@ -9,8 +9,17 @@ Texas Hold'em Poker, Blackjack, Roulette, Craps, Spanish 21, Spades (Elite Editi
 - **Sports Gambling card** → links to WeParlay Inc. (external, opens in new tab)
 - **Adult V.I.P. Area** → age-gated 18+ exclusive lounge with all games at higher limits. Component: `src/components/VipArea.tsx`
 
-### Multiplayer
-- `MultiplayerLobby.tsx` — modal with live table browsing, create/join tables, game filters. Accessible via Multiplayer button in the nav bar.
+### Navigation Menu
+- **WeParlay.io image button** — `/public/images/weparlay-menu.png` — links externally to `weparlay.io`, shows the WeParlay branded image
+- **18+ VIP image button** — `/public/images/adult-menu-banner.png` — AI-generated dark luxury adult gaming banner
+
+### Real Multiplayer (Socket.io)
+- **Backend server**: `server/index.js` — Express + Socket.io on port 3001. Manages real-time rooms, players, chat, reactions, game state sync.
+- `src/lib/socket.ts` — Frontend socket client. Functions: `identifyPlayer`, `createRoom`, `joinRoom`, `leaveRoom`, `sendChatMessage`, `sendReaction`, `sendGameAction`, `syncGameState`, `startGame`, `endGame`, `updateBalance`.
+- `MultiplayerLobby.tsx` — Live modal with real socket connections. Shows real rooms from server, create/join with callbacks. Filters by game, name, min bet.
+- `GameRoom.tsx` — Floating in-game panel: live player list, ready state, emoji reactions (float animation), chat, leave room.
+- Vite proxies `/socket.io` → port 3001 for seamless dev connection.
+- Both servers run concurrently via `concurrently` in the `dev` npm script.
 
 ### Casino Environment
 - `CasinoBackground.tsx` — fixed-position canvas renderer. Supports 3 perspective modes: **Overview**, **3rd Person**, **1st Person** (switch via floating toggle in bottom-right corner). Also supports `videoUrl` prop for streaming an Unreal Engine environment as background video.

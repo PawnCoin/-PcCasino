@@ -24,6 +24,7 @@ import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
 import { DominoesGame } from '@/components/games/DominoesGame';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
+import { GameRoom } from '@/components/GameRoom';
 import { VipArea } from '@/components/VipArea';
 import { GlobalGameProvider } from '@/contexts/GlobalGameContext';
 import { CasinoBackground } from '@/components/CasinoBackground';
@@ -68,6 +69,7 @@ function App() {
   const [showVappTV, setShowVappTV] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showLobby, setShowLobby] = useState(false);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
 
@@ -831,11 +833,27 @@ function App() {
         isOpen={showLobby}
         onClose={() => setShowLobby(false)}
         onJoinTable={(tableId, game) => {
-          toast.success(`Joined table ${tableId}`);
+          setActiveRoomId(tableId);
+          toast.success(`Joined table — loading ${game}!`);
           setCurrentView(game);
         }}
         userBalance={user?.balance || 0}
+        username={user?.username || 'Player'}
+        userId={user?.id}
       />
+
+      {/* Live Game Room Panel (shows when in a multiplayer room) */}
+      {activeRoomId && currentView !== 'lobby' && (
+        <GameRoom
+          roomId={activeRoomId}
+          username={user?.username || 'Player'}
+          userId={user?.id}
+          onLeave={() => {
+            setActiveRoomId(null);
+            setCurrentView('lobby');
+          }}
+        />
+      )}
 
       {/* Quick Action Buttons */}
       {currentView === 'lobby' && (

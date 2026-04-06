@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
@@ -72,16 +72,14 @@ export function Navigation({
             </Tooltip>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-5">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <a href="#games-section" className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium">
                     Games
                   </a>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Browse all casino games</p>
-                </TooltipContent>
+                <TooltipContent side="bottom"><p>Browse all casino games</p></TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -90,19 +88,78 @@ export function Navigation({
                     Leaderboard
                   </a>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>View top players & rankings</p>
-                </TooltipContent>
+                <TooltipContent side="bottom"><p>View top players & rankings</p></TooltipContent>
               </Tooltip>
 
+              {/* WeParlay.io - Image Menu Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <a href="#weparlay" className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium">
-                    Sports
+                  <a
+                    href="https://weparlay.io"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 group relative"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div className="relative overflow-hidden rounded-lg transition-all group-hover:scale-105"
+                      style={{
+                        width: 110,
+                        height: 36,
+                        border: '1px solid rgba(212,175,55,0.5)',
+                        boxShadow: '0 0 12px rgba(212,175,55,0.2)',
+                      }}>
+                      <img
+                        src="/images/weparlay-menu.png"
+                        alt="WeParlay.io"
+                        className="w-full h-full object-cover object-center transition-transform group-hover:scale-110"
+                        style={{ filter: 'brightness(0.9) saturate(1.1)' }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.35)' }}>
+                        <span className="font-bold text-xs text-[#D4AF37] drop-shadow-lg tracking-wide">WeParlay.io</span>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3 h-3 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity absolute -top-1 -right-1" />
                   </a>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p>Sports betting & WeParlay</p>
+                  <p>Sports Betting on WeParlay.io</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* 18+ Adult Section */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href="#weparlay"
+                    className="flex items-center gap-1.5 group relative"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div className="relative overflow-hidden rounded-lg transition-all group-hover:scale-105"
+                      style={{
+                        width: 88,
+                        height: 36,
+                        border: '1px solid rgba(147,51,234,0.5)',
+                        boxShadow: '0 0 12px rgba(147,51,234,0.2)',
+                      }}>
+                      <img
+                        src="/images/adult-menu-banner.png"
+                        alt="18+ VIP"
+                        className="w-full h-full object-cover object-center transition-transform group-hover:scale-110"
+                        style={{ filter: 'brightness(0.8) saturate(1.2)' }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.5)' }}>
+                        <span className="font-bold text-xs tracking-wider"
+                          style={{ color: '#d8b4fe', textShadow: '0 0 8px rgba(147,51,234,0.8)' }}>
+                          18+ VIP
+                        </span>
+                      </div>
+                    </div>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>VIP Adult Gaming • 18+ Only</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -116,9 +173,7 @@ export function Navigation({
                     Rewards
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Claim bonuses & daily rewards</p>
-                </TooltipContent>
+                <TooltipContent side="bottom"><p>Claim bonuses & daily rewards</p></TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -137,18 +192,14 @@ export function Navigation({
                     Multiplayer
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Join or create live multiplayer tables</p>
-                </TooltipContent>
+                <TooltipContent side="bottom"><p>Join or create live multiplayer tables</p></TooltipContent>
               </Tooltip>
-
             </div>
 
             {/* Right Side */}
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
                 <>
-                  {/* Balance Display - Clickable */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button 
@@ -169,12 +220,9 @@ export function Navigation({
                         <BarChart3 className="w-4 h-4 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Click for financial options & statistics</p>
-                    </TooltipContent>
+                    <TooltipContent side="bottom"><p>Click for financial options & statistics</p></TooltipContent>
                   </Tooltip>
 
-                  {/* Wallet Connect Button */}
                   {!user?.walletAddress && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -188,9 +236,7 @@ export function Navigation({
                           Link Wallet
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Connect crypto wallet for deposits/withdrawals</p>
-                      </TooltipContent>
+                      <TooltipContent side="bottom"><p>Connect crypto wallet</p></TooltipContent>
                     </Tooltip>
                   )}
 
@@ -214,9 +260,7 @@ export function Navigation({
                           <ChevronDown className="w-4 h-4 text-[#C0C0C0]" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Account menu & settings</p>
-                      </TooltipContent>
+                      <TooltipContent side="bottom"><p>Account menu & settings</p></TooltipContent>
                     </Tooltip>
 
                     {showUserDropdown && (
@@ -231,9 +275,9 @@ export function Navigation({
                         <div className="p-4 border-b border-[#5D4037]/30">
                           <div className="flex items-center gap-3">
                             <div className="rounded-full overflow-hidden" style={{ width: 44, height: 44 }}>
-                            <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
-                          </div>
-                          <div>
+                              <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
+                            </div>
+                            <div>
                               <div className="font-bold text-white">{user?.username}</div>
                               {user?.email && (
                                 <div className="text-xs text-[#808080]">{user.email}</div>
@@ -309,9 +353,7 @@ export function Navigation({
                         Wallet
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Connect with MetaMask, Phantom, etc.</p>
-                    </TooltipContent>
+                    <TooltipContent side="bottom"><p>Connect with MetaMask, Phantom, etc.</p></TooltipContent>
                   </Tooltip>
 
                   <Tooltip>
@@ -325,9 +367,7 @@ export function Navigation({
                         LOGIN
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Login with Google, Twitter, Discord, or Telegram</p>
-                    </TooltipContent>
+                    <TooltipContent side="bottom"><p>Login with Google, Twitter, Discord, or Telegram</p></TooltipContent>
                   </Tooltip>
                 </div>
               )}
@@ -360,13 +400,55 @@ export function Navigation({
                 >
                   Leaderboard
                 </a>
-                <a 
-                  href="#weparlay" 
-                  className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors"
+
+                {/* Mobile WeParlay image button */}
+                <a
+                  href="https://weparlay.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg overflow-hidden"
                   onClick={() => setIsMenuOpen(false)}
+                  style={{ border: '1px solid rgba(212,175,55,0.4)' }}
                 >
-                  Sports
+                  <div className="relative h-14 rounded-lg overflow-hidden">
+                    <img
+                      src="/images/weparlay-menu.png"
+                      alt="WeParlay.io"
+                      className="w-full h-full object-cover object-center"
+                      style={{ filter: 'brightness(0.85)' }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center gap-2"
+                      style={{ background: 'rgba(0,0,0,0.45)' }}>
+                      <span className="font-bold text-[#D4AF37] text-base tracking-wide">WeParlay.io Sports Betting</span>
+                      <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
+                    </div>
+                  </div>
                 </a>
+
+                {/* Mobile 18+ VIP image button */}
+                <a
+                  href="#weparlay"
+                  className="p-2 rounded-lg overflow-hidden"
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{ border: '1px solid rgba(147,51,234,0.4)' }}
+                >
+                  <div className="relative h-12 rounded-lg overflow-hidden">
+                    <img
+                      src="/images/adult-menu-banner.png"
+                      alt="18+ VIP"
+                      className="w-full h-full object-cover object-center"
+                      style={{ filter: 'brightness(0.7)' }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center"
+                      style={{ background: 'rgba(0,0,0,0.55)' }}>
+                      <span className="font-bold text-sm tracking-widest"
+                        style={{ color: '#d8b4fe', textShadow: '0 0 10px rgba(147,51,234,0.8)' }}>
+                        🔞 18+ VIP ADULT GAMING
+                      </span>
+                    </div>
+                  </div>
+                </a>
+
                 <button 
                   onClick={() => { onShowRewards(); setIsMenuOpen(false); }}
                   className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors text-left"
