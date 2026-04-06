@@ -5,12 +5,29 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import type { Transaction } from '@/types';
+import { authApi, getToken } from '@/lib/api';
+import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 
 interface UserProfileProps {
   isOpen: boolean;
   onClose: () => void;
-  user: { id: string; username: string; email?: string; walletAddress?: string; balance: number; avatar: string } | null;
+  user: {
+    id: string;
+    username: string;
+    email?: string;
+    walletAddress?: string;
+    balance: number;
+    avatar: string;
+    vipTier?: string;
+    totpEnabled?: boolean;
+    selfExcluded?: boolean;
+    dailyLossLimit?: number;
+    dailyDepositLimit?: number;
+    emailVerified?: boolean;
+  } | null;
   transactions: Transaction[];
+  avatarDef?: AvatarDef;
   onShowDeposit: () => void;
   onShowWithdraw: () => void;
   onShowReferral: () => void;
@@ -151,69 +168,33 @@ function ProvablyFairSection() {
   );
 }
 
-export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit, onShowWithdraw, onShowReferral, onShowTournaments, onShowLegal, onShowDispute }: UserProfileProps) {
+export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, onShowDeposit, onShowWithdraw, onShowReferral, onShowTournaments, onShowLegal, onShowDispute }: UserProfileProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [copied, setCopied] = useState(false);
   const [show2FASetup, setShow2FASetup] = useState(false);
-  const [twoFAEnabled, setTwoFAEnabled] = useState(() => localStorage.getItem('pcasino_2fa_enabled') === 'true');
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
   const [twoFACode, setTwoFACode] = useState('');
-  const [twoFASecret] = useState('JBSWY3DPEHPK3PXP');
-  const [dailyLimit, setDailyLimit] = useState(() => Number(localStorage.getItem('pcasino_daily_limit') || 0));
-  const [selfExclusion, setSelfExclusion] = useState(() => localStorage.getItem('pcasino_self_exclusion') || '');
+  const [twoFASecret, setTwoFASecret] = useState('');
+  const [twoFAOtpauth, setTwoFAOtpauth] = useState('');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [showDisable2FA, setShowDisable2FA] = useState(false);
+  const [disable2FACode, setDisable2FACode] = useState('');
+  const [dailyLimit, setDailyLimit] = useState(0);
+  const [selfExclusion, setSelfExclusion] = useState('');
+  const [selfExclusionLoading, setSelfExclusionLoading] = useState(false);
   const [notifications, setNotifications] = useState(() => JSON.parse(localStorage.getItem('pcasino_notifications') || '{"wins":true,"bonuses":true,"news":false,"tournaments":true}'));
   const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
   const [kycStatus] = useState<'unverified' | 'pending' | 'verified'>('unverified');
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && user) {
       const stored = localStorage.getItem(GAME_HISTORY_KEY);
       setGameHistory(stored ? JSON.parse(stored) : []);
+      setTwoFAEnabled(!!user.totpEnabled);
+      setSelfExclusion(user.selfExcluded ? 'Active' : '');
+      setDailyLimit(user.dailyLossLimit || 0);
     }
-  }, [isOpen]);
-
-  if (!user) return null;
-
-  const totalWon = transactions.filter(t => t.type === 'win').reduce((s, t) => s + t.amount, 0);
-  const totalBet = transactions.filter(t => t.type === 'bet').reduce((s, t) => s + t.amount, 0);
-  const totalDeposited = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0);
-  const totalWithdrawn = transactions.filter(t => t.type === 'withdraw').reduce((s, t) => s + t.amount, 0);
-  const winRate = gameHistory.length > 0 ? (gameHistory.filter(g => g.result === 'win').length / gameHistory.length * 100).toFixed(1) : '0';
-  const netProfit = totalWon - totalBet;
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied!');
-  };
-
-  const saveLimit = () => {
-    localStorage.setItem('pcasino_daily_limit', String(dailyLimit));
-    toast.success('Daily limit saved');
-  };
-
-  const activateSelfExclusion = (period: string) => {
-    setSelfExclusion(period);
-    localStorage.setItem('pcasino_self_exclusion', period);
-    toast.success(`Self-exclusion set for ${period}`);
-  };
-
-  const saveNotifications = (key: string, val: boolean) => {
-    const updated = { ...notifications, [key]: val };
-    setNotifications(updated);
-    localStorage.setItem('pcasino_notifications', JSON.stringify(updated));
-  };
-
-  const tabs: { id: ProfileTab; label: string; icon: typeof User }[] = [
-    { id: 'overview', label: 'Overview', icon: User },
-    { id: 'transactions', label: 'Transactions', icon: History },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'bonuses', label: 'Bonuses', icon: Gift },
-    { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
-    { id: 'limits', label: 'Limits', icon: Lock },
-    { id: 'preferences', label: 'Preferences', icon: Bell },
-    { id: 'provably', label: 'Provably Fair', icon: Eye },
-  ];
+  }, [isOpen, user]);
 
   const sessionStats = useMemo(() => {
     const wins = transactions.filter(t => t.type === 'win');
@@ -233,6 +214,77 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
     const mostProfitable = Object.entries(gameBreakdown).sort((a, b) => (b[1].wins - b[1].bets) - (a[1].wins - a[1].bets))[0];
     return { biggestWin, biggestBet, mostPlayed, mostProfitable, gameBreakdown };
   }, [transactions]);
+
+  if (!user) return null;
+
+  const totalWon = transactions.filter(t => t.type === 'win').reduce((s, t) => s + t.amount, 0);
+  const totalBet = transactions.filter(t => t.type === 'bet').reduce((s, t) => s + t.amount, 0);
+  const totalDeposited = transactions.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0);
+  const totalWithdrawn = transactions.filter(t => t.type === 'withdraw').reduce((s, t) => s + t.amount, 0);
+  const winRate = gameHistory.length > 0 ? (gameHistory.filter(g => g.result === 'win').length / gameHistory.length * 100).toFixed(1) : '0';
+  const netProfit = totalWon - totalBet;
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success('Copied!');
+  };
+
+  const saveLimit = async () => {
+    if (getToken()) {
+      try {
+        await authApi.updateProfile({ dailyLossLimit: dailyLimit });
+        toast.success('Daily loss limit saved');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to save limit');
+      }
+    } else {
+      localStorage.setItem('pcasino_daily_limit', String(dailyLimit));
+      toast.success('Daily limit saved');
+    }
+  };
+
+  const periodToDays: Record<string, number | undefined> = {
+    '24 Hours': 1, '7 Days': 7, '30 Days': 30,
+    '6 Months': 180, '1 Year': 365, 'Permanent': undefined,
+  };
+
+  const activateSelfExclusion = async (period: string) => {
+    setSelfExclusionLoading(true);
+    const days = periodToDays[period];
+    if (getToken()) {
+      try {
+        await authApi.selfExclude(days);
+        setSelfExclusion(period);
+        toast.success(`Self-exclusion set for ${period}. Please contact support to reinstate.`);
+      } catch (err: any) {
+        toast.error(err.message || 'Self-exclusion failed');
+      }
+    } else {
+      setSelfExclusion(period);
+      localStorage.setItem('pcasino_self_exclusion', period);
+      toast.success(`Self-exclusion set for ${period}`);
+    }
+    setSelfExclusionLoading(false);
+  };
+
+  const saveNotifications = (key: string, val: boolean) => {
+    const updated = { ...notifications, [key]: val };
+    setNotifications(updated);
+    localStorage.setItem('pcasino_notifications', JSON.stringify(updated));
+  };
+
+  const tabs: { id: ProfileTab; label: string; icon: typeof User }[] = [
+    { id: 'overview', label: 'Overview', icon: User },
+    { id: 'transactions', label: 'Transactions', icon: History },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'bonuses', label: 'Bonuses', icon: Gift },
+    { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
+    { id: 'limits', label: 'Limits', icon: Lock },
+    { id: 'preferences', label: 'Preferences', icon: Bell },
+    { id: 'provably', label: 'Provably Fair', icon: Eye },
+  ];
 
   const formatAmount = (n: number) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
@@ -269,14 +321,39 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
         <div className="px-6 py-5 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(30,20,10,0.8), rgba(10,10,10,0.8))' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', boxShadow: '0 0 20px rgba(212,175,55,0.3)' }}>
-                {user.avatar || '👤'}
+              {/* Avatar */}
+              <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0"
+                style={{ border: '2px solid rgba(212,175,55,0.5)', boxShadow: '0 0 20px rgba(212,175,55,0.3)' }}>
+                {avatarDef ? (
+                  <AvatarSprite avatar={avatarDef} size={56} style={{ borderRadius: 0 }} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl"
+                    style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
+                    {user.avatar || '👤'}
+                  </div>
+                )}
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-xl font-bold text-white">{user.username}</h2>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: 'rgba(212,175,55,0.2)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' }}>MEMBER</span>
+                  {/* VIP Tier Badge */}
+                  {(() => {
+                    const tier = user.vipTier || 'bronze';
+                    const tierColors: Record<string, { bg: string; color: string; border: string }> = {
+                      bronze:   { bg: 'rgba(205,127,50,0.2)',  color: '#CD7F32', border: 'rgba(205,127,50,0.4)' },
+                      silver:   { bg: 'rgba(192,192,192,0.2)', color: '#C0C0C0', border: 'rgba(192,192,192,0.4)' },
+                      gold:     { bg: 'rgba(212,175,55,0.2)',  color: '#D4AF37', border: 'rgba(212,175,55,0.4)' },
+                      platinum: { bg: 'rgba(229,228,226,0.2)', color: '#E5E4E2', border: 'rgba(229,228,226,0.4)' },
+                      diamond:  { bg: 'rgba(185,242,255,0.2)', color: '#B9F2FF', border: 'rgba(185,242,255,0.5)' },
+                    };
+                    const c = tierColors[tier] || tierColors.bronze;
+                    return (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold uppercase"
+                        style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
+                        {tier} VIP
+                      </span>
+                    );
+                  })()}
                   {kycStatus === 'verified' && <CheckCircle className="w-4 h-4 text-green-400" />}
                 </div>
                 <div className="text-sm text-gray-400 mt-0.5">
@@ -290,6 +367,12 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
                   }}>
                     KYC: {kycStatus.toUpperCase()}
                   </span>
+                  {user.selfExcluded && (
+                    <span className="text-xs px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}>
+                      SELF-EXCLUDED
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -462,21 +545,63 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
 
                   <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <h4 className="font-bold text-white text-sm flex items-center gap-2"><Shield className="w-4 h-4 text-green-400" /> Account Security</h4>
-                    {[
-                      { label: 'Two-Factor Authentication', status: twoFAEnabled ? '2FA Active' : '2FA Off', statusColor: twoFAEnabled ? '#4ade80' : '#f87171', action: () => twoFAEnabled ? (localStorage.removeItem('pcasino_2fa_enabled'), setTwoFAEnabled(false), toast.success('2FA disabled')) : setShow2FASetup(true), actionLabel: twoFAEnabled ? 'Disable' : 'Enable' },
-                      { label: 'Email Verification', status: user.email ? 'Verified' : 'Not Set', statusColor: user.email ? '#4ade80' : '#f87171', action: () => toast.info('Email verification sent'), actionLabel: 'Verify' },
-                      { label: 'KYC Verification', status: kycStatus, statusColor: kycStatus === 'verified' ? '#4ade80' : '#fbbf24', action: () => toast.info('KYC documents required. Contact support.'), actionLabel: 'Verify' },
-                    ].map(item => (
-                      <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                        <div>
-                          <div className="text-sm text-white">{item.label}</div>
-                          <div className="text-xs" style={{ color: item.statusColor }}>{item.status}</div>
-                        </div>
-                        <Button onClick={item.action} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
-                          {item.actionLabel}
-                        </Button>
+                    {/* 2FA Row */}
+                  <div className="flex items-center justify-between py-2 border-b border-white/5">
+                    <div>
+                      <div className="text-sm text-white">Two-Factor Authentication</div>
+                      <div className="text-xs" style={{ color: twoFAEnabled ? '#4ade80' : '#f87171' }}>
+                        {twoFAEnabled ? '2FA Active — extra security enabled' : '2FA Off — recommended to enable'}
                       </div>
-                    ))}
+                    </div>
+                    <Button
+                      disabled={twoFALoading}
+                      onClick={async () => {
+                        if (twoFAEnabled) {
+                          setShowDisable2FA(true);
+                        } else {
+                          setTwoFALoading(true);
+                          try {
+                            if (getToken()) {
+                              const res = await authApi.setup2FA();
+                              setTwoFASecret(res.secret);
+                              setTwoFAOtpauth(res.otpauth);
+                            } else {
+                              setTwoFASecret('JBSWY3DPEHPK3PXP');
+                              setTwoFAOtpauth('');
+                            }
+                            setShow2FASetup(true);
+                          } catch (err: any) {
+                            toast.error(err.message || '2FA setup failed');
+                          }
+                          setTwoFALoading(false);
+                        }
+                      }}
+                      size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
+                      {twoFALoading ? 'Loading...' : twoFAEnabled ? 'Disable' : 'Enable'}
+                    </Button>
+                  </div>
+                  {/* Email Verification */}
+                  <div className="flex items-center justify-between py-2 border-b border-white/5">
+                    <div>
+                      <div className="text-sm text-white">Email Verification</div>
+                      <div className="text-xs" style={{ color: user.emailVerified ? '#4ade80' : '#fbbf24' }}>
+                        {user.emailVerified ? 'Verified' : user.email ? 'Not yet verified' : 'No email linked'}
+                      </div>
+                    </div>
+                    <Button onClick={() => toast.info('Verification email sent. Check your inbox.')} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
+                      {user.emailVerified ? 'Verified ✓' : 'Resend'}
+                    </Button>
+                  </div>
+                  {/* KYC */}
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <div className="text-sm text-white">KYC Verification</div>
+                      <div className="text-xs" style={{ color: kycStatus === 'verified' ? '#4ade80' : '#fbbf24' }}>{kycStatus}</div>
+                    </div>
+                    <Button onClick={() => toast.info('KYC documents required. Contact support.')} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
+                      Verify
+                    </Button>
+                  </div>
                   </div>
 
                   <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -489,20 +614,21 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
                     </div>
                   </div>
 
-                  {show2FASetup && (
+                  {/* 2FA Setup Panel */}
+                  {show2FASetup && twoFASecret && (
                     <div className="p-4 rounded-xl" style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.3)' }}>
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-bold text-white text-sm flex items-center gap-2">
                           <Smartphone className="w-4 h-4 text-blue-400" />
                           Setup 2FA — Authenticator App
                         </h4>
-                        <button onClick={() => setShow2FASetup(false)}><X className="w-4 h-4 text-gray-400" /></button>
+                        <button onClick={() => { setShow2FASetup(false); setTwoFACode(''); }}><X className="w-4 h-4 text-gray-400" /></button>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">Scan this QR code with Google Authenticator or Authy, then enter the 6-digit code to verify.</p>
+                      <p className="text-xs text-gray-400 mb-3">Scan this QR code with Google Authenticator or Authy, then enter the 6-digit code to verify and enable.</p>
                       <div className="flex justify-center mb-3">
                         <div className="p-3 bg-white rounded-xl">
                           <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=otpauth://totp/PcCasino:${encodeURIComponent(user.username)}%3Fsecret=${twoFASecret}%26issuer=PcCasino`}
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(twoFAOtpauth || `otpauth://totp/PcCasino:${user.username}?secret=${twoFASecret}&issuer=PcCasino`)}`}
                             alt="2FA QR Code"
                             className="w-36 h-36"
                           />
@@ -523,22 +649,71 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
                           style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(59,130,246,0.4)', color: 'white' }}
                         />
                       </div>
-                      <Button 
-                        onClick={() => { 
-                          if (twoFACode.length === 6) {
-                            localStorage.setItem('pcasino_2fa_enabled', 'true');
+                      <Button
+                        disabled={twoFALoading}
+                        onClick={async () => {
+                          if (twoFACode.length !== 6) { toast.error('Please enter a 6-digit code'); return; }
+                          setTwoFALoading(true);
+                          try {
+                            if (getToken()) {
+                              await authApi.enable2FA(twoFACode);
+                            }
                             setTwoFAEnabled(true);
                             setShow2FASetup(false);
                             setTwoFACode('');
                             toast.success('2FA enabled! Your account is now more secure.');
-                          } else {
-                            toast.error('Please enter a 6-digit code');
+                          } catch (err: any) {
+                            toast.error(err.message || 'Invalid code. Try again.');
                           }
-                        }} 
-                        className="w-full text-sm" 
+                          setTwoFALoading(false);
+                        }}
+                        className="w-full text-sm"
                         style={{ background: 'rgba(59,130,246,0.3)', color: 'white', border: '1px solid rgba(59,130,246,0.4)' }}
                       >
-                        Verify & Enable 2FA
+                        {twoFALoading ? 'Verifying...' : 'Verify & Enable 2FA'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Disable 2FA Panel */}
+                  {showDisable2FA && (
+                    <div className="p-4 rounded-xl" style={{ background: 'rgba(248,113,113,0.05)', border: '1px solid rgba(248,113,113,0.3)' }}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-white text-sm">Disable 2FA</h4>
+                        <button onClick={() => { setShowDisable2FA(false); setDisable2FACode(''); }}><X className="w-4 h-4 text-gray-400" /></button>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3">Enter your current 6-digit authenticator code to disable 2FA.</p>
+                      <input
+                        type="text"
+                        value={disable2FACode}
+                        onChange={e => setDisable2FACode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="000000"
+                        maxLength={6}
+                        className="w-full px-3 py-2 rounded-lg text-center text-xl font-mono tracking-widest mb-3"
+                        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(248,113,113,0.4)', color: 'white' }}
+                      />
+                      <Button
+                        disabled={twoFALoading}
+                        onClick={async () => {
+                          if (disable2FACode.length !== 6) { toast.error('Enter your 6-digit code'); return; }
+                          setTwoFALoading(true);
+                          try {
+                            if (getToken()) {
+                              await authApi.disable2FA(disable2FACode);
+                            }
+                            setTwoFAEnabled(false);
+                            setShowDisable2FA(false);
+                            setDisable2FACode('');
+                            toast.success('2FA disabled.');
+                          } catch (err: any) {
+                            toast.error(err.message || 'Invalid code');
+                          }
+                          setTwoFALoading(false);
+                        }}
+                        className="w-full text-sm"
+                        style={{ background: 'rgba(248,113,113,0.2)', color: '#f87171', border: '1px solid rgba(248,113,113,0.4)' }}
+                      >
+                        {twoFALoading ? 'Processing...' : 'Confirm Disable 2FA'}
                       </Button>
                     </div>
                   )}
@@ -640,22 +815,23 @@ export function UserProfile({ isOpen, onClose, user, transactions, onShowDeposit
                     <p className="text-xs text-gray-400">Temporarily block yourself from playing for a set period.</p>
                     <div className="grid grid-cols-2 gap-2">
                       {['24 Hours', '7 Days', '30 Days', '6 Months', '1 Year', 'Permanent'].map(period => (
-                        <button key={period} onClick={() => activateSelfExclusion(period)}
-                          className="p-2 rounded-lg text-sm border transition-all hover:bg-red-500/10"
+                        <button key={period}
+                          disabled={selfExclusionLoading || !!selfExclusion}
+                          onClick={() => activateSelfExclusion(period)}
+                          className="p-2 rounded-lg text-sm border transition-all hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
                             background: selfExclusion === period ? 'rgba(248,113,113,0.2)' : 'rgba(255,255,255,0.04)',
                             color: selfExclusion === period ? '#f87171' : '#9ca3af',
                             border: selfExclusion === period ? '1px solid rgba(248,113,113,0.4)' : '1px solid rgba(255,255,255,0.1)',
                           }}>
-                          {selfExclusion === period ? '✓ ' : ''}{period}
+                          {selfExclusionLoading ? '...' : selfExclusion === period ? '✓ ' : ''}{period}
                         </button>
                       ))}
                     </div>
                     {selfExclusion && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-red-400">Self-exclusion active: {selfExclusion}</span>
-                        <button onClick={() => { setSelfExclusion(''); localStorage.removeItem('pcasino_self_exclusion'); toast.success('Self-exclusion removed'); }}
-                          className="text-xs text-gray-400 hover:text-white underline">Remove</button>
+                      <div className="p-3 rounded-lg" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)' }}>
+                        <div className="text-xs text-red-400 font-bold">⛔ Self-exclusion active: {selfExclusion}</div>
+                        <div className="text-xs text-gray-400 mt-1">To reinstate your account, please contact support@pccasino.com</div>
                       </div>
                     )}
                   </div>

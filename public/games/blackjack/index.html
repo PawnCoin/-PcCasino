@@ -1,46 +1,364 @@
-<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blackjack — $Pc Casino</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: linear-gradient(180deg, #0a0a0a 0%, #001a00 100%);
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; font-family: system-ui, sans-serif; color: white;
-    }
-    .card {
-      text-align: center; padding: 60px 40px;
-      border: 1px solid rgba(212,175,55,0.3);
-      border-radius: 20px; background: rgba(0,0,0,0.6);
-      max-width: 480px;
-    }
-    .emoji { font-size: 80px; margin-bottom: 20px; display: block; }
-    h1 { font-size: 2rem; font-weight: 800; color: #D4AF37; margin-bottom: 8px; }
-    p { color: #808080; margin-bottom: 6px; line-height: 1.5; }
-    code { color: #D4AF37; background: rgba(212,175,55,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
-    .step { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-top: 20px; text-align: left; }
-    .step li { color: #A0A0A0; font-size: 0.85rem; margin-bottom: 6px; line-height: 1.4; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <span class="emoji">🃏</span>
-    <h1>Blackjack</h1>
-    <p style="color:#D4AF37; font-size:1.1rem; margin-bottom: 16px;">Game not yet installed</p>
-    <p>Drop the purchased game files into:</p>
-    <p><code>/public/games/blackjack/</code></p>
-    <div class="step">
-      <ol style="padding-left:18px;">
-        <li>Purchase from CodeCanyon (ID: 60207314)</li>
-        <li>Unzip into <code>/public/games/blackjack/</code></li>
-        <li>Patch config with $Pc denominations</li>
-        <li>Insert postMessage bridge in game JS</li>
-        <li>Reload this tab</li>
-      </ol>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      referrerpolicy="no-referrer"
+    />
+    <title>BlackJack</title>
+  </head>
+  <body>
+    <div id="loadingScreen">
+      <button id="playBtn">PLAY</button>
+      <div id="loadingSpinner">
+        <div id="loadingPercent">100%</div>
+      </div>
     </div>
-  </div>
-</body>
+    <div id="game">
+      <div id="musicInfo">
+        <i id="vinyl"></i>
+        <p id="nowPlaying"></p>
+        <button class="changeMusic">
+          <i class="fa-solid fa-backward"></i>
+        </button>
+        <button id="pausePlay">
+          <i class="fa-solid fa-pause" id="musicPause"></i>
+        </button>
+        <button class="changeMusic">
+          <i class="fa-solid fa-forward"></i>
+        </button>
+        <p id="musicTimer"></p>
+      </div>
+      <div id="notification">MAX BET IS 1000</div>
+      <div id="handAlert"></div>
+      <div id="dispenserTexture"></div>
+      <div class="card"></div>
+      <div id="betZone1" class="betZones zones" data-bet="betZone1">
+        <span> PLACE YOUR<br />BETS</span>
+      </div>
+      <div id="pair1" class="pairs zones"><span>PAIRS</span></div>
+      <div id="royal1" class="royal zones"><span>ROYAL MATCH</span></div>
+      <div id="plus231" class="plus23 zones"><span>21+3</span></div>
+      <div id="superSevens1" class="superSevens zones">
+        <span>SUPER 7</span>
+      </div>
+      <div id="betZone2" class="betZones zones" data-bet="betZone2">
+        <span> PLACE YOUR<br />BETS</span>
+      </div>
+      <div id="pair2" class="pairs zones"><span>PAIRS</span></div>
+      <div id="royal2" class="royal zones"><span>ROYAL MATCH</span></div>
+      <div id="plus232" class="plus23 zones"><span>21+3</span></div>
+      <div id="superSevens2" class="superSevens zones">
+        <span>SUPER 7</span>
+      </div>
+      <div id="betZone3" class="betZones zones" data-bet="betZone3">
+        <span> PLACE YOUR<br />BETS</span>
+      </div>
+      <div id="pair3" class="pairs zones"><span>PAIRS</span></div>
+      <div id="royal3" class="royal zones"><span>ROYAL MATCH</span></div>
+      <div id="plus233" class="plus23 zones"><span>21+3</span></div>
+      <div id="superSevens3" class="superSevens zones">
+        <span>SUPER 7</span>
+      </div>
+
+      <div class="cardScore" id="cardScore1">0</div>
+      <div class="cardScore" id="cardScore1Split"></div>
+      <div class="cardScore" id="cardScore2">0</div>
+      <div class="cardScore" id="cardScore2Split"></div>
+      <div class="cardScore" id="cardScore3">0</div>
+      <div class="cardScore" id="cardScore3Split"></div>
+      <div class="cardScore" id="dealerScore">0</div>
+      <div id="scoreInfo1" class="scoreInfo mainInfo"></div>
+      <div id="scoreInfo2" class="scoreInfo mainInfo"></div>
+      <div id="scoreInfo3" class="scoreInfo mainInfo"></div>
+      <div id="pairInfo1" class="scoreInfo pairInfo"></div>
+      <div id="pairInfo3" class="scoreInfo pairInfo"></div>
+      <div id="pairInfo2" class="scoreInfo pairInfo"></div>
+      <div id="splitInfo1" class="scoreInfo splitInfo"></div>
+      <div id="splitInfo2" class="scoreInfo splitInfo"></div>
+      <div id="splitInfo3" class="scoreInfo splitInfo"></div>
+      <div id="plus23Info1" class="scoreInfo plus21Info"></div>
+      <div id="plus23Info2" class="scoreInfo plus21Info"></div>
+      <div id="plus23Info3" class="scoreInfo plus21Info"></div>
+      <div id="royalInfo1" class="scoreInfo royalInfo"></div>
+      <div id="royalInfo2" class="scoreInfo royalInfo"></div>
+      <div id="royalInfo3" class="scoreInfo royalInfo"></div>
+      <div id="superSevenInfo1" class="scoreInfo superSevenInfo"></div>
+      <div id="superSevenInfo2" class="scoreInfo superSevenInfo"></div>
+      <div id="superSevenInfo3" class="scoreInfo superSevenInfo"></div>
+      <button class="chips chipActive" id="chip1" data-bet="1"></button>
+      <button class="chips" id="chip5" data-bet="5"></button>
+      <button class="chips" id="chip10" data-bet="10"></button>
+      <button class="chips" id="chip25" data-bet="25"></button>
+      <button class="chips" id="chip100" data-bet="100"></button>
+      <button class="chips" id="chip1000" data-bet="1000"></button>
+      <div id="playerMenu">
+        <div id="helpArea">
+          <button id="settingsBtn"></button>
+          <button id="helpBtn"></button>
+        </div>
+        <div id="buttonsArea">
+          <button class="buttonAreaBtns inactiveBtn" id="dealBtn">
+            <p>DEAL</p>
+          </button>
+          <button class="buttonAreaBtns inactiveBtn" id="undoBtn">
+            <p>UNDO</p>
+          </button>
+          <button class="buttonAreaBtns" id="newGameBtn">
+            <p>NEW GAME</p>
+          </button>
+          <button class="buttonAreaBtns" id="rebetBtn">
+            <p>REBET</p>
+          </button>
+          <button class="buttonAreaBtns" id="rebetDealBtn">
+            <p>REBET & DEAL</p>
+          </button>
+
+          <button class="buttonAreaBtns" id="hitBtn"><p>HIT</p></button>
+          <button class="buttonAreaBtns" id="splitBtn" onclick="split()">
+            <p>SPLIT</p>
+          </button>
+          <button class="buttonAreaBtns" id="standBtn"><p>STAND</p></button>
+          <button class="buttonAreaBtns" id="insuranceBtn">
+            <p>INSURANCE</p>
+          </button>
+          <button class="buttonAreaBtns" id="noInsuranceBtn">
+            <p>NO INSURANCE</p>
+          </button>
+          <button class="buttonAreaBtns" id="surrenderBtn">
+            <p>SURRENDER</p>
+          </button>
+          <button class="buttonAreaBtns" id="doubleBtn">
+            <p>DOUBLE DOWN</p>
+          </button>
+          <button class="buttonAreaBtns inactiveBtn" id="clearAllBtn">
+            <p>CLEAR ALL BETS</p>
+          </button>
+          <button class="buttonAreaBtns" id="evenMoneyBtn">
+            <p>EVEN MONEY</p>
+          </button>
+          <button class="buttonAreaBtns" id="declineEvenMoneyBtn">
+            <p>NO EVEN MONEY</p>
+          </button>
+        </div>
+        <div id="betInfoArea">
+          <div class="playerInfo">
+            <p>BALANCE</p>
+            <div class="numbersInfo" id="playerCashInfo">1,000 $Pc</div>
+          </div>
+          <div class="playerInfo">
+            <p>TOTAL BET</p>
+            <div class="numbersInfo" id="totalBet">0 $Pc</div>
+          </div>
+          <div class="playerInfo">
+            <p>LAST WIN</p>
+            <div class="numbersInfo" id="totalWin">0 $Pc</div>
+          </div>
+        </div>
+      </div>
+      <div id="settingsWindow">
+        <button class="closeWindow">×</button>
+        <div id="soundSettings">
+          <div>
+            <label for="musicVolume" class="soundText"
+              ><i class="fa-solid fa-music"></i> Music volume</label
+            >
+            <input
+              type="range"
+              id="musicVolume"
+              name="musicVolume"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.1"
+            />
+          </div>
+
+          <div>
+            <label for="soundFx" class="soundText"
+              ><i class="fa-solid fa-volume-high"></i> Fx volume</label
+            >
+            <input
+              type="range"
+              id="soundFx"
+              name="soundFX"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.5"
+            />
+          </div>
+
+          <div>
+            <label for="deckQuantity" class="soundText">
+              <i class="fa-solid fa-layer-group"></i> Number of decks:
+              <span id="deckNum">6</span>
+            </label>
+            <input
+              type="range"
+              id="deckQuantity"
+              name="deckQuantity"
+              min="2"
+              max="8"
+              step="1"
+              value="6"
+            />
+          </div>
+        </div>
+      </div>
+      <div id="helpWindow">
+        <button class="closeWindow">×</button>
+        <div class="help__scroll">
+          <div class="blackjack-guide">
+            <h2>Main bet - payouts</h2>
+            <div class="main-payouts">
+              <h4>Payouts</h4>
+              <ul>
+                <li>Blackjack (natural 21 in 2 cards) - 3:2</li>
+                <li>Regular win (non-BJ) - 1:1</li>
+                <li>Push - bet returned</li>
+                <li>Lose / Bust - bet lost</li>
+              </ul>
+              <p class="note">
+                All monetary settlements are calculated in whole dollars
+                (fractions round down).
+              </p>
+            </div>
+
+            <div class="main-actions">
+              <h2>Actions</h2>
+
+              <h4>Double</h4>
+              <ul>
+                <li>Increase your main bet by the same amount.</li>
+                <li>
+                  Receive exactly one additional card (no further hits on that
+                  hand).
+                </li>
+              </ul>
+              <h4>Surrender</h4>
+              <ul>
+                <li>
+                  Late surrender: reclaim ½ of your main bet and forfeit the
+                  hand.
+                </li>
+                <li>
+                  Settles immediately; amount rounded down to whole dollars.
+                </li>
+              </ul>
+              <h4>Insurance &amp; Even Money</h4>
+              <ul>
+                <li>
+                  Insurance (dealer shows Ace): side stake equals ½ of your main
+                  bet (rounded down); pays 2:1 only if the dealer has Blackjack.
+                </li>
+                <li>
+                  Even Money (you have Blackjack vs dealer Ace): take an
+                  immediate 1:1 payout; the hand ends.
+                </li>
+              </ul>
+              <h4>Split</h4>
+              <ul>
+                <li>
+                  Available with two cards of the same rank; creates two hands
+                  and requires an additional bet equal to the main bet.
+                </li>
+                <li>
+                  Aces: each split Ace receives one card only; no further hits
+                  on those hands.
+                </li>
+                <li>
+                  No re-splits: you cannot split again after an initial split,
+                  even if a split hand becomes a pair.
+                </li>
+                <li>
+                  21 achieved on a split hand is not Blackjack; paid as a
+                  regular 21.
+                </li>
+              </ul>
+            </div>
+
+            <h2>Side bets - exact payouts</h2>
+
+            <div class="bet bet-perfect-pairs">
+              <h4>PERFECT PAIRS - PAYS</h4>
+              <ul>
+                <li>Perfect Pair (same rank &amp; same suit) - 25 to 1</li>
+                <li>
+                  Colored Pair (same rank &amp; same color:
+                  <span style="color: red">&hearts;&diams;</span> or
+                  <span style="color: gray">&clubs;&spades;</span>) - 12 to 1
+                </li>
+                <li>Mixed Pair (same rank, different colors) - 5 to 1</li>
+              </ul>
+              <p class="note">Evaluated on your first two cards only.</p>
+            </div>
+
+            <div class="bet bet-royal-match">
+              <h4>ROYAL MATCH - PAYS</h4>
+              <ul>
+                <li>Royal Match (King + Queen suited) - 25 to 1</li>
+                <li>Any Suited (any two suited cards) - 5 to 1</li>
+              </ul>
+              <p class="note">Evaluated on your first two cards only.</p>
+            </div>
+
+            <div class="bet bet-21plus3">
+              <h4>21 + 3 - PAYS</h4>
+              <p class="subtitle">
+                (Your first two cards + dealer&rsquo;s up-card)
+              </p>
+              <ul>
+                <li>Suited Trips - 100 to 1</li>
+                <li>Straight Flush - 40 to 1</li>
+                <li>Three of a Kind - 30 to 1</li>
+                <li>Straight - 10 to 1</li>
+                <li>Flush - 5 to 1</li>
+              </ul>
+              <p class="note">Ace may count as 1 or 14 for straights.</p>
+            </div>
+
+            <div class="bet bet-super-sevens">
+              <h4>SUPER SEVENS - PAYS</h4>
+              <p class="subtitle">
+                (Counts your cards plus the dealer&rsquo;s up-card)
+              </p>
+              <ul>
+                <li>One 7 - 3 to 1</li>
+                <li>Two 7s (unsuited) - 50 to 1</li>
+                <li>Two 7s (suited) - 100 to 1</li>
+                <li>Three+ 7s (unsuited) - 500 to 1</li>
+                <li>Three+ 7s (all same suit) - 5000 to 1</li>
+              </ul>
+            </div>
+
+            <div class="bet-notes">
+              <h4>Side-bet limits &amp; timing</h4>
+              <ul>
+                <li>Side bets are available only with a main bet.</li>
+                <li>
+                  Max main bet $1000; max per side bet $100 (per seat, per
+                  type).
+                </li>
+                <li>
+                  All side bets settle immediately after the initial deal.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script defer type="text/javascript" src="script.js"></script>
 </html>

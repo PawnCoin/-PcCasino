@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "UjfP2XNL4n_gQJzS8u2Ob"
@@ -36,3 +35,9 @@ id = "Eb76qjEV0qFAJ7Bju6Zck"
 uri = "file://public/logos/game-horse-racing.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "4pcjoHNnF-nB3rJy2CMYs"
+uri = "file://CASINO_AUDIT.md"
+type = "text"
+title = "$Pc Casino — Professional Audit Report"

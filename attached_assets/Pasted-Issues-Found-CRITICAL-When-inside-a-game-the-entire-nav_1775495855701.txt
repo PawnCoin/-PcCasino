@@ -1,0 +1,94 @@
+Issues Found
+
+* [CRITICAL] When inside a game, the entire nav bar disappears. No way to quickly switch games or check balance from in-game header without going back to lobby.
+* [MINOR] "WeParlay.io" button in nav takes you to an external site — no confirmation dialog.
+* [MINOR] "18+ VIP" button has no visible action when clicked by non-VIP users.
+
+2. AUTHENTICATION
+Issues Found
+* [CRITICAL] Social logins (Google, Twitter, Discord, Telegram) use hardcoded mock data with fake emails. Real OAuth integration is missing. These do create accounts but with dummy email addresses.
+* [MODERATE] JWT_SECRET falls back to a hardcoded insecure value 'pcasino-secret-jwt-key-2024' when JWT_SECRET env var is not set.
+* [MODERATE] Email verification is wired up but SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured, so verification/welcome emails will fail silently.
+
+3. DATABASE
+Issues Found
+* [FIXED] Database tables were not automatically initialized. Added auto-creation of all required tables on server startup:
+    * users, deposit_requests, withdrawal_requests, transactions, game_history, notifications, user_sessions
+* [NOTE] DATABASE_URL is configured via environment variables (pointing to Replit's built-in PostgreSQL). Ready for production credentials.
+
+4. GAMES
+4a. Poker (Texas Hold'em) — React Native
+* [MISSING] No sound effects during gameplay (dealing cards, chip clinking, win jingle).
+* [MISSING] Hand history / replay feature.
+* [MODERATE] No anti-collusion protection in multiplayer rooms.
+4b. Blackjack — HTML5 Embedded
+* [MISSING] Sound: The HTML5 game has its own sounds but they may be blocked by browser autoplay policies.
+4c. French Roulette — HTML5 Embedded (at /games/roulette/)
+* [MISSING] Sound may be affected by browser autoplay policies.
+4d. Craps — HTML5 Embedded
+* [CHECKED] No dollar-sign currency labels found in craps game — uses internal casino_cash variable mapped from URL balance param. Clean.
+4e. Horse Racing — HTML5 Embedded
+* [CHECKED] Game loads correctly from /games/horse-racing/index.html.
+* [NOTE] Internal chip values array [1, 5, 10, 25, 50, 100] — these are relative to the passed balance, not USD.
+4f. Slots — React Native
+* [MISSING] No celebration animations or sounds on jackpot/big win.
+* [MISSING] No payout table / rules overlay accessible in-game.
+4g. Spades — React Native
+* [MISSING] Sound effects missing.
+4h. Bingo 75-Ball — React Native
+* [MISSING] No automated ball calling sound / announcer.
+4i. Dominoes — React Native
+* [MISSING] Tile click sounds / draw sounds missing.
+4j. Pool Table
+* [STUB] "Coming Soon" placeholder. No game implemented.
+4k. Darts
+* [STUB] "Coming Soon" placeholder. No game implemented.
+4l. Sports Betting (Sportsbook)
+* [MODERATE] Sportsbook UI exists but uses mock/simulated odds data. No real sports data feed connected.
+* [MISSING] Real sports API key needed (SPORTS_API_KEY).
+
+5. CHIP CONSISTENCY
+Issues Found
+* [NOTE] HTML5 embedded games (Blackjack, Roulette, Craps, Horse Racing) have their own internal chip graphics that cannot be replaced without rebuilding those games. The balance figures are synced correctly.
+
+6. CURRENCY / $Pc LABELING
+Issues Found & Fixed
+* [FIXED] Blackjack HTML: $1.000, $0, $0 → 1,000 $Pc, 0 $Pc, 0 $Pc
+* [FIXED] Blackjack script.js: All '$' + value patterns → value + ' $Pc'
+* [FIXED] Roulette script.js: All trailing $ in template literals → $Pc
+* [ACCEPTABLE] LegalPages KYC thresholds still reference USD (e.g., "withdrawals over $2,000 USD equivalent") — this is correct regulatory language.
+* [GOOD] All React components, toasts, dialogs, and balance displays use $Pc.
+* [GOOD] Live ticker at bottom of homepage uses $Pc.
+* [GOOD] Leaderboard, winners feed, wallet all display $Pc.
+
+7. WALLET / FINANCIAL SYSTEM
+Issues Found
+* [CRITICAL] Deposit address is hardcoded to 0x742d35Cc6634C0532925a3b8D4C9db96590b8f3a in both payments-routes.js and App.tsx. Real deposit address should be set via DEPOSIT_WALLET_ADDRESS env var (already wired in payments-routes.js, but App.tsx shows the hardcoded address).
+* [MODERATE] PcPay integration config exists (/api/pcpayments/config) 
+* [MISSING] No real-time payment confirmation — users must wait for admin manual approval.
+
+8. MULTIPLAYER
+Issues Found
+* [MODERATE] No persistent room state after server restart (in-memory only).
+* [MODERATE] No rate limiting on chat — potential spam vulnerability.
+* [MISSING] No spectator mode for active game rooms.
+
+9. LEADERBOARD & REWARDS
+Issues Found
+* [MODERATE] Leaderboard data is mostly in-memory mock data. Real players aren't automatically added when they win — only if their username matches an existing entry.
+* [MODERATE] Daily bonus (50M $Pc) resets on page refresh — not persisted to DB.
+* [MISSING] No VIP cashback system running automatically.
+* [MISSING] No email notification when tournament starts.
+
+10. VISUAL & UI
+Issues Found
+* [MINOR] The VappTV player component exists but no streams are configured.
+* [MISSING] No mobile hamburger menu accessible when inside a game view (nav is hidden in-game).
+* [MISSING] No loading spinner between game transitions.
+
+11. SOUND
+Issues Found
+* [MISSING] No ambient casino background music (the music player icon exists but needs audio sources).
+* [MISSING] No chip sounds in React-based games (Poker, Slots, Bingo, Spades, Dominoes).
+* [MISSING] No win celebration sound effects.
+* [NOTE] HTML5 games (Blackjack, Roulette, Craps, Horse Racing) have their own internal sounds but may be blocked by browser autoplay policy without a user interaction event.

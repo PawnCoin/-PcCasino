@@ -21,24 +21,12 @@ function nameToAvatarIdx(name: string): number {
   return Math.abs(h) % ALL_AVATARS.length;
 }
 
-const FALLBACK_LEADERS: LeaderboardPlayer[] = [
-  { rank: 1, id: 'u1', username: 'HighRoller_King', avatarIdx: 0, balance: 2450000, totalWon: 8900000, winStreak: 12, favoriteGame: 'Poker', gamesPlayed: 342 },
-  { rank: 2, id: 'u2', username: 'VegasQueen', avatarIdx: 5, balance: 1890000, totalWon: 6200000, winStreak: 8, favoriteGame: 'Blackjack', gamesPlayed: 289 },
-  { rank: 3, id: 'u3', username: 'LuckyAce', avatarIdx: 10, balance: 1560000, totalWon: 4800000, winStreak: 15, favoriteGame: 'Bingo', gamesPlayed: 415 },
-  { rank: 4, id: 'u4', username: 'CryptoWhale', avatarIdx: 15, balance: 1230000, totalWon: 3500000, winStreak: 5, favoriteGame: 'Roulette', gamesPlayed: 198 },
-  { rank: 5, id: 'u5', username: 'DiamondHands', avatarIdx: 20, balance: 980000, totalWon: 2800000, winStreak: 7, favoriteGame: 'Craps', gamesPlayed: 267 },
-  { rank: 6, id: 'u6', username: 'NightOwl', avatarIdx: 3, balance: 850000, totalWon: 2100000, winStreak: 4, favoriteGame: 'Poker', gamesPlayed: 312 },
-  { rank: 7, id: 'u7', username: 'RoyalFlush', avatarIdx: 8, balance: 720000, totalWon: 1800000, winStreak: 9, favoriteGame: 'Poker', gamesPlayed: 188 },
-  { rank: 8, id: 'u8', username: 'JackpotHunter', avatarIdx: 13, balance: 650000, totalWon: 1500000, winStreak: 3, favoriteGame: 'Slots', gamesPlayed: 502 },
-  { rank: 9, id: 'u9', username: 'CardShark', avatarIdx: 18, balance: 580000, totalWon: 1200000, winStreak: 6, favoriteGame: 'Blackjack', gamesPlayed: 224 },
-  { rank: 10, id: 'u10', username: 'SpadesMaster', avatarIdx: 23, balance: 490000, totalWon: 980000, winStreak: 11, favoriteGame: 'Spades', gamesPlayed: 165 },
-];
 
 type LeaderboardTab = 'balance' | 'totalWon' | 'winStreak';
 
 export function Leaderboard() {
   const [activeTab, setActiveTab] = useState<LeaderboardTab>('totalWon');
-  const [leaders, setLeaders] = useState<LeaderboardPlayer[]>(FALLBACK_LEADERS);
+  const [leaders, setLeaders] = useState<LeaderboardPlayer[]>([]);
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [isLive, setIsLive] = useState(false);
   const [pulse, setPulse] = useState(false);
@@ -147,8 +135,19 @@ export function Leaderboard() {
           })}
         </div>
 
+        {sortedLeaders.length === 0 && (
+          <div className="py-20 flex flex-col items-center justify-center gap-4 rounded-2xl"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Trophy className="w-12 h-12 text-[#D4AF37]/30" />
+            <div className="text-center">
+              <div className="text-lg font-bold text-[#D4AF37]/60 mb-1">No players yet</div>
+              <div className="text-sm text-gray-600">Be the first to play and claim the top spot!</div>
+            </div>
+          </div>
+        )}
+
         {/* Podium - top 3 */}
-        <div className="flex justify-center items-end gap-4 mb-8">
+        {sortedLeaders.length > 0 && <div className="flex justify-center items-end gap-4 mb-8">
           {[sortedLeaders[1], sortedLeaders[0], sortedLeaders[2]].map((player, podiumIdx) => {
             if (!player) return null;
             const isFirst = podiumIdx === 1;
@@ -175,7 +174,7 @@ export function Leaderboard() {
               </div>
             );
           })}
-        </div>
+        </div>}
 
         {/* Table */}
         <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>

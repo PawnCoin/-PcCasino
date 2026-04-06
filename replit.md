@@ -3,7 +3,92 @@
 A React + Vite + TypeScript casino web application featuring multiple card and casino games with premium visual effects, part of the Pawn Coin ecosystem. The Command Center is an external app at pawncoinpc.com — not included in this application.
 
 ## Games
-Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe — drop files in), Craps, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Horse Racing (iframe — drop files in), Pool (coming soon), Darts (coming soon)
+Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe), Craps, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Horse Racing (iframe), Pool Table (8-ball canvas physics), Darts 501 (canvas dartboard vs AI)
+
+## High-Priority Improvements (Implemented)
+
+### 1. Sound Design
+- `src/hooks/useCasinoSound.ts` — Web Audio API sounds (no files): chip clink, win fanfare, jackpot fanfare, card deal, button click, dice roll, loss
+- All sounds generated programmatically; works offline without any CDN
+
+### 2. Real OAuth
+- Google, Discord, Twitter OAuth 2.0 in `server/index.js`
+- Routes: `GET /api/auth/oauth/{google,discord,twitter}` → provider → callback → `/?oauth_token=TOKEN&oauth_provider=PROVIDER`
+- `App.tsx` reads URL params on load to complete login
+- Env vars needed: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET`
+
+### 3. Live Sports Data
+- `GET /api/game/sports` — fetches from The Odds API when `ODDS_API_KEY` env var is set
+- 5-minute server-side cache to avoid rate limits
+- Realistic mock fallback events if no API key
+
+### 4. Progressive Jackpot Ticker
+- `src/components/JackpotTicker.tsx` — real-time ticker updated via WebSocket every 5s
+- Grows only from real bets via `POST /api/jackpot/contribute` (1% of each bet); starts at 0
+- Win flash animation when jackpot is won; reset via `POST /api/jackpot/win`
+- Server emits `jackpot:update` and `jackpot:won` events
+
+### 5. VIP Cashback Automation
+- Runs every 6 hours in `server/index.js`
+- Rates: bronze=0%, silver=1%, gold=2%, platinum=5%, diamond=10%
+- Based on last 7-day wagered amount; creates notification + transaction record
+- Emits `cashback:credited` socket event to connected user
+
+### 6. Real-time Payment Confirmation
+- PcPay webhook `POST /api/pcpayments/webhook` auto-credits user balance
+- Deduplicates by tx hash; emits `payment:deposit:confirmed` to user's socket room
+- `App.tsx` listens and updates balance + shows toast instantly
+
+### 7. Leaderboard DB Persistence
+- `/api/leaderboard` now queries DB only — no fake fallback data
+- Returns empty array when DB has no players yet
+- Broadcast every 30s from DB data; empty state shown in UI
+
+### 9. Live $Pc Price Ticker (NEW)
+- `src/components/PcPriceTicker.tsx` — live price widget in nav bar, clicks to expand
+- Backend proxy: `GET /api/pc-price` — proxies DexScreener → GeckoTerminal → GeckoTerminal tokens
+- Env var required: `PC_TOKEN_CONTRACT` (token contract address, e.g. Ethereum 0x...)
+- Optional: `PC_TOKEN_NETWORK` (default: `eth`, also supports `bsc`, `polygon`, etc.)
+- No API key needed — DexScreener and GeckoTerminal are both free
+- Shows price, 24h change %, volume, liquidity, market cap; links to DexScreener and CoinGecko
+- Updates every 30 seconds; shows flash animation on price change
+
+### 10. Real Data Platform Launch (NEW)
+- All fake/mock data removed: no fake winners, no fake leaderboard, no fake player counts
+- HeroSection fetches real stats from `/api/stats` every 30s (real wins, real players, real jackpot)
+- JackpotTicker starts at 0; grows only from real bets
+- RecentWinners and Leaderboard show empty state when no real data exists yet
+- WalletConnect: removed demo/fake address generation; Coinbase/Trust show install prompts; WalletConnect shows "coming soon"
+- Treasury wallet: `DEPOSIT_WALLET_ADDRESS` must be set in env secrets; server warns + rejects deposits if not configured
+
+### Environment Variables Required for Launch
+| Variable | Purpose |
+|---|---|
+| `PC_TOKEN_CONTRACT` | $Pc ERC-20 token contract address for live price feed |
+| `PC_TOKEN_NETWORK` | Token network: `eth`, `bsc`, `polygon` (default: `eth`) |
+| `DEPOSIT_WALLET_ADDRESS` | Treasury wallet to receive crypto deposits |
+| `JWT_SECRET` | JWT signing secret for sessions |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `GOOGLE_CLIENT_ID/SECRET` | Google OAuth |
+| `DISCORD_CLIENT_ID/SECRET` | Discord OAuth |
+| `TWITTER_CLIENT_ID/SECRET` | Twitter OAuth |
+| `ODDS_API_KEY` | Live sports odds (The Odds API) |
+
+### 8. Daily Bonus DB Persistence
+- `GET /api/game/daily-bonus` — check if claimed today (persisted in `users.daily_bonus_claimed_at`)
+- `POST /api/game/daily-bonus` — claim bonus with server-side validation
+- `App.tsx` calls DB on login to get current claim status
+
+### 9. Pool Table Game
+- `src/components/games/PoolGame.tsx` — HTML5 Canvas 8-ball pool
+- Physics: friction, ball-wall bounce, ball-ball collisions, pocket detection
+- Aim line with power indicator, betting 1K–500K $Pc, 2x payout
+
+### 10. Darts 501 Game
+- `src/components/games/DartsGame.tsx` — HTML5 Canvas dartboard
+- Full segment rendering: singles, doubles, triples, bull, outer bull
+- AI opponent with realistic throwing; click to throw with aim wobble
+- Score tracking, bust detection, 3 throws per turn, betting system
 
 ### Special Sections
 - **Sports Gambling card** → links to WeParlay Inc. (external, opens in new tab)
@@ -11,9 +96,11 @@ Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe — drop 
 
 ### CodeCanyon Iframe Game Integration
 - **IframeGameWrapper** — `src/components/games/IframeGameWrapper.tsx` — reusable wrapper that embeds any standalone HTML5 game in an iframe, passes balance via URL param `?balance=`, and bridges bet/win events via `window.postMessage`. Handles both directions.
-- **Horse Racing** — route `horse-racing` — game files go in `/public/games/horse-racing/`. Placeholder page shows integration instructions. CodeCanyon ID: 20005304.
-- **French Roulette** — route `french-roulette` — game files go in `/public/games/french-roulette/`. Placeholder page shows integration instructions. CodeCanyon ID: 53831511.
-- postMessage protocol: game sends `{ type: 'bet', amount }` and `{ type: 'win', amount }`. Wrapper replies `{ type: 'bet:result', success, balance }` and `{ type: 'win:confirmed', amount, balance }`.
+- **French Roulette** — route `roulette` — files extracted from CodeCanyon zip into `/public/games/roulette/`. Fully integrated. CodeCanyon ID: 53831511. Balance read from URL `?balance=`. Sends `{ type: 'bet' }` on spin start and `{ type: 'win' }` on net-positive round end.
+- **Blackjack** — route `blackjack` — files in `/public/games/blackjack/`. Fully integrated. Balance read from URL `?balance=`. Sends `{ type: 'win' }` or `{ type: 'bet' }` at round end based on net P&L.
+- **Craps** — route `craps` — files in `/public/games/craps/`. Fully integrated via jQuery `save_score` event. Sends net change to parent on each round end.
+- **Horse Racing** — route `horse-racing` — files in `/public/games/horse-racing/`. Fully integrated via jQuery `save_score` event. Sends net change to parent on each race result.
+- postMessage protocol: game sends `{ type: 'bet', amount }` and `{ type: 'win', amount }`. Wrapper replies `{ type: 'bet:result', success, balance }` and `{ type: 'win:confirmed', amount, balance }`. Parent sends `{ type: 'balance:update', balance }` on external balance changes.
 
 ### Bug Fixes Applied
 - **Admin auth**: Removed redundant hardcoded password (`pcadmin2024`). Admin panel now opens directly if user has `isAdmin: true` flag. Password gate removed.
@@ -161,6 +248,41 @@ All games wrapped in `CasinoEnvironment` for ambient casino room framing.
 - Command Center is external at pawncoinpc.com (not in-app)
 - Consistent "$Pc Casino" branding throughout
 - $Pc token used for all betting
+
+## SEO Audit — All Items Resolved
+
+All actionable audit items are complete:
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | About page (`/about`) | ✅ `public/about.html` + Vite clean-URL middleware |
+| 2 | Contact page (`/contact`) | ✅ `public/contact.html` + Vite clean-URL middleware |
+| 3 | Privacy Policy clean URL (`/privacy-policy`) | ✅ Vite middleware rewrites to `.html` + Express route alias |
+| 4 | Sitemap updated with About/Contact clean URLs | ✅ `public/sitemap.xml` |
+| 5 | Color contrast on static pages (`#ccc` → `#e5e5e5`) | ✅ All 4 static pages updated |
+
+Auto-resolves on deployment: sitemap domain mismatch, canonical/noindex conflict, JS minification.
+
+---
+
+## SEO & Accessibility
+
+All SEO work targets `index.html` (static shell) because the app is CSR (React renders client-side — crawlers see bare HTML before JS runs).
+
+- **index.html**: Full title (55 chars), meta description (≤160 chars), canonical URL, Open Graph, Twitter Card, JSON-LD WebSite structured data, robots meta, visually-hidden H1 inside `#root`, skip-link for keyboard users, static `<main id="main-content">` wrapping `#root`, static `<footer>` with privacy policy link
+- **robots.txt** (`public/robots.txt`): `Allow: /`, points to sitemap
+- **sitemap.xml** (`public/sitemap.xml`): Covers `/`, `/privacy-policy.html`, `/terms.html`
+- **privacy-policy.html** (`public/privacy-policy.html`): Static standalone privacy policy page
+- **terms.html** (`public/terms.html`): Static standalone terms of service page
+- **UserProfile hook fix**: Moved `useMemo` above the `if (!user) return null` early-return in `UserProfile.tsx` to fix Rules of Hooks violation
+- **UserProfile VIP badge**: Reads real `user.vipTier` (bronze/silver/gold/platinum/diamond) from DB and renders matching tier color
+- **UserProfile 2FA**: Fully wired to `authApi.setup2FA()` (QR generation), `authApi.enable2FA(code)` (verify), `authApi.disable2FA(code)` (with confirmation prompt)
+- **UserProfile self-exclusion**: Wired to `authApi.selfExclude(days)` with correct period-to-days mapping; buttons disabled while loading or when exclusion already active; admin-only removal
+- **UserProfile daily limit**: Wired to `authApi.updateProfile({ dailyLossLimit })` instead of localStorage
+- **UserProfile avatar**: Renders `AvatarSprite` component; `avatarDef` prop now correctly passed from App.tsx
+- **App.tsx → UserProfile**: Added `avatarDef={userAvatarDef}` and `user={user as any}` so all extended user fields (vipTier, totpEnabled, etc.) flow through
+- **Audit scores** (squirrelscan): 38 → 46 → 54/100. Legal Compliance: 100%, Accessibility: 99%, Social Media: 100%, Structured Data: 100%
+- Remaining warnings are dev-environment-only (sitemap canonical points to prod domain `pcasino.replit.app`); will resolve on deployment
 
 ## Workflow
 

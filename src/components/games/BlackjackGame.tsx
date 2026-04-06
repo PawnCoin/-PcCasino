@@ -365,7 +365,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
   return (
     <CasinoEnvironment gameType="blackjack">
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+      <div className="h-screen bg-[#0a0a0a] flex flex-col overflow-hidden">
         <InGameTopBar
           gameName="Blackjack"
           balance={balance}
@@ -386,9 +386,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           }
         />
 
-        <div className="flex-1 flex flex-col p-4 relative z-10">
+        <div className="flex-1 flex flex-col p-2 relative z-10 min-h-0">
           <div
-            className={`flex-1 rounded-3xl wood-rail relative overflow-hidden p-3 ${tableShake ? 'bust-effect' : ''}`}
+            className={`flex-1 min-h-0 rounded-3xl wood-rail relative overflow-hidden p-3 ${tableShake ? 'bust-effect' : ''}`}
           >
             {/* Casino table corner decorations */}
             <div className="absolute top-4 left-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.75, fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🥃</div>
@@ -616,7 +616,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
             </div>
           </div>
 
-          <div className="bg-black/90 border-t-2 border-[#5D4037] p-4 mt-2 rounded-xl">
+          <div className="bg-black/90 border-t-2 border-[#5D4037] p-3 mt-1 rounded-xl flex-shrink-0 overflow-y-auto" style={{ maxHeight: '52vh' }}>
             {gameState === 'betting' && (
               <div className="max-w-4xl mx-auto">
                 {/* Balance + Get More row */}
@@ -688,8 +688,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                   </button>
                 </div>
 
-                <div className="flex justify-center gap-2 mb-4">
-                  {[10, 25, 50, 100, 500].map(amount => (
+                <div className="flex justify-center gap-2 mb-4 flex-wrap">
+                  {[1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000].map(amount => (
                     <button
                       key={amount}
                       onClick={() => {
@@ -697,9 +697,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                         addChipToBet(amount);
                       }}
                       disabled={currentBet + amount > balance}
-                      className="px-4 py-2 rounded-lg bg-[#5D4037]/50 hover:bg-[#5D4037] text-[#D4AF37] text-sm font-medium border border-[#D4AF37]/30 disabled:opacity-30"
+                      className="px-3 py-2 rounded-lg bg-[#5D4037]/50 hover:bg-[#5D4037] text-[#D4AF37] text-xs font-bold border border-[#D4AF37]/30 disabled:opacity-30 transition-all"
                     >
-                      +{amount}
+                      +{formatChipLabel(amount)}
                     </button>
                   ))}
                 </div>

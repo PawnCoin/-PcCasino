@@ -18,14 +18,6 @@ function nameToAvatarIdx(name: string): number {
   return Math.abs(h) % ALL_AVATARS.length;
 }
 
-const SEED_WINNERS: Winner[] = [
-  { id: '1', name: 'CryptoKing', game: 'Slots - Mega Jackpot', amount: 45000, multiplier: 500, timestamp: Date.now() - 120000 },
-  { id: '2', name: 'PokerFace', game: "Texas Hold'em", amount: 12500, multiplier: 25, timestamp: Date.now() - 300000 },
-  { id: '3', name: 'DiceMaster', game: 'Craps', amount: 8900, multiplier: 18, timestamp: Date.now() - 720000 },
-  { id: '4', name: 'Lucky7', game: 'Roulette', amount: 23400, multiplier: 35, timestamp: Date.now() - 1080000 },
-  { id: '5', name: 'SpadesPro', game: 'Spades', amount: 5600, timestamp: Date.now() - 1500000 },
-  { id: '6', name: 'BlackjackBJ', game: 'Blackjack', amount: 18900, multiplier: 3, timestamp: Date.now() - 1920000 },
-];
 
 function timeAgo(ts?: number): string {
   if (!ts) return 'Just now';
@@ -37,7 +29,7 @@ function timeAgo(ts?: number): string {
 }
 
 export function RecentWinners() {
-  const [winners, setWinners] = useState<Winner[]>(SEED_WINNERS);
+  const [winners, setWinners] = useState<Winner[]>([]);
   const [newWinnerId, setNewWinnerId] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
   const initialized = useRef(false);
@@ -119,6 +111,17 @@ export function RecentWinners() {
             </div>
           </div>
         </div>
+
+        {winners.length === 0 && (
+          <div className="py-16 flex flex-col items-center justify-center gap-4 rounded-2xl"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Flame className="w-10 h-10 text-[#D4AF37]/30" />
+            <div className="text-center">
+              <div className="text-base font-bold text-[#D4AF37]/50 mb-1">No winners yet</div>
+              <div className="text-sm text-gray-600">Start playing to appear here!</div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {winners.slice(0, 6).map((winner) => (

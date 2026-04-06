@@ -850,7 +850,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
   return (
     <CasinoEnvironment gameType="craps">
     <div 
-      className="min-h-screen flex flex-col"
+      className="h-screen flex flex-col overflow-hidden"
       style={{
         background: `
           radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0a 50%, #000000 100%)

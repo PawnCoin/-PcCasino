@@ -816,7 +816,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, cardBac
         `}</style>
 
         {flyingChips.map((amount, i) => (
-          <AnimatedChipFly key={`${amount}-${i}-${Date.now()}`} amount={amount} onComplete={() => {}} />
+          <AnimatedChipFly key={`chip-${i}-${amount}`} amount={amount} onComplete={() => {}} />
         ))}
 
         <PokerHandAnalyzer

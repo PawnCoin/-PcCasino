@@ -298,16 +298,19 @@ export default function RouletteWheel3D({
       </group>
 
       <mesh ref={ballRef} castShadow>
-        <sphereGeometry args={[0.13, 16, 16]} />
-        <meshStandardMaterial
-          color="#ffffff"
-          metalness={0.3}
-          roughness={0.1}
+        <sphereGeometry args={[0.13, 32, 32]} />
+        <meshPhysicalMaterial
+          color="#f0f0f0"
+          metalness={0.15}
+          roughness={0.06}
+          clearcoat={1.0}
+          clearcoatRoughness={0.05}
+          reflectivity={1.0}
           emissive="#ffffff"
-          emissiveIntensity={0.6}
+          emissiveIntensity={0.45}
         />
       </mesh>
-      <pointLight ref={glowRef} color="#ffffff" intensity={2} distance={2.5} decay={2} />
+      <pointLight ref={glowRef} color="#fffaf0" intensity={2.5} distance={2.5} decay={2} />
     </group>
   );
 }

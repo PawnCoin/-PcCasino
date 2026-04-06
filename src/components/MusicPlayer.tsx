@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -9,14 +9,16 @@ interface Track {
   artist: string;
   duration: number;
   genre: string;
+  url: string;
 }
 
+// Free royalty-free casino/lounge music from mixkit & pixabay CDN
 const tracks: Track[] = [
-  { id: '1', title: 'Casino Nights', artist: 'Lounge Masters', duration: 240, genre: 'Lounge' },
-  { id: '2', title: 'High Roller', artist: 'Vegas Beats', duration: 195, genre: 'Electronic' },
-  { id: '3', title: 'Royal Flush', artist: 'Poker Jazz', duration: 280, genre: 'Jazz' },
-  { id: '4', title: 'Jackpot Dreams', artist: 'Slot Symphony', duration: 210, genre: 'Ambient' },
-  { id: '5', title: 'Vegas Lights', artist: 'Neon Collective', duration: 225, genre: 'Electronic' },
+  { id: '1', title: 'Casino Royale Lounge', artist: 'Vegas Beats', duration: 180, genre: 'Jazz Lounge', url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c3cc48ac48.mp3' },
+  { id: '2', title: 'High Stakes Night', artist: 'Lounge Masters', duration: 195, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/01/27/audio_d0c6ff1bde.mp3' },
+  { id: '3', title: 'Royal Flush', artist: 'Poker Jazz', duration: 200, genre: 'Jazz', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3' },
+  { id: '4', title: 'Jackpot Dreams', artist: 'Slot Symphony', duration: 210, genre: 'Ambient', url: 'https://cdn.pixabay.com/download/audio/2021/11/25/audio_a1d62a14e7.mp3' },
+  { id: '5', title: 'Vegas Lights', artist: 'Neon Collective', duration: 225, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3' },
 ];
 
 export function MusicPlayer() {
@@ -24,28 +26,83 @@ export function MusicPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [volume, setVolume] = useState(50);
+  const [volume, setVolume] = useState(40);
   const [isMuted, setIsMuted] = useState(false);
+  const [audioError, setAudioError] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentTrackData = tracks[currentTrack];
 
-  // Simulate progress
+  // Create / update audio element
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.loop = false;
+      audioRef.current.preload = 'none';
+    }
+    const audio = audioRef.current;
+    audio.src = currentTrackData.url;
+    audio.volume = isMuted ? 0 : volume / 100;
+    setProgress(0);
+    setAudioError(false);
+
+    const onEnded = () => {
+      setCurrentTrack(prev => (prev + 1) % tracks.length);
+    };
+    const onError = () => {
+      setAudioError(true);
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
+    return () => {
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
+    };
+  }, [currentTrack]);
+
+  // Play / pause
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
     if (isPlaying) {
-      interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= currentTrackData.duration) {
-            // Auto skip to next track
-            setCurrentTrack((prevTrack) => (prevTrack + 1) % tracks.length);
-            return 0;
-          }
-          return prev + 1;
-        });
+      audio.play().catch(() => setAudioError(true));
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying]);
+
+  // Volume / mute
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume / 100;
+    }
+  }, [volume, isMuted]);
+
+  // Progress tracking
+  useEffect(() => {
+    if (progressInterval.current) clearInterval(progressInterval.current);
+    if (isPlaying) {
+      progressInterval.current = setInterval(() => {
+        if (audioRef.current) {
+          setProgress(Math.floor(audioRef.current.currentTime));
+        }
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTrackData.duration]);
+    return () => {
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    };
+  }, [isPlaying]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -54,22 +111,43 @@ export function MusicPlayer() {
   };
 
   const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    setAudioError(false);
+    setIsPlaying(p => !p);
   };
 
   const handleNext = () => {
-    setCurrentTrack((prev) => (prev + 1) % tracks.length);
-    setProgress(0);
+    setIsPlaying(false);
+    setTimeout(() => {
+      setCurrentTrack(prev => (prev + 1) % tracks.length);
+      setIsPlaying(true);
+    }, 100);
   };
 
   const handlePrevious = () => {
-    setCurrentTrack((prev) => (prev - 1 + tracks.length) % tracks.length);
-    setProgress(0);
+    setIsPlaying(false);
+    setTimeout(() => {
+      setCurrentTrack(prev => (prev - 1 + tracks.length) % tracks.length);
+      setIsPlaying(true);
+    }, 100);
+  };
+
+  const handleSeek = (value: number[]) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value[0];
+      setProgress(value[0]);
+    }
+  };
+
+  const selectTrack = (index: number) => {
+    setIsPlaying(false);
+    setTimeout(() => {
+      setCurrentTrack(index);
+      setIsPlaying(true);
+    }, 100);
   };
 
   return (
     <>
-      {/* Toggle Button */}
       <Button
         variant="ghost"
         size="icon"
@@ -77,44 +155,47 @@ export function MusicPlayer() {
         className={`fixed bottom-4 left-4 z-40 rounded-full w-12 h-12 transition-all ${
           isPlaying ? 'animate-pulse-purple bg-purple-500/20' : 'glass-panel'
         }`}
+        title={isPlaying ? 'Music Playing' : 'Open Music Player'}
       >
-        <Music className="w-5 h-5" />
+        <Music className={`w-5 h-5 ${isPlaying ? 'text-purple-400' : ''}`} />
       </Button>
 
-      {/* Player Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 left-4 z-40 w-80 glass-panel-strong rounded-2xl border border-purple-500/30 overflow-hidden">
-          {/* Header */}
+        <div className="fixed bottom-20 left-4 z-40 w-80 glass-panel-strong rounded-2xl border border-purple-500/30 overflow-hidden shadow-2xl">
           <div className="flex items-center justify-between p-3 border-b border-white/10">
             <div className="flex items-center gap-2">
               <Music className="w-4 h-4 text-purple-400" />
-              <span className="font-bold text-sm">Music Player</span>
+              <span className="font-bold text-sm">Casino Music</span>
+              {isPlaying && (
+                <span className="flex items-center gap-1 text-xs text-green-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  LIVE
+                </span>
+              )}
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
-              ✕
-            </button>
+            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-sm">✕</button>
           </div>
 
-          {/* Now Playing */}
           <div className="p-4">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}>
                 <Music className="w-8 h-8 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold truncate">{currentTrackData.title}</div>
+                <div className="font-bold truncate text-white">{currentTrackData.title}</div>
                 <div className="text-sm text-gray-400">{currentTrackData.artist}</div>
                 <div className="text-xs text-purple-400">{currentTrackData.genre}</div>
+                {audioError && <div className="text-xs text-red-400 mt-0.5">Stream error — try next track</div>}
               </div>
             </div>
 
-            {/* Progress */}
             <div className="mb-4">
               <Slider
                 value={[progress]}
                 max={currentTrackData.duration}
                 step={1}
-                onValueChange={(value) => setProgress(value[0])}
+                onValueChange={handleSeek}
                 className="mb-2"
               />
               <div className="flex justify-between text-xs text-gray-400">
@@ -123,7 +204,6 @@ export function MusicPlayer() {
               </div>
             </div>
 
-            {/* Controls */}
             <div className="flex items-center justify-center gap-4 mb-4">
               <Button variant="ghost" size="icon" onClick={handlePrevious} className="hover:bg-white/10">
                 <SkipBack className="w-5 h-5" />
@@ -139,9 +219,8 @@ export function MusicPlayer() {
               </Button>
             </div>
 
-            {/* Volume */}
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="h-8 w-8 flex-shrink-0">
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </Button>
               <Slider
@@ -157,7 +236,6 @@ export function MusicPlayer() {
             </div>
           </div>
 
-          {/* Playlist */}
           <div className="border-t border-white/10 max-h-40 overflow-y-auto">
             <div className="p-2 text-xs text-gray-400 flex items-center gap-2">
               <ListMusic className="w-3 h-3" />
@@ -166,17 +244,13 @@ export function MusicPlayer() {
             {tracks.map((track, index) => (
               <button
                 key={track.id}
-                onClick={() => {
-                  setCurrentTrack(index);
-                  setProgress(0);
-                  setIsPlaying(true);
-                }}
+                onClick={() => selectTrack(index)}
                 className={`w-full px-4 py-2 text-left text-sm hover:bg-white/5 transition-colors flex items-center justify-between ${
-                  currentTrack === index ? 'bg-purple-500/20 text-purple-400' : ''
+                  currentTrack === index ? 'bg-purple-500/20 text-purple-400' : 'text-gray-300'
                 }`}
               >
                 <span className="truncate">{track.title}</span>
-                <span className="text-xs text-gray-500">{formatTime(track.duration)}</span>
+                <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{formatTime(track.duration)}</span>
               </button>
             ))}
           </div>

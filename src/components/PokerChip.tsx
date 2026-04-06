@@ -3,15 +3,16 @@ import React, { useState } from 'react';
 // ─── Denomination tiers ────────────────────────────────────────────────────
 export const STANDARD_CHIPS   = [1, 5, 10, 25, 50, 100, 500];
 export const THOUSAND_CHIPS   = [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 500_000];
-export const MILLION_CHIPS    = [1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000];
+export const MILLION_CHIPS    = [1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000];
 export const ALL_CHIP_DENOMS  = [...STANDARD_CHIPS, ...THOUSAND_CHIPS, ...MILLION_CHIPS];
 
-type ChipTier = 'standard' | 'thousands' | 'millions';
+type ChipTier = 'standard' | 'thousands' | 'millions' | 'ultimate';
 interface CS {
   body: string; bodyL: string; bodyD: string;
   notch: string; notch2: string;
   ring: string; label: string;
   tierRing: string; tier: ChipTier;
+  isUltimate?: boolean;
 }
 
 const STYLES: Record<number, CS> = {
@@ -40,10 +41,15 @@ const STYLES: Record<number, CS> = {
   20_000_000:  { body:'#380070', bodyL:'#6028a8', bodyD:'#100030', notch:'#D060FF', notch2:'#600090', ring:'#E040FB', label:'#111', tierRing:'#D500F9', tier:'millions' },
   50_000_000:  { body:'#004030', bodyL:'#208070', bodyD:'#001818', notch:'#60F0B0', notch2:'#006040', ring:'#00E676', label:'#111', tierRing:'#00C853', tier:'millions' },
   100_000_000: { body:'#140800', bodyL:'#3a2000', bodyD:'#000',    notch:'#FFE060', notch2:'#906800', ring:'#FFD700', label:'#111', tierRing:'#FFD700', tier:'millions' },
+  // ─── 500M — Platinum/Silver prestige chip ────────────────────────────────
+  500_000_000: { body:'#1a1a2e', bodyL:'#3a3a5e', bodyD:'#000010', notch:'#E0E8FF', notch2:'#9090c0', ring:'#C0C8FF', label:'#fff', tierRing:'#B0C4DE', tier:'millions' },
+  // ─── 1B — Ultimate Chip — full gold prestige ─────────────────────────────
+  1_000_000_000: { body:'#1a0a00', bodyL:'#3a1a00', bodyD:'#000', notch:'#FFD700', notch2:'#D4AF37', ring:'#FFD700', label:'#111', tierRing:'#FFD700', tier:'ultimate', isUltimate: true },
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 export function formatChipLabel(n: number): string {
+  if (n >= 1_000_000_000) return '1B';
   if (n >= 1_000_000) {
     const v = n / 1_000_000;
     return v % 1 === 0 ? `${v}M` : `${v.toFixed(1)}M`;
@@ -57,13 +63,14 @@ export function formatChipLabel(n: number): string {
 
 function getStyle(amount: number): CS {
   if (STYLES[amount]) return STYLES[amount];
-  if (amount >= 1_000_000) return STYLES[1_000_000];
-  if (amount >= 1_000)     return STYLES[1_000];
+  if (amount >= 1_000_000_000) return STYLES[1_000_000_000];
+  if (amount >= 1_000_000)     return STYLES[1_000_000];
+  if (amount >= 1_000)         return STYLES[1_000];
   return STYLES[1];
 }
 
 // ─── SVG Chip Face ─────────────────────────────────────────────────────────
-function ChipFace({ amount, size }: { amount: number; size: number }) {
+export function ChipFace({ amount, size }: { amount: number; size: number }) {
   const s   = getStyle(amount);
   const cx  = size / 2, cy = size / 2;
   const r   = size / 2 - 1.5;
@@ -89,9 +96,9 @@ function ChipFace({ amount, size }: { amount: number; size: number }) {
           <stop offset="100%" stopColor={s.bodyD} />
         </radialGradient>
         <radialGradient id={`${uid}-med`} cx="35%" cy="28%" r="70%">
-          <stop offset="0%"   stopColor="#ffffff" />
-          <stop offset="60%"  stopColor="#e8e8e8" />
-          <stop offset="100%" stopColor="#cacaca" />
+          <stop offset="0%"   stopColor={s.isUltimate ? '#FFF8DC' : '#ffffff'} />
+          <stop offset="60%"  stopColor={s.isUltimate ? '#FFD700' : '#e8e8e8'} />
+          <stop offset="100%" stopColor={s.isUltimate ? '#B8860B' : '#cacaca'} />
         </radialGradient>
         <clipPath id={`${uid}-clip`}>
           <circle cx={cx} cy={cy} r={r} />
@@ -145,24 +152,24 @@ function ChipFace({ amount, size }: { amount: number; size: number }) {
       <circle cx={cx} cy={cy} r={rMed} fill={`url(#${uid}-med)`} />
       <circle cx={cx} cy={cy} r={rMed} fill="none" stroke={s.ring} strokeWidth={1.0} opacity={0.4} />
 
-      {/* $Pc — top of medallion — always dark for readability */}
+      {/* $Pc — top of medallion */}
       <text
         x={cx} y={cy - rMed * 0.44}
         textAnchor="middle" dominantBaseline="middle"
         fontSize={size * 0.10} fontWeight="900"
-        fill="#111" fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="0.2"
-        style={{ paintOrder: 'stroke fill', stroke: 'rgba(255,255,255,0.4)', strokeWidth: 0.8 }}
+        fill={s.isUltimate ? '#5a3a00' : '#111'} fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="0.2"
+        style={{ paintOrder: 'stroke fill', stroke: s.isUltimate ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.4)', strokeWidth: 0.8 }}
       >
         $Pc
       </text>
 
-      {/* Amount — center — always dark for readability */}
+      {/* Amount — center */}
       <text
         x={cx} y={cy + rMed * 0.12}
         textAnchor="middle" dominantBaseline="middle"
         fontSize={numFS} fontWeight="900"
-        fill="#111" fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="-0.5"
-        style={{ paintOrder: 'stroke fill', stroke: 'rgba(255,255,255,0.5)', strokeWidth: 0.8 }}
+        fill={s.isUltimate ? '#3a1a00' : '#111'} fontFamily="'Arial Black', Arial, sans-serif" letterSpacing="-0.5"
+        style={{ paintOrder: 'stroke fill', stroke: s.isUltimate ? 'rgba(255,215,0,0.6)' : 'rgba(255,255,255,0.5)', strokeWidth: 0.8 }}
       >
         {lbl}
       </text>
@@ -172,12 +179,12 @@ function ChipFace({ amount, size }: { amount: number; size: number }) {
         <text
           x={cx} y={cy + rMed * 0.66}
           textAnchor="middle" dominantBaseline="middle"
-          fontSize={size * 0.070} fontWeight="800"
+          fontSize={s.isUltimate ? size * 0.055 : size * 0.070} fontWeight="800"
           fill={s.tierRing} fontFamily="Arial, sans-serif" letterSpacing="1.5"
           opacity={0.9}
           style={{ paintOrder: 'stroke fill', stroke: 'rgba(0,0,0,0.5)', strokeWidth: 0.6 }}
         >
-          {s.tier === 'thousands' ? '— K —' : '— M —'}
+          {s.isUltimate ? 'ULTIMATE' : s.tier === 'thousands' ? '— K —' : '— M —'}
         </text>
       )}
 
@@ -329,7 +336,7 @@ export function ChipSelector({ selectedChip, onSelect, onDoubleClick, balance, c
               {isHighStakes ? '⚡ 1K–500K' : '1K–500K'}
             </button>
             <button style={TAB_STYLES(tab === 'millions', 'millions')} onClick={() => setTab('millions')}>
-              1M–100M
+              1M–1B ★
             </button>
           </>
         )}

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PokerChip, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
+import { PokerChip, ChipFace, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRouletteVoice } from '@/hooks/useGameVoice';
 import RouletteWheel3D from '@/components/games/RouletteWheel3D';
@@ -119,51 +119,27 @@ function HistoryPanel({ history }: { history: number[] }) {
 }
 
 function BetChipStack({ amount, chipCount }: { amount: number; chipCount: number }) {
-  const stackCount = Math.min(chipCount || 1, 5);
+  const stackCount = Math.min(chipCount || 1, 4);
+  const CHIP_SIZE = 24;
 
   return (
-    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10" style={{ animation: 'rouletteChipDrop 0.3s ease-out forwards' }}>
+    <div className="absolute -top-4 left-1/2 z-10 pointer-events-none" style={{ transform: 'translateX(-50%)', animation: 'rouletteChipDrop 0.3s ease-out forwards' }}>
       {Array.from({ length: stackCount }).map((_, i) => (
         <div
           key={i}
-          className="rounded-full flex items-center justify-center font-bold border-2 absolute"
+          className="absolute"
           style={{
-            width: '22px',
-            height: '22px',
-            background: getChipColor(amount),
-            borderColor: 'rgba(212,175,55,0.7)',
-            color: amount >= 100 || amount >= 10 ? '#fff' : amount >= 5 ? '#fff' : '#333',
-            fontSize: '7px',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
-            top: `${-i * 3}px`,
-            left: `${i * 1}px`,
+            top: `${-i * 4}px`,
+            left: `${i * 0.5}px`,
             zIndex: stackCount - i,
+            opacity: i === 0 ? 1 : 0.85,
           }}
         >
-          {i === 0 ? formatChipAmount(amount) : ''}
+          <ChipFace amount={amount} size={CHIP_SIZE} />
         </div>
       ))}
     </div>
   );
-}
-
-function getChipColor(amount: number): string {
-  if (amount >= 10000) return 'radial-gradient(circle at 35% 30%, #AB47BC, #7B1FA2)';
-  if (amount >= 5000) return 'radial-gradient(circle at 35% 30%, #8D6E63, #6D4C41)';
-  if (amount >= 1000) return 'radial-gradient(circle at 35% 30%, #D0D0D0, #B0B0B0)';
-  if (amount >= 500) return 'radial-gradient(circle at 35% 30%, #F4D03F, #D4AF37)';
-  if (amount >= 100) return 'radial-gradient(circle at 35% 30%, #555, #333)';
-  if (amount >= 50) return 'radial-gradient(circle at 35% 30%, #ffb74d, #f57c00)';
-  if (amount >= 25) return 'radial-gradient(circle at 35% 30%, #66bb6a, #388e3c)';
-  if (amount >= 10) return 'radial-gradient(circle at 35% 30%, #42a5f5, #1976d2)';
-  if (amount >= 5) return 'radial-gradient(circle at 35% 30%, #ef5350, #d32f2f)';
-  return 'radial-gradient(circle at 35% 30%, #f5f5f5, #e0e0e0)';
-}
-
-function formatChipAmount(amount: number): string {
-  if (amount >= 10000) return `${amount / 1000}K`;
-  if (amount >= 1000) return `${amount / 1000}K`;
-  return amount.toString();
 }
 
 function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; onDismiss: () => void }) {
@@ -237,7 +213,7 @@ function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; on
 }
 
 export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: RouletteGameProps) {
-  const [selectedChip, setSelectedChip] = useState(10);
+  const [selectedChip, setSelectedChip] = useState(1_000_000);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
   const [lastBets, setLastBets] = useState<PlacedBet[]>([]);
@@ -675,7 +651,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
           >
             <div className="text-[8px] text-[#D4AF37] font-bold tracking-[0.2em] uppercase">Credit</div>
             <div className="text-xl font-bold text-white" style={{ textShadow: '0 0 8px rgba(212,175,55,0.2)' }}>
-              {balance.toLocaleString()}
+              {(isNaN(balance) || balance == null ? 0 : balance).toLocaleString()}
             </div>
             <div className="text-[9px] text-gray-500">$Pc</div>
           </div>
@@ -757,6 +733,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
                   repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.004) 1px, transparent 2px, transparent 3px),
                   linear-gradient(145deg, #1B5E20 0%, #0D3312 50%, #051a08 100%)
                 `,
+                '--tw-bg-opacity': '1',
                 boxShadow: `
                   0 10px 40px rgba(0,0,0,0.6),
                   inset 0 1px 2px rgba(255,255,255,0.03),
@@ -766,6 +743,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
                 `,
               }}
             >
+              {/* $Pc watermark */}
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 0 }}>
+                <img src="/pc-logo.png" alt="" style={{ width: 96, height: 96, opacity: 0.07, filter: 'grayscale(100%) brightness(3)' }} draggable={false} />
+              </div>
               {/* Number grid */}
               <div className="flex gap-[2px]">
                 {/* Zero */}

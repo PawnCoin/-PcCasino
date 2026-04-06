@@ -1,46 +1,133 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Horse Racing — $Pc Casino</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: linear-gradient(180deg, #0a0a0a 0%, #0d0a00 100%);
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; font-family: system-ui, sans-serif; color: white;
-    }
-    .card {
-      text-align: center; padding: 60px 40px;
-      border: 1px solid rgba(212,175,55,0.3);
-      border-radius: 20px; background: rgba(0,0,0,0.6);
-      max-width: 480px;
-    }
-    .emoji { font-size: 80px; margin-bottom: 20px; display: block; }
-    h1 { font-size: 2rem; font-weight: 800; color: #D4AF37; margin-bottom: 8px; }
-    p { color: #808080; margin-bottom: 6px; line-height: 1.5; }
-    code { color: #D4AF37; background: rgba(212,175,55,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
-    .step { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-top: 20px; text-align: left; }
-    .step li { color: #A0A0A0; font-size: 0.85rem; margin-bottom: 6px; line-height: 1.4; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <span class="emoji">🏇</span>
-    <h1>Horse Racing</h1>
-    <p style="color:#D4AF37; font-size:1.1rem; margin-bottom: 16px;">Game not yet installed</p>
-    <p>Drop the purchased game files into:</p>
-    <p><code>/public/games/horse-racing/</code></p>
-    <div class="step">
-      <ol style="padding-left:18px;">
-        <li>Purchase from CodeCanyon (ID: 20005304)</li>
-        <li>Unzip into <code>/public/games/horse-racing/</code></li>
-        <li>Patch config with $Pc denominations</li>
-        <li>Insert postMessage bridge in game JS</li>
-        <li>Reload this tab</li>
-      </ol>
-    </div>
-  </div>
-</body>
+<html>
+    <head>
+        <title>HORSE RACING</title>
+        <link rel="stylesheet" href="css/reset.css" type="text/css">
+        <link rel="stylesheet" href="css/main.css" type="text/css">
+        <link rel="stylesheet" href="css/orientation_utils.css" type="text/css">
+        <link rel="stylesheet" href="css/ios_fullscreen.css" type="text/css">
+        <link rel='shortcut icon' type='image/x-icon' href='./favicon.ico' />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+        <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui" />
+        <meta name="msapplication-tap-highlight" content="no"/>
+
+        <script type="text/javascript" src="js/jquery-3.2.1.min.js"></script>
+        <script type="text/javascript" src="js/howler.min.js"></script>
+        <script type="text/javascript" src="js/createjs-2015.11.26.min.js"></script>
+        <script type="text/javascript" src="js/CLang.min.js"></script>
+        <script type="text/javascript" src="js/main.js"></script>
+
+    </head>
+    <body ondragstart="return false;" ondrop="return false;" >
+        <div style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%"></div>
+        <script>
+            var _pcUrlBalance = parseInt(new URLSearchParams(window.location.search).get('balance'), 10);
+            var _pcStartBalance = isNaN(_pcUrlBalance) ? 1000 : _pcUrlBalance;
+            var _pcPrevBalance = _pcStartBalance;
+
+            $(document).ready(function () {
+                var oMain = new CMain({
+                    money: _pcStartBalance,
+                    min_bet: 1,
+                    max_bet: 100,
+                    win_occurrence: 40,
+                    game_cash: _pcStartBalance,
+                    chip_values: [1, 5, 10, 25, 50, 100],
+                    audio_enable_on_startup: false,
+                    show_credits: true,
+                    fullscreen: true,
+                    check_orientation: true,
+                    num_levels_for_ads: 2
+                });
+
+                $(oMain).on("recharge", function (evt) {
+                    window.parent.postMessage({ type: 'getBalance' }, '*');
+                    var iMoney = _pcStartBalance;
+                    if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel !== null) {
+                        s_oBetPanel.setMoney(iMoney);
+                    }
+                });
+
+                $(oMain).on("start_session", function (evt) {
+                    if (getParamValue('ctl-arcade') === "true") {
+                        parent.__ctlArcadeStartSession();
+                    }
+                });
+
+                $(oMain).on("end_session", function (evt) {
+                    if (getParamValue('ctl-arcade') === "true") {
+                        parent.__ctlArcadeEndSession();
+                    }
+                });
+
+                $(oMain).on("bet_placed", function (evt, iTotBet) {
+                    // Track bets for balance sync
+                });
+
+                $(oMain).on("save_score", function (evt, iScore) {
+                    if (getParamValue('ctl-arcade') === "true") {
+                        parent.__ctlArcadeSaveScore({ score: iScore });
+                    }
+                    var netChange = iScore - _pcPrevBalance;
+                    if (netChange > 0) {
+                        window.parent.postMessage({ type: 'win', amount: netChange }, '*');
+                    } else if (netChange < 0) {
+                        window.parent.postMessage({ type: 'bet', amount: Math.abs(netChange) }, '*');
+                    }
+                    _pcPrevBalance = iScore;
+                });
+
+                $(oMain).on("show_interlevel_ad", function (evt) {
+                    if (getParamValue('ctl-arcade') === "true") {
+                        parent.__ctlArcadeShowInterlevelAD();
+                    }
+                });
+
+                $(oMain).on("share_event", function (evt, iScore) {
+                    if (getParamValue('ctl-arcade') === "true") {
+                        parent.__ctlArcadeShareEvent({
+                            img: TEXT_SHARE_IMAGE,
+                            title: TEXT_SHARE_TITLE,
+                            msg: TEXT_SHARE_MSG1 + iScore + TEXT_SHARE_MSG2,
+                            msg_share: TEXT_SHARE_SHARE1 + iScore + TEXT_SHARE_SHARE1
+                        });
+                    }
+                });
+
+                if (isIOS()) {
+                    setTimeout(function () {
+                        sizeHandler();
+                    }, 200);
+                } else {
+                    sizeHandler();
+                }
+            });
+
+            window.addEventListener('message', function (e) {
+                if (!e.data || typeof e.data !== 'object') return;
+                if (e.data.type === 'balance:update' && typeof e.data.balance === 'number') {
+                    _pcPrevBalance = e.data.balance;
+                }
+                if (e.data.type === 'balance' && typeof e.data.balance === 'number') {
+                    _pcPrevBalance = e.data.balance;
+                    if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel !== null) {
+                        s_oBetPanel.setMoney(e.data.balance);
+                    }
+                }
+            });
+
+        </script>
+
+        <div class="check-fonts">
+            <p class="check-font-1">test 1</p>
+            <p class="check-font-2">test 2</p>
+            <p class="check-font-3">test 3</p>
+        </div>
+
+        <canvas id="canvas" class='ani_hack' width="1216" height="832"> </canvas>
+        <div data-orientation="landscape" class="orientation-msg-container"><p class="orientation-msg-text">Please rotate your device</p></div>
+        <div id="block_game" style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%; display:none"></div>
+
+    </body>
 </html>

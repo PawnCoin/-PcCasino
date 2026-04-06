@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { getSocket } from '@/lib/socket';
+import { authApi, paymentsApi, gameApi, setToken, clearToken, getToken } from '@/lib/api';
 import { Navigation } from '@/components/Navigation';
 import { ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -16,17 +17,21 @@ import { CardDeckSelector } from '@/components/CardDeckSelector';
 import { VappTVPlayer } from '@/components/VappTVPlayer';
 import { useCardDeck } from '@/hooks/useCardDeck';
 import { MusicPlayer } from '@/components/MusicPlayer';
+import { JackpotTicker } from '@/components/JackpotTicker';
 import { PokerGame } from '@/components/games/PokerGame';
 import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
 import { DominoesGame } from '@/components/games/DominoesGame';
+import { PoolGame } from '@/components/games/PoolGame';
+import { DartsGame } from '@/components/games/DartsGame';
 import { IframeGameWrapper } from '@/components/games/IframeGameWrapper';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
 import { GameRoom } from '@/components/GameRoom';
 import { VipArea } from '@/components/VipArea';
 import { GlobalGameProvider } from '@/contexts/GlobalGameContext';
 import { CasinoBackground } from '@/components/CasinoBackground';
+import { Sportsbook } from '@/components/Sportsbook';
 import { UserProfile } from '@/components/UserProfile';
 import { AdminDashboard } from '@/components/AdminDashboard';
 import { LegalPages } from '@/components/LegalPages';
@@ -90,66 +95,228 @@ function App() {
   // Card deck preference
   const { selectedDeck, selectDeck, getCardBackStyle, addCustomDeck, allDecks } = useCardDeck();
 
-  // Check for existing session
+  // Notifications state
+  const [notifications, setNotifications] = useState<Array<{ id: string; type: string; title: string; message: string; is_read: boolean; created_at: string }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Deposit address fetched from backend
+  const [depositAddress, setDepositAddress] = useState('');
+
+  // Fetch deposit address from backend
   useEffect(() => {
-    const storedUser = localStorage.getItem('pcasino_user');
-    const storedTxs = localStorage.getItem('pcasino_transactions');
-    
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
+    if (getToken()) {
+      paymentsApi.getDepositAddress().then((data: any) => {
+        if (data?.address) setDepositAddress(data.address);
+      }).catch(() => {});
     }
-    if (storedTxs) {
-      setTransactions(JSON.parse(storedTxs));
+  }, [isAuthenticated]);
+
+  // Responsible gambling - session tracking
+  const [sessionBets, setSessionBets] = useState(0);
+  const [sessionLosses, setSessionLosses] = useState(0);
+  const [sessionWins, setSessionWins] = useState(0);
+
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    if (!getToken()) return;
+    try {
+      const data = await gameApi.getNotifications();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unread || 0);
+    } catch { }
+  }, []);
+
+  // Handle OAuth callback from URL params (?oauth_token=...&oauth_provider=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get('oauth_token');
+    const oauthProvider = params.get('oauth_provider');
+    const oauthError = params.get('oauth_error');
+
+    if (oauthError) {
+      const errMsgs: Record<string, string> = {
+        google_not_configured: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.',
+        discord_not_configured: 'Discord OAuth not configured. Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET.',
+        twitter_not_configured: 'Twitter OAuth not configured. Set TWITTER_CLIENT_ID and TWITTER_CLIENT_SECRET.',
+        google_failed: 'Google login failed. Please try again.',
+        discord_failed: 'Discord login failed. Please try again.',
+        twitter_failed: 'Twitter login failed. Please try again.',
+        cancelled: 'Login cancelled.',
+      };
+      toast.error(errMsgs[oauthError] || `OAuth error: ${oauthError}`);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    if (oauthToken && oauthProvider) {
+      setToken(oauthToken);
+      window.history.replaceState({}, '', window.location.pathname);
+      authApi.me().then(data => {
+        if (data.user) {
+          const userData = {
+            id: data.user.id, username: data.user.username, email: data.user.email,
+            walletAddress: data.user.walletAddress, socialProvider: data.user.socialProvider,
+            balance: data.user.balance, avatar: data.user.avatar || 'wizard',
+            isAdmin: data.user.isAdmin, vipTier: data.user.vipTier,
+            totpEnabled: data.user.totpEnabled, withdrawAddress: data.user.withdrawAddress,
+            dailyDepositLimit: data.user.dailyDepositLimit, dailyLossLimit: data.user.dailyLossLimit,
+            emailVerified: data.user.emailVerified,
+          } as any;
+          setUser(userData);
+          setIsAuthenticated(true);
+          localStorage.setItem('pcasino_user', JSON.stringify(userData));
+          toast.success(`Logged in with ${oauthProvider.charAt(0).toUpperCase() + oauthProvider.slice(1)}! Welcome, ${userData.username}!`);
+          fetchNotifications();
+        }
+      }).catch(() => {
+        toast.error('Failed to complete login. Please try again.');
+        clearToken();
+      });
     }
   }, []);
+
+  // Check for existing session via JWT token
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      authApi.me().then(data => {
+        if (data.user) {
+          setUser({
+            id: data.user.id,
+            username: data.user.username,
+            email: data.user.email,
+            walletAddress: data.user.walletAddress,
+            socialProvider: data.user.socialProvider,
+            balance: data.user.balance,
+            avatar: data.user.avatar || 'wizard',
+            isAdmin: data.user.isAdmin,
+            vipTier: data.user.vipTier,
+            totpEnabled: data.user.totpEnabled,
+            withdrawAddress: data.user.withdrawAddress,
+            dailyDepositLimit: data.user.dailyDepositLimit,
+            dailyLossLimit: data.user.dailyLossLimit,
+            emailVerified: data.user.emailVerified,
+          } as any);
+          setIsAuthenticated(true);
+          // Load transactions from DB
+          paymentsApi.getTransactions({ limit: 100 }).then(txData => {
+            if (txData.transactions) {
+              setTransactions(txData.transactions.map((t: any) => ({
+                id: t.id,
+                type: t.type,
+                amount: t.amount,
+                game: t.game,
+                timestamp: new Date(t.created_at),
+                status: t.status || 'confirmed',
+              })));
+            }
+          }).catch(() => {
+            // Fall back to localStorage transactions
+            const storedTxs = localStorage.getItem('pcasino_transactions');
+            if (storedTxs) setTransactions(JSON.parse(storedTxs));
+          });
+          fetchNotifications();
+        }
+      }).catch(() => {
+        // Token invalid, clear it
+        clearToken();
+        const storedUser = localStorage.getItem('pcasino_user');
+        const storedTxs = localStorage.getItem('pcasino_transactions');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
+        }
+        if (storedTxs) setTransactions(JSON.parse(storedTxs));
+      });
+    } else {
+      // No token - use localStorage for offline/guest state
+      const storedUser = localStorage.getItem('pcasino_user');
+      const storedTxs = localStorage.getItem('pcasino_transactions');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+        setIsAuthenticated(true);
+      }
+      if (storedTxs) setTransactions(JSON.parse(storedTxs));
+    }
+  }, [fetchNotifications]);
+
+  // Poll notifications every 30s when logged in
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, fetchNotifications]);
 
   // Unified login - all methods go to same profile
   const handleUnifiedLogin = async (
     method: 'wallet' | 'google' | 'twitter' | 'discord' | 'telegram',
     data?: { address?: string; email?: string; username?: string }
   ) => {
-    // Check if user already exists with this identifier
-    const existingUser = localStorage.getItem('pcasino_user');
-    let userData: UnifiedUser;
+    if (method === 'wallet' && data?.address && user) {
+      // Link wallet to existing profile
+      try {
+        await authApi.updateProfile({ walletAddress: data.address });
+      } catch { }
+      const updated = { ...user, walletAddress: data.address } as any;
+      setUser(updated);
+      localStorage.setItem('pcasino_user', JSON.stringify(updated));
+      toast.success('Wallet linked to your profile!');
+      setShowWalletModal(false);
+      return;
+    }
 
-    if (existingUser) {
-      // Link new login method to existing profile
-      userData = JSON.parse(existingUser);
-      if (method === 'wallet' && data?.address) {
-        userData.walletAddress = data.address;
-      } else if (method !== 'wallet') {
-        userData.socialProvider = method;
-        if (data?.email) userData.email = data.email;
-        if (data?.username) userData.username = data.username;
-      }
-    } else {
-      // Create new unified profile
-      const username = data?.username || `Player${Math.floor(Math.random() * 10000)}`;
-      const isAdminUser = username.toLowerCase() === 'admin' || data?.email === 'admin@pccasino.com';
-      userData = {
-        id: `user_${Date.now()}`,
-        username,
+    // Social login via DB
+    try {
+      const apiData = await authApi.social({
+        provider: method === 'wallet' ? 'wallet' : method,
+        username: data?.username || `Player${Math.floor(Math.random() * 10000)}`,
         email: data?.email,
-        walletAddress: data?.address,
-        socialProvider: method !== 'wallet' ? method : undefined,
-        balance: 1_000_000_000, // Welcome bonus (1B $Pc)
-        avatar: ['👤', '🎰', '💎', '🎲', '🃏'][Math.floor(Math.random() * 5)],
-        isAdmin: isAdminUser,
-      };
+        socialId: data?.address || data?.username,
+      });
+      if (apiData.token) {
+        setToken(apiData.token);
+        const u = apiData.user;
+        const userData = {
+          id: u.id, username: u.username, email: u.email,
+          walletAddress: u.walletAddress, socialProvider: u.socialProvider,
+          balance: u.balance, avatar: u.avatar || 'wizard',
+          isAdmin: u.isAdmin, vipTier: u.vipTier,
+          totpEnabled: u.totpEnabled, withdrawAddress: u.withdrawAddress,
+          dailyDepositLimit: u.dailyDepositLimit, dailyLossLimit: u.dailyLossLimit,
+          emailVerified: u.emailVerified,
+        } as any;
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem('pcasino_user', JSON.stringify(userData));
+        toast.success(`Welcome! 1B $Pc bonus ready!`);
+        fetchNotifications();
+      }
+    } catch (err: any) {
+      // Fallback to localStorage if API is down
+      const existingUser = localStorage.getItem('pcasino_user');
+      if (!existingUser) {
+        const username = data?.username || `Player${Math.floor(Math.random() * 10000)}`;
+        const userData = {
+          id: `user_${Date.now()}`,
+          username, email: data?.email,
+          walletAddress: data?.address,
+          socialProvider: method !== 'wallet' ? method : undefined,
+          balance: 1_000_000_000,
+          avatar: 'wizard', isAdmin: false,
+        } as any;
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem('pcasino_user', JSON.stringify(userData));
+        addTransaction('deposit', 1_000_000_000, 'Welcome Bonus');
+        toast.success('Welcome! 1B $Pc bonus added!');
+      } else {
+        const userData = JSON.parse(existingUser);
+        setUser(userData);
+        setIsAuthenticated(true);
+        toast.success(`${method.charAt(0).toUpperCase() + method.slice(1)} connected!`);
+      }
     }
 
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem('pcasino_user', JSON.stringify(userData));
-    
-    if (!existingUser) {
-      addTransaction('deposit', 1_000_000_000, 'Welcome Bonus');
-      toast.success('Welcome! 1B $Pc bonus added!');
-    } else {
-      toast.success(`${method.charAt(0).toUpperCase() + method.slice(1)} connected to your profile!`);
-    }
-    
     setShowAuth(false);
     setShowWalletModal(false);
   };
@@ -158,8 +325,67 @@ function App() {
     handleUnifiedLogin('wallet', { address });
   };
 
+  const handleEmailLogin = (u: any) => {
+    const userData = {
+      id: u.id, username: u.username, email: u.email,
+      walletAddress: u.walletAddress, socialProvider: u.socialProvider,
+      balance: u.balance ?? 1_000_000_000,
+      avatar: u.avatar || 'wizard',
+      isAdmin: u.isAdmin, vipTier: u.vipTier,
+      totpEnabled: u.totpEnabled, withdrawAddress: u.withdrawAddress,
+      dailyDepositLimit: u.dailyDepositLimit, dailyLossLimit: u.dailyLossLimit,
+      emailVerified: u.emailVerified,
+    } as any;
+    setUser(userData);
+    setIsAuthenticated(true);
+    localStorage.setItem('pcasino_user', JSON.stringify(userData));
+    fetchNotifications();
+    toast.success(`Welcome, ${userData.username}! 🎰`);
+    setShowAuth(false);
+  };
+
+  // Socket event handlers for payment confirmation and cashback
+  useEffect(() => {
+    const socket = getSocket();
+    const onDepositConfirmed = ({ amount, balance: newBal }: any) => {
+      if (newBal !== undefined) updateBalance(newBal);
+      else if (user) updateBalance(user.balance + amount);
+      addTransaction('deposit', amount, 'Auto-credited');
+      toast.success(`✅ Deposit of ${parseInt(amount).toLocaleString()} $Pc auto-credited!`, { duration: 8000 });
+      fetchNotifications();
+    };
+    const onCashbackCredited = ({ amount, tier }: any) => {
+      if (user) updateBalance(user.balance + amount);
+      addTransaction('deposit', amount, 'VIP Cashback');
+      toast.success(`💎 ${tier?.toUpperCase()} cashback: ${parseInt(amount).toLocaleString()} $Pc credited!`, { duration: 8000 });
+      fetchNotifications();
+    };
+    const onPaymentRefund = ({ amount }: any) => {
+      if (user) updateBalance(user.balance + amount);
+      addTransaction('deposit', amount, 'Dispute Refund');
+      toast.success(`↩️ Refund of ${parseInt(amount).toLocaleString()} $Pc credited!`);
+    };
+    socket.on('payment:deposit:confirmed', onDepositConfirmed);
+    socket.on('cashback:credited', onCashbackCredited);
+    socket.on('payment:refund', onPaymentRefund);
+    return () => {
+      socket.off('payment:deposit:confirmed', onDepositConfirmed);
+      socket.off('cashback:credited', onCashbackCredited);
+      socket.off('payment:refund', onPaymentRefund);
+    };
+  }, [user?.id]);
+
+  // Redirect to OAuth providers
+  const handleOAuthRedirect = (provider: 'google' | 'discord' | 'twitter') => {
+    window.location.href = `/api/auth/oauth/${provider}`;
+  };
+
   const handleSocialConnect = (provider: 'google' | 'twitter' | 'discord' | 'telegram') => {
-    // Simulate social auth
+    // For Google, Discord, Twitter — do real OAuth redirect
+    if (provider === 'google' || provider === 'discord' || provider === 'twitter') {
+      handleOAuthRedirect(provider as any);
+      return;
+    }
     const mockData = {
       google: { email: 'player@gmail.com', username: 'GooglePlayer' },
       twitter: { email: 'player@twitter.com', username: 'TwitterPlayer' },
@@ -169,9 +395,13 @@ function App() {
     handleUnifiedLogin(provider, mockData[provider]);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try { await authApi.logout(); } catch { }
+    clearToken();
     setUser(null);
     setIsAuthenticated(false);
+    setNotifications([]);
+    setUnreadCount(0);
     localStorage.removeItem('pcasino_user');
     toast.success('Logged out successfully');
   };
@@ -201,20 +431,62 @@ function App() {
 
   // Betting functions
   const handleBet = (amount: number): boolean => {
-    if (!user || amount > user.balance) {
+    if (!user) { toast.error('Please login to play'); return false; }
+
+    // Self-exclusion check
+    if ((user as any).selfExcluded) {
+      toast.error('Your account is self-excluded. Contact support to reinstate.');
+      return false;
+    }
+
+    // Daily loss limit enforcement
+    const dailyLossLimit = (user as any).dailyLossLimit;
+    if (dailyLossLimit && dailyLossLimit > 0 && sessionLosses >= dailyLossLimit) {
+      toast.error(`Daily loss limit of ${dailyLossLimit.toLocaleString()} $Pc reached. Responsible gaming limit active.`);
+      return false;
+    }
+
+    if (amount > user.balance) {
       toast.error('Insufficient balance!');
       return false;
     }
+
     updateBalance(user.balance - amount);
+    setSessionBets(prev => prev + amount);
     addTransaction('bet', amount, currentView === 'lobby' ? undefined : currentView);
+    // Record to DB asynchronously
+    if (getToken()) {
+      paymentsApi.recordTransaction({ type: 'bet', amount, game: currentView === 'lobby' ? undefined : currentView })
+        .then(res => {
+          if (res.balance !== undefined) updateBalance(res.balance);
+        })
+        .catch(() => {});
+    }
     return true;
   };
 
   const handleWin = (amount: number) => {
     if (user) {
+      const betAmount = 0; // Net gain is tracked separately
       updateBalance(user.balance + amount);
+      setSessionWins(prev => prev + amount);
       addTransaction('win', amount, currentView === 'lobby' ? undefined : currentView);
       toast.success(`You won ${amount.toLocaleString()} $Pc!`);
+      // Record to DB asynchronously
+      if (getToken()) {
+        paymentsApi.recordTransaction({ type: 'win', amount, game: currentView === 'lobby' ? undefined : currentView })
+          .then(res => {
+            if (res.balance !== undefined) updateBalance(res.balance);
+          })
+          .catch(() => {});
+        // Save game history
+        gameApi.saveGameHistory({
+          game: currentView === 'lobby' ? 'Casino' : currentView,
+          result: 'win',
+          winAmount: amount,
+          net: amount - betAmount,
+        }).catch(() => {});
+      }
       getSocket().emit('game:win', {
         amount,
         game: currentView === 'lobby' ? 'Casino' : currentView,
@@ -223,24 +495,68 @@ function App() {
     }
   };
 
-  // Deposit/Withdraw
-  const handleDeposit = (amount: number) => {
+  // Track a loss (called when a bet resolves as a loss)
+  const handleLoss = useCallback((amount: number) => {
+    setSessionLosses(prev => prev + amount);
+    const dailyLossLimit = (user as any)?.dailyLossLimit;
+    if (dailyLossLimit && dailyLossLimit > 0) {
+      const newTotal = sessionLosses + amount;
+      if (newTotal >= dailyLossLimit * 0.8 && newTotal < dailyLossLimit) {
+        toast.warning(`⚠️ You're approaching your daily loss limit (${Math.round((newTotal / dailyLossLimit) * 100)}% used)`);
+      }
+    }
+  }, [user, sessionLosses]);
+
+  // Deposit — submit a real deposit request
+  const handleDeposit = async (amount: number, txHash?: string) => {
     if (user) {
-      updateBalance(user.balance + amount);
-      addTransaction('deposit', amount);
-      toast.success(`Deposited ${amount.toLocaleString()} $Pc`);
+      if (getToken()) {
+        try {
+          await paymentsApi.requestDeposit({ amount, txHash });
+          addTransaction('deposit', amount);
+          toast.success(`Deposit request for ${amount.toLocaleString()} $Pc submitted! Pending review.`, { duration: 5000 });
+          fetchNotifications();
+        } catch (err: any) {
+          toast.error(err.message || 'Deposit request failed');
+        }
+      } else {
+        // Fallback for unauthenticated state
+        updateBalance(user.balance + amount);
+        addTransaction('deposit', amount);
+        toast.success(`Deposited ${amount.toLocaleString()} $Pc`);
+      }
     }
   };
 
-  const handleWithdraw = (amount: number) => {
-    if (user && amount <= user.balance) {
+  const handleWithdraw = async (amount: number) => {
+    if (!user) return false;
+    if (amount > user.balance) { toast.error('Insufficient balance!'); return false; }
+
+    const withdrawAddr = (user as any).withdrawAddress;
+    if (!withdrawAddr) {
+      toast.error('Please save a withdrawal address in your profile first.');
+      setShowProfile(true);
+      return false;
+    }
+
+    if (getToken()) {
+      try {
+        await paymentsApi.requestWithdraw({ amount, toAddress: withdrawAddr });
+        updateBalance(user.balance - amount);
+        addTransaction('withdraw', amount);
+        toast.success(`Withdrawal of ${amount.toLocaleString()} $Pc submitted! Processing within 24-48h.`, { duration: 6000 });
+        fetchNotifications();
+        return true;
+      } catch (err: any) {
+        toast.error(err.message || 'Withdrawal failed');
+        return false;
+      }
+    } else {
       updateBalance(user.balance - amount);
       addTransaction('withdraw', amount);
       toast.success(`Withdrew ${amount.toLocaleString()} $Pc`);
       return true;
     }
-    toast.error('Insufficient balance!');
-    return false;
   };
 
   // Dev mode reload - add $Pc for testing
@@ -262,19 +578,58 @@ function App() {
     }
   };
 
-  // Daily bonus
-  const claimDailyBonus = () => {
+  // Daily bonus - DB-backed
+  const claimDailyBonus = async () => {
     if (dailyBonusClaimed) {
-      toast.error('Daily bonus already claimed!');
+      toast.error('Daily bonus already claimed today!');
       return;
     }
     if (user) {
-      updateBalance(user.balance + 50_000_000);
-      addTransaction('deposit', 50_000_000, 'Daily Bonus');
-      setDailyBonusClaimed(true);
-      toast.success('Claimed 50M $Pc daily bonus!');
+      if (getToken()) {
+        try {
+          const data = await gameApi.claimDailyBonus();
+          if (data.success) {
+            updateBalance(data.balance ?? user.balance + 50_000_000);
+            addTransaction('deposit', data.bonus || 50_000_000, 'Daily Bonus');
+            setDailyBonusClaimed(true);
+            toast.success(`🎁 Claimed ${(data.bonus || 50_000_000).toLocaleString()} $Pc daily bonus!`);
+            fetchNotifications();
+          }
+        } catch (err: any) {
+          const msg = err?.message || '';
+          if (msg.includes('already claimed')) {
+            setDailyBonusClaimed(true);
+            toast.error('Daily bonus already claimed today!');
+          } else {
+            // Fallback to local state
+            updateBalance(user.balance + 50_000_000);
+            addTransaction('deposit', 50_000_000, 'Daily Bonus');
+            setDailyBonusClaimed(true);
+            toast.success('Claimed 50M $Pc daily bonus!');
+          }
+        }
+      } else {
+        updateBalance(user.balance + 50_000_000);
+        addTransaction('deposit', 50_000_000, 'Daily Bonus');
+        setDailyBonusClaimed(true);
+        toast.success('Claimed 50M $Pc daily bonus!');
+      }
     }
   };
+
+  // Check daily bonus status from DB on login
+  useEffect(() => {
+    if (!isAuthenticated || !getToken()) return;
+    gameApi.getDailyBonus()
+      .then((data: any) => { if (data.claimed) setDailyBonusClaimed(true); })
+      .catch(() => {
+        const lastClaim = localStorage.getItem('pcasino_daily_bonus_claimed');
+        if (lastClaim) {
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          if (new Date(lastClaim) >= today) setDailyBonusClaimed(true);
+        }
+      });
+  }, [isAuthenticated]);
 
   // Game selection
   const handleSelectGame = (game: GameType) => {
@@ -429,62 +784,52 @@ function App() {
         );
       case 'pool':
         return (
-          <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #1a1a0a 100%)' }}>
-            <div className="text-center p-12 rounded-2xl" style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(0,0,0,0.6)' }}>
-              <div className="text-7xl mb-6">🎱</div>
-              <h2 className="font-casino text-4xl font-bold mb-3 metallic-gold-text">Pool Table</h2>
-              <p className="text-[#A0A0A0] text-lg mb-8">Game coming soon — drop in your build to activate</p>
-              <button
-                onClick={() => setCurrentView('lobby')}
-                className="px-8 py-3 rounded-xl font-bold text-black transition-all"
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', boxShadow: '0 0 20px rgba(212,175,55,0.4)' }}
-              >
-                Back to Lobby
-              </button>
-            </div>
-          </div>
+          <PoolGame
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+            onAddBalance={handleAddBalance}
+          />
         );
       case 'darts':
         return (
-          <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #0a0a1a 100%)' }}>
-            <div className="text-center p-12 rounded-2xl" style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(0,0,0,0.6)' }}>
-              <div className="text-7xl mb-6">🎯</div>
-              <h2 className="font-casino text-4xl font-bold mb-3 metallic-gold-text">Darts</h2>
-              <p className="text-[#A0A0A0] text-lg mb-8">Game coming soon — drop in your build to activate</p>
-              <button
-                onClick={() => setCurrentView('lobby')}
-                className="px-8 py-3 rounded-xl font-bold text-black transition-all"
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', boxShadow: '0 0 20px rgba(212,175,55,0.4)' }}
-              >
-                Back to Lobby
-              </button>
-            </div>
-          </div>
+          <DartsGame
+            balance={user?.balance || 0}
+            onBack={() => setCurrentView('lobby')}
+            onBet={handleBet}
+            onWin={handleWin}
+            onAddBalance={handleAddBalance}
+          />
         );
       case 'sports':
         return (
-          <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
-            <div className="text-center p-12 rounded-2xl" style={{ border: '1px solid rgba(21,101,192,0.4)', background: 'rgba(0,0,0,0.7)' }}>
-              <div className="text-7xl mb-6">🏈</div>
-              <h2 className="font-casino text-4xl font-bold mb-3" style={{ color: '#64B5F6' }}>Sports Gambling</h2>
-              <p className="text-[#A0A0A0] text-lg mb-8">Powered by WeParlay Inc. — Opening in new tab...</p>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => { window.open('https://weparlay.com', '_blank', 'noopener,noreferrer'); setCurrentView('lobby'); }}
-                  className="px-8 py-3 rounded-xl font-bold text-white transition-all"
-                  style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', boxShadow: '0 0 20px rgba(21,101,192,0.4)' }}
-                >
-                  Go to WeParlay →
-                </button>
-                <button
-                  onClick={() => setCurrentView('lobby')}
-                  className="px-8 py-3 rounded-xl font-bold text-white transition-all"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                >
-                  Back to Lobby
-                </button>
-              </div>
+          <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
+            <div className="flex items-center gap-3 px-4 pt-4">
+              <button
+                onClick={() => setCurrentView('lobby')}
+                className="px-4 py-2 rounded-xl font-bold text-white transition-all text-sm"
+                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+              >
+                ← Back to Lobby
+              </button>
             </div>
+            <Sportsbook
+              balance={user?.balance || 0}
+              isAuthenticated={!!user}
+              onPlaceBet={(amount) => {
+                if (!user) { toast.error('Please login to place bets'); return false; }
+                if (amount > user.balance) { toast.error('Insufficient balance!'); return false; }
+                updateBalance(user.balance - amount);
+                addTransaction('bet', amount, 'sports');
+                if (getToken()) {
+                  paymentsApi.recordTransaction({ type: 'bet', amount, game: 'sports' })
+                    .then(res => { if (res.balance !== undefined) updateBalance(res.balance); })
+                    .catch(() => {});
+                }
+                return true;
+              }}
+            />
           </div>
         );
       case 'vip':
@@ -502,6 +847,9 @@ function App() {
               onScrollToGames={() => document.getElementById('games-section')?.scrollIntoView({ behavior: 'smooth' })}
               onOpenDeposit={() => setShowDeposit(true)}
             />
+            <div className="flex justify-center py-3 px-4">
+              <JackpotTicker onJackpotWin={(amount) => { toast.success(`🎰 Jackpot won: ${amount.toLocaleString()} $Pc!`, { duration: 6000 }); }} />
+            </div>
             <GamesGrid onSelectGame={handleSelectGame} />
             <Leaderboard />
             <WeParlaySection userBalance={user?.balance || 0} onSelectVip={() => handleSelectGame('vip')} />
@@ -605,6 +953,7 @@ function App() {
           isAuthenticated={isAuthenticated}
           balance={user?.balance || 0}
           avatarDef={userAvatarDef}
+          unreadNotifications={unreadCount}
           onConnect={() => setShowAuth(true)}
           onConnectWallet={() => setShowWalletModal(true)}
           onDisconnect={logout}
@@ -624,15 +973,16 @@ function App() {
         />
       )}
 
-      <main>
+      <div id="app-content">
         {renderView()}
-      </main>
+      </div>
 
-      {/* Auth Modal - Social Logins */}
+      {/* Auth Modal - Email/Social/Wallet */}
       <AuthModal
         isOpen={showAuth}
         onClose={() => setShowAuth(false)}
         onConnect={handleSocialConnect}
+        onEmailLogin={handleEmailLogin}
         onWalletConnect={() => {
           setShowAuth(false);
           setShowWalletModal(true);
@@ -677,7 +1027,7 @@ function App() {
             >
               <div className="text-sm text-[#808080] mb-2">Your Deposit Address</div>
               <code className="block p-3 rounded-lg bg-black/50 text-xs break-all text-[#D4AF37]">
-                0x742d35Cc6634C0532925a3b8D4C9db96590b8f3a
+                {depositAddress || '0x742d35Cc6634C0532925a3b8D4C9db96590b8f3a'}
               </code>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -949,8 +1299,9 @@ function App() {
       <UserProfile
         isOpen={showProfile}
         onClose={() => setShowProfile(false)}
-        user={user}
+        user={user as any}
         transactions={transactions}
+        avatarDef={userAvatarDef}
         onShowDeposit={() => { setShowProfile(false); setShowDeposit(true); }}
         onShowWithdraw={() => { setShowProfile(false); setShowWithdraw(true); }}
         onShowReferral={() => { setShowProfile(false); setShowReferral(true); }}

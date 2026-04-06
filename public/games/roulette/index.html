@@ -1,47 +1,404 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Roulette — $Pc Casino</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: linear-gradient(180deg, #0a0a0a 0%, #0a0005 100%);
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; font-family: system-ui, sans-serif; color: white;
-    }
-    .card {
-      text-align: center; padding: 60px 40px;
-      border: 1px solid rgba(212,175,55,0.3);
-      border-radius: 20px; background: rgba(0,0,0,0.6);
-      max-width: 480px;
-    }
-    .emoji { font-size: 80px; margin-bottom: 20px; display: block; }
-    h1 { font-size: 2rem; font-weight: 800; color: #D4AF37; margin-bottom: 8px; }
-    p { color: #808080; margin-bottom: 6px; line-height: 1.5; }
-    code { color: #D4AF37; background: rgba(212,175,55,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
-    .step { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-top: 20px; text-align: left; }
-    .step li { color: #A0A0A0; font-size: 0.85rem; margin-bottom: 6px; line-height: 1.4; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <span class="emoji">🎡</span>
-    <h1>French Roulette</h1>
-    <p style="color:#D4AF37; font-size:1.1rem; margin-bottom: 16px;">Game not yet installed</p>
-    <p>Drop the purchased game files into:</p>
-    <p><code>/public/games/roulette/</code></p>
-    <div class="step">
-      <ol style="padding-left:18px;">
-        <li>Purchase from CodeCanyon (ID: 53831511)</li>
-        <li>Unzip into <code>/public/games/roulette/</code></li>
-        <li>Patch config with $Pc denominations</li>
-        <li>Insert postMessage bridge in game JS</li>
-        <li>Enable La Partage toggle</li>
-        <li>Reload this tab</li>
-      </ol>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Sofia&effect=neon|outline|emboss|shadow-multiple"
+    />
+    <script
+      src="https://kit.fontawesome.com/00e5a0a6bd.js"
+      crossorigin="anonymous"
+    ></script>
+    <title>French Roulette</title>
+  </head>
+
+  <body>
+    <div id="rotateMobile" role="dialog" aria-modal="true" aria-hidden="true">
+      <p>
+        Please rotate your phone
+        <small
+          >Turn your device to landscape for the best gameplay experience</small
+        >
+      </p>
     </div>
-  </div>
-</body>
+    <div id="loadingScreen">
+      <div
+        id="langChoose"
+        class="font-effect-outline"
+        style="transform: scale(0)"
+      >
+        <h1 id="chooseLangTitle">Choose language</h1>
+        <button class="langBtns" id="enLang">EN</button>
+        <button class="langBtns" id="ruLang">RU</button>
+        <button class="langBtns" id="frLang">FR</button>
+      </div>
+
+      <div class="loading">
+        <div id="progressBar">
+          <p id="progress" class="font-effect-emboss"></p>
+        </div>
+      </div>
+    </div>
+
+    <div id="disableBackground">
+      <div id="oddsInfo">
+        <p id="historyText">HISTORY</p>
+        <button id="closeOddsBtn"></button>
+
+        <div id="restartGame">
+          <p id="gameoverText"></p>
+          <button id="restart"></button>
+        </div>
+
+        <div id="settings">
+          <p id="oddsText"></p>
+        </div>
+
+        <div id="soundSettings">
+          <div>
+            <label for="musicVolume" class="soundText"
+              ><i class="fa-solid fa-music"></i> Music</label
+            >
+            <input
+              type="range"
+              id="musicVolume"
+              name="musicVolume"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.3"
+            />
+          </div>
+
+          <div>
+            <label for="soundFx" class="soundText"
+              ><i class="fa-solid fa-volume-high"></i> Sound Fx</label
+            >
+            <input
+              type="range"
+              id="soundFx"
+              name="soundFX"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.5"
+            />
+          </div>
+
+          <div>
+            <label for="dictorVoice" class="soundText"
+              ><i class="fa-solid fa-comment-dots"></i> Dictor Voice</label
+            >
+            <input
+              type="range"
+              id="dictorVoice"
+              name="dictorVoice"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.5"
+            />
+          </div>
+        </div>
+
+        <div id="historyMenu"></div>
+      </div>
+    </div>
+
+    <div id="game">
+      <div id="rollEndWindow">
+        <div id="rollEndWindowCircle"></div>
+        <p id="rollEndWindowText"></p>
+        <p id="rollEndWindowNumber">10</p>
+        <div id="rollMoneyInfo"></div>
+      </div>
+
+      <div id="musicInfo">
+        <i id="vinyl"></i>
+        <p id="nowPlaying">Night Skies</p>
+        <button class="changeMusic">
+          <i class="fa-solid fa-backward"></i>
+        </button>
+        <button id="pausePlay">
+          <i class="fa-solid fa-pause" id="musicPause"></i>
+        </button>
+        <button class="changeMusic">
+          <i class="fa-solid fa-forward"></i>
+        </button>
+        <p id="musicTimer">01:54</p>
+      </div>
+
+      <div id="rouletteTable">
+        <div id="roulette">
+          <div id="roulette4"></div>
+          <div id="rouletteShadow"></div>
+          <div id="shine"></div>
+          <div id="rouletteShadow3"></div>
+          <div id="roulette2"></div>
+          <div id="roulette6"></div>
+          <div id="roulette5">
+            <div id="ballSpin">
+              <div id="ball"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gameTable">
+        <div id="tableTexture"></div>
+
+        <div id="betSection">
+          <button class="longButton outside" id="manqueBtn"></button>
+          <button class="longButton outside" id="impairBtn"></button>
+          <button class="longButton outside" id="redBtn"></button>
+
+          <button class="numbers" id="n0"></button>
+          <button class="numbers" id="n3"></button>
+          <button class="numbers" id="n6"></button>
+          <button class="numbers" id="n9"></button>
+          <button class="numbers" id="n12"></button>
+          <button class="numbers" id="n15"></button>
+          <button class="numbers" id="n18"></button>
+          <button class="numbers" id="n21"></button>
+          <button class="numbers" id="n24"></button>
+          <button class="numbers" id="n27"></button>
+          <button class="numbers" id="n30"></button>
+          <button class="numbers" id="n33"></button>
+          <button class="numbers" id="n36"></button>
+          <button class="outside" id="column1"></button>
+          <button class="numbers" id="n2"></button>
+          <button class="numbers" id="n5"></button>
+          <button class="numbers" id="n8"></button>
+          <button class="numbers" id="n11"></button>
+          <button class="numbers" id="n14"></button>
+          <button class="numbers" id="n17"></button>
+          <button class="numbers" id="n20"></button>
+          <button class="numbers" id="n23"></button>
+          <button class="numbers" id="n26"></button>
+          <button class="numbers" id="n29"></button>
+          <button class="numbers" id="n32"></button>
+          <button class="numbers" id="n35"></button>
+          <button class="outside" id="column2"></button>
+          <button class="numbers" id="n1"></button>
+          <button class="numbers" id="n4"></button>
+          <button class="numbers" id="n7"></button>
+          <button class="numbers" id="n10"></button>
+          <button class="numbers" id="n13"></button>
+          <button class="numbers" id="n16"></button>
+          <button class="numbers" id="n19"></button>
+          <button class="numbers" id="n22"></button>
+          <button class="numbers" id="n25"></button>
+          <button class="numbers" id="n28"></button>
+          <button class="numbers" id="n31"></button>
+          <button class="numbers" id="n34"></button>
+          <button class="split" id="split1"></button>
+          <button class="split" id="split2"></button>
+          <button class="split" id="split3"></button>
+          <button class="split" id="split4"></button>
+          <button class="split" id="split5"></button>
+          <button class="split" id="split6"></button>
+          <button class="split" id="split7"></button>
+          <button class="split" id="split8"></button>
+          <button class="split" id="split9"></button>
+          <button class="split" id="split10"></button>
+          <button class="split" id="split11"></button>
+          <button class="split" id="split12"></button>
+          <button class="split" id="split13"></button>
+          <button class="split" id="split14"></button>
+          <button class="split" id="split15"></button>
+          <button class="split" id="split16"></button>
+          <button class="split" id="split17"></button>
+          <button class="split" id="split18"></button>
+          <button class="split" id="split19"></button>
+          <button class="split" id="split20"></button>
+          <button class="split" id="split21"></button>
+          <button class="split" id="split22"></button>
+          <button class="split" id="split23"></button>
+          <button class="split" id="split24"></button>
+          <button class="split" id="split25"></button>
+          <button class="split" id="split26"></button>
+          <button class="split" id="split27"></button>
+          <button class="split" id="split28"></button>
+          <button class="split" id="split29"></button>
+          <button class="split" id="split30"></button>
+          <button class="split" id="split31"></button>
+          <button class="split" id="split32"></button>
+          <button class="split" id="split33"></button>
+          <button class="split" id="split34"></button>
+          <button class="split" id="split35"></button>
+          <button class="split" id="split36"></button>
+
+          <button class="splitY" id="splitY1"></button>
+          <button class="splitY" id="splitY2"></button>
+          <button class="splitY" id="splitY3"></button>
+          <button class="splitY" id="splitY4"></button>
+          <button class="splitY" id="splitY5"></button>
+          <button class="splitY" id="splitY6"></button>
+          <button class="splitY" id="splitY7"></button>
+          <button class="splitY" id="splitY8"></button>
+          <button class="splitY" id="splitY9"></button>
+          <button class="splitY" id="splitY10"></button>
+          <button class="splitY" id="splitY11"></button>
+          <button class="splitY" id="splitY12"></button>
+          <button class="splitY" id="splitY13"></button>
+          <button class="splitY" id="splitY14"></button>
+          <button class="splitY" id="splitY15"></button>
+          <button class="splitY" id="splitY16"></button>
+          <button class="splitY" id="splitY17"></button>
+          <button class="splitY" id="splitY18"></button>
+          <button class="splitY" id="splitY19"></button>
+          <button class="splitY" id="splitY20"></button>
+          <button class="splitY" id="splitY21"></button>
+          <button class="splitY" id="splitY22"></button>
+          <button class="splitY" id="splitY23"></button>
+          <button class="splitY" id="splitY24"></button>
+
+          <button class="corner" id="corner1"></button>
+          <button class="corner" id="corner2"></button>
+          <button class="corner" id="corner3"></button>
+          <button class="corner" id="corner4"></button>
+          <button class="corner" id="corner5"></button>
+          <button class="corner" id="corner6"></button>
+          <button class="corner" id="corner7"></button>
+          <button class="corner" id="corner8"></button>
+          <button class="corner" id="corner9"></button>
+          <button class="corner" id="corner10"></button>
+          <button class="corner" id="corner11"></button>
+          <button class="corner" id="corner12"></button>
+          <button class="corner" id="corner13"></button>
+          <button class="corner" id="corner14"></button>
+          <button class="corner" id="corner15"></button>
+          <button class="corner" id="corner16"></button>
+          <button class="corner" id="corner17"></button>
+          <button class="corner" id="corner18"></button>
+          <button class="corner" id="corner19"></button>
+          <button class="corner" id="corner20"></button>
+          <button class="corner" id="corner21"></button>
+          <button class="corner" id="corner22"></button>
+          <button class="corner" id="corner23"></button>
+          <button class="outside" id="column3"></button>
+
+          <button class="street" id="street1"></button>
+          <button class="street" id="street2"></button>
+          <button class="street" id="street3"></button>
+          <button class="street" id="street4"></button>
+          <button class="street" id="street5"></button>
+          <button class="street" id="street6"></button>
+          <button class="street" id="street7"></button>
+          <button class="street" id="street8"></button>
+          <button class="street" id="street9"></button>
+          <button class="street" id="street10"></button>
+          <button class="street" id="street11"></button>
+          <button class="street" id="street12"></button>
+          <button class="street" id="street13"></button>
+          <button class="street" id="street14"></button>
+
+          <button class="sixain" id="sixain1"></button>
+          <button class="sixain" id="sixain2"></button>
+          <button class="sixain" id="sixain3"></button>
+          <button class="sixain" id="sixain4"></button>
+          <button class="sixain" id="sixain5"></button>
+          <button class="sixain" id="sixain6"></button>
+          <button class="sixain" id="sixain7"></button>
+          <button class="sixain" id="sixain8"></button>
+          <button class="sixain" id="sixain9"></button>
+          <button class="sixain" id="sixain10"></button>
+          <button class="sixain" id="sixain11"></button>
+
+          <button class="longButton outside" id="passeBtn"></button>
+          <button class="longButton outside" id="pairBtn"></button>
+          <button class="longButton outside" id="blackBtn"></button>
+
+          <div id="dozenBox">
+            <button class="dozen outside" id="d12"></button>
+            <button class="dozen outside" id="m12"></button>
+            <button class="dozen outside" id="p12"></button>
+          </div>
+        </div>
+
+        <div id="chipsZone">
+          <div class="fourButtons" id="leftSide4btns">
+            <div class="buttonsInfo" id="leftBtnInfo"></div>
+            <button class="circleBtns" id="betInfoBtn"></button>
+            <button class="circleBtns" id="soundBtn"></button>
+            <button
+              class="circleBtns disabledCircleBtns"
+              id="statisticBtn"
+            ></button>
+
+            <button class="circleBtns" id="fullscreenBtn"></button>
+          </div>
+
+          <div id="chipsSelector">
+            <div class="chipsBtn biggerBtn" id="chips1"></div>
+            <div class="chipsBtn" id="chips2"></div>
+            <div class="chipsBtn" id="chips3"></div>
+            <div class="chipsBtn" id="chips4"></div>
+            <div class="chipsBtn" id="chips5"></div>
+            <div class="chipsBtn" id="chips6"></div>
+            <div class="chipsBtn" id="chips7"></div>
+            <div class="chipsBtn" id="chips8"></div>
+            <div class="chipsBtn" id="chips9"></div>
+          </div>
+          <div class="fourButtons" id="rightSide4Btns">
+            <div class="buttonsInfo" id="rightBtnInfo"></div>
+            <button class="betComplete">
+              <i class="fa-solid fa-play" id="startIcon"></i>
+            </button>
+            <div id="betPointerDisable"></div>
+            <div class="insideFB" id="fbShadow">
+              <button class="circleBtns disabledCircleBtns" id="x2btn"></button>
+              <button
+                class="circleBtns disabledCircleBtns"
+                id="cancelLastBtn"
+              ></button>
+              <button
+                class="circleBtns disabledCircleBtns"
+                id="cancelAllBtn"
+              ></button>
+              <button
+                class="circleBtns disabledCircleBtns"
+                id="repeatBetBtn"
+              ></button>
+            </div>
+          </div>
+          <div id="chipsSelectorDisabled"></div>
+        </div>
+        <div id="infoSector">
+          <div id="betInfo">
+            <p id="money" class="betNumbers"></p>
+            <p id="totalBet" class="betNumbers"></p>
+            <p id="totalWin" class="betNumbers"></p>
+          </div>
+        </div>
+      </div>
+
+      <div id="circle"></div>
+      <div id="betWindow"></div>
+      <nav class="menu">
+        <input
+          type="checkbox"
+          class="menu-open"
+          name="menu-open"
+          id="menu-open"
+          title="Open menu"
+        />
+        <label class="menu-open-button" for="menu-open"></label>
+
+        <a href="#" class="fastBet fast10"></a>
+        <a href="#" class="fastBet fast25"> </a>
+        <a href="#" class="fastBet fast50"> </a>
+        <a href="#" class="fastBet fast100"></a>
+        <a href="#" class="fastBet fast500"> </a>
+        <a href="#" class="fastBet fast1000"> </a>
+      </nav>
+    </div>
+  </body>
+  <script defer type="module" src="script.js"></script>
 </html>

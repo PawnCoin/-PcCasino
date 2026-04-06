@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { getToken } from '@/lib/api';
 
 interface Tournament {
   id: string;
@@ -57,19 +58,25 @@ export function TournamentsPage({ isOpen, onClose, user, onDeductBalance }: Tour
     if (!user) { toast.error('Please login to register'); return; }
     if (user.balance < t.entryFee) { toast.error(`Insufficient balance. Need ${t.entryFee.toLocaleString()} $Pc`); return; }
     if (registered.has(t.id)) { toast.info('Already registered for this tournament'); return; }
+    const token = getToken();
     try {
-      const res = await fetch(`/api/tournaments/${t.id}/register`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, username: user.username }),
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`/api/game/tournaments/${t.id}/register`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ entryFee: t.entryFee }),
       });
-      const ok = res.ok;
-      if (ok || true) {
+      if (res.ok) {
         setRegistered(prev => new Set([...prev, t.id]));
         onDeductBalance(t.entryFee);
         toast.success(`Registered for ${t.name}! Good luck! 🏆`);
         loadTournaments();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || 'Registration failed');
       }
     } catch {
+      // Fallback: still deduct balance locally
       setRegistered(prev => new Set([...prev, t.id]));
       onDeductBalance(t.entryFee);
       toast.success(`Registered for ${t.name}! Good luck! 🏆`);

@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import type { UnifiedUser } from '@/types';
+import { PcPriceTicker } from '@/components/PcPriceTicker';
 
 interface NavigationProps {
   user: UnifiedUser | null;
   isAuthenticated: boolean;
   balance: number;
   avatarDef?: AvatarDef;
+  unreadNotifications?: number;
   onConnect: () => void;
   onConnectWallet: () => void;
   onDisconnect: () => void;
@@ -34,6 +37,7 @@ export function Navigation({
   isAuthenticated, 
   balance,
   avatarDef,
+  unreadNotifications = 0,
   onConnect, 
   onConnectWallet,
   onDisconnect, 
@@ -54,6 +58,7 @@ export function Navigation({
   const displayAvatar = avatarDef || ALL_AVATARS[0];
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showWeparlayConfirm, setShowWeparlayConfirm] = useState(false);
 
   const formatAddress = (address?: string) => {
     if (!address) return '';
@@ -110,12 +115,10 @@ export function Navigation({
               {/* WeParlay.io - Image Menu Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <a
-                    href="https://weparlay.io"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => setShowWeparlayConfirm(true)}
                     className="flex items-center gap-1.5 group relative"
-                    style={{ textDecoration: 'none' }}
+                    style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                   >
                     <div className="relative overflow-hidden rounded-lg transition-all group-hover:scale-105"
                       style={{
@@ -136,7 +139,7 @@ export function Navigation({
                       </div>
                     </div>
                     <ExternalLink className="w-3 h-3 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity absolute -top-1 -right-1" />
-                  </a>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   <p>Sports Betting on WeParlay.io</p>
@@ -214,6 +217,11 @@ export function Navigation({
 
             {/* Right Side */}
             <div className="flex items-center gap-4">
+              {/* Live $Pc price — always visible */}
+              <div className="hidden md:block">
+                <PcPriceTicker compact={false} />
+              </div>
+
               {isAuthenticated ? (
                 <>
                   <Tooltip>
@@ -264,8 +272,16 @@ export function Navigation({
                           onClick={() => setShowUserDropdown(!showUserDropdown)}
                           className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-[#5D4037]/30 transition-colors"
                         >
-                          <div className="rounded-full overflow-hidden" style={{ width: 28, height: 28 }}>
-                            <AvatarSprite avatar={displayAvatar} size={28} style={{ borderRadius: 0 }} />
+                          <div className="relative rounded-full overflow-visible" style={{ width: 28, height: 28 }}>
+                            <div className="rounded-full overflow-hidden" style={{ width: 28, height: 28 }}>
+                              <AvatarSprite avatar={displayAvatar} size={28} style={{ borderRadius: 0 }} />
+                            </div>
+                            {unreadNotifications > 0 && (
+                              <div className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-black z-10"
+                                style={{ background: '#D4AF37', padding: '0 3px' }}>
+                                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                              </div>
+                            )}
                           </div>
                           <span className="hidden sm:block font-medium text-white">{user?.username}</span>
                           {user?.walletAddress && (
@@ -436,13 +452,10 @@ export function Navigation({
                 </a>
 
                 {/* Mobile WeParlay image button */}
-                <a
-                  href="https://weparlay.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-lg overflow-hidden"
-                  onClick={() => setIsMenuOpen(false)}
-                  style={{ border: '1px solid rgba(212,175,55,0.4)' }}
+                <button
+                  className="p-2 rounded-lg overflow-hidden w-full text-left"
+                  onClick={() => { setIsMenuOpen(false); setShowWeparlayConfirm(true); }}
+                  style={{ border: '1px solid rgba(212,175,55,0.4)', background: 'none', cursor: 'pointer' }}
                 >
                   <div className="relative h-14 rounded-lg overflow-hidden">
                     <img
@@ -457,7 +470,7 @@ export function Navigation({
                       <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
                     </div>
                   </div>
-                </a>
+                </button>
 
                 {/* Mobile 18+ VIP image button */}
                 <a
@@ -549,6 +562,55 @@ export function Navigation({
           50% { box-shadow: 0 0 20px rgba(67,160,71,0.4), 0 0 40px rgba(212,175,55,0.2); }
         }
       `}</style>
+
+      {/* WeParlay.io Leave-Site Confirmation Dialog */}
+      <Dialog open={showWeparlayConfirm} onOpenChange={setShowWeparlayConfirm}>
+        <DialogContent
+          className="max-w-sm"
+          style={{
+            background: 'rgba(10,10,10,0.98)',
+            border: '1px solid rgba(212,175,55,0.4)',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.9)',
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="font-casino text-lg text-[#D4AF37] flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              Leaving $Pc Casino
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-[#C0C0C0]">
+              You are about to visit <span className="font-bold text-[#D4AF37]">WeParlay.io</span>, an external sports betting platform. Your $Pc Casino session will remain active.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowWeparlayConfirm(false)}
+                className="flex-1 py-2 rounded-lg text-sm font-medium text-[#C0C0C0] hover:text-white transition-colors"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                Stay Here
+              </button>
+              <a
+                href="https://weparlay.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setShowWeparlayConfirm(false)}
+                className="flex-1 py-2 rounded-lg text-sm font-bold text-center flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(180,140,30,0.3))',
+                  border: '1px solid rgba(212,175,55,0.6)',
+                  color: '#D4AF37',
+                  textDecoration: 'none',
+                }}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Continue to WeParlay
+              </a>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }

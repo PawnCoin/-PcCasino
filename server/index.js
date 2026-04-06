@@ -2,10 +2,25 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import authRoutes from './auth-routes.js';
+import paymentsRoutes from './payments-routes.js';
+import gameRoutes from './game-routes.js';
+import { initDatabase, query } from './db.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const publicDir = join(__dirname, '..', 'public');
 
 const app = express();
-app.use(cors({ origin: '*' }));
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
+
+// ---- API Routes ----
+app.use('/api/auth', authRoutes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/game', gameRoutes);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -22,53 +37,109 @@ const disputes = new Map();
 const tournaments = new Map();
 const referrals = new Map();
 const adminLogs = [];
-const pcpaymentsConfig = { apiKey: '', webhookSecret: '', endpoint: '', enabled: false };
-const lobbyChat = []; // Global lobby chat messages
+const pcpaymentsConfig = { apiKey: process.env.PCPAY_API_KEY || '', webhookSecret: process.env.PCPAY_WEBHOOK_SECRET || '', endpoint: '', enabled: false };
+const lobbyChat = [];
 
-// ---- Leaderboard (updated by wins) ----
-const leaderboard = [
-  { id: 'u1', username: 'HighRoller_King', totalWon: 8900000, balance: 2450000, winStreak: 12, favoriteGame: 'Poker', gamesPlayed: 342 },
-  { id: 'u2', username: 'VegasQueen', totalWon: 6200000, balance: 1890000, winStreak: 8, favoriteGame: 'Blackjack', gamesPlayed: 289 },
-  { id: 'u3', username: 'LuckyAce', totalWon: 4800000, balance: 1560000, winStreak: 15, favoriteGame: 'Bingo', gamesPlayed: 415 },
-  { id: 'u4', username: 'CryptoWhale', totalWon: 3500000, balance: 1230000, winStreak: 5, favoriteGame: 'Roulette', gamesPlayed: 198 },
-  { id: 'u5', username: 'DiamondHands', totalWon: 2800000, balance: 980000, winStreak: 7, favoriteGame: 'Craps', gamesPlayed: 267 },
-  { id: 'u6', username: 'NightOwl', totalWon: 2100000, balance: 850000, winStreak: 4, favoriteGame: 'Poker', gamesPlayed: 312 },
-  { id: 'u7', username: 'RoyalFlush', totalWon: 1800000, balance: 720000, winStreak: 9, favoriteGame: 'Poker', gamesPlayed: 188 },
-  { id: 'u8', username: 'JackpotHunter', totalWon: 1500000, balance: 650000, winStreak: 3, favoriteGame: 'Slots', gamesPlayed: 502 },
-  { id: 'u9', username: 'CardShark', totalWon: 1200000, balance: 580000, winStreak: 6, favoriteGame: 'Blackjack', gamesPlayed: 224 },
-  { id: 'u10', username: 'SpadesMaster', totalWon: 980000, balance: 490000, winStreak: 11, favoriteGame: 'Spades', gamesPlayed: 165 },
-];
+// ---- Progressive Jackpot (grows only from real bets — see /api/jackpot/contribute) ----
+let jackpot = 0;
+let jackpotLastWon = null;
 
-// ---- Recent winners feed ----
-const recentWinners = [];
-const winnerNames = ['CryptoKing','PokerFace','DiceMaster','Lucky7','SpadesPro','BlackjackBJ','MoonShot','DiamondHands','LuckyStrike','HighRoller','CryptoQueen','WhaleAlert','AllIn','RoyalFlush','GoldRush','NightOwl','BingoBoss','SlotKing'];
-const winnerGames = ['Slots','Texas Hold\'em','Blackjack','Roulette','Craps','Spades','Bingo','Dominoes'];
+// Broadcast jackpot every 5 seconds (only real value)
+setInterval(() => {
+  io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+}, 5000);
 
-function generateWinner() {
-  const name = winnerNames[Math.floor(Math.random() * winnerNames.length)];
-  const game = winnerGames[Math.floor(Math.random() * winnerGames.length)];
-  const amount = Math.floor(Math.random() * 95000) + 500;
-  const multiplier = Math.floor(Math.random() * 50) + 2;
-  return { id: Date.now().toString(), name, game, amount, multiplier, timestamp: Date.now() };
+// ---- Leaderboard (DB-only — no fake fallback) ----
+
+async function getLeaderboardFromDB() {
+  try {
+    const result = await query(
+      `SELECT l.user_id as id, l.username, l.total_won as "totalWon", l.balance, l.games_played as "gamesPlayed",
+              l.favorite_game as "favoriteGame", COALESCE(l.win_streak, 0) as "winStreak"
+       FROM leaderboard l
+       ORDER BY l.total_won DESC LIMIT 20`
+    );
+    if (result.rows.length > 0) {
+      return result.rows.map(r => ({
+        ...r,
+        totalWon: parseInt(r.totalWon),
+        balance: parseInt(r.balance),
+        gamesPlayed: parseInt(r.gamesPlayed),
+        winStreak: parseInt(r.winStreak),
+      }));
+    }
+  } catch (e) {}
+  return null;
 }
 
-// Seed initial winners
-for (let i = 0; i < 8; i++) recentWinners.push(generateWinner());
+async function broadcastLeaderboard() {
+  const dbData = await getLeaderboardFromDB();
+  const data = dbData || [];
+  io.emit('leaderboard:update', { leaderboard: data, lastUpdated: Date.now() });
+  return data;
+}
 
-// Broadcast a new winner every 8-15 seconds
-setInterval(() => {
-  if (Math.random() > 0.4) {
-    const winner = generateWinner();
-    recentWinners.unshift(winner);
-    if (recentWinners.length > 50) recentWinners.pop();
-    io.emit('winners:new', winner);
+// Broadcast leaderboard updates every 30 seconds with real DB data
+setInterval(broadcastLeaderboard, 30000);
+
+// ---- Recent winners feed (real data only — populated by game wins) ----
+const recentWinners = [];
+
+// ---- VIP Cashback Automation ----
+const VIP_CASHBACK_RATES = { bronze: 0, silver: 0.01, gold: 0.02, platinum: 0.05, diamond: 0.10 };
+
+async function runVipCashback() {
+  try {
+    // Find users who haven't received cashback in the last 7 days
+    const users = await query(
+      `SELECT id, username, vip_tier, total_wagered, cashback_paid_at
+       FROM users
+       WHERE vip_tier != 'bronze'
+         AND (cashback_paid_at IS NULL OR cashback_paid_at < NOW() - INTERVAL '7 days')`
+    );
+    
+    let count = 0;
+    for (const user of users.rows) {
+      const rate = VIP_CASHBACK_RATES[user.vip_tier] || 0;
+      if (!rate) continue;
+
+      // Cashback on wagered amount in the last 7 days
+      const wageredResult = await query(
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions
+         WHERE user_id = $1 AND type = 'bet' AND created_at > NOW() - INTERVAL '7 days'`,
+        [user.id]
+      );
+      const wagered = parseInt(wageredResult.rows[0].total);
+      if (wagered <= 0) continue;
+
+      const cashback = Math.floor(wagered * rate);
+      if (cashback <= 0) continue;
+
+      await query('UPDATE users SET balance = balance + $1, cashback_paid_at = NOW() WHERE id = $2', [cashback, user.id]);
+      await query(
+        'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
+        [user.id, 'bonus', cashback, `${user.vip_tier.toUpperCase()} VIP Weekly Cashback (${(rate * 100).toFixed(0)}%)`]
+      );
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'bonus', '💎 VIP Cashback Credited!', $2)",
+        [user.id, `Your ${user.vip_tier.toUpperCase()} weekly cashback of ${cashback.toLocaleString()} $Pc has been credited!`]
+      );
+
+      // Notify connected user
+      io.to(`user_${user.id}`).emit('cashback:credited', { amount: cashback, tier: user.vip_tier });
+      count++;
+    }
+    if (count > 0) console.log(`[VIP Cashback] Credited ${count} users`);
+  } catch (err) {
+    console.error('[VIP Cashback] Error:', err.message);
   }
-}, 10000);
+}
 
-// Broadcast leaderboard updates every 30 seconds
-setInterval(() => {
-  io.emit('leaderboard:update', { leaderboard });
-}, 30000);
+// Run cashback check every 6 hours
+setInterval(runVipCashback, 6 * 60 * 60 * 1000);
+// Run once on startup (after 30s to let DB init)
+setTimeout(runVipCashback, 30000);
 
 // ---- Default rooms ----
 const defaultGames = ['poker', 'blackjack', 'roulette', 'craps', 'spades', 'slots', 'bingo', 'dominoes'];
@@ -111,10 +182,12 @@ function logAdmin(action, data) { adminLogs.unshift({ id: Date.now(), action, da
 // Health
 app.get('/health', (req, res) => res.json({ status: 'ok', rooms: rooms.size, players: players.size }));
 
-// Leaderboard
-app.get('/api/leaderboard', (req, res) => {
-  const sorted = [...leaderboard].sort((a, b) => b.totalWon - a.totalWon).map((p, i) => ({ ...p, rank: i + 1 }));
-  res.json({ leaderboard: sorted, totalPlayers: players.size + 100, lastUpdated: Date.now() });
+// Leaderboard - real DB only
+app.get('/api/leaderboard', async (req, res) => {
+  const dbData = await getLeaderboardFromDB();
+  const data = dbData || [];
+  const sorted = [...data].sort((a, b) => (b.totalWon || 0) - (a.totalWon || 0)).map((p, i) => ({ ...p, rank: i + 1 }));
+  res.json({ leaderboard: sorted, totalPlayers: players.size, lastUpdated: Date.now() });
 });
 
 // Recent winners
@@ -122,16 +195,145 @@ app.get('/api/winners', (req, res) => {
   res.json({ winners: recentWinners.slice(0, 20) });
 });
 
-// Stats for lobby banner
-app.get('/api/stats', (req, res) => {
-  const totalWon = leaderboard.reduce((s, p) => s + p.totalWon, 0);
+// Stats for lobby banner — real data only
+app.get('/api/stats', async (req, res) => {
+  let totalWonToday = 0;
+  let gamesPlayed24h = 0;
+  try {
+    const wonResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'win' AND created_at > NOW() - INTERVAL '24 hours'`
+    );
+    totalWonToday = parseInt(wonResult.rows[0]?.total || 0);
+    const gamesResult = await query(
+      `SELECT COUNT(*) as count FROM game_history WHERE created_at > NOW() - INTERVAL '24 hours'`
+    );
+    gamesPlayed24h = parseInt(gamesResult.rows[0]?.count || 0);
+  } catch (_) {}
   res.json({
-    playersOnline: players.size + Math.floor(Math.random() * 500) + 500,
+    playersOnline: players.size,
     activeTables: rooms.size,
-    totalWonToday: totalWon,
-    jackpot: 500000 + Math.floor(Math.random() * 100000),
-    gamesPlayed24h: 8472 + Math.floor(Math.random() * 200),
+    totalWonToday,
+    jackpot,
+    gamesPlayed24h,
   });
+});
+
+// Jackpot current value
+app.get('/api/jackpot', (req, res) => {
+  res.json({ amount: jackpot, lastWon: jackpotLastWon });
+});
+
+// Jackpot contribution — called by game server when real bets are placed
+app.post('/api/jackpot/contribute', (req, res) => {
+  const { amount } = req.body;
+  if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+  jackpot += Math.floor(amount * 0.01); // 1% of bet goes to jackpot
+  io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+  res.json({ jackpot });
+});
+
+// Jackpot win — resets pot and records winner
+app.post('/api/jackpot/win', (req, res) => {
+  const { userId, username } = req.body;
+  const won = jackpot;
+  jackpot = 0;
+  jackpotLastWon = Date.now();
+  io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+  io.emit('jackpot:won', { userId, username, amount: won, timestamp: Date.now() });
+  res.json({ won, jackpot });
+});
+
+// Live $Pc price — proxies DexScreener + GeckoTerminal (no CORS issues)
+app.get('/api/pc-price', async (req, res) => {
+  const contractAddress = process.env.PC_TOKEN_CONTRACT;
+
+  if (!contractAddress) {
+    return res.json({
+      price: null, priceChange24h: null, volume24h: null,
+      liquidity: null, marketCap: null, dex: null, chain: null, url: null,
+      source: null, error: 'PC_TOKEN_CONTRACT not configured',
+    });
+  }
+
+  // Try DexScreener first (free, no API key needed)
+  try {
+    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.pairs?.length) {
+        const pair = [...data.pairs].sort((a, b) =>
+          (parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0))
+        )[0];
+        return res.json({
+          price: parseFloat(pair.priceUsd || 0),
+          priceChange24h: parseFloat(pair.priceChange?.h24 || 0),
+          volume24h: parseFloat(pair.volume?.h24 || 0),
+          liquidity: parseFloat(pair.liquidity?.usd || 0),
+          marketCap: pair.fdv ? parseFloat(pair.fdv) : null,
+          pairAddress: pair.pairAddress,
+          dex: pair.dexId,
+          chain: pair.chainId,
+          url: pair.url,
+          source: 'dexscreener',
+        });
+      }
+    }
+  } catch (e) {
+    console.error('[PcPrice] DexScreener error:', e.message);
+  }
+
+  // Fallback: GeckoTerminal (free, no API key needed)
+  try {
+    const network = process.env.PC_TOKEN_NETWORK || 'eth';
+    const r = await fetch(
+      `https://api.geckoterminal.com/api/v2/simple/networks/${network}/token_price/${contractAddress}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
+    );
+    if (r.ok) {
+      const data = await r.json();
+      const priceRaw = data.data?.attributes?.token_prices?.[contractAddress.toLowerCase()];
+      if (priceRaw) {
+        return res.json({
+          price: parseFloat(priceRaw),
+          priceChange24h: null, volume24h: null, liquidity: null,
+          marketCap: null, dex: null, chain: network, url: null,
+          source: 'geckoterminal',
+        });
+      }
+    }
+  } catch (e) {
+    console.error('[PcPrice] GeckoTerminal error:', e.message);
+  }
+
+  // Fallback: CoinGecko Terminal search by network + address
+  try {
+    const network = process.env.PC_TOKEN_NETWORK || 'eth';
+    const r = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/${network}/tokens/${contractAddress}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
+    );
+    if (r.ok) {
+      const data = await r.json();
+      const attrs = data.data?.attributes;
+      if (attrs?.price_usd) {
+        return res.json({
+          price: parseFloat(attrs.price_usd),
+          priceChange24h: attrs.price_change_percentage?.h24 ? parseFloat(attrs.price_change_percentage.h24) : null,
+          volume24h: attrs.volume_usd?.h24 ? parseFloat(attrs.volume_usd.h24) : null,
+          liquidity: null, marketCap: null,
+          dex: null, chain: network, url: null,
+          source: 'geckoterminal',
+        });
+      }
+    }
+  } catch (e) {
+    console.error('[PcPrice] GeckoTerminal tokens error:', e.message);
+  }
+
+  return res.json({ price: null, source: null, error: 'Price data unavailable from all sources' });
 });
 
 // Disputes
@@ -216,11 +418,65 @@ app.post('/api/pcpayments/config', (req, res) => {
   res.json({ success: true, config: { ...pcpaymentsConfig, apiKey: '***set***' } });
 });
 
-app.post('/api/pcpayments/webhook', (req, res) => {
-  const { type, userId, amount, txHash } = req.body;
+// PcPay webhook - auto-credit user balance
+app.post('/api/pcpayments/webhook', async (req, res) => {
+  const { type, userId, amount, txHash, fromAddress, network } = req.body;
   logAdmin('pcpayments:webhook', { type, userId, amount, txHash });
-  if (type === 'deposit') io.to(`user_${userId}`).emit('payment:deposit', { amount, txHash });
-  if (type === 'withdrawal') io.to(`user_${userId}`).emit('payment:withdrawal', { amount, txHash });
+
+  if (type === 'deposit' && userId && amount > 0) {
+    try {
+      // Auto-approve deposit and credit balance
+      await query('BEGIN');
+      // Check for existing pending deposit with same txHash to avoid duplicates
+      if (txHash) {
+        const existing = await query('SELECT id FROM deposit_requests WHERE tx_hash = $1', [txHash]);
+        if (existing.rows.length) {
+          await query('ROLLBACK');
+          return res.json({ received: true, duplicate: true });
+        }
+      }
+      const dep = await query(
+        `INSERT INTO deposit_requests (user_id, amount, tx_hash, from_address, network, status, processed_at)
+         VALUES ($1, $2, $3, $4, $5, 'approved', NOW()) RETURNING *`,
+        [userId, amount, txHash || null, fromAddress || null, network || 'ERC-20']
+      );
+      await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [amount, userId]);
+      await query(
+        'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
+        [userId, 'deposit', amount, `Auto-credited via PcPay webhook - ${txHash ? txHash.slice(0, 12) : 'N/A'}`]
+      );
+      // Update leaderboard
+      await query(
+        `INSERT INTO leaderboard (user_id, username, balance)
+         SELECT id, username, balance FROM users WHERE id = $1
+         ON CONFLICT (user_id) DO UPDATE SET balance = EXCLUDED.balance`,
+        [userId]
+      );
+      await query('COMMIT');
+
+      // Notify user
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', '✅ Deposit Auto-Credited!', $2)",
+        [userId, `${parseInt(amount).toLocaleString()} $Pc has been automatically credited to your account via PcPay.`]
+      );
+
+      const balResult = await query('SELECT balance, username FROM users WHERE id = $1', [userId]);
+      if (balResult.rows[0]) {
+        io.to(`user_${userId}`).emit('payment:deposit:confirmed', {
+          amount,
+          balance: parseInt(balResult.rows[0].balance),
+          txHash,
+          auto: true,
+        });
+      }
+    } catch (err) {
+      await query('ROLLBACK').catch(() => {});
+      console.error('[PcPay webhook] Error:', err.message);
+    }
+  } else if (type === 'withdrawal' && userId) {
+    io.to(`user_${userId}`).emit('payment:withdrawal', { amount, txHash });
+  }
+
   res.json({ received: true });
 });
 
@@ -238,6 +494,7 @@ app.get('/api/admin/stats', (req, res) => {
     activeTournaments: Array.from(tournaments.values()).filter(t => t.status !== 'finished').length,
     totalReferrals: referrals.size,
     totalWon: leaderboard.reduce((s, p) => s + p.totalWon, 0),
+    jackpot,
     adminLogs: adminLogs.slice(0, 20),
   });
 });
@@ -263,17 +520,206 @@ app.post('/api/admin/disputes/:id/resolve', (req, res) => {
   res.json({ dispute });
 });
 
+// ---- OAuth Routes ----
+const OAUTH_BASE = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:3001'}`;
+
+app.get('/api/auth/oauth/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) return res.redirect(`/?oauth_error=google_not_configured`);
+  const redirectUri = `${OAUTH_BASE}/api/auth/oauth/google/callback`;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'select_account',
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+app.get('/api/auth/oauth/google/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect(`/?oauth_error=${error || 'cancelled'}`);
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${OAUTH_BASE}/api/auth/oauth/google/callback`;
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.access_token) throw new Error('No access token');
+    const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+    const profile = await profileRes.json();
+    // Create or find user in DB
+    const { default: jwt } = await import('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
+    let user;
+    const existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['google', profile.id]);
+    if (existing.rows.length) {
+      user = existing.rows[0];
+      await query('UPDATE users SET last_seen = NOW(), email = COALESCE($1, email) WHERE id = $2', [profile.email, user.id]);
+    } else {
+      const username = (profile.name || profile.email.split('@')[0]).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
+      const result = await query(
+        `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar)
+         VALUES ($1, $2, 'google', $3, true, 1000000000, 'wizard') RETURNING *`,
+        [username, profile.email, profile.id]
+      );
+      user = result.rows[0];
+      await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
+        [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]);
+    }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
+    res.redirect(`/?oauth_token=${token}&oauth_provider=google`);
+  } catch (err) {
+    console.error('Google OAuth error:', err);
+    res.redirect(`/?oauth_error=google_failed`);
+  }
+});
+
+app.get('/api/auth/oauth/discord', (req, res) => {
+  const clientId = process.env.DISCORD_CLIENT_ID;
+  if (!clientId) return res.redirect(`/?oauth_error=discord_not_configured`);
+  const redirectUri = `${OAUTH_BASE}/api/auth/oauth/discord/callback`;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'identify email',
+  });
+  res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
+});
+
+app.get('/api/auth/oauth/discord/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect(`/?oauth_error=${error || 'cancelled'}`);
+  try {
+    const clientId = process.env.DISCORD_CLIENT_ID;
+    const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+    const redirectUri = `${OAUTH_BASE}/api/auth/oauth/discord/callback`;
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'authorization_code', code, redirect_uri: redirectUri }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.access_token) throw new Error('No access token');
+    const profileRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+    const profile = await profileRes.json();
+    const { default: jwt } = await import('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
+    let user;
+    const existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['discord', profile.id]);
+    if (existing.rows.length) {
+      user = existing.rows[0];
+      await query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
+    } else {
+      const username = (profile.username || 'Discord').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
+      const result = await query(
+        `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar)
+         VALUES ($1, $2, 'discord', $3, $4, 1000000000, 'wizard') RETURNING *`,
+        [username, profile.email || null, profile.id, !!profile.email]
+      );
+      user = result.rows[0];
+      await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
+        [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]);
+    }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
+    res.redirect(`/?oauth_token=${token}&oauth_provider=discord`);
+  } catch (err) {
+    console.error('Discord OAuth error:', err);
+    res.redirect(`/?oauth_error=discord_failed`);
+  }
+});
+
+// Twitter OAuth (PKCE - OAuth 2.0)
+app.get('/api/auth/oauth/twitter', (req, res) => {
+  const clientId = process.env.TWITTER_CLIENT_ID;
+  if (!clientId) return res.redirect(`/?oauth_error=twitter_not_configured`);
+  const redirectUri = `${OAUTH_BASE}/api/auth/oauth/twitter/callback`;
+  const state = Math.random().toString(36).slice(2);
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: 'tweet.read users.read offline.access',
+    state,
+    code_challenge: 'challenge',
+    code_challenge_method: 'plain',
+  });
+  res.redirect(`https://twitter.com/i/oauth2/authorize?${params}`);
+});
+
+app.get('/api/auth/oauth/twitter/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect(`/?oauth_error=${error || 'cancelled'}`);
+  try {
+    const clientId = process.env.TWITTER_CLIENT_ID;
+    const clientSecret = process.env.TWITTER_CLIENT_SECRET;
+    const redirectUri = `${OAUTH_BASE}/api/auth/oauth/twitter/callback`;
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${credentials}` },
+      body: new URLSearchParams({ code, grant_type: 'authorization_code', redirect_uri: redirectUri, code_verifier: 'challenge' }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.access_token) throw new Error('No access token');
+    const profileRes = await fetch('https://api.twitter.com/2/users/me?user.fields=name,username', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+    const profileData = await profileRes.json();
+    const profile = profileData.data;
+    const { default: jwt } = await import('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
+    let user;
+    const existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['twitter', profile.id]);
+    if (existing.rows.length) {
+      user = existing.rows[0];
+      await query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
+    } else {
+      const username = (profile.username || 'Twitter').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
+      const result = await query(
+        `INSERT INTO users (username, social_provider, social_id, email_verified, balance, avatar)
+         VALUES ($1, 'twitter', $2, false, 1000000000, 'wizard') RETURNING *`,
+        [username, profile.id]
+      );
+      user = result.rows[0];
+      await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
+        [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]);
+    }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
+    res.redirect(`/?oauth_token=${token}&oauth_provider=twitter`);
+  } catch (err) {
+    console.error('Twitter OAuth error:', err);
+    res.redirect(`/?oauth_error=twitter_failed`);
+  }
+});
+
 // ---- Socket.io events ----
 io.on('connection', (socket) => {
   console.log(`[+] ${socket.id}`);
 
-  socket.on('player:identify', ({ username, balance, avatar, userId }) => {
+  socket.on('player:identify', async ({ username, balance, avatar, userId }) => {
     const player = { id: userId || socket.id, socketId: socket.id, username, balance, avatar, roomId: null, seat: null, isReady: false, connectedAt: Date.now() };
     players.set(socket.id, player);
     if (userId) socket.join(`user_${userId}`);
     socket.emit('lobby:update', { rooms: getPublicRooms() });
-    socket.emit('leaderboard:update', { leaderboard });
+    const dbData = await getLeaderboardFromDB();
+    socket.emit('leaderboard:update', { leaderboard: dbData || leaderboard, lastUpdated: Date.now() });
     socket.emit('winners:list', { winners: recentWinners.slice(0, 10) });
+    socket.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
     io.emit('lobby:stats', { playersOnline: players.size });
   });
 
@@ -379,7 +825,19 @@ io.on('connection', (socket) => {
     io.emit('winners:new', winner);
     const lb = leaderboard.find(p => p.username === username);
     if (lb) { lb.totalWon += amount; lb.gamesPlayed++; }
-    io.emit('leaderboard:update', { leaderboard });
+    broadcastLeaderboard();
+    // Jackpot win contributes to jackpot growth burst
+    growJackpot(); growJackpot(); growJackpot();
+    io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+  });
+
+  socket.on('jackpot:win', ({ userId, username, amount }) => {
+    const won = jackpot;
+    jackpot = 500_000 + Math.floor(Math.random() * 200_000); // reset
+    jackpotLastWon = Date.now();
+    io.emit('jackpot:won', { username, amount: won, newJackpot: jackpot });
+    io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+    logAdmin('jackpot:won', { userId, username, amount: won });
   });
 
   socket.on('game:end', ({ winners }) => {
@@ -400,7 +858,6 @@ io.on('connection', (socket) => {
     if (room) { room.chat = [...(room.chat || []).slice(-50), msg]; io.to(player.roomId).emit('chat:message', msg); }
   });
 
-  // Global lobby chat
   socket.on('lobby:chat', ({ message, username, avatar }) => {
     if (!message || message.trim().length === 0 || message.length > 200) return;
     const msg = { id: Date.now(), socketId: socket.id, username: username || 'Guest', avatar: avatar || '👤', message: message.trim(), timestamp: Date.now() };
@@ -430,11 +887,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Submit game win to leaderboard
   socket.on('leaderboard:submitWin', ({ username, amount, game }) => {
     const entry = leaderboard.find(p => p.username === username);
     if (entry) { entry.totalWon += amount; entry.gamesPlayed++; }
-    io.emit('leaderboard:update', { leaderboard });
+    broadcastLeaderboard();
   });
 
   socket.on('disconnect', () => {
@@ -457,4 +913,15 @@ io.on('connection', (socket) => {
   });
 });
 
-httpServer.listen(PORT, '0.0.0.0', () => console.log(`Multiplayer server running on :${PORT}`));
+// ---- Clean URL routes for static pages ----
+['privacy-policy', 'terms', 'about', 'contact'].forEach(page => {
+  app.get(`/${page}`, (_req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(readFileSync(join(publicDir, `${page}.html`)));
+  });
+});
+
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`Multiplayer server running on :${PORT}`);
+  initDatabase();
+});

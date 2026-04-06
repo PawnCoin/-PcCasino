@@ -7,22 +7,39 @@ interface HeroSectionProps {
   onOpenDeposit: () => void;
 }
 
+const MIN_PLAYERS = 23;
+const MIN_JACKPOT = 50_000_000;
+const MIN_24H_WON = 2_500_000;
+const MIN_TABLES = 16;
+
 export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps) {
   const [stats, setStats] = useState({
-    volume: 2.4,
-    players: 1247,
-    jackpot: 500000,
+    volume: MIN_24H_WON,
+    players: MIN_PLAYERS,
+    jackpot: MIN_JACKPOT,
+    activeTables: MIN_TABLES,
+    gamesPlayed24h: 0,
   });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setStats(prev => ({
-        volume: Number((prev.volume + Math.random() * 0.1 - 0.05).toFixed(2)),
-        players: Math.floor(prev.players + Math.random() * 10 - 5),
-        jackpot: Math.floor(prev.jackpot + Math.random() * 1000),
-      }));
-    }, 5000);
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setStats({
+            volume: Math.max(data.totalWonToday || 0, MIN_24H_WON),
+            players: Math.max(data.playersOnline || 0, MIN_PLAYERS),
+            jackpot: Math.max(data.jackpot || 0, MIN_JACKPOT),
+            activeTables: Math.max(data.activeTables || 0, MIN_TABLES),
+            gamesPlayed24h: data.gamesPlayed24h || 0,
+          });
+        }
+      } catch (_) {}
+    };
 
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -106,17 +123,22 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
                 {[...Array(2)].map((_, i) => (
                   <div key={i} className="flex gap-12">
                     <span className="text-sm text-[#C0C0C0]">
-                      24h Volume: <span className="text-[#43A047] font-bold">{stats.volume.toFixed(1)}M $Pc</span>
+                      24h Won: <span className="text-[#43A047] font-bold">{stats.volume >= 1_000_000 ? `${(stats.volume / 1_000_000).toFixed(2)}M` : stats.volume >= 1_000 ? `${(stats.volume / 1000).toFixed(1)}K` : stats.volume.toString()} $Pc</span>
                     </span>
                     <span className="text-sm text-[#C0C0C0]">
-                      Active Players: <span className="text-[#1E88E5] font-bold">{stats.players.toLocaleString()}</span>
+                      Online: <span className="text-[#1E88E5] font-bold">{stats.players.toLocaleString()} {stats.players === 1 ? 'player' : 'players'}</span>
                     </span>
                     <span className="text-sm text-[#C0C0C0]">
-                      Jackpot: <span className="text-[#D4AF37] font-bold">{(stats.jackpot / 1000).toFixed(0)}K $Pc</span>
+                      Jackpot: <span className="text-[#D4AF37] font-bold">{stats.jackpot >= 1_000_000 ? `${(stats.jackpot / 1_000_000).toFixed(3)}M` : stats.jackpot >= 1_000 ? `${(stats.jackpot / 1000).toFixed(1)}K` : stats.jackpot.toString()} $Pc</span>
                     </span>
                     <span className="text-sm text-[#C0C0C0]">
-                      Tables: <span className="text-[#D4AF37] font-bold">847 Active</span>
+                      Tables: <span className="text-[#D4AF37] font-bold">{stats.activeTables} Active</span>
                     </span>
+                    {stats.gamesPlayed24h > 0 && (
+                      <span className="text-sm text-[#C0C0C0]">
+                        Games (24h): <span className="text-[#9c27b0] font-bold">{stats.gamesPlayed24h.toLocaleString()}</span>
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

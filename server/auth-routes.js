@@ -1,0 +1,384 @@
+import { Router } from 'express';
+import { createHash, randomBytes } from 'crypto';
+import jwt from 'jsonwebtoken';
+import { query } from './db.js';
+import { sendVerificationEmail, sendWelcomeEmail } from './email.js';
+
+const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
+const TOKEN_EXPIRY = '30d';
+
+function hashPassword(password) {
+  return createHash('sha256').update(password + 'pcasino_salt_2024').digest('hex');
+}
+
+function generateToken(userId) {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+}
+
+export function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+export async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const token = authHeader.slice(7);
+  const payload = verifyToken(token);
+  if (!payload) return res.status(401).json({ error: 'Invalid token' });
+
+  try {
+    const result = await query('SELECT * FROM users WHERE id = $1', [payload.userId]);
+    if (!result.rows.length) return res.status(401).json({ error: 'User not found' });
+    req.user = result.rows[0];
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Auth error' });
+  }
+}
+
+function getVipTier(totalWagered) {
+  if (totalWagered >= 10_000_000_000) return 'diamond';
+  if (totalWagered >= 1_000_000_000) return 'platinum';
+  if (totalWagered >= 100_000_000) return 'gold';
+  if (totalWagered >= 10_000_000) return 'silver';
+  return 'bronze';
+}
+
+// Register with email/password
+router.post('/register', async (req, res) => {
+  const { username, email, password, referralCode } = req.body;
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'Username, email, and password are required' });
+  }
+  if (username.length < 3 || username.length > 30) {
+    return res.status(400).json({ error: 'Username must be 3-30 characters' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    const existing = await query('SELECT id FROM users WHERE email = $1 OR username = $2', [email, username]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Email or username already taken' });
+    }
+
+    const passwordHash = hashPassword(password);
+    const verifyToken = randomBytes(32).toString('hex');
+
+    const result = await query(
+      `INSERT INTO users (username, email, password_hash, email_verify_token, balance)
+       VALUES ($1, $2, $3, $4, 1000000000) RETURNING *`,
+      [username, email, passwordHash, verifyToken]
+    );
+    const user = result.rows[0];
+
+    // Handle referral
+    if (referralCode) {
+      try {
+        const ref = await query('SELECT id, referrer_id FROM referrals WHERE id = $1 AND referred_id IS NULL', [referralCode]);
+        if (!ref.rows.length) {
+          // Look up by referrer username-based code pattern
+          const refUser = await query("SELECT id FROM users WHERE username ILIKE $1", [referralCode.split('_')[0]]);
+          if (refUser.rows.length) {
+            await query(
+              'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              [refUser.rows[0].id, user.id]
+            );
+            // Give both users bonus
+            await query('UPDATE users SET balance = balance + 50000000 WHERE id IN ($1, $2)', [refUser.rows[0].id, user.id]);
+          }
+        }
+      } catch (e) {
+        // Non-fatal
+      }
+    }
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, username, verifyToken);
+    } catch (e) {
+      console.error('Email send failed:', e.message);
+    }
+
+    const token = generateToken(user.id);
+    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
+
+    // Add welcome notification
+    await query(
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
+      [user.id, `Welcome ${username}! You've received 1,000,000,000 $Pc to start playing. Check your email to verify your account.`]
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id, username: user.username, email: user.email,
+        balance: parseInt(user.balance), avatar: user.avatar,
+        isAdmin: user.is_admin, emailVerified: user.email_verified,
+        vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
+        withdrawAddress: user.withdraw_address
+      }
+    });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Login with email/password
+router.post('/login', async (req, res) => {
+  const { email, password, totpCode } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+  try {
+    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const user = result.rows[0];
+    const hash = hashPassword(password);
+    if (user.password_hash !== hash) return res.status(401).json({ error: 'Invalid credentials' });
+
+    // Check self-exclusion
+    if (user.self_excluded && (!user.self_exclude_until || new Date(user.self_exclude_until) > new Date())) {
+      return res.status(403).json({ error: 'Account is self-excluded. Please contact support to re-enable.' });
+    }
+
+    // 2FA check
+    if (user.totp_enabled) {
+      if (!totpCode) return res.status(206).json({ requires2FA: true });
+      const { TOTP } = await import('otpauth');
+      const totp = new TOTP({ secret: user.totp_secret, digits: 6, period: 30 });
+      if (!totp.validate({ token: totpCode, window: 1 })) {
+        return res.status(401).json({ error: 'Invalid 2FA code' });
+      }
+    }
+
+    await query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
+    const token = generateToken(user.id);
+    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
+
+    res.json({
+      success: true, token,
+      user: {
+        id: user.id, username: user.username, email: user.email,
+        balance: parseInt(user.balance), avatar: user.avatar,
+        isAdmin: user.is_admin, emailVerified: user.email_verified,
+        vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
+        withdrawAddress: user.withdraw_address,
+        dailyDepositLimit: parseInt(user.daily_deposit_limit),
+        dailyLossLimit: parseInt(user.daily_loss_limit),
+        selfExcluded: user.self_excluded,
+        walletAddress: user.wallet_address
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Social login (simulated but persists to DB)
+router.post('/social', async (req, res) => {
+  const { provider, username, email, socialId, avatar } = req.body;
+  if (!provider || !username) return res.status(400).json({ error: 'Missing required fields' });
+
+  try {
+    let user;
+    // Try find existing user by social ID or email
+    const existing = await query(
+      'SELECT * FROM users WHERE (social_provider = $1 AND social_id = $2) OR (email = $3 AND $3 IS NOT NULL)',
+      [provider, socialId || username, email || null]
+    );
+
+    if (existing.rows.length) {
+      user = existing.rows[0];
+      await query('UPDATE users SET last_seen = NOW(), avatar = COALESCE($1, avatar) WHERE id = $2', [avatar || null, user.id]);
+    } else {
+      // Create new user
+      const cleanUsername = username.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20) || `user_${Date.now().toString(36)}`;
+      const uniqueUsername = `${cleanUsername}_${Math.random().toString(36).slice(2, 5)}`;
+      const result = await query(
+        `INSERT INTO users (username, email, social_provider, social_id, avatar, email_verified, balance)
+         VALUES ($1, $2, $3, $4, $5, $6, 1000000000) RETURNING *`,
+        [uniqueUsername, email || null, provider, socialId || username, avatar || 'wizard', !!email]
+      );
+      user = result.rows[0];
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
+        [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]
+      );
+    }
+
+    const token = generateToken(user.id);
+    await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
+
+    res.json({
+      success: true, token,
+      user: {
+        id: user.id, username: user.username, email: user.email,
+        balance: parseInt(user.balance), avatar: user.avatar,
+        isAdmin: user.is_admin, emailVerified: user.email_verified,
+        vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
+        withdrawAddress: user.withdraw_address, socialProvider: provider,
+        walletAddress: user.wallet_address,
+        dailyDepositLimit: parseInt(user.daily_deposit_limit),
+        dailyLossLimit: parseInt(user.daily_loss_limit),
+      }
+    });
+  } catch (err) {
+    console.error('Social auth error:', err);
+    res.status(500).json({ error: 'Social login failed' });
+  }
+});
+
+// Get current user
+router.get('/me', requireAuth, async (req, res) => {
+  const user = req.user;
+  res.json({
+    user: {
+      id: user.id, username: user.username, email: user.email,
+      balance: parseInt(user.balance), avatar: user.avatar,
+      isAdmin: user.is_admin, emailVerified: user.email_verified,
+      vipTier: getVipTier(parseInt(user.total_wagered)), totpEnabled: user.totp_enabled,
+      withdrawAddress: user.withdraw_address, socialProvider: user.social_provider,
+      walletAddress: user.wallet_address,
+      dailyDepositLimit: parseInt(user.daily_deposit_limit),
+      dailyLossLimit: parseInt(user.daily_loss_limit),
+      selfExcluded: user.self_excluded,
+      totalWagered: parseInt(user.total_wagered),
+      totalWon: parseInt(user.total_won),
+    }
+  });
+});
+
+// Logout
+router.post('/logout', requireAuth, async (req, res) => {
+  const token = req.headers.authorization?.slice(7);
+  if (token) {
+    await query('DELETE FROM sessions WHERE token = $1', [token]).catch(() => {});
+  }
+  res.json({ success: true });
+});
+
+// Verify email
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).send('Invalid link');
+  try {
+    const result = await query('SELECT id FROM users WHERE email_verify_token = $1', [token]);
+    if (!result.rows.length) return res.status(400).send('Invalid or expired link');
+    await query('UPDATE users SET email_verified = TRUE, email_verify_token = NULL WHERE id = $1', [result.rows[0].id]);
+    res.redirect('/?verified=1');
+  } catch (err) {
+    res.status(500).send('Verification failed');
+  }
+});
+
+// Setup 2FA
+router.post('/2fa/setup', requireAuth, async (req, res) => {
+  try {
+    const { TOTP, Secret } = await import('otpauth');
+    const secret = new Secret({ size: 20 });
+    const totp = new TOTP({
+      issuer: '$Pc Casino',
+      label: req.user.email || req.user.username,
+      secret,
+      digits: 6,
+      period: 30,
+    });
+    await query('UPDATE users SET totp_secret = $1 WHERE id = $2', [secret.base32, req.user.id]);
+    res.json({ success: true, secret: secret.base32, otpauth: totp.toString() });
+  } catch (err) {
+    console.error('2FA setup error:', err);
+    res.status(500).json({ error: '2FA setup failed' });
+  }
+});
+
+// Enable 2FA after verifying first code
+router.post('/2fa/enable', requireAuth, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Code required' });
+
+  try {
+    const user = await query('SELECT totp_secret FROM users WHERE id = $1', [req.user.id]);
+    if (!user.rows[0]?.totp_secret) return res.status(400).json({ error: 'Run 2FA setup first' });
+
+    const { TOTP } = await import('otpauth');
+    const totp = new TOTP({ secret: user.rows[0].totp_secret, digits: 6, period: 30 });
+    const valid = totp.validate({ token: code, window: 1 });
+    if (valid === null) return res.status(400).json({ error: 'Invalid code' });
+
+    await query('UPDATE users SET totp_enabled = TRUE WHERE id = $1', [req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '2FA enable failed' });
+  }
+});
+
+// Disable 2FA
+router.post('/2fa/disable', requireAuth, async (req, res) => {
+  const { code } = req.body;
+  try {
+    const user = await query('SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [req.user.id]);
+    if (!user.rows[0]?.totp_enabled) return res.status(400).json({ error: '2FA is not enabled' });
+
+    const { TOTP } = await import('otpauth');
+    const totp = new TOTP({ secret: user.rows[0].totp_secret, digits: 6, period: 30 });
+    if (totp.validate({ token: code, window: 1 }) === null) {
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+    await query('UPDATE users SET totp_enabled = FALSE, totp_secret = NULL WHERE id = $1', [req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '2FA disable failed' });
+  }
+});
+
+// Update profile
+router.patch('/profile', requireAuth, async (req, res) => {
+  const { avatar, withdrawAddress, walletAddress, dailyDepositLimit, dailyLossLimit } = req.body;
+  const updates = [];
+  const values = [];
+  let i = 1;
+
+  if (avatar) { updates.push(`avatar = $${i++}`); values.push(avatar); }
+  if (withdrawAddress !== undefined) { updates.push(`withdraw_address = $${i++}`); values.push(withdrawAddress); }
+  if (walletAddress !== undefined) { updates.push(`wallet_address = $${i++}`); values.push(walletAddress); }
+  if (dailyDepositLimit !== undefined) { updates.push(`daily_deposit_limit = $${i++}`); values.push(dailyDepositLimit); }
+  if (dailyLossLimit !== undefined) { updates.push(`daily_loss_limit = $${i++}`); values.push(dailyLossLimit); }
+
+  if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
+  values.push(req.user.id);
+
+  try {
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${i}`, values);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Profile update failed' });
+  }
+});
+
+// Self-exclusion
+router.post('/self-exclude', requireAuth, async (req, res) => {
+  const { days } = req.body;
+  const excludeUntil = days
+    ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+  try {
+    await query('UPDATE users SET self_excluded = TRUE, self_exclude_until = $1 WHERE id = $2', [excludeUntil, req.user.id]);
+    res.json({ success: true, excludeUntil });
+  } catch (err) {
+    res.status(500).json({ error: 'Self-exclusion failed' });
+  }
+});
+
+export default router;

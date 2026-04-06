@@ -40,10 +40,13 @@ export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
       if (updatedRoom.id === roomId) setRoom(updatedRoom);
     };
 
+    let msgIdCounter = Date.now();
+    const nextMsgId = () => ++msgIdCounter;
+
     const onPlayerJoined = ({ player }: { player: { id: string; username: string; seat: number } }) => {
       if (player.id !== userId) {
         setMessages(prev => [...prev, {
-          id: Date.now(),
+          id: nextMsgId(),
           playerId: 'system',
           username: 'System',
           message: `${player.username} joined the table`,
@@ -55,7 +58,7 @@ export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
     const onPlayerLeft = ({ playerId, username: leftName }: { playerId: string; username: string }) => {
       if (playerId !== userId) {
         setMessages(prev => [...prev, {
-          id: Date.now() + 1,
+          id: nextMsgId(),
           playerId: 'system',
           username: 'System',
           message: `${leftName} left the table`,
@@ -65,7 +68,7 @@ export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
     };
 
     const onChatMessage = (msg: ChatMessage) => {
-      setMessages(prev => [...prev.slice(-100), msg]);
+      setMessages(prev => [...prev.slice(-100), { ...msg, id: typeof msg.id === 'number' ? msg.id : nextMsgId() }]);
     };
 
     const onReaction = ({ username: fromUser, emoji }: { playerId: string; username: string; emoji: string }) => {
@@ -79,7 +82,7 @@ export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
 
     const onGameStarted = () => {
       setMessages(prev => [...prev, {
-        id: Date.now() + 2,
+        id: nextMsgId(),
         playerId: 'system',
         username: 'System',
         message: '🎮 Game has started!',

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+
+# Extracted game archives - not tracked, served from public directly
+public/games/craps/extracted/
+public/games/roulette/extracted/
+public/games/blackjack/extracted/
+public/games/horse-racing/extracted/
+
+# Zip archives
+public/games/**/*.zip
