@@ -53,7 +53,6 @@ export function InGameTopBar({
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
           >
             <img src="/logos/pc-logo.png" alt="$Pc Casino" style={{ width: 26, height: 26, borderRadius: '50%' }} />
-            <span style={{ fontFamily: "'Cinzel',serif", fontWeight: 900, color: '#D4AF37', fontSize: 13, letterSpacing: '0.12em', display: 'none' }} className="sm-show">$PC</span>
           </button>
 
           {/* Back arrow */}
@@ -105,7 +104,6 @@ export function InGameTopBar({
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(212,175,55,0.1)'; }}
             >
               <Wallet size={13} />
-              <span style={{ display: 'none' }} className="sm:inline">WALLET</span>
             </button>
           )}
 
