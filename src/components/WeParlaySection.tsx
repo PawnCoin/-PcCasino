@@ -1,32 +1,16 @@
 import { useState } from 'react';
-import { ExternalLink, Info, TrendingUp, Shield, Zap } from 'lucide-react';
+import { ExternalLink, Info, TrendingUp, Shield, Zap, Crown, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface WeParlaySectionProps {
   userBalance: number;
+  onSelectVip?: () => void;
 }
 
-export function WeParlaySection({ userBalance }: WeParlaySectionProps) {
+export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionProps) {
   const [showInfo, setShowInfo] = useState(false);
-
-  const features = [
-    {
-      icon: TrendingUp,
-      title: 'Live Betting',
-      description: 'Bet on live sports events with real-time odds',
-    },
-    {
-      icon: Shield,
-      title: 'Secure & Trusted',
-      description: 'Your $Pc tokens are safe with blockchain verification',
-    },
-    {
-      icon: Zap,
-      title: 'Instant Payouts',
-      description: 'Winning bets paid out instantly to your wallet',
-    },
-  ];
+  const [showVipInfo, setShowVipInfo] = useState(false);
 
   return (
     <section id="weparlay-section" className="px-4 py-12">
@@ -36,97 +20,125 @@ export function WeParlaySection({ userBalance }: WeParlaySectionProps) {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8860B] flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-black" />
             </div>
-            <span className="text-gradient-gold">WeParlay.io</span>
-            <span className="text-gray-400 text-sm font-normal">Sports Betting</span>
+            <span className="text-gradient-gold">Featured Areas</span>
           </h2>
-          <Button variant="ghost" onClick={() => setShowInfo(true)} className="text-[#D4AF37]">
-            <Info className="w-4 h-4 mr-2" />
-            How it Works
-          </Button>
         </div>
 
-        <div className="glass-panel rounded-2xl overflow-hidden border border-[#D4AF37]/20">
-          {/* Header Banner */}
-          <div className="bg-gradient-to-r from-[#1a1a2e] via-[#0f0f1a] to-[#1a1a2e] p-6 border-b border-[#D4AF37]/20">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="text-center md:text-left">
-                <h3 className="font-casino text-xl font-bold text-white mb-1">
-                  Bet with <span className="text-[#D4AF37]">$Pc</span> on WeParlay.io
-                </h3>
-                <p className="text-gray-400 text-sm">
-                  The premier crypto sports betting platform
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Sports Gambling Card — WeParlay */}
+          <div
+            className="relative rounded-2xl overflow-hidden group cursor-pointer transition-all duration-300 hover:scale-[1.02]"
+            style={{
+              background: 'linear-gradient(135deg, #0d1b2e 0%, #0a1220 100%)',
+              border: '1px solid rgba(21,101,192,0.4)',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+            }}
+          >
+            {/* Top badge */}
+            <div className="absolute top-4 right-4 z-10">
+              <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider" style={{ background: 'rgba(21,101,192,0.3)', color: '#64B5F6', border: '1px solid rgba(21,101,192,0.5)' }}>
+                SPORTS
+              </span>
+            </div>
+
+            {/* Hero image area */}
+            <div className="h-44 flex items-center justify-center" style={{ background: 'linear-gradient(180deg, rgba(21,101,192,0.1) 0%, rgba(13,27,46,0.8) 100%)' }}>
+              <div className="text-8xl drop-shadow-2xl group-hover:scale-110 transition-transform duration-300">🏈</div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="mb-1">
+                <h3 className="font-casino text-2xl font-bold text-white">Sports Gambling</h3>
               </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <div className="text-sm text-gray-400">Your Balance</div>
-                  <div className="font-bold text-[#D4AF37] text-xl flex items-center gap-2">
-                    <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
-                    {userBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} $Pc
-                  </div>
+              <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+                NFL, NBA, MLB, UFC &amp; more. Live betting, parlays, and spreads powered by WeParlay Inc.
+              </p>
+              <div className="border-t border-white/10 pt-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <span>🏈</span>
+                  <span>WeParlay Inc.</span>
                 </div>
-                
-                <a
-                  href="https://weparlay.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button className="btn-primary">
-                    Go to WeParlay.io
-                    <ExternalLink className="w-4 h-4 ml-2" />
-                  </Button>
-                </a>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowInfo(true)}
+                    className="px-3 py-2 rounded-xl text-xs text-gray-400 hover:text-white transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    Free Picks
+                  </button>
+                  <a href="https://weparlay.com" target="_blank" rel="noopener noreferrer">
+                    <button
+                      className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
+                      style={{ background: 'linear-gradient(135deg, rgba(21,101,192,0.3), rgba(13,71,161,0.5))', color: '#64B5F6', border: '1px solid rgba(21,101,192,0.5)' }}
+                    >
+                      Bet Now <ExternalLink className="w-3 h-3 inline ml-1" />
+                    </button>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={index}
-                  className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/30 transition-all"
-                >
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#D4AF37]/20 to-[#B8860B]/20 flex items-center justify-center mb-3">
-                    <Icon className="w-6 h-6 text-[#D4AF37]" />
-                  </div>
-                  <h4 className="font-bold text-white mb-1">{feature.title}</h4>
-                  <p className="text-sm text-gray-400">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
+          {/* Adult VIP Area Card */}
+          <div
+            className="relative rounded-2xl overflow-hidden group cursor-pointer transition-all duration-300 hover:scale-[1.02]"
+            style={{
+              background: 'linear-gradient(135deg, #0d0018 0%, #15003a 50%, #0d0018 100%)',
+              border: '1px solid rgba(160,32,240,0.5)',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.6), 0 0 40px rgba(160,32,240,0.1)',
+            }}
+          >
+            {/* Top badge */}
+            <div className="absolute top-4 right-4 z-10">
+              <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider" style={{ background: 'rgba(160,32,240,0.3)', color: '#E040FB', border: '1px solid rgba(160,32,240,0.5)' }}>
+                VIP EXCLUSIVE
+              </span>
+            </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-white/10">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <img 
-                  src="/logos/pcpay-logo.png" 
-                  alt="$PcPay" 
-                  className="h-8 opacity-80"
-                />
-                <span className="text-gray-400">Powered by $PcPay Crypto Payments</span>
+            {/* Glow effect */}
+            <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-300" style={{ background: 'radial-gradient(ellipse at 50% 30%, rgba(160,32,240,0.4) 0%, transparent 60%)' }} />
+
+            {/* Hero image area */}
+            <div className="h-44 flex items-center justify-center relative" style={{ background: 'linear-gradient(180deg, rgba(160,32,240,0.1) 0%, rgba(13,0,24,0.8) 100%)' }}>
+              <div className="text-8xl drop-shadow-2xl group-hover:scale-110 transition-transform duration-300">👑</div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="mb-1">
+                <h3 className="font-casino text-2xl font-bold" style={{ color: '#E040FB' }}>Adult V.I.P. Area</h3>
               </div>
-              
-              <div className="flex gap-3">
-                <a
-                  href="https://weparlay.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#D4AF37] hover:underline text-sm"
-                >
-                  Visit WeParlay.io →
-                </a>
+              <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+                Exclusive 18+ private lounge. Invite-only games, private dance rooms, and all casino games.
+              </p>
+              <div className="border-t border-purple-900/40 pt-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm" style={{ color: 'rgba(200,100,220,0.8)' }}>
+                  <span className="text-base">🔞</span>
+                  <span>18+ Only</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowVipInfo(true)}
+                    className="px-3 py-2 rounded-xl text-xs transition-colors"
+                    style={{ background: 'rgba(160,32,240,0.1)', color: '#c084fc', border: '1px solid rgba(160,32,240,0.3)' }}
+                  >
+                    <Info className="w-3 h-3 inline mr-1" /> Info
+                  </button>
+                  <button
+                    onClick={onSelectVip}
+                    className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg, #6A0DAD, #A020F0)', color: 'white', boxShadow: '0 0 20px rgba(160,32,240,0.4)' }}
+                  >
+                    INVITE →
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Stats */}
+        {/* Stats strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           {[
             { label: 'Active Events', value: '247', color: 'text-green-400' },
@@ -134,10 +146,7 @@ export function WeParlaySection({ userBalance }: WeParlaySectionProps) {
             { label: 'Total Volume', value: '2.4M $Pc', color: 'text-[#D4AF37]' },
             { label: 'Players Online', value: '1,247', color: 'text-blue-400' },
           ].map((stat, index) => (
-            <div
-              key={index}
-              className="p-4 rounded-xl bg-white/5 border border-white/10 text-center"
-            >
+            <div key={index} className="p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
               <div className="text-sm text-gray-400">{stat.label}</div>
             </div>
@@ -145,55 +154,75 @@ export function WeParlaySection({ userBalance }: WeParlaySectionProps) {
         </div>
       </div>
 
-      {/* Info Dialog */}
+      {/* WeParlay Info Dialog */}
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
-        <DialogContent className="glass-panel-strong max-w-md">
+        <DialogContent className="max-w-md" style={{ background: 'rgba(8,16,32,0.99)', border: '1px solid rgba(21,101,192,0.4)' }}>
           <DialogHeader>
-            <DialogTitle className="font-casino text-xl text-gradient-gold">
-              How WeParlay.io Works
+            <DialogTitle className="font-casino text-xl" style={{ color: '#64B5F6' }}>
+              🏈 WeParlay Free Picks
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4 text-sm">
-            <div className="p-4 rounded-xl bg-white/5">
-              <div className="font-bold text-white mb-2">1. Connect Your Wallet</div>
-              <p className="text-gray-400">
-                Link your $Pc wallet to WeParlay.io for seamless betting.
-              </p>
-            </div>
-            
-            <div className="p-4 rounded-xl bg-white/5">
-              <div className="font-bold text-white mb-2">2. Choose Your Event</div>
-              <p className="text-gray-400">
-                Browse hundreds of live sports events with competitive odds.
-              </p>
-            </div>
-            
-            <div className="p-4 rounded-xl bg-white/5">
-              <div className="font-bold text-white mb-2">3. Place Your Bet</div>
-              <p className="text-gray-400">
-                Bet with $Pc tokens. Minimum bets start at just 10 $Pc.
-              </p>
-            </div>
-            
-            <div className="p-4 rounded-xl bg-white/5">
-              <div className="font-bold text-white mb-2">4. Instant Payouts</div>
-              <p className="text-gray-400">
-                Winnings are sent directly to your wallet after the event ends.
-              </p>
-            </div>
-            
-            <a
-              href="https://weparlay.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block"
-            >
-              <Button className="w-full btn-primary">
-                Start Betting on WeParlay.io
-                <ExternalLink className="w-4 h-4 ml-2" />
+          <div className="space-y-3 text-sm">
+            {[
+              { title: '1. Connect Your Wallet', desc: 'Link your $Pc wallet to WeParlay for seamless sports betting.' },
+              { title: '2. Get Free Picks', desc: 'Expert picks available daily — NFL, NBA, MLB, UFC, soccer and more.' },
+              { title: '3. Place Your Bet', desc: 'Bet with $Pc tokens. Minimum bet: 10 $Pc. Parlays welcome.' },
+              { title: '4. Instant Payouts', desc: 'Winnings sent directly to your wallet the moment the game ends.' },
+            ].map((step, i) => (
+              <div key={i} className="p-3 rounded-xl" style={{ background: 'rgba(21,101,192,0.1)', border: '1px solid rgba(21,101,192,0.2)' }}>
+                <div className="font-bold text-white mb-1">{step.title}</div>
+                <p className="text-gray-400">{step.desc}</p>
+              </div>
+            ))}
+            <a href="https://weparlay.com" target="_blank" rel="noopener noreferrer" className="block">
+              <Button className="w-full" style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', color: 'white' }}>
+                Open WeParlay <ExternalLink className="w-4 h-4 ml-2" />
               </Button>
             </a>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* VIP Info Dialog */}
+      <Dialog open={showVipInfo} onOpenChange={setShowVipInfo}>
+        <DialogContent className="max-w-md" style={{ background: 'rgba(13,0,24,0.99)', border: '1px solid rgba(160,32,240,0.4)' }}>
+          <DialogHeader>
+            <DialogTitle className="font-casino text-xl" style={{ color: '#E040FB' }}>
+              👑 Adult V.I.P. Area
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="p-3 rounded-xl text-center" style={{ background: 'rgba(160,32,240,0.1)', border: '1px solid rgba(160,32,240,0.3)' }}>
+              <div className="text-3xl mb-2">🔞</div>
+              <p className="text-purple-300 font-bold">Strictly 18+ Only</p>
+              <p className="text-gray-400 text-xs mt-1">Age verification required upon entry</p>
+            </div>
+            {[
+              { icon: Crown, title: 'Exclusive Private Tables', desc: 'High-stakes invite-only games with VIP buy-ins' },
+              { icon: Shield, title: 'Private Rooms', desc: 'Invite friends to password-protected private dance rooms' },
+              { icon: Zap, title: 'VIP Bonuses', desc: 'Exclusive bonuses, cashback, and weekly $Pc rewards' },
+              { icon: Lock, title: 'Premium Access', desc: 'Access all casino games with no limits inside the VIP area' },
+            ].map((item, i) => {
+              const IIcon = item.icon;
+              return (
+                <div key={i} className="flex gap-3 p-3 rounded-xl" style={{ background: 'rgba(160,32,240,0.06)', border: '1px solid rgba(160,32,240,0.15)' }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(160,32,240,0.2)' }}>
+                    <IIcon className="w-4 h-4" style={{ color: '#E040FB' }} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-xs">{item.title}</div>
+                    <div className="text-gray-400 text-xs">{item.desc}</div>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              onClick={() => { setShowVipInfo(false); onSelectVip?.(); }}
+              className="w-full font-bold"
+              style={{ background: 'linear-gradient(135deg, #6A0DAD, #A020F0)', color: 'white', boxShadow: '0 0 20px rgba(160,32,240,0.3)' }}
+            >
+              Enter VIP Area →
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

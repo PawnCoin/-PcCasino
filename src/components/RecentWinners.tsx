@@ -136,7 +136,7 @@ export function RecentWinners() {
               }}>
               <div className="flex items-start gap-3">
                 <div className="relative">
-                  <AvatarSprite avatarIdx={nameToAvatarIdx(winner.name)} size={42} />
+                  <AvatarSprite avatar={ALL_AVATARS[nameToAvatarIdx(winner.name) % ALL_AVATARS.length]} size={42} />
                   {newWinnerId === winner.id && (
                     <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-yellow-400 flex items-center justify-center">
                       <Zap className="w-2.5 h-2.5 text-black" />
@@ -174,7 +174,7 @@ export function RecentWinners() {
           <div className="flex gap-6 px-4 overflow-x-auto no-scrollbar">
             {winners.map(w => (
               <div key={w.id} className="flex items-center gap-2 flex-shrink-0 py-1">
-                <AvatarSprite avatarIdx={nameToAvatarIdx(w.name)} size={20} />
+                <AvatarSprite avatar={ALL_AVATARS[nameToAvatarIdx(w.name) % ALL_AVATARS.length]} size={20} />
                 <span className="text-xs text-gray-300">{w.name}</span>
                 <span className="text-xs text-gray-500">won</span>
                 <span className="text-xs font-bold" style={{ color: getAmountColor(w.amount) }}>+{formatAmount(w.amount)} $Pc</span>

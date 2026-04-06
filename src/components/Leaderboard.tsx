@@ -156,7 +156,7 @@ export function Leaderboard() {
             return (
               <div key={player.id} className="flex flex-col items-center" style={{ width: 100 }}>
                 <div className="mb-2">
-                  <AvatarSprite avatarIdx={player.avatarIdx} size={isFirst ? 52 : 42} />
+                  <AvatarSprite avatar={ALL_AVATARS[player.avatarIdx % ALL_AVATARS.length]} size={isFirst ? 52 : 42} />
                 </div>
                 <div className="text-xs font-bold text-center truncate w-full text-white mb-1">{player.username}</div>
                 <div className="text-xs mb-1" style={{ color: activeTab === 'totalWon' ? '#D4AF37' : activeTab === 'balance' ? '#60a5fa' : '#f97316' }}>
@@ -182,7 +182,7 @@ export function Leaderboard() {
           {sortedLeaders.slice(3).map((player) => (
             <div key={player.id} className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/3 transition-colors">
               <div className="w-8 text-center flex-shrink-0">{getRankIcon(player.rank)}</div>
-              <AvatarSprite avatarIdx={player.avatarIdx} size={34} />
+              <AvatarSprite avatar={ALL_AVATARS[player.avatarIdx % ALL_AVATARS.length]} size={34} />
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-white text-sm truncate">{player.username}</div>
                 <div className="text-xs text-gray-400">{player.favoriteGame} • {player.gamesPlayed} games</div>

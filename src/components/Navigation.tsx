@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
@@ -309,6 +309,14 @@ export function Navigation({
                         </div>
                         
                         <button
+                          onClick={() => { onShowProfile?.(); setShowUserDropdown(false); }}
+                          className="w-full p-3 flex items-center gap-3 text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-colors border-b border-[#5D4037]/20"
+                        >
+                          <UserCircle className="w-4 h-4" />
+                          <span className="text-sm font-semibold">My Profile</span>
+                        </button>
+
+                        <button
                           onClick={() => { onShowHistory(); setShowUserDropdown(false); }}
                           className="w-full p-3 flex items-center gap-3 text-[#C0C0C0] hover:bg-[#D4AF37]/10 transition-colors"
                         >
@@ -342,6 +350,14 @@ export function Navigation({
                           </button>
                         )}
                         
+                        <button
+                          onClick={() => { onShowAdmin?.(); setShowUserDropdown(false); }}
+                          className="w-full p-3 flex items-center gap-3 text-[#808080] hover:bg-[#D4AF37]/10 transition-colors border-t border-[#5D4037]/30"
+                        >
+                          <Shield className="w-4 h-4" />
+                          <span className="text-sm">Admin Panel</span>
+                        </button>
+
                         <button
                           onClick={() => { onDisconnect(); setShowUserDropdown(false); }}
                           className="w-full p-3 flex items-center gap-3 text-[#EF5350] hover:bg-[#EF5350]/10 transition-colors border-t border-[#5D4037]/30"
@@ -481,6 +497,13 @@ export function Navigation({
                 {isAuthenticated && (
                   <>
                     <button 
+                      onClick={() => { onShowProfile?.(); setIsMenuOpen(false); }}
+                      className="p-3 rounded-lg hover:bg-[#D4AF37]/10 text-[#D4AF37] transition-colors text-left flex items-center gap-2 border border-[#D4AF37]/30"
+                    >
+                      <UserCircle className="w-4 h-4" />
+                      My Profile
+                    </button>
+                    <button 
                       onClick={() => { onShowFinancial?.(); setIsMenuOpen(false); }}
                       className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#D4AF37] transition-colors text-left flex items-center gap-2"
                     >
@@ -492,6 +515,13 @@ export function Navigation({
                       className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors text-left"
                     >
                       History
+                    </button>
+                    <button 
+                      onClick={() => { onShowAdmin?.(); setIsMenuOpen(false); }}
+                      className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#808080] transition-colors text-left flex items-center gap-2"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Admin Panel
                     </button>
                     <button 
                       onClick={() => { onDisconnect(); setIsMenuOpen(false); }}

@@ -1,9 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { FileText, Shield, Coins, AlertTriangle, Scale, Cookie, ChevronLeft } from 'lucide-react';
+import { FileText, Shield, Coins, AlertTriangle, Scale, Cookie, ChevronLeft, BookOpen, Heart } from 'lucide-react';
 
-export type LegalPage = 'terms' | 'privacy' | 'responsible' | 'rules' | 'crypto' | 'malfunction' | 'cookies';
+export type LegalPage = 'terms' | 'privacy' | 'responsible' | 'rules' | 'crypto' | 'malfunction' | 'cookies' | 'aml';
 
 interface LegalPagesProps {
   isOpen: boolean;
@@ -15,10 +15,11 @@ interface LegalPagesProps {
 const pages: { id: LegalPage; label: string; icon: typeof FileText }[] = [
   { id: 'terms', label: 'Terms of Service', icon: FileText },
   { id: 'privacy', label: 'Privacy Policy', icon: Shield },
-  { id: 'responsible', label: 'Responsible Gaming', icon: Shield },
+  { id: 'responsible', label: 'Responsible Gaming', icon: Heart },
   { id: 'rules', label: 'Game Rules', icon: Scale },
   { id: 'crypto', label: 'Crypto & Money Rules', icon: Coins },
   { id: 'malfunction', label: 'Malfunction Policy', icon: AlertTriangle },
+  { id: 'aml', label: 'AML / KYC Policy', icon: BookOpen },
   { id: 'cookies', label: 'Cookie Policy', icon: Cookie },
 ];
 
@@ -32,10 +33,15 @@ const BulletList = ({ items }: { items: string[] }) => (
   <ul className="space-y-1 mb-3">
     {items.map((item, i) => (
       <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
-        <span className="text-yellow-500 mt-0.5">•</span> {item}
+        <span className="text-yellow-500 mt-0.5 flex-shrink-0">•</span> {item}
       </li>
     ))}
   </ul>
+);
+const Warning = ({ children }: { children: React.ReactNode }) => (
+  <div className="p-3 rounded-xl mb-3 text-sm text-yellow-200" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+    {children}
+  </div>
 );
 
 function TermsContent() {
@@ -43,7 +49,7 @@ function TermsContent() {
     <div>
       <Paragraph>Last Updated: April 6, 2026. These Terms of Service ("Terms") govern your access to and use of $Pc Casino ("we," "us," or "our"), operated by PcCasino Holdings under the $Pc token ecosystem.</Paragraph>
       <SectionTitle>1. Eligibility</SectionTitle>
-      <BulletList={['You must be at least 18 years of age (21 in some jurisdictions) to use $Pc Casino.', 'Access is restricted in jurisdictions where online gambling is prohibited.', 'You must not be on any self-exclusion, banned, or restricted list.', 'By accessing this platform, you represent that you meet all eligibility requirements.']} items={[
+      <BulletList items={[
         'You must be at least 18 years of age (21 in some jurisdictions) to use $Pc Casino.',
         'Access is restricted in jurisdictions where online gambling is prohibited by law.',
         'You must not be on any self-exclusion, banned, or restricted list.',
@@ -56,13 +62,22 @@ function TermsContent() {
       <SectionTitle>4. Game Fairness</SectionTitle>
       <Paragraph>All games employ provably fair algorithms and industry-standard random number generation (RNG). The house edge applies to all games as disclosed in our Game Rules. $Pc Casino does not manipulate game outcomes.</Paragraph>
       <SectionTitle>5. Prohibited Activities</SectionTitle>
-      <BulletList items={['Using bots, scripts, or automated software to play games', 'Collusion with other players during multiplayer games', 'Exploiting software bugs, glitches, or malfunctions for gain', 'Money laundering, fraudulent chargebacks, or financial crimes', 'Creating multiple accounts to claim bonuses multiple times', 'Threatening, harassing, or abusing staff or other players']} />
+      <BulletList items={[
+        'Using bots, scripts, or automated software to play games',
+        'Collusion with other players during multiplayer games',
+        'Exploiting software bugs, glitches, or malfunctions for gain',
+        'Money laundering, fraudulent chargebacks, or financial crimes',
+        'Creating multiple accounts to claim bonuses multiple times',
+        'Threatening, harassing, or abusing staff or other players',
+        'Attempting to reverse-engineer the platform or game logic',
+        'VPN or proxy use to bypass geographic restrictions',
+      ]} />
       <SectionTitle>6. Limitation of Liability</SectionTitle>
       <Paragraph>$Pc Casino shall not be liable for any indirect, incidental, special, punitive, or consequential damages arising from your use of the platform, including losses due to technical malfunctions, connectivity issues, or market volatility of $Pc token. Our maximum liability is limited to the value of tokens in your account at the time of the incident.</Paragraph>
       <SectionTitle>7. Dispute Resolution</SectionTitle>
-      <Paragraph>All disputes regarding game outcomes must be submitted within 72 hours of the event. See our Malfunction & Dispute Policy for complete details on the refund process.</Paragraph>
+      <Paragraph>All disputes regarding game outcomes must be submitted within 72 hours of the event. Disputes are reviewed by our admin team within 5 business days. See our Malfunction & Dispute Policy for complete details on the refund process, including how to prove a malfunction occurred and qualify for a refund.</Paragraph>
       <SectionTitle>8. Amendments</SectionTitle>
-      <Paragraph>We reserve the right to amend these Terms at any time. Continued use of the platform after amendments constitutes acceptance of the new Terms. Major changes will be communicated via site-wide broadcast.</Paragraph>
+      <Paragraph>We reserve the right to amend these Terms at any time. Continued use of the platform after amendments constitutes acceptance of the new Terms. Major changes will be communicated via site-wide broadcast at least 7 days in advance.</Paragraph>
     </div>
   );
 }
@@ -70,17 +85,39 @@ function TermsContent() {
 function PrivacyContent() {
   return (
     <div>
-      <Paragraph>This Privacy Policy describes how $Pc Casino collects, uses, and protects your personal information.</Paragraph>
+      <Paragraph>This Privacy Policy describes how $Pc Casino collects, uses, and protects your personal information. Last updated: April 6, 2026.</Paragraph>
       <SectionTitle>1. Information We Collect</SectionTitle>
-      <BulletList items={['Username and profile information you provide at registration', 'Wallet addresses used for deposits and withdrawals', 'Device information (IP address, browser type, operating system)', 'Gameplay data including bets, wins, game history, and session duration', 'Communication data from chat, support tickets, and dispute submissions', 'Cookies and local storage data for session management']} />
+      <BulletList items={[
+        'Username and profile information you provide at registration',
+        'Wallet addresses used for deposits and withdrawals',
+        'Device information (IP address, browser type, operating system)',
+        'Gameplay data including bets, wins, game history, and session duration',
+        'Communication data from chat, support tickets, and dispute submissions',
+        'Cookies and local storage data for session management',
+        'KYC verification documents when requested for withdrawal processing',
+      ]} />
       <SectionTitle>2. How We Use Your Information</SectionTitle>
-      <BulletList items={['To provide, operate, and improve the casino platform', 'To detect and prevent fraud, cheating, and abuse', 'To process deposits, withdrawals, and bonus claims', 'To send important account notifications and service updates', 'To comply with legal and regulatory obligations', 'To personalize your gaming experience']} />
+      <BulletList items={[
+        'To provide, operate, and improve the casino platform',
+        'To detect and prevent fraud, cheating, and abuse',
+        'To process deposits, withdrawals, and bonus claims',
+        'To send important account notifications and service updates',
+        'To comply with legal and regulatory obligations',
+        'To personalize your gaming experience',
+        'To generate aggregate analytics (never individual-level data sold)',
+      ]} />
       <SectionTitle>3. Data Storage & Security</SectionTitle>
       <Paragraph>All sensitive data is stored encrypted using AES-256 encryption. We employ industry-standard security practices including TLS 1.3 for data in transit. Wallet addresses and transaction data are never sold to third parties. We retain gameplay logs for up to 7 years to satisfy anti-money laundering (AML) regulations.</Paragraph>
       <SectionTitle>4. Third-Party Services</SectionTitle>
       <Paragraph>$Pc Casino integrates with PcPayments Command Center for crypto payment processing, WeParlay Inc. for sports betting features, and Socket.io for real-time multiplayer infrastructure. Each third-party service has its own privacy policy. We only share the minimum data required for these services to function.</Paragraph>
       <SectionTitle>5. Your Rights</SectionTitle>
-      <BulletList items={['Right to access all personal data we hold about you', 'Right to request deletion of your account and associated data', 'Right to opt out of marketing communications', 'Right to data portability (export your game history)', 'Right to lodge a complaint with a data protection authority']} />
+      <BulletList items={[
+        'Right to access all personal data we hold about you',
+        'Right to request deletion of your account and associated data',
+        'Right to opt out of marketing communications',
+        'Right to data portability — export your full game history',
+        'Right to lodge a complaint with a data protection authority',
+      ]} />
       <SectionTitle>6. Cookies</SectionTitle>
       <Paragraph>We use essential cookies for authentication and session management, and optional analytics cookies to improve the platform. See our full Cookie Policy for details.</Paragraph>
     </div>
@@ -91,41 +128,90 @@ function ResponsibleContent() {
   return (
     <div>
       <Paragraph>$Pc Casino is committed to responsible gaming. Gambling should be an enjoyable form of entertainment, not a financial strategy or a way to cope with problems.</Paragraph>
+      <Warning>If you or someone you know has a gambling problem, call the National Problem Gambling Helpline: 1-800-522-4700 (US) or visit ncpgambling.org.</Warning>
       <SectionTitle>Signs of Problem Gambling</SectionTitle>
-      <BulletList items={['Spending more than you can afford to lose', 'Chasing losses with larger bets', 'Gambling to escape problems or stress', 'Lying to friends or family about your gambling', 'Neglecting work, school, or relationships due to gambling', 'Borrowing money to fund gambling', 'Feeling restless or irritable when not gambling']} />
+      <BulletList items={[
+        'Spending more than you can afford to lose',
+        'Chasing losses with larger and larger bets',
+        'Gambling to escape personal problems or stress',
+        'Lying to friends or family about your gambling activity',
+        'Neglecting work, school, or relationships due to gambling',
+        'Borrowing money to fund gambling sessions',
+        'Feeling restless, irritable, or depressed when not gambling',
+      ]} />
       <SectionTitle>Tools Available to You</SectionTitle>
-      <BulletList items={['Daily/weekly/monthly deposit limits in your account settings', 'Session time reminders and pop-up notifications', 'Cooling-off period: temporarily lock your account (24h to 30 days)', 'Self-exclusion: permanently block yourself from the platform', 'Reality check: timed notifications showing how long you\'ve been playing', 'Access to full gameplay and financial history anytime']} />
+      <BulletList items={[
+        'Daily, weekly, and monthly deposit limits — set in Profile → Limits',
+        'Session time reminders and pop-up notifications every 30/60/90 minutes',
+        'Cooling-off period: temporarily lock your account from 24 hours to 30 days',
+        'Self-exclusion: permanently block yourself from the platform',
+        'Reality check: timed notifications showing session duration and net P&L',
+        'Access to full gameplay and financial history at any time',
+        'One-click access to professional gambling support resources',
+      ]} />
       <SectionTitle>Setting Limits</SectionTitle>
-      <Paragraph>Visit your Profile → Limits tab to set deposit limits, loss limits, and self-exclusion periods. Limits take effect immediately. Increasing limits requires a 24-hour cooling-off period. Decreasing limits applies instantly. Self-exclusion periods cannot be reversed once activated.</Paragraph>
-      <SectionTitle>Getting Help</SectionTitle>
-      <Paragraph>If you are concerned about your gambling, please contact one of these free confidential support services:</Paragraph>
-      <BulletList items={['National Problem Gambling Helpline: 1-800-522-4700 (US)', 'Gamblers Anonymous: www.gamblersanonymous.org', 'BeGambleAware: www.begambleaware.org (UK)', 'Gambling Help Online: www.gamblinghelponline.org.au (AU)', 'GamCare: www.gamcare.org.uk']} />
-      <SectionTitle>Underage Gambling</SectionTitle>
-      <Paragraph>We strictly prohibit anyone under 18 (or 21 in applicable jurisdictions) from using our platform. We use age verification processes to enforce this. If you believe a minor is using the platform, contact our support team immediately.</Paragraph>
+      <Paragraph>Visit your Profile → Limits tab to set deposit limits, loss limits, and self-exclusion periods. Limits take effect immediately. Increasing a limit requires a mandatory 24-hour cooling-off period before taking effect. Decreasing limits applies instantly. Self-exclusion periods cannot be reversed once activated.</Paragraph>
+      <SectionTitle>Underage Gambling Prevention</SectionTitle>
+      <Paragraph>$Pc Casino strictly prohibits gambling by individuals under 18 years old (21 in some jurisdictions). We encourage parents to use parental control software such as Gamban, Netnanny, or Cybersitter to prevent minors from accessing gambling sites.</Paragraph>
     </div>
   );
 }
 
-function GameRulesContent() {
+function RulesContent() {
   return (
     <div>
-      <Paragraph>All games at $Pc Casino follow worldwide casino standard rules unless specifically noted. The following rules apply to gameplay on our platform.</Paragraph>
-      <SectionTitle>General Rules (All Games)</SectionTitle>
-      <BulletList items={['All bets are final once confirmed. No cancellation of placed bets.', 'The house edge applies to all games as listed in game information panels.', 'In the event of a technical malfunction, the round is void and all bets are returned.', 'Players must not use any third-party software, bots, or assistance tools.', 'Game decisions by the RNG are final. Human dealer rules apply in live games.', 'Minimum and maximum bet limits are enforced per table and per game.']} />
-      <SectionTitle>Texas Hold'em Poker</SectionTitle>
-      <Paragraph>Standard No-Limit Texas Hold'em rules apply. Players are dealt 2 hole cards. Community cards (flop, turn, river) are dealt face-up. Standard hand rankings apply. Best 5-card hand wins the pot. All-in situations create side pots. Slow play and deliberate stalling are prohibited.</Paragraph>
-      <SectionTitle>Blackjack</SectionTitle>
-      <Paragraph>Standard casino Blackjack rules: dealer stands on soft 17. Blackjack pays 3:2. Insurance pays 2:1 when dealer shows an ace. Surrender available on first two cards (loses half bet). Double down on any two cards. Split up to 3 times (except Aces - split once). Re-split Aces not permitted.</Paragraph>
-      <SectionTitle>Roulette</SectionTitle>
-      <Paragraph>European (single-zero) and American (double-zero) wheels available. La Partage rule applies on European wheels: even-money bets return half when 0 lands. No call bets without sufficient balance. Race track (announced bets) available on European tables only.</Paragraph>
-      <SectionTitle>Craps</SectionTitle>
-      <Paragraph>Standard casino craps rules. Pass/Don't Pass, Come/Don't Come, Place, Buy, Lay, and Proposition bets available. Odds bets are true odds (no house edge). A 5% commission applies to Buy bets on 4 and 10.</Paragraph>
-      <SectionTitle>Slots</SectionTitle>
-      <Paragraph>All slot machines use a certified RNG. Return-to-Player (RTP) for all slots is 95-97%. Progressive jackpot contributions are 2% of each eligible bet. Maximum win per spin is 500x the bet amount for non-progressive slots.</Paragraph>
-      <SectionTitle>Spades, Dominoes & Card Games</SectionTitle>
-      <Paragraph>Standard worldwide tournament rules apply for Spades and Dominoes. Spades: standard bidding, nil/blind nil available, bags count against at 10. Dominoes: Draw Dominoes rules, shuffle and draw for highest double for first play.</Paragraph>
-      <SectionTitle>Dispute of Game Outcomes</SectionTitle>
-      <Paragraph>Game outcome disputes must be filed within 72 hours. Evidence required: session ID, timestamp, screenshot or video of malfunction if available. See Malfunction Policy for full details.</Paragraph>
+      <Paragraph>These game rules apply to all games on $Pc Casino. By playing any game, you agree to these rules.</Paragraph>
+      <SectionTitle>General Rules</SectionTitle>
+      <BulletList items={[
+        'All bets are final once placed and confirmed — no cancellations after submission',
+        'Minimum and maximum bet limits apply per game and per table',
+        'All games use provably fair RNG audited by independent third parties',
+        'House edge is applied to all games as specified per game type',
+        'Disconnection during a game does not void a placed bet',
+        'In case of server error during an active bet, the dispute policy applies',
+      ]} />
+      <SectionTitle>Poker (Texas Hold\'em) — House Edge: 5% rake</SectionTitle>
+      <BulletList items={[
+        'Standard Texas Hold\'em rules apply with 5% pot rake',
+        'Players may not collude. Collusion results in permanent ban',
+        'All-in protection: hand completes even if player disconnects',
+        'Side pots are calculated automatically by the server',
+      ]} />
+      <SectionTitle>Blackjack — House Edge: 0.5%</SectionTitle>
+      <BulletList items={[
+        'Dealer stands on soft 17. Blackjack pays 3:2',
+        'Insurance is offered when dealer shows Ace (pays 2:1)',
+        'Splitting allowed up to 3 times. Doubling down on any two cards',
+        'Natural blackjack beats dealer 21',
+      ]} />
+      <SectionTitle>Roulette (European) — House Edge: 2.7%</SectionTitle>
+      <BulletList items={[
+        'Single zero (0) European wheel — better odds than American',
+        'All standard inside and outside bets accepted',
+        'Straight up: 35:1 | Split: 17:1 | Street: 11:1 | Corner: 8:1',
+        'Red/Black, Odd/Even, High/Low all pay 1:1',
+      ]} />
+      <SectionTitle>Craps — House Edge: 1.4% (Pass Line)</SectionTitle>
+      <BulletList items={[
+        'Full casino craps rules with Pass/Don\'t Pass, Come/Don\'t Come',
+        'Odds bets available behind Pass Line (no house edge on odds)',
+        'Place bets, Field bets, and Proposition bets all supported',
+        'Hardways pay 7:1 (Hard 4 & 10) and 9:1 (Hard 6 & 8)',
+      ]} />
+      <SectionTitle>Slots — House Edge: 3–8% (varies by machine)</SectionTitle>
+      <BulletList items={[
+        'RTP (Return to Player) ranges from 92% to 97% per machine',
+        'Bonus rounds and free spins are triggered by scatter symbols',
+        'Progressive jackpots accumulate across all players',
+        'Maximum win per spin is capped at the table maximum',
+      ]} />
+      <SectionTitle>Bingo (75-Ball) — House Edge: 5%</SectionTitle>
+      <BulletList items={[
+        'Standard 75-ball bingo with B-I-N-G-O columns',
+        'Prize pool is 95% of total buy-ins in that game session',
+        'Winning patterns: any line, X, T, L, blackout (full card)',
+        'Multiple winners split the jackpot equally',
+      ]} />
     </div>
   );
 }
@@ -133,19 +219,67 @@ function GameRulesContent() {
 function CryptoContent() {
   return (
     <div>
-      <Paragraph>This policy governs all financial transactions on $Pc Casino, including deposits, withdrawals, and handling of $Pc tokens.</Paragraph>
-      <SectionTitle>Deposits</SectionTitle>
-      <BulletList items={['Minimum deposit: 1,000 $Pc', 'Maximum single deposit: 100,000,000 $Pc (100M)', 'Deposits are credited once confirmed on-chain (typically 1-3 block confirmations)', 'Supported networks: $Pc native chain and supported bridges', 'No deposit fees from $Pc Casino (network gas fees apply)', 'Deposits from non-personal wallets (exchanges, protocols) may be delayed for verification']} />
-      <SectionTitle>Withdrawals</SectionTitle>
-      <BulletList items={['Minimum withdrawal: 100 $Pc', 'Maximum single withdrawal: 50,000,000 $Pc (50M)', 'Withdrawals processed within 1-24 hours during normal operations', 'Large withdrawals (over 10M $Pc) may require additional verification', 'Withdrawals require KYC for amounts over 5M $Pc cumulative', 'Withdrawal address must match your registered wallet address', 'A 1% platform fee applies to all withdrawals', 'Withdrawals cannot be made to smart contract addresses without admin approval']} />
-      <SectionTitle>AML/KYC Policy</SectionTitle>
-      <Paragraph>We are committed to preventing money laundering. Players who deposit more than 10M $Pc cumulative within 30 days will be asked to verify their identity. Failure to complete verification within 72 hours will result in account suspension until verification is complete. All suspicious activity is reported to relevant authorities.</Paragraph>
-      <SectionTitle>Bonus Wagering Requirements</SectionTitle>
-      <BulletList items={['Welcome bonus: 15x wagering requirement before withdrawal', 'Deposit match bonus: 20x wagering requirement', 'Referral bonus: 10x wagering requirement', 'Daily login bonus: no wagering requirement', 'Bonus funds cannot be withdrawn, only winnings derived from bonus play']} />
-      <SectionTitle>Tax Responsibility</SectionTitle>
-      <Paragraph>Players are solely responsible for reporting and paying all applicable taxes on gambling winnings in their jurisdiction. $Pc Casino does not provide tax advice. Transaction records are available in your profile for up to 7 years to assist with tax filings.</Paragraph>
-      <SectionTitle>Chargeback Policy</SectionTitle>
-      <Paragraph>Fraudulent chargebacks will result in immediate account termination and legal action. Any outstanding balance will be forfeited. We cooperate fully with law enforcement in all cases of financial fraud.</Paragraph>
+      <Paragraph>This policy governs all financial transactions on $Pc Casino, including deposits, withdrawals, and the use of $Pc token. Please read carefully — these rules protect both you and the platform.</Paragraph>
+      <Warning>IMPORTANT: All financial transactions are processed in $Pc token, a cryptocurrency. Cryptocurrency values fluctuate and are not guaranteed. $Pc Casino is not responsible for token value changes affecting your balance.</Warning>
+      <SectionTitle>1. Accepted Payment Methods</SectionTitle>
+      <BulletList items={[
+        '$Pc Token (primary native token) — via wallet connection',
+        'SOL (Solana) — converted to $Pc at point of deposit',
+        'ETH (Ethereum) — converted to $Pc at current market rate',
+        'BTC (Bitcoin) — converted to $Pc at current market rate',
+        'USDT / USDC (Stablecoins) — converted to $Pc at current price',
+        'Credit/Debit card via PcPayments Command Center (where available)',
+      ]} />
+      <SectionTitle>2. Deposits</SectionTitle>
+      <BulletList items={[
+        'Minimum deposit: 100 $Pc (or equivalent in other crypto)',
+        'No maximum deposit limit — contact support for very large deposits',
+        'Deposits are typically credited within 1-3 blockchain confirmations',
+        'Deposits are non-refundable once processed on-chain',
+        'Only send supported tokens to deposit addresses — other tokens may be lost',
+        'Deposit bonuses are credited separately and subject to wagering requirements',
+      ]} />
+      <SectionTitle>3. Withdrawals</SectionTitle>
+      <BulletList items={[
+        'Minimum withdrawal: 500 $Pc',
+        'Maximum withdrawal per day: 10,000,000 $Pc without additional KYC',
+        'Withdrawals above daily limit require KYC verification',
+        'Processing time: up to 24 hours for standard withdrawals',
+        'Priority withdrawals available for VIP members (processed within 2 hours)',
+        'Withdrawal fees: Network gas fee only (no platform fee)',
+        'Withdrawals may be delayed if flagged for security review',
+      ]} />
+      <SectionTitle>4. Getting Your Money Back (Refund Policy)</SectionTitle>
+      <Warning>You have the right to request a refund if you can prove a verified malfunction occurred during your game session. See our Malfunction Policy for the full claims process.</Warning>
+      <BulletList items={[
+        'Refunds are only issued for verified technical malfunctions or platform errors',
+        'User error (wrong bet, misunderstood rules) does not qualify for refund',
+        'Refund requests must be submitted within 72 hours of the incident',
+        'Evidence required: session ID, timestamp, game type, bet amount, screenshot/video',
+        'Approved refunds are credited to your $Pc wallet within 48 hours',
+        'Disputed refunds can be escalated to senior admin within 14 days',
+        'If you believe fraud occurred, contact us immediately at support@pccasino.io',
+      ]} />
+      <SectionTitle>5. Bonus and Promotional Funds</SectionTitle>
+      <BulletList items={[
+        'Welcome bonus (1B $Pc) is for entertainment play only',
+        'Bonus funds require 30x wagering requirement before withdrawal',
+        'Referral bonuses (50M $Pc per referral) credited after referred user deposits',
+        'Daily bonuses (50M $Pc) have a 5x wagering requirement',
+        'Bonus abuse — creating multiple accounts to farm bonuses — results in permanent ban',
+        'Tournament prize pool is always real withdrawable $Pc with no wagering requirement',
+      ]} />
+      <SectionTitle>6. Taxes and Reporting</SectionTitle>
+      <Paragraph>Players are solely responsible for reporting gambling winnings to their local tax authority. $Pc Casino does not provide tax advice. In the United States, gambling winnings over $600 in a tax year may be reportable. In the EU and UK, specific gambling taxation rules vary by jurisdiction. Please consult a tax professional in your country.</Paragraph>
+      <SectionTitle>7. Exchange and Token Value</SectionTitle>
+      <Paragraph>$Pc token can be traded on supported DEX and CEX platforms. The exchange rate at time of withdrawal is used to calculate fiat equivalents. $Pc Casino does not guarantee any specific exchange rate. Market price fluctuations between deposit and withdrawal are the player's responsibility.</Paragraph>
+      <SectionTitle>8. Failed or Reversed Transactions</SectionTitle>
+      <BulletList items={[
+        'On-chain transactions cannot be reversed once broadcast',
+        'If a deposit transaction fails due to network issues, contact support with the TX hash',
+        'Gas fees for failed transactions are borne by the sender',
+        'Duplicate deposits (same TX hash submitted twice) will only be credited once',
+      ]} />
     </div>
   );
 }
@@ -153,101 +287,164 @@ function CryptoContent() {
 function MalfunctionContent() {
   return (
     <div>
-      <Paragraph>$Pc Casino takes technical malfunctions seriously. This policy explains our procedures for handling game malfunctions and our commitment to fair refund processing.</Paragraph>
-      <SectionTitle>What Constitutes a Malfunction</SectionTitle>
-      <BulletList items={['Game client crashes mid-hand or mid-spin before resolution', 'Server disconnection that results in an unresolved bet being lost', 'Incorrect game outcomes due to RNG or software error', 'Display errors showing incorrect win amounts', 'Connection loss immediately before a winning outcome', 'Game freezing or hanging during an active session with funds at stake', 'Incorrect rule application by the game engine (e.g., wrong card rankings)']} />
-      <SectionTitle>What Does NOT Constitute a Malfunction</SectionTitle>
-      <BulletList items={['Normal game losses (bad hands, bad luck)', 'Your own internet connection issues', 'Bets placed in error (wrong amount, wrong game)', 'Device overheating or battery failure', 'Browser compatibility issues on unsupported browsers', 'Misunderstanding of game rules']} />
-      <SectionTitle>How to File a Malfunction Dispute</SectionTitle>
-      <Paragraph>Go to your Profile → Disputes → File Dispute, or use the Dispute button in your game session. You will need to provide:</Paragraph>
-      <BulletList items={['Your user ID and username', 'Game type and table/session ID', 'Date and approximate time of the malfunction', 'Amount at stake when malfunction occurred', 'Description of what happened', 'Screenshot or screen recording (if available)', 'Any error codes or messages displayed']} />
-      <SectionTitle>Review Process</SectionTitle>
-      <Paragraph>All disputes are reviewed by our technical team. Review typically takes 24–72 hours. You will receive a notification when your dispute status changes. During review, our team examines server logs, RNG records, network logs, and session data.</Paragraph>
-      <SectionTitle>Refund Process</SectionTitle>
-      <Paragraph>If a malfunction is confirmed, you will receive one of the following:</Paragraph>
-      <BulletList items={['Full refund: The full amount at stake is returned to your balance instantly', 'Partial refund: If the malfunction affected only part of a session', 'Void round: Round is declared void, all bets returned', 'No refund: If investigation determines no malfunction occurred']} />
-      <SectionTitle>Appeals</SectionTitle>
-      <Paragraph>If you disagree with a dispute outcome, you may appeal within 7 days by contacting our support team with additional evidence. Appeals are reviewed by senior management. The second decision is final.</Paragraph>
-      <Paragraph style={{ color: '#fbbf24', fontStyle: 'italic' }}>Note: In the spirit of fair gaming, "malfunction voids all pays and plays" — all malfunctions result in round voidance rather than one-sided outcomes. We err in the player's favor when evidence is ambiguous.</Paragraph>
+      <Paragraph>This policy explains how $Pc Casino handles technical malfunctions, game errors, and how players can claim refunds if a malfunction affected their game session.</Paragraph>
+      <Warning>In the event of any malfunction or technical fault, $Pc Casino reserves the right to void bets affected by the error and refund the original wager. No profit from a malfunction will be honored.</Warning>
+      <SectionTitle>What Qualifies as a Malfunction</SectionTitle>
+      <BulletList items={[
+        'Server crash or disconnect mid-hand that altered game state',
+        'RNG failure — provably fair hash does not match game outcome',
+        'Game client displaying incorrect card values or board state',
+        'Payout calculation error resulting in incorrect win/loss amounts',
+        'Double-charging a bet (same hand charged twice)',
+        'Jackpot display showing incorrect amount at time of trigger',
+        'Game freezing and auto-resolving with wrong outcome',
+      ]} />
+      <SectionTitle>What Does NOT Qualify</SectionTitle>
+      <BulletList items={[
+        'Player disconnects due to their own internet connection issues',
+        'Player misreading game rules or misunderstanding bet types',
+        'Losing a fair, properly resolved hand',
+        'Slow game performance due to device limitations',
+        'Expired bonus timer or session timeout',
+      ]} />
+      <SectionTitle>How to File a Malfunction Claim</SectionTitle>
+      <BulletList items={[
+        'Step 1: Note the Session ID, Game Type, Date/Time (shown in game header)',
+        'Step 2: Screenshot or screen-record the malfunction as it happens',
+        'Step 3: Go to Profile → Disputes → Submit New Dispute',
+        'Step 4: Enter game type, session ID, describe the malfunction in detail',
+        'Step 5: Upload screenshot or video evidence',
+        'Step 6: Submit — you will receive a confirmation email/notification',
+      ]} />
+      <SectionTitle>Resolution Timeline</SectionTitle>
+      <BulletList items={[
+        'Initial acknowledgment: within 24 hours of submission',
+        'Admin review period: 3–5 business days',
+        'Additional evidence request (if needed): 48-hour response window',
+        'Final decision and payout (if approved): within 48 hours of decision',
+        'Dispute escalation deadline: 14 days after initial decision',
+      ]} />
+      <SectionTitle>Refund Amounts</SectionTitle>
+      <Paragraph>If a malfunction claim is approved, the refund will be equal to the original bet amount wagered during the affected session. No winnings above the original bet will be paid from a malfunctioned round. If the error was a platform-side calculation error that short-changed a legitimate win, the correct payout differential will be issued.</Paragraph>
+      <SectionTitle>Escalation</SectionTitle>
+      <Paragraph>If you disagree with the admin's decision on your dispute, you may escalate to the Senior Review Team by clicking "Escalate" in your Disputes tab. Escalations are reviewed by a separate team within 7 business days. The escalation decision is final.</Paragraph>
     </div>
   );
 }
 
-function CookieContent() {
+function AMLContent() {
   return (
     <div>
-      <Paragraph>$Pc Casino uses cookies and local storage to provide a better experience. This policy explains what we use and why.</Paragraph>
-      <SectionTitle>Essential Cookies</SectionTitle>
-      <BulletList items={['Session authentication tokens (required for login)', 'CSRF protection tokens (security)', 'Local game state storage (save your game preferences)', 'Balance caching (prevent unnecessary server calls)']} />
-      <SectionTitle>Functional Cookies</SectionTitle>
-      <BulletList items={['Your preferred avatar and display settings', 'Game volume and sound preferences', 'Chat visibility and notification settings', 'Language preferences']} />
-      <SectionTitle>Analytics (Optional)</SectionTitle>
-      <BulletList items={['Session duration tracking to improve game design', 'Feature usage to prioritize development', 'Error reporting to fix bugs faster']} />
-      <SectionTitle>Managing Cookies</SectionTitle>
-      <Paragraph>Essential cookies cannot be disabled as they are required for the platform to function. Optional cookies can be disabled in your browser settings or through our Preferences panel in your profile. Disabling all cookies may affect platform functionality.</Paragraph>
+      <Paragraph>$Pc Casino maintains a strict Anti-Money Laundering (AML) and Know Your Customer (KYC) policy in compliance with applicable financial regulations. All users are subject to these requirements.</Paragraph>
+      <SectionTitle>Why AML/KYC Matters</SectionTitle>
+      <Paragraph>AML and KYC procedures protect the integrity of the platform, prevent financial crime, and ensure we can accurately process large withdrawals. These requirements are standard across all regulated gambling platforms globally.</Paragraph>
+      <SectionTitle>KYC Requirements</SectionTitle>
+      <BulletList items={[
+        'Cumulative lifetime withdrawals over $2,000 USD equivalent: Tier 1 KYC',
+        'Cumulative lifetime withdrawals over $10,000 USD equivalent: Tier 2 KYC',
+        'Suspicious activity flags: immediate KYC freeze on account',
+        'Tier 1: Government-issued photo ID (passport, driver\'s license)',
+        'Tier 2: Tier 1 + Proof of address (utility bill, bank statement dated within 90 days)',
+        'Enhanced KYC (Tier 3): Source of funds documentation for very large accounts',
+      ]} />
+      <SectionTitle>Prohibited Activities (AML)</SectionTitle>
+      <BulletList items={[
+        'Using the casino to launder criminal proceeds',
+        'Structuring deposits to avoid KYC thresholds (smurfing)',
+        'Using another person\'s payment method or wallet',
+        'Providing false or fraudulent KYC documents',
+        'Operating on behalf of a sanctioned country or entity',
+      ]} />
+      <SectionTitle>Reporting Obligations</SectionTitle>
+      <Paragraph>$Pc Casino reserves the right to report suspicious activity to relevant financial intelligence units (FIUs) and law enforcement agencies. This may be done without notifying the account holder. Accounts under investigation may be frozen pending review.</Paragraph>
+      <SectionTitle>Fund Source Policy</SectionTitle>
+      <Paragraph>By depositing funds, you confirm that the funds are legitimately yours and not derived from criminal activity. Large deposits may require a source-of-funds declaration. We reserve the right to request documentation before processing withdrawals for any reason.</Paragraph>
     </div>
   );
+}
+
+function CookiesContent() {
+  return (
+    <div>
+      <Paragraph>This Cookie Policy explains how $Pc Casino uses cookies and similar tracking technologies on our platform.</Paragraph>
+      <SectionTitle>What Are Cookies</SectionTitle>
+      <Paragraph>Cookies are small text files stored on your device when you visit our site. They help us remember your preferences, keep you logged in, and understand how you use our platform.</Paragraph>
+      <SectionTitle>Types of Cookies We Use</SectionTitle>
+      <BulletList items={[
+        'Essential cookies: Required for login sessions, security, and core platform function',
+        'Preference cookies: Remember your settings (sound on/off, deck choice, language)',
+        'Analytics cookies: Aggregate usage data to improve platform performance',
+        'Security cookies: Detect and prevent fraudulent activity and bot access',
+      ]} />
+      <SectionTitle>Local Storage</SectionTitle>
+      <Paragraph>In addition to cookies, we use browser local storage to save your game state, balance, transaction history, and preferences locally on your device. This data never leaves your device and is not transmitted to third parties.</Paragraph>
+      <SectionTitle>Managing Cookies</SectionTitle>
+      <Paragraph>You can disable non-essential cookies in your browser settings. Disabling essential cookies will prevent you from using the platform. You can clear local storage data at any time by logging out and clearing your browser data.</Paragraph>
+    </div>
+  );
+}
+
+function renderContent(page: LegalPage) {
+  switch (page) {
+    case 'terms': return <TermsContent />;
+    case 'privacy': return <PrivacyContent />;
+    case 'responsible': return <ResponsibleContent />;
+    case 'rules': return <RulesContent />;
+    case 'crypto': return <CryptoContent />;
+    case 'malfunction': return <MalfunctionContent />;
+    case 'aml': return <AMLContent />;
+    case 'cookies': return <CookiesContent />;
+    default: return <TermsContent />;
+  }
 }
 
 export function LegalPages({ isOpen, onClose, page, onChangePage }: LegalPagesProps) {
-  const currentPage = pages.find(p => p.id === page)!;
-
-  const renderContent = () => {
-    switch (page) {
-      case 'terms': return <TermsContent />;
-      case 'privacy': return <PrivacyContent />;
-      case 'responsible': return <ResponsibleContent />;
-      case 'rules': return <GameRulesContent />;
-      case 'crypto': return <CryptoContent />;
-      case 'malfunction': return <MalfunctionContent />;
-      case 'cookies': return <CookieContent />;
-    }
-  };
+  const currentPage = pages.find(p => p.id === page) || pages[0];
+  const Icon = currentPage.icon;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden" style={{ background: 'rgba(6,6,12,0.99)', border: '1px solid rgba(212,175,55,0.2)' }}>
-        <div className="flex h-[90vh]">
-          {/* Sidebar */}
-          <div className="w-52 flex-shrink-0 border-r border-white/10 py-4" style={{ background: 'rgba(0,0,0,0.3)' }}>
-            <div className="px-4 mb-4">
-              <div className="flex items-center gap-2 text-yellow-400">
-                <Scale className="w-4 h-4" />
-                <span className="font-bold text-sm">Legal Documents</span>
-              </div>
+      <DialogContent className="max-w-4xl max-h-[92vh] p-0 overflow-hidden" style={{
+        background: 'rgba(6,6,12,0.99)',
+        border: '1px solid rgba(212,175,55,0.3)',
+        boxShadow: '0 0 60px rgba(0,0,0,0.9)',
+      }}>
+        <DialogHeader className="px-6 py-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(30,20,10,0.8), rgba(10,10,10,0.8))' }}>
+          <DialogTitle className="flex items-center gap-3 font-casino text-lg" style={{ color: '#D4AF37' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
+              <Icon className="w-5 h-5 text-black" />
             </div>
+            {currentPage.label}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex h-[calc(92vh-80px)]">
+          {/* Sidebar */}
+          <div className="w-48 flex-shrink-0 border-r border-white/10 py-2 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.3)' }}>
             {pages.map(p => {
-              const Icon = p.icon;
+              const PIcon = p.icon;
               return (
                 <button key={p.id} onClick={() => onChangePage(p.id)}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-all"
+                  className="w-full flex items-start gap-2 px-3 py-2.5 text-xs transition-all text-left"
                   style={{
                     color: page === p.id ? '#D4AF37' : '#9ca3af',
                     background: page === p.id ? 'rgba(212,175,55,0.1)' : 'transparent',
                     borderRight: page === p.id ? '2px solid #D4AF37' : '2px solid transparent',
                   }}>
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                  {p.label}
+                  <PIcon className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>{p.label}</span>
                 </button>
               );
             })}
           </div>
+
           {/* Content */}
           <ScrollArea className="flex-1">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
-                  <Scale className="w-5 h-5 text-black" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-white">{currentPage?.label}</h2>
-                  <div className="text-xs text-gray-400">$Pc Casino • Official Legal Document</div>
-                </div>
-              </div>
-              {renderContent()}
-              <div className="mt-8 pt-4 border-t border-white/10 text-xs text-gray-500">
-                <p>These documents are legally binding agreements between you and $Pc Casino. For questions, contact legal@pccasino.io</p>
-                <p className="mt-1">© 2024-2026 $Pc Casino. All rights reserved. Powered by $Pc Token.</p>
+            <div className="p-6 max-w-2xl">
+              {renderContent(page)}
+              <div className="mt-8 pt-4 border-t border-white/10 text-xs text-gray-600">
+                <p>$Pc Casino — PcCasino Holdings • pawncoinpc.com</p>
+                <p className="mt-1">For questions about these policies, contact: legal@pccasino.io</p>
               </div>
             </div>
           </ScrollArea>

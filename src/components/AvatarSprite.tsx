@@ -39,6 +39,7 @@ interface AvatarSpriteProps {
 }
 
 export function AvatarSprite({ avatar, size = 48, className = '', style = {}, active = false }: AvatarSpriteProps) {
+  if (!avatar) return <div className={className} style={{ width: size, height: size, borderRadius: '50%', background: '#333', flexShrink: 0, ...style }} />;
   return (
     <div
       className={className}

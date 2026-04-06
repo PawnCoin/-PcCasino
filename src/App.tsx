@@ -475,7 +475,7 @@ function App() {
             />
             <GamesGrid onSelectGame={handleSelectGame} />
             <Leaderboard />
-            <WeParlaySection userBalance={user?.balance || 0} />
+            <WeParlaySection userBalance={user?.balance || 0} onSelectVip={() => handleSelectGame('vip')} />
             <RecentWinners />
             
             {/* Footer */}
@@ -504,12 +504,16 @@ function App() {
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-bold text-[#D4AF37] mb-4">Support</h4>
+                    <h4 className="font-bold text-[#D4AF37] mb-4">Support & Legal</h4>
                     <ul className="space-y-2 text-sm text-[#808080]">
-                      <li><button className="hover:text-[#D4AF37] transition-colors">Help Center</button></li>
-                      <li><button className="hover:text-[#D4AF37] transition-colors">Game Rules</button></li>
-                      <li><button className="hover:text-[#D4AF37] transition-colors">Responsible Gaming</button></li>
-                      <li><button className="hover:text-[#D4AF37] transition-colors">Contact Us</button></li>
+                      <li><button onClick={() => handleShowLegal('rules')} className="hover:text-[#D4AF37] transition-colors text-left">Game Rules</button></li>
+                      <li><button onClick={() => handleShowLegal('responsible')} className="hover:text-[#D4AF37] transition-colors text-left">Responsible Gaming</button></li>
+                      <li><button onClick={() => handleShowLegal('crypto')} className="hover:text-[#D4AF37] transition-colors text-left">Crypto & Money Rules</button></li>
+                      <li><button onClick={() => handleShowLegal('malfunction')} className="hover:text-[#D4AF37] transition-colors text-left">Malfunction Policy</button></li>
+                      <li><button onClick={() => handleShowLegal('terms')} className="hover:text-[#D4AF37] transition-colors text-left">Terms of Service</button></li>
+                      <li><button onClick={() => handleShowLegal('privacy')} className="hover:text-[#D4AF37] transition-colors text-left">Privacy Policy</button></li>
+                      <li><button onClick={() => handleShowLegal('aml')} className="hover:text-[#D4AF37] transition-colors text-left">AML / KYC Policy</button></li>
+                      <li><button onClick={() => { if (isAuthenticated) { setShowDispute(true); } else { setShowAuth(true); } }} className="hover:text-[#D4AF37] transition-colors text-left">File a Dispute</button></li>
                     </ul>
                   </div>
                   <div>
@@ -528,8 +532,18 @@ function App() {
                   </div>
                 </div>
                 <div className="border-t border-[#5D4037]/30 pt-8 text-center text-sm text-[#808080]">
-                  <p>&copy; 2024 $Pc Casino. All rights reserved.</p>
+                  <div className="flex flex-wrap justify-center gap-4 mb-4 text-xs">
+                    <button onClick={() => handleShowLegal('terms')} className="hover:text-[#D4AF37] transition-colors">Terms of Service</button>
+                    <button onClick={() => handleShowLegal('privacy')} className="hover:text-[#D4AF37] transition-colors">Privacy Policy</button>
+                    <button onClick={() => handleShowLegal('crypto')} className="hover:text-[#D4AF37] transition-colors">Crypto & Money Rules</button>
+                    <button onClick={() => handleShowLegal('malfunction')} className="hover:text-[#D4AF37] transition-colors">Malfunction Policy</button>
+                    <button onClick={() => handleShowLegal('aml')} className="hover:text-[#D4AF37] transition-colors">AML/KYC</button>
+                    <button onClick={() => handleShowLegal('responsible')} className="hover:text-[#D4AF37] transition-colors">Responsible Gaming</button>
+                    <button onClick={() => handleShowLegal('cookies')} className="hover:text-[#D4AF37] transition-colors">Cookies</button>
+                  </div>
+                  <p>&copy; 2026 $Pc Casino. All rights reserved. 18+ Only. Gamble Responsibly.</p>
                   <p className="mt-2">Powered by $Pc Token • <a href="https://pawncoinpc.com" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] hover:underline">pawncoinpc.com</a></p>
+                  <p className="mt-1 text-xs opacity-50">$Pc is a digital entertainment token. Not financial advice. Cryptocurrency values fluctuate. Past winnings do not guarantee future results.</p>
                 </div>
               </div>
             </footer>
@@ -567,6 +581,13 @@ function App() {
           onShowFinancial={() => setShowFinancial(true)}
           onShowCardDeck={() => setShowCardDeck(true)}
           onShowMultiplayer={() => setShowLobby(true)}
+          onShowProfile={() => setShowProfile(true)}
+          onShowAdmin={() => setShowAdmin(true)}
+          onShowDeposit={() => setShowDeposit(true)}
+          onShowWithdraw={() => setShowWithdraw(true)}
+          onShowTournaments={() => setShowTournaments(true)}
+          onShowReferral={() => setShowReferral(true)}
+          onShowLegal={handleShowLegal}
         />
       )}
 
@@ -882,6 +903,56 @@ function App() {
           }}
         />
       )}
+
+      {/* User Profile Modal */}
+      <UserProfile
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+        user={user}
+        transactions={transactions}
+        onShowDeposit={() => { setShowProfile(false); setShowDeposit(true); }}
+        onShowWithdraw={() => { setShowProfile(false); setShowWithdraw(true); }}
+        onShowReferral={() => { setShowProfile(false); setShowReferral(true); }}
+        onShowTournaments={() => { setShowProfile(false); setShowTournaments(true); }}
+        onShowLegal={handleShowLegal}
+        onShowDispute={() => { setShowProfile(false); setShowDispute(true); }}
+      />
+
+      {/* Admin Dashboard */}
+      <AdminDashboard
+        isOpen={showAdmin}
+        onClose={() => setShowAdmin(false)}
+      />
+
+      {/* Legal Pages */}
+      <LegalPages
+        isOpen={showLegal}
+        onClose={() => setShowLegal(false)}
+        page={legalPage}
+        onChangePage={(p) => setLegalPage(p)}
+      />
+
+      {/* Dispute Center */}
+      <DisputeCenter
+        isOpen={showDispute}
+        onClose={() => setShowDispute(false)}
+        user={user}
+      />
+
+      {/* Tournaments Page */}
+      <TournamentsPage
+        isOpen={showTournaments}
+        onClose={() => setShowTournaments(false)}
+        user={user}
+        onDeductBalance={handleTournamentDeduction}
+      />
+
+      {/* Referral Page */}
+      <ReferralPage
+        isOpen={showReferral}
+        onClose={() => setShowReferral(false)}
+        user={user}
+      />
 
       {/* Quick Action Buttons */}
       {currentView === 'lobby' && (
