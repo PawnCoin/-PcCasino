@@ -26,6 +26,7 @@ interface NavigationProps {
   onShowTournaments?: () => void;
   onShowReferral?: () => void;
   onShowLegal?: (page: string) => void;
+  isAdmin?: boolean;
 }
 
 export function Navigation({ 
@@ -48,6 +49,7 @@ export function Navigation({
   onShowTournaments,
   onShowReferral,
   onShowLegal,
+  isAdmin,
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -350,13 +352,15 @@ export function Navigation({
                           </button>
                         )}
                         
-                        <button
-                          onClick={() => { onShowAdmin?.(); setShowUserDropdown(false); }}
-                          className="w-full p-3 flex items-center gap-3 text-[#808080] hover:bg-[#D4AF37]/10 transition-colors border-t border-[#5D4037]/30"
-                        >
-                          <Shield className="w-4 h-4" />
-                          <span className="text-sm">Admin Panel</span>
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => { onShowAdmin?.(); setShowUserDropdown(false); }}
+                            className="w-full p-3 flex items-center gap-3 text-[#EF5350] hover:bg-[#EF5350]/10 transition-colors border-t border-[#5D4037]/30"
+                          >
+                            <Shield className="w-4 h-4" />
+                            <span className="text-sm">Admin Panel</span>
+                          </button>
+                        )}
 
                         <button
                           onClick={() => { onDisconnect(); setShowUserDropdown(false); }}
@@ -516,13 +520,15 @@ export function Navigation({
                     >
                       History
                     </button>
-                    <button 
-                      onClick={() => { onShowAdmin?.(); setIsMenuOpen(false); }}
-                      className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#808080] transition-colors text-left flex items-center gap-2"
-                    >
-                      <Shield className="w-4 h-4" />
-                      Admin Panel
-                    </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => { onShowAdmin?.(); setIsMenuOpen(false); }}
+                        className="p-3 rounded-lg hover:bg-[#EF5350]/10 text-[#EF5350] transition-colors text-left flex items-center gap-2"
+                      >
+                        <Shield className="w-4 h-4" />
+                        Admin Panel
+                      </button>
+                    )}
                     <button 
                       onClick={() => { onDisconnect(); setIsMenuOpen(false); }}
                       className="p-3 rounded-lg hover:bg-[#EF5350]/20 text-[#EF5350] transition-colors text-left"

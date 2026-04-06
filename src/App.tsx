@@ -35,6 +35,7 @@ import type { LegalPage } from '@/components/LegalPages';
 import { DisputeCenter } from '@/components/DisputeCenter';
 import { TournamentsPage } from '@/components/TournamentsPage';
 import { ReferralPage } from '@/components/ReferralPage';
+import { LobbyChat } from '@/components/LobbyChat';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -125,14 +126,17 @@ function App() {
       }
     } else {
       // Create new unified profile
+      const username = data?.username || `Player${Math.floor(Math.random() * 10000)}`;
+      const isAdminUser = username.toLowerCase() === 'admin' || data?.email === 'admin@pccasino.com';
       userData = {
         id: `user_${Date.now()}`,
-        username: data?.username || `Player${Math.floor(Math.random() * 10000)}`,
+        username,
         email: data?.email,
         walletAddress: data?.address,
         socialProvider: method !== 'wallet' ? method : undefined,
         balance: 1_000_000_000, // Welcome bonus (1B $Pc)
         avatar: ['👤', '🎰', '💎', '🎲', '🃏'][Math.floor(Math.random() * 5)],
+        isAdmin: isAdminUser,
       };
     }
 
@@ -588,6 +592,7 @@ function App() {
           onShowTournaments={() => setShowTournaments(true)}
           onShowReferral={() => setShowReferral(true)}
           onShowLegal={handleShowLegal}
+          isAdmin={user?.isAdmin === true}
         />
       )}
 
@@ -819,6 +824,14 @@ function App() {
         onDeposit={handleDeposit}
         onWithdraw={handleWithdraw}
         onDevReload={handleDevReload}
+        withdrawAddress={user?.withdrawAddress}
+        onSaveWithdrawAddress={(address) => {
+          if (user) {
+            const updated = { ...user, withdrawAddress: address };
+            setUser(updated);
+            localStorage.setItem('pcasino_user', JSON.stringify(updated));
+          }
+        }}
       />
 
       {/* Card Deck Selector */}
@@ -982,6 +995,15 @@ function App() {
             <span className="text-xl">📺</span>
           </button>
         </div>
+      )}
+
+      {/* Global Lobby Chat */}
+      {currentView === 'lobby' && (
+        <LobbyChat
+          username={user?.username}
+          avatar={user?.avatar}
+          isAuthenticated={isAuthenticated}
+        />
       )}
     </div>
     </GlobalGameProvider>

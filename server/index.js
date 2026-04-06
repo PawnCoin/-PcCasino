@@ -23,6 +23,7 @@ const tournaments = new Map();
 const referrals = new Map();
 const adminLogs = [];
 const pcpaymentsConfig = { apiKey: '', webhookSecret: '', endpoint: '', enabled: false };
+const lobbyChat = []; // Global lobby chat messages
 
 // ---- Leaderboard (updated by wins) ----
 const leaderboard = [
@@ -397,6 +398,19 @@ io.on('connection', (socket) => {
     const msg = { id: Date.now(), playerId: socket.id, username: player.username, message, timestamp: Date.now() };
     const room = rooms.get(player.roomId);
     if (room) { room.chat = [...(room.chat || []).slice(-50), msg]; io.to(player.roomId).emit('chat:message', msg); }
+  });
+
+  // Global lobby chat
+  socket.on('lobby:chat', ({ message, username, avatar }) => {
+    if (!message || message.trim().length === 0 || message.length > 200) return;
+    const msg = { id: Date.now(), socketId: socket.id, username: username || 'Guest', avatar: avatar || '👤', message: message.trim(), timestamp: Date.now() };
+    lobbyChat.push(msg);
+    if (lobbyChat.length > 100) lobbyChat.shift();
+    io.emit('lobby:chat', msg);
+  });
+
+  socket.on('lobby:chat:history', () => {
+    socket.emit('lobby:chat:history', { messages: lobbyChat.slice(-50) });
   });
 
   socket.on('reaction', ({ emoji }) => {

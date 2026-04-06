@@ -18,6 +18,9 @@ export interface UnifiedUser {
   socialProvider?: 'google' | 'twitter' | 'discord' | 'telegram';
   balance: number;
   avatar: string;
+  isAdmin?: boolean;
+  twoFactorEnabled?: boolean;
+  withdrawAddress?: string;
 }
 
 export interface Transaction {
