@@ -1,0 +1,62 @@
+K — I've done a full code + UI walkthrough. Here's my honest audit as a world-class crypto casino gambler:
+
+Full Honest Audit — $Pc Casino
+The Good — Things I Actually Respect
+The look is right. Dark, gold, premium. Ticker at the bottom with live network stats, leaderboard via real Socket.io, recent winners panel — this feels like a real platform at first glance.
+
+Game variety is serious. Poker, Blackjack, Roulette, Craps, Slots, Spades, Bingo, Dominoes — that's a real menu. Not filler.
+
+Legal pages are thorough. AML/KYC policy, malfunction policy, crypto rules, dispute process — this gives the impression of a legitimate operation. That matters to serious players.
+
+The navigation and profile system are clean. The user dropdown with My Profile, Deposit, Withdraw, Tournaments, Admin — it all flows logically now.
+
+What's Broken — Things That Would Make Me Leave Immediately
+1. Deposit is theatre. The deposit modal shows one hardcoded ETH address (0x742d35Cc6634C0532925a3b8D4C9db96590b8f3a) and three buttons: 100, 500, 1000 $Pc. Clicking them just adds fake numbers to your balance. There's no QR code, no crypto amount in BTC/ETH/SOL/USDT, no exchange rate, no confirmation, no network selector. A real crypto deposit needs: address generation per user, QR code, expected crypto amount, confirmation polling.
+
+2. Withdraw is even worse. Three preset buttons, no destination address input at all. Where is my money going? This would be a non-starter for any real gambler.
+
+3. Wallet connection is fake. MetaMask, Phantom, Coinbase are listed but nothing actually connects. Clicking "Connect Wallet" doesn't trigger any web3 provider — no MetaMask popup, no signing request, nothing. It's simulated.
+
+4. Social login is simulated. Google, Twitter, Discord, Telegram all fake a 500ms delay and log you in. No real OAuth. No real identity.
+
+5. Admin Panel is visible to all users. Every logged-in user sees "Admin Panel" in their dropdown. That's a serious flaw — any player can open it and see disputes, payouts, and backend data. It needs to be locked to admin accounts only.
+
+6. Balance lives in memory only. Server restarts wipe everything. No database. Your 1B $Pc welcome bonus disappears if the server burps.
+
+7. Pool and Darts show "Coming Soon" but they're in the game menu. Don't advertise games you don't have. Remove them or don't show them at all.
+
+8. No provably fair verification UI. The legal pages claim provably fair RNG but there's nowhere for me to input a seed, verify a hash, or audit a game result. This kills trust instantly for serious crypto gamblers.
+
+What's Missing — Things I Need Before I Spend Real Money
+9. No exchange rate shown anywhere. What is 1 $Pc worth? In BTC? ETH? USD? I can't evaluate bets without knowing the denomination.
+
+10. Preset deposit amounts (100/500/1000) are trivially small. High rollers move in 0.1 BTC or $10,000 minimums. There needs to be a custom amount input.
+
+11. No live chat. Crypto casino players want to talk to each other and to support. No chat room, no support widget, nothing.
+
+12. VIP tiers are decorative. The VIP section exists but there's no actual tier system — no Bronze/Silver/Gold/Platinum with real perks, cashback rates, or withdrawal limits.
+
+13. 2FA does nothing. The Security tab in the profile mentions it but tapping it does nothing. A single compromised login and all funds are gone.
+
+14. No transaction filtering. The history tab shows everything in one flat list. I can't filter by game, date, or type. Painful for tax reporting or reviewing sessions.
+
+15. No session stats. I want to see my win rate, biggest win, longest session, ROI per game. Nothing like this exists.
+
+16. Self-exclusion and limits are hollow. Responsible gaming tab exists but none of the controls actually work — setting a deposit limit or daily loss limit doesn't do anything.
+
+Priority Fix List — In Order of Importance
+Priority	Fix
+🔴 Critical	Lock Admin Panel to admin-role accounts only
+🔴 Critical	Real deposit flow: per-user address, QR code, crypto amount
+🔴 Critical	Real withdraw flow: destination address input + confirmation
+🔴 Critical	Database persistence — balances vanish on restart
+🔴 Critical	Remove Pool & Darts from game menu (or build them)
+🟡 High	Provably fair seed/verify UI per game
+🟡 High	Exchange rate display ($Pc → USD/BTC)
+🟡 High	Custom bet/deposit amount input
+🟡 High	Real wallet connection (MetaMask/Phantom)
+🟢 Medium	VIP tier system with real perks
+🟢 Medium	Live in-lobby chat
+🟢 Medium	Session stats on profile
+🟢 Medium	Working 2FA
+🟢 Medium	Transaction history filtering
