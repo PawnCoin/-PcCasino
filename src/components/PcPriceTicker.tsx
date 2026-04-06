@@ -114,13 +114,25 @@ export function PcPriceTicker({ compact = false }: { compact?: boolean }) {
 
   if (noData) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 5,
-        padding: '4px 10px', borderRadius: 20,
-        background: 'rgba(30,20,0,0.6)', border: '1px solid rgba(212,175,55,0.15)',
-      }}>
-        <Activity size={11} style={{ color: '#888' }} />
-        <span style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>$Pc N/A</span>
+      <div
+        title="Live $Pc price feed unavailable"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: compact ? '3px 8px' : '5px 12px', borderRadius: 20,
+          background: 'rgba(10,8,0,0.75)',
+          border: '1px solid rgba(212,175,55,0.15)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          cursor: 'default',
+        }}
+      >
+        <img src="/logos/pc-logo.png" alt="$Pc" style={{ width: compact ? 14 : 16, height: compact ? 14 : 16, borderRadius: '50%' }} />
+        <span style={{ fontSize: compact ? 10 : 11, color: '#D4AF37', fontWeight: 900, letterSpacing: '0.05em' }}>$Pc</span>
+        <span style={{ fontSize: compact ? 10 : 11, color: '#666', fontWeight: 700 }}>—</span>
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: '#888',
+          opacity: 0.5,
+        }} />
       </div>
     );
   }

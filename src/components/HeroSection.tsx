@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Play, TrendingUp, Users, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getSocket } from '@/lib/socket';
 
 interface HeroSectionProps {
   onScrollToGames: () => void;
@@ -40,7 +41,22 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
 
     fetchStats();
     const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+
+    const socket = getSocket();
+    const onJackpotUpdate = ({ amount }: { amount: number }) => {
+      setStats(prev => ({ ...prev, jackpot: Math.max(amount, MIN_JACKPOT) }));
+    };
+    const onLobbyStats = ({ playersOnline }: { playersOnline: number }) => {
+      setStats(prev => ({ ...prev, players: Math.max(playersOnline, MIN_PLAYERS) }));
+    };
+    socket.on('jackpot:update', onJackpotUpdate);
+    socket.on('lobby:stats', onLobbyStats);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('jackpot:update', onJackpotUpdate);
+      socket.off('lobby:stats', onLobbyStats);
+    };
   }, []);
 
   return (
