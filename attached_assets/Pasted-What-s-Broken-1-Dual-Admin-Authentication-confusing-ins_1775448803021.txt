@@ -1,0 +1,39 @@
+What's Broken
+1. Dual Admin Authentication (confusing & insecure)
+The admin nav button is correctly hidden from non-admins, but the panel itself still has its own separate hardcoded password (pcadmin2024). Two different auth systems doing the same job — one is useless.
+
+2. Wallet Connect is completely fake
+The "Connect Wallet" button generates a random hex string and pretends it's a real wallet address. No MetaMask, no WalletConnect, nothing real.
+
+3. Sportsbook bets don't touch your balance
+You can click to place a bet on a sports event and nothing happens to your $Pc. Completely disconnected from the wallet system.
+
+4. All data lives only in the browser
+User accounts, balance, transaction history, avatar — all stored in localStorage. Clearing the browser = losing everything. No server-side accounts.
+
+What's Missing (Professional Standard)
+High priority:
+
+Mobile responsiveness — Nav has minimal breakpoints, the games grid barely has any. Casino games are desktop-only
+Leaderboard uses fake hardcoded data — The real wins from games never update the leaderboard. It resets every server restart too
+Lobby chat has no moderation — No profanity filter, no mute/ban, admins can only broadcast, not moderate
+Referral system is UI-only — Codes exist, no actual reward distribution logic
+Medium priority:
+
+Email verification on signup — Accounts created with no verification
+Responsible gambling not enforced — Deposit limits shown in profile but never actually checked
+Tournaments are static mock data — No real registration, no prize pools
+Game history doesn't persist — Session history only, gone on refresh
+No in-app notification system — No alerts for rewards, promos, wins
+Lower priority:
+
+Real MetaMask/Web3 wallet integration
+Cross-device avatar/settings sync
+Sound volume control (affects all game sounds, not just music)
+Easiest Wins (High Value, Low Effort)
+Remove the redundant admin password — use the isAdmin flag directly
+Wire sportsbook bets to actually deduct/add from balance
+Add basic profanity filter to lobby chat
+Hook real game wins into the leaderboard
+Add a mobile hamburger menu to the nav
+Try calling window.ethereum in WalletConnect for real MetaMask support
