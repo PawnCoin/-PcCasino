@@ -136,12 +136,12 @@ export function MusicPlayer() {
 
   const handleNext = () => {
     setIsPlaying(false);
-    setTimeout(() => { setCurrentTrack(prev => (prev + 1) % tracks.length); setIsPlaying(true); }, 100);
+    setTimeout(() => { setCurrentTrack(prev => (prev + 1) % tracks.length); setIsPlaying(true); setSoundAmbient(true); }, 100);
   };
 
   const handlePrevious = () => {
     setIsPlaying(false);
-    setTimeout(() => { setCurrentTrack(prev => (prev - 1 + tracks.length) % tracks.length); setIsPlaying(true); }, 100);
+    setTimeout(() => { setCurrentTrack(prev => (prev - 1 + tracks.length) % tracks.length); setIsPlaying(true); setSoundAmbient(true); }, 100);
   };
 
   const handleSeek = (value: number[]) => {
@@ -150,7 +150,7 @@ export function MusicPlayer() {
 
   const selectTrack = (index: number) => {
     setIsPlaying(false);
-    setTimeout(() => { setCurrentTrack(index); setIsPlaying(true); }, 100);
+    setTimeout(() => { setCurrentTrack(index); setIsPlaying(true); setSoundAmbient(true); }, 100);
   };
 
   return (
