@@ -6,6 +6,7 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { AvatarSprite } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 
 type CardBackStyle = { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 type GameSpeed = 1 | 2 | 3 | 4;
@@ -1266,6 +1267,7 @@ interface DominoesGameProps {
 
 export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DominoesGameProps) {
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
+  const { isMuted, playSound } = useSoundEffects();
   const [muted, setMuted] = useState(false);
   const [slamOn, setSlamOn] = useState(true);
   const [selectedTargetScore, setSelectedTargetScore] = useState<number>(150);
@@ -1289,7 +1291,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { audio.muted = muted; }, [muted]);
+  useEffect(() => { audio.muted = muted || isMuted; }, [muted, isMuted]);
 
   const dims = useMemo(() => {
     const base = BASE_DIMS[tileSize];
@@ -1453,7 +1455,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       if (humanWon) {
         if (slamOn) { setShaking(true); setCracking(true); setTimeout(() => { setShaking(false); setCracking(false); }, 900); }
         audio.slam(); setTimeout(() => audio.crack(), 180); setTimeout(() => audio.win(), 350);
-        if (gs.mode === 'real') { const w = gs.bet * 3; onWin(w); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
+        if (gs.mode === 'real') { const w = gs.bet * 3; playSound('jackpot'); onWin(w); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
         else toast.success('DOMINO OUT! (Practice)');
       } else {
         gs.mode === 'real' ? toast.error(`${gs.roundWinner} wins! +${gs.roundScore} pts`) : toast.info(`${gs.roundWinner} wins the round.`);
@@ -1490,7 +1492,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     setBetConfirmed(true); toast.success(`${gs.bet} $Pc locked in!`);
   };
   const startWash = (mode: GameMode, fresh: boolean) => {
-    if (mode === 'real') { if (!betConfirmed) return; if (fresh && !onBet(gs.bet)) return; }
+    if (mode === 'real') { if (!betConfirmed) return; if (fresh && !onBet(gs.bet)) return; if (fresh) playSound('chip'); }
     dispatch({ type: 'INIT_WASH', mode, bet: gs.bet, freshGame: fresh, targetScore: fresh ? selectedTargetScore : gs.targetScore });
     setSelectedTileId(null);
   };

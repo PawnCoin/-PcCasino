@@ -151,11 +151,19 @@ export function MusicPlayer() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isPlaying) {
+            setAudioError(false);
+            setIsPlaying(true);
+          } else {
+            setIsPlaying(false);
+          }
+          setIsOpen(p => !p);
+        }}
         className={`fixed bottom-4 left-4 z-40 rounded-full w-12 h-12 transition-all ${
           isPlaying ? 'animate-pulse-purple bg-purple-500/20' : 'glass-panel'
         }`}
-        title={isPlaying ? 'Music Playing' : 'Open Music Player'}
+        title={isPlaying ? 'Pause Music' : 'Play Casino Music'}
       >
         <Music className={`w-5 h-5 ${isPlaying ? 'text-purple-400' : ''}`} />
       </Button>

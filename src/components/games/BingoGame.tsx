@@ -564,6 +564,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const startGame = useCallback(() => {
     const totalCost = betAmount * numCards;
     if (!onBet(totalCost)) { setMessage('Insufficient balance!'); return; }
+    playSound('chip');
 
     const newCards = Array.from({ length: numCards }, generateCard);
     const initDaubed = newCards.map(() => {
@@ -696,6 +697,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     if (foundWin) {
       const mult = WIN_PAYOUTS[bestPattern] || 3;
       const prize = betAmount * numCards * mult;
+      playSound('jackpot');
       onWin(prize);
       setWonPrize(prize);
       setWinCells(newWinCells);
