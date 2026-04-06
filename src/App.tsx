@@ -57,6 +57,7 @@ interface UnifiedUser {
   socialProvider?: 'google' | 'twitter' | 'discord' | 'telegram';
   balance: number;
   avatar: string;
+  socialAvatarUrl?: string;
   isAdmin?: boolean;
   vipTier?: string;
   totpEnabled?: boolean;
@@ -159,15 +160,15 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
       authApi.me().then(data => {
         if (data.user) {
-          const userData = {
+          const userData: UnifiedUser = {
             id: data.user.id, username: data.user.username, email: data.user.email,
             walletAddress: data.user.walletAddress, socialProvider: data.user.socialProvider,
             balance: data.user.balance, avatar: data.user.avatar || 'wizard',
+            socialAvatarUrl: data.user.socialAvatarUrl || undefined,
             isAdmin: data.user.isAdmin, vipTier: data.user.vipTier,
             totpEnabled: data.user.totpEnabled, withdrawAddress: data.user.withdrawAddress,
-            dailyDepositLimit: data.user.dailyDepositLimit, dailyLossLimit: data.user.dailyLossLimit,
             emailVerified: data.user.emailVerified,
-          } as any;
+          };
           setUser(userData);
           setIsAuthenticated(true);
           localStorage.setItem('pcasino_user', JSON.stringify(userData));
@@ -381,15 +382,14 @@ function App() {
     };
   }, [user?.id]);
 
-  // Redirect to OAuth providers
-  const handleOAuthRedirect = (provider: 'google' | 'discord' | 'twitter') => {
+  // Redirect to OAuth providers (only Google and Discord are live)
+  const handleOAuthRedirect = (provider: 'google' | 'discord') => {
     window.location.href = `/api/auth/oauth/${provider}`;
   };
 
   const handleSocialConnect = (provider: 'google' | 'twitter' | 'discord' | 'telegram') => {
-    // Google and Discord: real OAuth redirect
     if (provider === 'google' || provider === 'discord') {
-      handleOAuthRedirect(provider as any);
+      handleOAuthRedirect(provider);
       return;
     }
     // Twitter and Telegram are "Coming Soon" — do nothing

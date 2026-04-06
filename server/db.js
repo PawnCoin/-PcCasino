@@ -57,6 +57,7 @@ export async function initDatabase() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS self_exclude_until TIMESTAMP`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_bonus_claimed_at TIMESTAMP`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS cashback_paid_at TIMESTAMP`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_avatar_url TEXT`,
     ];
     for (const sql of alterColumns) {
       await query(sql).catch(() => {});

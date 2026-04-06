@@ -125,7 +125,8 @@ router.post('/register', async (req, res) => {
         balance: parseInt(user.balance), avatar: user.avatar,
         isAdmin: user.is_admin, emailVerified: user.email_verified,
         vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
-        withdrawAddress: user.withdraw_address
+        withdrawAddress: user.withdraw_address,
+        socialAvatarUrl: user.social_avatar_url || null,
       }
     });
   } catch (err) {
@@ -256,6 +257,7 @@ router.get('/me', requireAuth, async (req, res) => {
       selfExcluded: user.self_excluded,
       totalWagered: parseInt(user.total_wagered),
       totalWon: parseInt(user.total_won),
+      socialAvatarUrl: user.social_avatar_url || null,
     }
   });
 });

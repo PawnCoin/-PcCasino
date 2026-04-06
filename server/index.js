@@ -5,6 +5,7 @@ import cors from 'cors';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { randomBytes } from 'crypto';
 import authRoutes from './auth-routes.js';
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
@@ -523,9 +524,41 @@ app.post('/api/admin/disputes/:id/resolve', (req, res) => {
 // ---- OAuth Routes ----
 const OAUTH_BASE = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:3001'}`;
 
+// CSRF state store — maps random state token → { provider, expiresAt }
+const oauthStates = new Map();
+function generateOAuthState(provider) {
+  const state = randomBytes(32).toString('hex');
+  // Expire after 10 minutes
+  oauthStates.set(state, { provider, expiresAt: Date.now() + 10 * 60 * 1000 });
+  // Clean up expired states
+  for (const [k, v] of oauthStates) {
+    if (v.expiresAt < Date.now()) oauthStates.delete(k);
+  }
+  return state;
+}
+function validateOAuthState(state, expectedProvider) {
+  const entry = oauthStates.get(state);
+  if (!entry || entry.expiresAt < Date.now() || entry.provider !== expectedProvider) return false;
+  oauthStates.delete(state); // consume — one-time use
+  return true;
+}
+// Generate a unique username, falling back to numeric suffixes only when needed
+async function makeUniqueUsername(base) {
+  const clean = base.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20) || 'user';
+  const existing = await query('SELECT id FROM users WHERE username = $1', [clean]);
+  if (!existing.rows.length) return clean;
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${clean.slice(0, 17)}_${i}`;
+    const ex = await query('SELECT id FROM users WHERE username = $1', [candidate]);
+    if (!ex.rows.length) return candidate;
+  }
+  return `${clean.slice(0, 14)}_${randomBytes(3).toString('hex')}`;
+}
+
 app.get('/api/auth/oauth/google', (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) return res.redirect(`/?oauth_error=google_not_configured`);
+  const state = generateOAuthState('google');
   const redirectUri = `${OAUTH_BASE}/api/auth/oauth/google/callback`;
   const params = new URLSearchParams({
     client_id: clientId,
@@ -534,13 +567,15 @@ app.get('/api/auth/oauth/google', (req, res) => {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'select_account',
+    state,
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
 app.get('/api/auth/oauth/google/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
   if (error || !code) return res.redirect(`/?oauth_error=${error || 'cancelled'}`);
+  if (!state || !validateOAuthState(state, 'google')) return res.redirect(`/?oauth_error=invalid_state`);
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -556,7 +591,7 @@ app.get('/api/auth/oauth/google/callback', async (req, res) => {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
     const profile = await profileRes.json();
-    // Create or find user in DB
+    const socialAvatarUrl = profile.picture || null;
     const { default: jwt } = await import('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
     let user;
@@ -564,23 +599,25 @@ app.get('/api/auth/oauth/google/callback', async (req, res) => {
     let existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['google', profile.id]);
     if (existing.rows.length) {
       user = existing.rows[0];
-      await query('UPDATE users SET last_seen = NOW(), email = COALESCE(email, $1) WHERE id = $2', [profile.email, user.id]);
+      await query('UPDATE users SET last_seen = NOW(), email = COALESCE(email, $1), social_avatar_url = $2 WHERE id = $3',
+        [profile.email, socialAvatarUrl, user.id]);
     } else if (profile.email) {
       // 2. Check if email already registered — link social to existing account
       const byEmail = await query('SELECT * FROM users WHERE email = $1', [profile.email]);
       if (byEmail.rows.length) {
         user = byEmail.rows[0];
-        await query('UPDATE users SET social_provider = $1, social_id = $2, email_verified = true, last_seen = NOW() WHERE id = $3',
-          ['google', profile.id, user.id]);
+        await query('UPDATE users SET social_provider = $1, social_id = $2, email_verified = true, last_seen = NOW(), social_avatar_url = $3 WHERE id = $4',
+          ['google', profile.id, socialAvatarUrl, user.id]);
       }
     }
     if (!user) {
-      // 3. Create new user
-      const username = (profile.name || profile.email.split('@')[0]).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
+      // 3. Create new user — use actual display name, no random suffix unless needed
+      const displayName = profile.name || profile.email.split('@')[0];
+      const username = await makeUniqueUsername(displayName);
       const result = await query(
-        `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar)
-         VALUES ($1, $2, 'google', $3, true, 1000000000, 'wizard') RETURNING *`,
-        [username, profile.email, profile.id]
+        `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar, social_avatar_url)
+         VALUES ($1, $2, 'google', $3, true, 1000000000, 'wizard', $4) RETURNING *`,
+        [username, profile.email, profile.id, socialAvatarUrl]
       );
       user = result.rows[0];
       await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
@@ -598,19 +635,22 @@ app.get('/api/auth/oauth/google/callback', async (req, res) => {
 app.get('/api/auth/oauth/discord', (req, res) => {
   const clientId = process.env.DISCORD_CLIENT_ID;
   if (!clientId) return res.redirect(`/?oauth_error=discord_not_configured`);
+  const state = generateOAuthState('discord');
   const redirectUri = `${OAUTH_BASE}/api/auth/oauth/discord/callback`;
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'identify email',
+    state,
   });
   res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
 });
 
 app.get('/api/auth/oauth/discord/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
   if (error || !code) return res.redirect(`/?oauth_error=${error || 'cancelled'}`);
+  if (!state || !validateOAuthState(state, 'discord')) return res.redirect(`/?oauth_error=invalid_state`);
   try {
     const clientId = process.env.DISCORD_CLIENT_ID;
     const clientSecret = process.env.DISCORD_CLIENT_SECRET;
@@ -626,6 +666,9 @@ app.get('/api/auth/oauth/discord/callback', async (req, res) => {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
     const profile = await profileRes.json();
+    const socialAvatarUrl = profile.avatar
+      ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.webp?size=128`
+      : null;
     const { default: jwt } = await import('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
     let user;
@@ -633,23 +676,25 @@ app.get('/api/auth/oauth/discord/callback', async (req, res) => {
     let existing = await query('SELECT * FROM users WHERE social_provider = $1 AND social_id = $2', ['discord', profile.id]);
     if (existing.rows.length) {
       user = existing.rows[0];
-      await query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]);
+      await query('UPDATE users SET last_seen = NOW(), social_avatar_url = COALESCE($1, social_avatar_url) WHERE id = $2',
+        [socialAvatarUrl, user.id]);
     } else if (profile.email) {
       // 2. Check if email already registered — link social to existing account
       const byEmail = await query('SELECT * FROM users WHERE email = $1', [profile.email]);
       if (byEmail.rows.length) {
         user = byEmail.rows[0];
-        await query('UPDATE users SET social_provider = $1, social_id = $2, email_verified = true, last_seen = NOW() WHERE id = $3',
-          ['discord', profile.id, user.id]);
+        await query('UPDATE users SET social_provider = $1, social_id = $2, email_verified = true, last_seen = NOW(), social_avatar_url = COALESCE($3, social_avatar_url) WHERE id = $4',
+          ['discord', profile.id, socialAvatarUrl, user.id]);
       }
     }
     if (!user) {
-      // 3. Create new user
-      const username = (profile.username || 'Discord').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18) + '_' + Math.random().toString(36).slice(2,5);
+      // 3. Create new user — use actual display name, no random suffix unless needed
+      const displayName = profile.global_name || profile.username || 'user';
+      const username = await makeUniqueUsername(displayName);
       const result = await query(
-        `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar)
-         VALUES ($1, $2, 'discord', $3, $4, 1000000000, 'wizard') RETURNING *`,
-        [username, profile.email || null, profile.id, !!profile.email]
+        `INSERT INTO users (username, email, social_provider, social_id, email_verified, balance, avatar, social_avatar_url)
+         VALUES ($1, $2, 'discord', $3, $4, 1000000000, 'wizard', $5) RETURNING *`,
+        [username, profile.email || null, profile.id, !!profile.email, socialAvatarUrl]
       );
       user = result.rows[0];
       await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
