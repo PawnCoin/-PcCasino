@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic } from 'lucide-react';
+import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 
@@ -12,7 +12,6 @@ interface Track {
   url: string;
 }
 
-// Free royalty-free casino/lounge music from mixkit & pixabay CDN
 const tracks: Track[] = [
   { id: '1', title: 'Casino Royale Lounge', artist: 'Vegas Beats', duration: 180, genre: 'Jazz Lounge', url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c3cc48ac48.mp3' },
   { id: '2', title: 'High Stakes Night', artist: 'Lounge Masters', duration: 195, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/01/27/audio_d0c6ff1bde.mp3' },
@@ -21,16 +20,54 @@ const tracks: Track[] = [
   { id: '5', title: 'Vegas Lights', artist: 'Neon Collective', duration: 225, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3' },
 ];
 
+const STORAGE_MUTED = 'pcasino_muted';
+const STORAGE_VOLUME = 'pcasino_volume';
+
 export function MusicPlayer() {
   const [isOpen, setIsOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [volume, setVolume] = useState(40);
-  const [isMuted, setIsMuted] = useState(false);
   const [audioError, setAudioError] = useState(false);
+
+  // Use the same localStorage keys as the global sound system
+  const [isMuted, setIsMuted] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_MUTED) || 'false'); } catch { return false; }
+  });
+  const [volume, setVolume] = useState(() => {
+    try { return Math.round((parseFloat(localStorage.getItem(STORAGE_VOLUME) || '0.7')) * 100); } catch { return 70; }
+  });
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sync mute to global storage so SFX + music share the same mute flag
+  useEffect(() => {
+    localStorage.setItem(STORAGE_MUTED, JSON.stringify(isMuted));
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume / 100;
+    }
+  }, [isMuted, volume]);
+
+  // Sync volume to global storage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_VOLUME, String(volume / 100));
+  }, [volume]);
+
+  // Listen for external mute changes (e.g. from useSoundEffects in game components)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_MUTED && e.newValue !== null) {
+        try { setIsMuted(JSON.parse(e.newValue)); } catch {}
+      }
+      if (e.key === STORAGE_VOLUME && e.newValue !== null) {
+        const v = parseFloat(e.newValue);
+        if (!isNaN(v)) setVolume(Math.round(v * 100));
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const currentTrackData = tracks[currentTrack];
 
@@ -47,13 +84,8 @@ export function MusicPlayer() {
     setProgress(0);
     setAudioError(false);
 
-    const onEnded = () => {
-      setCurrentTrack(prev => (prev + 1) % tracks.length);
-    };
-    const onError = () => {
-      setAudioError(true);
-      setIsPlaying(false);
-    };
+    const onEnded = () => setCurrentTrack(prev => (prev + 1) % tracks.length);
+    const onError = () => { setAudioError(true); setIsPlaying(false); };
 
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
@@ -74,7 +106,7 @@ export function MusicPlayer() {
     }
   }, [isPlaying]);
 
-  // Volume / mute
+  // Volume / mute sync
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume / 100;
@@ -86,14 +118,10 @@ export function MusicPlayer() {
     if (progressInterval.current) clearInterval(progressInterval.current);
     if (isPlaying) {
       progressInterval.current = setInterval(() => {
-        if (audioRef.current) {
-          setProgress(Math.floor(audioRef.current.currentTime));
-        }
+        if (audioRef.current) setProgress(Math.floor(audioRef.current.currentTime));
       }, 1000);
     }
-    return () => {
-      if (progressInterval.current) clearInterval(progressInterval.current);
-    };
+    return () => { if (progressInterval.current) clearInterval(progressInterval.current); };
   }, [isPlaying]);
 
   // Cleanup on unmount
@@ -115,58 +143,62 @@ export function MusicPlayer() {
     setIsPlaying(p => !p);
   };
 
+  // Clicking the music icon directly plays/pauses music
+  const handleIconClick = () => {
+    setAudioError(false);
+    setIsPlaying(p => {
+      const next = !p;
+      if (next) setIsOpen(true);
+      return next;
+    });
+  };
+
   const handleNext = () => {
     setIsPlaying(false);
-    setTimeout(() => {
-      setCurrentTrack(prev => (prev + 1) % tracks.length);
-      setIsPlaying(true);
-    }, 100);
+    setTimeout(() => { setCurrentTrack(prev => (prev + 1) % tracks.length); setIsPlaying(true); }, 100);
   };
 
   const handlePrevious = () => {
     setIsPlaying(false);
-    setTimeout(() => {
-      setCurrentTrack(prev => (prev - 1 + tracks.length) % tracks.length);
-      setIsPlaying(true);
-    }, 100);
+    setTimeout(() => { setCurrentTrack(prev => (prev - 1 + tracks.length) % tracks.length); setIsPlaying(true); }, 100);
   };
 
   const handleSeek = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = value[0];
-      setProgress(value[0]);
-    }
+    if (audioRef.current) { audioRef.current.currentTime = value[0]; setProgress(value[0]); }
   };
 
   const selectTrack = (index: number) => {
     setIsPlaying(false);
-    setTimeout(() => {
-      setCurrentTrack(index);
-      setIsPlaying(true);
-    }, 100);
+    setTimeout(() => { setCurrentTrack(index); setIsPlaying(true); }, 100);
   };
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => {
-          if (!isPlaying) {
-            setAudioError(false);
-            setIsPlaying(true);
-          } else {
-            setIsPlaying(false);
-          }
-          setIsOpen(p => !p);
-        }}
-        className={`fixed bottom-4 left-4 z-40 rounded-full w-12 h-12 transition-all ${
-          isPlaying ? 'animate-pulse-purple bg-purple-500/20' : 'glass-panel'
-        }`}
-        title={isPlaying ? 'Pause Music' : 'Play Casino Music'}
-      >
-        <Music className={`w-5 h-5 ${isPlaying ? 'text-purple-400' : ''}`} />
-      </Button>
+      {/* Music icon: single-click = play/pause; panel toggle via ChevronDown button */}
+      <div className="fixed bottom-4 left-4 z-40 flex items-end gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleIconClick}
+          className={`rounded-full w-12 h-12 transition-all ${
+            isPlaying ? 'animate-pulse-purple bg-purple-500/20' : 'glass-panel'
+          }`}
+          title={isPlaying ? 'Pause Music' : 'Play Casino Music'}
+        >
+          <Music className={`w-5 h-5 ${isPlaying ? 'text-purple-400' : ''}`} />
+        </Button>
+
+        {/* Small chevron to open/close the panel without affecting playback */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsOpen(p => !p)}
+          className="glass-panel rounded-full w-6 h-6 mb-0.5 opacity-60 hover:opacity-100 transition-opacity"
+          title="Open music controls"
+        >
+          <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-0' : 'rotate-180'}`} />
+        </Button>
+      </div>
 
       {isOpen && (
         <div className="fixed bottom-20 left-4 z-40 w-80 glass-panel-strong rounded-2xl border border-purple-500/30 overflow-hidden shadow-2xl">
@@ -228,7 +260,7 @@ export function MusicPlayer() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="h-8 w-8 flex-shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => setIsMuted((m: boolean) => !m)} className="h-8 w-8 flex-shrink-0">
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </Button>
               <Slider
