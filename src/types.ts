@@ -149,7 +149,7 @@ export interface Notification {
   duration?: number;
 }
 
-export type GameType = 'poker' | 'blackjack' | 'roulette' | 'craps' | 'spades' | 'slots' | 'bingo' | 'dominoes' | 'sports' | 'pool' | 'darts' | 'vip' | 'horse-racing' | 'french-roulette';
+export type GameType = 'poker' | 'blackjack' | 'roulette' | 'craps' | 'spades' | 'slots' | 'bingo' | 'dominoes' | 'sports' | 'pool' | 'darts' | 'vip' | 'horse-racing';
 
 export type PokerHand = 
   | 'high_card' 

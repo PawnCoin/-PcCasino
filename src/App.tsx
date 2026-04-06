@@ -17,9 +17,6 @@ import { VappTVPlayer } from '@/components/VappTVPlayer';
 import { useCardDeck } from '@/hooks/useCardDeck';
 import { MusicPlayer } from '@/components/MusicPlayer';
 import { PokerGame } from '@/components/games/PokerGame';
-import { BlackjackGame } from '@/components/games/BlackjackGame';
-import { RouletteGame } from '@/components/games/RouletteGame';
-import { CrapsGame } from '@/components/games/CrapsGame';
 import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
 import { BingoGame } from '@/components/games/BingoGame';
@@ -338,33 +335,41 @@ function App() {
         );
       case 'blackjack':
         return (
-          <BlackjackGame
+          <IframeGameWrapper
+            gameId="blackjack"
+            gameName="Blackjack"
+            gameEmoji="🃏"
+            gamePath="/games/blackjack/index.html"
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-            onAddBalance={handleAddBalance}
-            cardBackStyle={getCardBackStyle()}
           />
         );
       case 'roulette':
         return (
-          <RouletteGame
+          <IframeGameWrapper
+            gameId="roulette"
+            gameName="French Roulette"
+            gameEmoji="🎡"
+            gamePath="/games/roulette/index.html"
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-            onAddBalance={handleAddBalance}
           />
         );
       case 'craps':
         return (
-          <CrapsGame
+          <IframeGameWrapper
+            gameId="craps"
+            gameName="Craps & Dice"
+            gameEmoji="🎲"
+            gamePath="/games/craps/index.html"
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-            onAddBalance={handleAddBalance}
           />
         );
       case 'spades':
@@ -416,19 +421,6 @@ function App() {
             gameName="Horse Racing"
             gameEmoji="🏇"
             gamePath="/games/horse-racing/index.html"
-            balance={user?.balance || 0}
-            onBack={() => setCurrentView('lobby')}
-            onBet={handleBet}
-            onWin={handleWin}
-          />
-        );
-      case 'french-roulette':
-        return (
-          <IframeGameWrapper
-            gameId="french-roulette"
-            gameName="French Roulette"
-            gameEmoji="🎡"
-            gamePath="/games/french-roulette/index.html"
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
@@ -539,7 +531,8 @@ function App() {
                       <li><button onClick={() => handleSelectGame('bingo')} className="hover:text-[#D4AF37] transition-colors">Bingo 75-Ball</button></li>
                       <li><button onClick={() => handleSelectGame('dominoes')} className="hover:text-[#D4AF37] transition-colors">Dominoes</button></li>
                       <li><button onClick={() => handleSelectGame('horse-racing')} className="hover:text-[#D4AF37] transition-colors">Horse Racing</button></li>
-                      <li><button onClick={() => handleSelectGame('french-roulette')} className="hover:text-[#D4AF37] transition-colors">French Roulette</button></li>
+                      <li><button onClick={() => handleSelectGame('pool')} className="hover:text-[#D4AF37] transition-colors">Pool Table</button></li>
+                      <li><button onClick={() => handleSelectGame('darts')} className="hover:text-[#D4AF37] transition-colors">Darts</button></li>
                     </ul>
                   </div>
                   <div>

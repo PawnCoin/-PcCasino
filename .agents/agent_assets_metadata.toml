@@ -30,3 +30,9 @@ id = "S7gmVeUsHFMFyjVFHcn6-"
 uri = "file://public/images/adult-menu-banner.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "Eb76qjEV0qFAJ7Bju6Zck"
+uri = "file://public/logos/game-horse-racing.png"
+type = "image"
+title = "generated_image"
