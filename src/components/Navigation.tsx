@@ -19,6 +19,13 @@ interface NavigationProps {
   onShowFinancial?: () => void;
   onShowCardDeck?: () => void;
   onShowMultiplayer?: () => void;
+  onShowProfile?: () => void;
+  onShowAdmin?: () => void;
+  onShowDeposit?: () => void;
+  onShowWithdraw?: () => void;
+  onShowTournaments?: () => void;
+  onShowReferral?: () => void;
+  onShowLegal?: (page: string) => void;
 }
 
 export function Navigation({ 
@@ -34,6 +41,13 @@ export function Navigation({
   onShowFinancial,
   onShowCardDeck,
   onShowMultiplayer,
+  onShowProfile,
+  onShowAdmin,
+  onShowDeposit,
+  onShowWithdraw,
+  onShowTournaments,
+  onShowReferral,
+  onShowLegal,
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
   const [isMenuOpen, setIsMenuOpen] = useState(false);

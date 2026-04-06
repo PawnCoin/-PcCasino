@@ -28,6 +28,13 @@ import { GameRoom } from '@/components/GameRoom';
 import { VipArea } from '@/components/VipArea';
 import { GlobalGameProvider } from '@/contexts/GlobalGameContext';
 import { CasinoBackground } from '@/components/CasinoBackground';
+import { UserProfile } from '@/components/UserProfile';
+import { AdminDashboard } from '@/components/AdminDashboard';
+import { LegalPages } from '@/components/LegalPages';
+import type { LegalPage } from '@/components/LegalPages';
+import { DisputeCenter } from '@/components/DisputeCenter';
+import { TournamentsPage } from '@/components/TournamentsPage';
+import { ReferralPage } from '@/components/ReferralPage';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -72,6 +79,13 @@ function App() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [showLegal, setShowLegal] = useState(false);
+  const [legalPage, setLegalPage] = useState<LegalPage>('terms');
+  const [showDispute, setShowDispute] = useState(false);
+  const [showTournaments, setShowTournaments] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
 
   // Card deck preference
   const { selectedDeck, selectDeck, getCardBackStyle, addCustomDeck, allDecks } = useCardDeck();
@@ -261,6 +275,20 @@ function App() {
       return;
     }
     setCurrentView(game);
+  };
+
+  // Open a legal page
+  const handleShowLegal = (page: string) => {
+    setLegalPage((page as LegalPage) || 'terms');
+    setShowLegal(true);
+  };
+
+  // Tournament deduction
+  const handleTournamentDeduction = (amount: number) => {
+    if (user) {
+      updateBalance(user.balance - amount);
+      addTransaction('bet', amount, 'Tournament Entry');
+    }
   };
 
   // Share to social media
