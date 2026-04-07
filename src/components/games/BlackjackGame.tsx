@@ -81,9 +81,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, resolveRound: pfResolveRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
   const [showVerify, setShowVerify] = useState(false);
   const currentPfRoundIdRef = useRef<number | null>(null);
-  // Note: Blackjack uses a local shuffled deck for card draws.
-  // The PF system provides a commitment (hash) before and server-seed reveal after for verification.
-  // resolveRound() is called after the hand to confirm the server's authoritative initial 4 cards.
+  // deckRef mirrors the deck state but is always current inside async/timeout callbacks (avoids stale closures)
+  const deckRef = useRef<Card[]>([]);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -167,14 +166,18 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       // cards[0]=player1, cards[1]=dealer1, cards[2]=player2, cards[3]=dealer2, cards[4..]=draw pile
       playerCards = [serverToCard(serverCards[0]), serverToCard(serverCards[2])];
       dealerCards = [serverToCard(serverCards[1]), serverToCard(serverCards[3])];
-      // Use remaining seed-derived cards for hits and dealer draws
-      setDeck(serverCards.slice(4).map(serverToCard));
+      // Use remaining seed-derived cards for hits and dealer draws — set both ref and state
+      const remaining = serverCards.slice(4).map(serverToCard);
+      deckRef.current = remaining;
+      setDeck(remaining);
     } else {
       // Fallback (should not occur — resolve requires auth and valid roundId)
       const fallbackDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
       playerCards = [fallbackDeck[0], fallbackDeck[2]];
       dealerCards = [fallbackDeck[1], fallbackDeck[3]];
-      setDeck(fallbackDeck.slice(4));
+      const remaining = fallbackDeck.slice(4);
+      deckRef.current = remaining;
+      setDeck(remaining);
     }
     
     setPlayerHands([playerCards]);
@@ -192,15 +195,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
   };
 
-  // Draw next card from the local shuffled deck
+  // Draw next card using deckRef to avoid stale closure issues in setTimeout/recursive callbacks.
+  // Always use this function for card draws — it keeps deckRef and deck state in sync.
   const drawNextCard = useCallback((): Card | null => {
-    if (deck.length > 0) {
-      const card = deck[0];
-      setDeck(prev => prev.slice(1));
-      return card;
-    }
-    return null;
-  }, [deck]);
+    if (deckRef.current.length === 0) return null;
+    const card = deckRef.current[0];
+    deckRef.current = deckRef.current.slice(1);
+    setDeck([...deckRef.current]); // sync state for rendering
+    return card;
+  }, []);
 
   const handleHit = () => {
     const newCard = drawNextCard();
@@ -293,9 +296,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       const dealerValue = calculateBlackjackValue(currentDealerHand);
       
       if (dealerValue < 17) {
-        const nextCard = deck[0];
+        // Use drawNextCard() which reads from deckRef (avoids stale closure bug)
+        const nextCard = drawNextCard();
         if (!nextCard) { finishRound(false); return; }
-        setDeck(prev => prev.slice(1));
         currentDealerHand = [...currentDealerHand, nextCard];
         setDealerHand(currentDealerHand);
         setTimeout(playDealer, 800);
