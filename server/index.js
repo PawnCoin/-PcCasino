@@ -395,9 +395,13 @@ app.post('/api/tournaments/:id/register', (req, res) => {
 });
 
 // Referrals
-app.post('/api/referrals', async (req, res) => {
+app.post('/api/referrals', requireAuth, async (req, res) => {
   const { referrerId, referrerUsername } = req.body;
   if (!referrerId || !referrerUsername) return res.status(400).json({ error: 'referrerId and referrerUsername required' });
+  // Authenticated user may only generate codes for their own account
+  if (String(req.user.userId) !== String(referrerId)) {
+    return res.status(403).json({ error: 'Cannot generate referral codes for another user' });
+  }
   try {
     // Check for existing code for this user in DB
     const existing = await query('SELECT code FROM referral_codes WHERE user_id = $1 LIMIT 1', [referrerId]);

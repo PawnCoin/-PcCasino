@@ -32,8 +32,13 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
   const generateCode = async () => {
     if (!user) return;
     try {
+      const token = localStorage.getItem('pcasino_token');
       const res = await fetch('/api/referrals', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ referrerId: user.id, referrerUsername: user.username }),
       });
       if (res.ok) {
@@ -42,9 +47,7 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
         localStorage.setItem(`pcasino_ref_${user.id}`, data.referral.code);
       }
     } catch {
-      const fallback = `${user.username.toUpperCase().slice(0, 6)}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-      setCode(fallback);
-      localStorage.setItem(`pcasino_ref_${user.id}`, fallback);
+      // Fallback only used if network request fails entirely
     }
   };
 
