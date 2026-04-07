@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Play, TrendingUp, Users, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getSocket } from '@/lib/socket';
+import { formatPcAmount } from '@/utils/formatPc';
 
 interface HeroSectionProps {
   onScrollToGames: () => void;
@@ -139,13 +140,13 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
                 {[...Array(2)].map((_, i) => (
                   <div key={i} className="flex gap-12">
                     <span className="text-sm text-[#C0C0C0]">
-                      24h Won: <span className="text-[#43A047] font-bold">{stats.volume >= 1_000_000 ? `${(stats.volume / 1_000_000).toFixed(2)}M` : stats.volume >= 1_000 ? `${(stats.volume / 1000).toFixed(1)}K` : stats.volume.toString()} $Pc</span>
+                      24h Won: <span className="text-[#43A047] font-bold">{formatPcAmount(stats.volume)} $Pc</span>
                     </span>
                     <span className="text-sm text-[#C0C0C0]">
                       Online: <span className="text-[#1E88E5] font-bold">{stats.players.toLocaleString()} {stats.players === 1 ? 'player' : 'players'}</span>
                     </span>
                     <span className="text-sm text-[#C0C0C0]">
-                      Jackpot: <span className="text-[#D4AF37] font-bold">{stats.jackpot >= 1_000_000 ? `${(stats.jackpot / 1_000_000).toFixed(3)}M` : stats.jackpot >= 1_000 ? `${(stats.jackpot / 1000).toFixed(1)}K` : stats.jackpot.toString()} $Pc</span>
+                      Jackpot: <span className="text-[#D4AF37] font-bold">{formatPcAmount(stats.jackpot)} $Pc</span>
                     </span>
                     <span className="text-sm text-[#C0C0C0]">
                       Tables: <span className="text-[#D4AF37] font-bold">{stats.activeTables} Active</span>

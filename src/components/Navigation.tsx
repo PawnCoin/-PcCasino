@@ -7,6 +7,7 @@ import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import type { UnifiedUser } from '@/types';
 import { PcPriceTicker } from '@/components/PcPriceTicker';
+import { formatPcAmount } from '@/utils/formatPc';
 
 interface NavigationProps {
   user: UnifiedUser | null;
@@ -86,16 +87,16 @@ export function Navigation({
             {/* Logo */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <a href="/" className="flex items-center gap-2 group">
+                <a href="/" className="flex items-center gap-2.5 group">
                   <div className="relative">
                     <img 
                       src="/logos/pc-logo.png" 
                       alt="$Pc" 
-                      className="w-10 h-10 transition-transform group-hover:scale-110"
+                      className="w-12 h-12 transition-transform group-hover:scale-110 drop-shadow-[0_0_12px_rgba(212,175,55,0.6)]"
                     />
-                    <div className="absolute inset-0 bg-[#D4AF37]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-[#D4AF37]/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <span className="font-casino font-bold text-xl text-[#D4AF37] drop-shadow-[0_0_10px_rgba(212,175,55,0.5)]">
+                  <span className="font-casino font-bold text-xl text-[#D4AF37] drop-shadow-[0_0_12px_rgba(212,175,55,0.7)]">
                     $Pc CASINO
                   </span>
                 </a>
@@ -106,7 +107,7 @@ export function Navigation({
             </Tooltip>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-5">
+            <div className="hidden md:flex items-center gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <a href="#games-section" className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium">
@@ -125,33 +126,22 @@ export function Navigation({
                 <TooltipContent side="bottom"><p>View top players & rankings</p></TooltipContent>
               </Tooltip>
 
-              {/* WeParlay.io - Image Menu Button */}
+              {/* WeParlay.io - Compact link */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setShowWeparlayConfirm(true)}
-                    className="flex items-center gap-1.5 group relative"
-                    style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-md transition-all hover:scale-105 group"
+                    style={{
+                      border: '1px solid rgba(212,175,55,0.4)',
+                      background: 'rgba(212,175,55,0.08)',
+                      color: '#D4AF37',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
                   >
-                    <div className="relative overflow-hidden rounded-lg transition-all group-hover:scale-105"
-                      style={{
-                        width: 110,
-                        height: 36,
-                        border: '1px solid rgba(212,175,55,0.5)',
-                        boxShadow: '0 0 12px rgba(212,175,55,0.2)',
-                      }}>
-                      <img
-                        src="/images/weparlay-menu.png"
-                        alt="WeParlay.io"
-                        className="w-full h-full object-cover object-center transition-transform group-hover:scale-110"
-                        style={{ filter: 'brightness(0.9) saturate(1.1)' }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center"
-                        style={{ background: 'rgba(0,0,0,0.35)' }}>
-                        <span className="font-bold text-xs text-[#D4AF37] drop-shadow-lg tracking-wide">WeParlay.io</span>
-                      </div>
-                    </div>
-                    <ExternalLink className="w-3 h-3 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity absolute -top-1 -right-1" />
+                    <ExternalLink className="w-3 h-3" />
+                    WeParlay
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -159,35 +149,23 @@ export function Navigation({
                 </TooltipContent>
               </Tooltip>
 
-              {/* 18+ Adult Section */}
+              {/* 18+ VIP - Compact badge */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <a
                     href="#weparlay"
-                    className="flex items-center gap-1.5 group relative"
-                    style={{ textDecoration: 'none' }}
+                    className="flex items-center px-2 py-1 rounded-md transition-all hover:scale-105"
+                    style={{
+                      border: '1px solid rgba(147,51,234,0.4)',
+                      background: 'rgba(147,51,234,0.1)',
+                      color: '#d8b4fe',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      letterSpacing: '0.05em',
+                    }}
                   >
-                    <div className="relative overflow-hidden rounded-lg transition-all group-hover:scale-105"
-                      style={{
-                        width: 88,
-                        height: 36,
-                        border: '1px solid rgba(147,51,234,0.5)',
-                        boxShadow: '0 0 12px rgba(147,51,234,0.2)',
-                      }}>
-                      <img
-                        src="/images/adult-menu-banner.png"
-                        alt="18+ VIP"
-                        className="w-full h-full object-cover object-center transition-transform group-hover:scale-110"
-                        style={{ filter: 'brightness(0.8) saturate(1.2)' }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center"
-                        style={{ background: 'rgba(0,0,0,0.5)' }}>
-                        <span className="font-bold text-xs tracking-wider"
-                          style={{ color: '#d8b4fe', textShadow: '0 0 8px rgba(147,51,234,0.8)' }}>
-                          18+ VIP
-                        </span>
-                      </div>
-                    </div>
+                    18+ VIP
                   </a>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -251,7 +229,7 @@ export function Navigation({
                       >
                         <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                         <span className="font-bold text-[#D4AF37] text-sm">
-                          {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {formatPcAmount(balance)}
                         </span>
                         <span className="text-xs text-[#808080]">$Pc</span>
                         <BarChart3 className="w-4 h-4 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity" />

@@ -13,13 +13,13 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
   const [showToggle, setShowToggle] = useState(false);
 
   const particles = useMemo(() => {
-    return Array.from({ length: 80 }, () => ({
+    return Array.from({ length: 120 }, () => ({
       x: Math.random() * 1920,
       y: Math.random() * 1080,
       vx: (Math.random() - 0.5) * 0.5,
       vy: -Math.random() * 0.6 - 0.1,
-      size: Math.random() * 3 + 0.5,
-      alpha: Math.random() * 0.35 + 0.05,
+      size: Math.random() * 4 + 0.8,
+      alpha: Math.random() * 0.5 + 0.08,
       type: Math.random() < 0.3 ? 'suit' : 'chip',
       suit: ['♠', '♥', '♦', '♣'][Math.floor(Math.random() * 4)],
       rotation: Math.random() * Math.PI * 2,
@@ -60,15 +60,15 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
 
     const drawOverview = (w: number, h: number) => {
       const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.8);
-      bgGrad.addColorStop(0, 'rgba(18,10,2,0.85)');
-      bgGrad.addColorStop(0.5, 'rgba(8,5,0,0.92)');
-      bgGrad.addColorStop(1, 'rgba(0,0,0,0.98)');
+      bgGrad.addColorStop(0, 'rgba(18,10,2,0.5)');
+      bgGrad.addColorStop(0.5, 'rgba(8,5,0,0.6)');
+      bgGrad.addColorStop(1, 'rgba(0,0,0,0.75)');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, w, h);
 
       const carpetSize = 36;
       ctx.save();
-      ctx.globalAlpha = 0.045;
+      ctx.globalAlpha = 0.08;
       for (let cx = 0; cx < w + carpetSize; cx += carpetSize) {
         for (let cy = 0; cy < h + carpetSize; cy += carpetSize) {
           ctx.fillStyle = (Math.floor(cx / carpetSize) + Math.floor(cy / carpetSize)) % 2 === 0
@@ -79,8 +79,8 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
       ctx.restore();
 
       ctx.save();
-      ctx.globalAlpha = 0.06;
-      ctx.strokeStyle = 'rgba(212,175,55,0.5)';
+      ctx.globalAlpha = 0.12;
+      ctx.strokeStyle = 'rgba(212,175,55,0.7)';
       ctx.lineWidth = 1;
       const lineSpacing = 80;
       for (let lx = -lineSpacing; lx < w + lineSpacing; lx += lineSpacing) {
@@ -247,9 +247,9 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
         spot.angle += spot.speed;
         const sx = w * spot.x + Math.sin(spot.angle) * spot.radius;
         const sy = h * 0.2 + Math.cos(spot.angle * 0.7) * spot.radius * 0.5;
-        const spotGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 200 + Math.sin(t + spot.x * 3) * 40);
-        spotGrad.addColorStop(0, `rgba(212,175,55,${0.05 + 0.03 * Math.sin(t * 1.3)})`);
-        spotGrad.addColorStop(0.5, `rgba(180,130,20,0.02)`);
+        const spotGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 250 + Math.sin(t + spot.x * 3) * 60);
+        spotGrad.addColorStop(0, `rgba(212,175,55,${0.12 + 0.06 * Math.sin(t * 1.3)})`);
+        spotGrad.addColorStop(0.5, `rgba(180,130,20,0.05)`);
         spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = spotGrad;
         ctx.fillRect(0, 0, w, h);
@@ -276,8 +276,8 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
       for (const p of localParticles) {
         p.x += p.vx;
         p.y += p.vy;
-        p.alpha += (Math.random() - 0.5) * 0.008;
-        p.alpha = Math.max(0.02, Math.min(0.4, p.alpha));
+        p.alpha += (Math.random() - 0.5) * 0.01;
+        p.alpha = Math.max(0.04, Math.min(0.6, p.alpha));
         p.rotation += p.rotSpeed;
         if (p.y < -20) { p.y = h + 20; p.x = Math.random() * w; }
         if (p.x < -20) p.x = w + 20;
@@ -431,6 +431,13 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
 
   return (
     <>
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: -2, pointerEvents: 'none',
+        backgroundImage: 'url(/images/casino-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.28,
+      }} />
       <canvas
         ref={canvasRef}
         style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: -1, pointerEvents: 'none' }}
