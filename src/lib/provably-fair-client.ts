@@ -77,3 +77,61 @@ export async function deriveRouletteNumber(
   const f = await deriveFloat(serverSeed, clientSeed, String(nonce));
   return WHEEL_NUMBERS[Math.floor(f * WHEEL_NUMBERS.length)];
 }
+
+/**
+ * Derive a 3×5 slots grid from seeds.
+ * Matches server's deriveGameResult('slots', serverSeed, clientSeed, nonce) exactly.
+ * Each cell uses nonce `${nonce}:${cellIndex}` for an independent HMAC-SHA256 call.
+ */
+export async function deriveSlotGrid(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number
+): Promise<string[][]> {
+  const SYMBOLS = ['🍒', '🍋', '🍊', '🔔', '⭐', '💎', '7️⃣', '🎰'];
+  const WEIGHTS = [20, 18, 15, 12, 10, 8, 5, 2];
+  const TOTAL_WEIGHT = WEIGHTS.reduce((a, b) => a + b, 0);
+  const ROWS = 3;
+  const COLS = 5;
+
+  const grid: string[][] = [[], [], []];
+  for (let cell = 0; cell < ROWS * COLS; cell++) {
+    const f = await deriveFloat(serverSeed, clientSeed, `${nonce}:${cell}`);
+    let r = f * TOTAL_WEIGHT;
+    let symbol = SYMBOLS[0];
+    for (let i = 0; i < SYMBOLS.length; i++) {
+      r -= WEIGHTS[i];
+      if (r <= 0) { symbol = SYMBOLS[i]; break; }
+    }
+    grid[Math.floor(cell / COLS)].push(symbol);
+  }
+  return grid;
+}
+
+/**
+ * Derive two dice from seeds.
+ * Matches server's deriveGameResult('dice', serverSeed, clientSeed, nonce).
+ */
+export async function deriveDice(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number
+): Promise<{ die1: number; die2: number; total: number }> {
+  const f1 = await deriveFloat(serverSeed, clientSeed, `${nonce}:die1`);
+  const f2 = await deriveFloat(serverSeed, clientSeed, `${nonce}:die2`);
+  const die1 = Math.floor(f1 * 6) + 1;
+  const die2 = Math.floor(f2 * 6) + 1;
+  return { die1, die2, total: die1 + die2 };
+}
+
+/**
+ * Verify a server seed matches its hash commitment.
+ * Uses SubtleCrypto SHA-256 — runs entirely in the browser, no server call needed.
+ */
+export async function verifySeedHash(serverSeed: string, serverSeedHash: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(serverSeed));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const computed = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return computed === serverSeedHash;
+}

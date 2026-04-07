@@ -905,6 +905,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         onClose={() => setShowVerify(false)}
         round={round}
         lastReveal={lastReveal}
+        game="slots"
         onOpenProvablyFairPage={prefill => {
           setShowVerify(false);
           if (onOpenProvablyFair) onOpenProvablyFair(prefill);

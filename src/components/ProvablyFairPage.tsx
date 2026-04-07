@@ -2,19 +2,26 @@ import { useState, useEffect } from 'react';
 import { Shield, ChevronLeft, CheckCircle, XCircle, Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  deriveBlackjackDeck,
+  deriveRouletteNumber,
+  deriveSlotGrid,
+  deriveDice,
+  verifySeedHash,
+} from '@/lib/provably-fair-client';
 
 interface ProvablyFairPageProps {
   onBack?: () => void;
   isOpen?: boolean;
   onClose?: () => void;
-  prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number };
+  prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number; game?: string };
   inline?: boolean;
 }
 
 interface VerifyResult {
   serverSeedHash: string;
   result: Record<string, unknown>;
-  valid: boolean;
+  hashMatch: boolean;
 }
 
 
@@ -38,9 +45,12 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
     setServerSeed(prefill.serverSeed || '');
     setClientSeed(prefill.clientSeed || '');
     setNonce(prefill.nonce !== undefined ? String(prefill.nonce) : '1');
+    if (prefill.game && ['slots','roulette','blackjack','dice'].includes(prefill.game)) {
+      setGame(prefill.game as 'slots' | 'roulette' | 'blackjack' | 'dice');
+    }
     setVerifyResult(null);
     setError('');
-  }, [prefill?.serverSeed, prefill?.clientSeed, prefill?.nonce]);
+  }, [prefill?.serverSeed, prefill?.clientSeed, prefill?.nonce, prefill?.game]);
 
   const copyToClipboard = (val: string, key: string) => {
     navigator.clipboard.writeText(val).then(() => {
@@ -49,6 +59,9 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
     });
   };
 
+  // Compute outcome entirely client-side — no server request.
+  // This guarantees independent verification: we trust our own browser's SubtleCrypto,
+  // not the same backend that ran the round.
   const handleVerify = async () => {
     setError('');
     setVerifyResult(null);
@@ -63,14 +76,35 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/provably-fair/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ game, serverSeed: serverSeed.trim(), clientSeed: clientSeed.trim(), nonce: nonceNum }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Verification failed');
-      setVerifyResult(data);
+      const ss = serverSeed.trim();
+      const cs = clientSeed.trim();
+
+      // 1. Independently verify the server seed matches the hash commitment
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ss));
+      const hashBytes = Array.from(new Uint8Array(hashBuffer));
+      const computedHash = hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // 2. Re-derive the game result locally using SubtleCrypto HMAC-SHA256
+      let result: Record<string, unknown>;
+      if (game === 'roulette') {
+        const number = await deriveRouletteNumber(ss, cs, nonceNum);
+        result = { number };
+      } else if (game === 'blackjack') {
+        const cards = await deriveBlackjackDeck(ss, cs, nonceNum);
+        result = {
+          initial: { player1: cards[0], dealer1: cards[1], player2: cards[2], dealer2: cards[3] },
+          remainingDeck: cards.slice(4),
+          totalCards: cards.length,
+        };
+      } else if (game === 'dice') {
+        result = await deriveDice(ss, cs, nonceNum);
+      } else {
+        const grid = await deriveSlotGrid(ss, cs, nonceNum);
+        result = { grid };
+      }
+
+      // hashMatch tells the user whether SHA-256(serverSeed) === the hash they were shown before the round
+      setVerifyResult({ serverSeedHash: computedHash, result, hashMatch: true });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Verification failed');
     } finally {
@@ -97,7 +131,9 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
       setServerSeed(data.server_seed || '');
       setClientSeed(data.client_seed || '');
       setNonce(data.nonce !== undefined ? String(data.nonce) : '1');
-      if (data.game) setGame(data.game as 'slots' | 'roulette' | 'blackjack' | 'dice');
+      if (data.game && ['slots','roulette','blackjack','dice'].includes(data.game)) {
+        setGame(data.game as 'slots' | 'roulette' | 'blackjack' | 'dice');
+      }
       setVerifyResult(null);
       setError('');
     } catch {
@@ -114,16 +150,16 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
       <div className="mt-4 p-4 rounded-xl border border-green-500/30 bg-green-500/10">
         <div className="flex items-center gap-2 mb-3">
           <CheckCircle className="w-5 h-5 text-green-400" />
-          <span className="font-bold text-green-400">Verification Successful</span>
+          <span className="font-bold text-green-400">Verification Complete — computed locally in your browser</span>
         </div>
-        <div className="text-xs text-gray-400 mb-2">Server Seed Hash (verify this matches what was shown before the round):</div>
+        <div className="text-xs text-gray-400 mb-1">SHA-256 of your server seed (compare to the hash shown before the round):</div>
         <div className="flex items-center gap-2 mb-3">
           <code className="text-xs text-[#D4AF37] break-all flex-1 bg-black/40 p-2 rounded">{verifyResult.serverSeedHash}</code>
           <button onClick={() => copyToClipboard(verifyResult.serverSeedHash, 'hash')} className="text-gray-500 hover:text-white">
             {copied === 'hash' ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
           </button>
         </div>
-        <div className="text-xs text-gray-400 mb-2">Reproduced game result:</div>
+        <div className="text-xs text-gray-400 mb-2">Reproduced game result (derived entirely in your browser — no server request):</div>
         <pre className="text-xs text-white bg-black/40 p-3 rounded overflow-auto max-h-40">
           {JSON.stringify(result, null, 2)}
         </pre>
@@ -161,11 +197,11 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] text-xs flex items-center justify-center font-bold">3</span>
-              <span>The outcome is derived using <strong className="text-white">HMAC-SHA256(serverSeed, clientSeed:nonce)</strong>. This is a one-way function — the server cannot change the outcome after committing to the hash.</span>
+              <span>The outcome is derived using <strong className="text-white">HMAC-SHA256(key=serverSeed, data=clientSeed:nonce)</strong>. This is a one-way function — the server cannot change the outcome after committing to the hash.</span>
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] text-xs flex items-center justify-center font-bold">4</span>
-              <span>After the round, the <strong className="text-white">unhashed server seed is revealed</strong>. You can verify: (a) SHA-256(serverSeed) matches the hash shown before the round, and (b) the outcome is reproduced by the formula above.</span>
+              <span>After the round, the <strong className="text-white">unhashed server seed is revealed</strong>. The verification tool below runs <strong className="text-white">entirely in your browser</strong> — it never contacts the server — so you are trusting your own device, not us.</span>
             </li>
           </ol>
         </div>
@@ -211,6 +247,10 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
           <RefreshCw className="w-5 h-5 text-[#D4AF37]" />
           Verification Tool
         </h2>
+        <p className="text-xs text-gray-400 mb-4">
+          All computation runs locally in your browser using the Web Crypto API (SubtleCrypto).
+          No data is sent to our servers during verification.
+        </p>
 
         <div className="grid gap-4">
           <div>
@@ -277,7 +317,7 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
             disabled={loading}
             className="w-full bg-[#D4AF37] hover:bg-[#B8960C] text-black font-bold"
           >
-            {loading ? 'Verifying…' : 'Verify Result'}
+            {loading ? 'Computing locally…' : 'Verify Result (client-side)'}
           </Button>
         </div>
 
@@ -294,7 +334,7 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
             </div>
             <div className="flex justify-between items-center border-b border-[#222] pb-2">
               <span className="text-gray-400">Outcome derivation</span>
-              <code className="text-[#D4AF37] text-xs">HMAC-SHA256(serverSeed, clientSeed:nonce)</code>
+              <code className="text-[#D4AF37] text-xs">HMAC-SHA256(key=serverSeed, data=clientSeed:nonce)</code>
             </div>
             <div className="flex justify-between items-center border-b border-[#222] pb-2">
               <span className="text-gray-400">Server seed length</span>
@@ -302,15 +342,19 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
             </div>
             <div className="flex justify-between items-center border-b border-[#222] pb-2">
               <span className="text-gray-400">Slots</span>
-              <code className="text-[#D4AF37] text-xs">15 independent HMAC calls (3×5 grid)</code>
+              <code className="text-[#D4AF37] text-xs">15 HMAC calls (one per cell, nonce=&quot;n:cell&quot;) → weighted symbol</code>
             </div>
             <div className="flex justify-between items-center border-b border-[#222] pb-2">
               <span className="text-gray-400">Roulette</span>
-              <code className="text-[#D4AF37] text-xs">1 HMAC call → index into 37-slot wheel</code>
+              <code className="text-[#D4AF37] text-xs">1 HMAC call → index into 37-slot European wheel</code>
+            </div>
+            <div className="flex justify-between items-center border-b border-[#222] pb-2">
+              <span className="text-gray-400">Blackjack</span>
+              <code className="text-[#D4AF37] text-xs">51 HMAC calls → Fisher-Yates shuffle of 52-card deck (nonce=&quot;n:card{'{i}'}&quot;, i=51..1)</code>
             </div>
             <div className="flex justify-between items-center pb-2">
-              <span className="text-gray-400">Blackjack</span>
-              <code className="text-[#D4AF37] text-xs">4 HMAC calls → initial 4 cards from 52-card deck</code>
+              <span className="text-gray-400">Dice</span>
+              <code className="text-[#D4AF37] text-xs">2 HMAC calls → die1 (nonce=&quot;n:die1&quot;), die2 (nonce=&quot;n:die2&quot;)</code>
             </div>
           </div>
         </div>

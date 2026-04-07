@@ -952,6 +952,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           onClose={() => setShowVerify(false)}
           round={pfRound}
           lastReveal={pfLastReveal}
+          game="blackjack"
           onOpenProvablyFairPage={prefill => {
             setShowVerify(false);
             if (onOpenProvablyFair) onOpenProvablyFair(prefill);

@@ -672,6 +672,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         onClose={() => setShowVerify(false)}
         round={round}
         lastReveal={lastReveal}
+        game="roulette"
         onOpenProvablyFairPage={prefill => {
           setShowVerify(false);
           if (onOpenProvablyFair) onOpenProvablyFair(prefill);
