@@ -26,8 +26,8 @@ export function JackpotCelebration({ amount, username, onClose }: JackpotCelebra
   }, [onClose]);
 
   const formatAmount = (n: number) => {
-    if (n >= 1_000_000) return `${parseFloat((n / 1_000_000).toFixed(2))}M`;
-    if (n >= 1_000) return `${parseFloat((n / 1_000).toFixed(1))}K`;
+    if (n >= 1_000_000) return `${parseFloat((n / 1_000_000).toFixed(3))}M`;
+    if (n >= 1_000) return `${parseFloat((n / 1_000).toFixed(2))}K`;
     return n.toLocaleString();
   };
 

@@ -89,7 +89,7 @@ export function GlobalGameProvider({ children, balance }: { children: ReactNode;
   const membership = checkMembership(balance);
 
   const formatPc = useCallback((amount: number): string => {
-    if (amount >= 1_000_000_000) return `${parseFloat((amount / 1_000_000_000).toFixed(3))}B`;
+    if (amount >= 1_000_000_000) return `${parseFloat((amount / 1_000_000_000).toFixed(2))}B`;
     if (amount >= 1_000_000) return `${parseFloat((amount / 1_000_000).toFixed(2))}M`;
     if (amount >= 1_000) return `${parseFloat((amount / 1_000).toFixed(1))}K`;
     return amount.toLocaleString();
