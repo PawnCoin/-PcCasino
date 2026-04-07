@@ -80,20 +80,27 @@ router.post('/register', async (req, res) => {
     );
     const user = result.rows[0];
 
-    // Handle referral
+    // Handle referral — match by USERNAME_XXXX pattern (same lookup as validate endpoint)
     if (referralCode) {
       try {
-        const ref = await query('SELECT id, referrer_id FROM referrals WHERE id = $1 AND referred_id IS NULL', [referralCode]);
-        if (!ref.rows.length) {
-          // Look up by referrer username-based code pattern
-          const refUser = await query("SELECT id FROM users WHERE username ILIKE $1", [referralCode.split('_')[0]]);
-          if (refUser.rows.length) {
-            await query(
-              'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-              [refUser.rows[0].id, user.id]
+        const underscoreIdx = referralCode.lastIndexOf('_');
+        if (underscoreIdx > 0 && underscoreIdx < referralCode.length - 1) {
+          const prefix = referralCode.slice(0, underscoreIdx);
+          const suffix = referralCode.slice(underscoreIdx + 1);
+          if (prefix.length >= 2 && /^[A-Z0-9]{4}$/i.test(suffix)) {
+            const refUser = await query(
+              `SELECT id FROM users WHERE UPPER(SUBSTRING(username, 1, $1)) = UPPER($2) LIMIT 1`,
+              [prefix.length, prefix]
             );
-            // Give both users bonus
-            await query('UPDATE users SET balance = balance + 50000000 WHERE id IN ($1, $2)', [refUser.rows[0].id, user.id]);
+            if (refUser.rows.length) {
+              const referrerId = refUser.rows[0].id;
+              await query(
+                'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [referrerId, user.id]
+              );
+              // Credit welcome bonus to both referrer and new user
+              await query('UPDATE users SET balance = balance + 50000000 WHERE id IN ($1, $2)', [referrerId, user.id]);
+            }
           }
         }
       } catch (e) {

@@ -169,10 +169,13 @@ export async function initDatabase() {
         referrer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         referred_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         reward_amount BIGINT DEFAULT 50000000,
+        commission_paid BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(referred_id)
       )
     `);
+    // Migration: add commission_paid column if not present
+    await query(`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS commission_paid BOOLEAN DEFAULT FALSE`).catch(() => {});
 
     await query(`
       CREATE TABLE IF NOT EXISTS tournaments (
