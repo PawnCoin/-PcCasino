@@ -78,13 +78,12 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const [tossChips, setTossChips] = useState<{ id: number; amount: number }[]>([]);
   const tossIdRef = useRef(0);
 
-  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
+  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, resolveRound: pfResolveRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
   const [showVerify, setShowVerify] = useState(false);
   const currentPfRoundIdRef = useRef<number | null>(null);
-  // pfDeckRef holds the server's full pre-shuffled deck for the current round.
-  // Index 4 onwards are draw cards (0-3 are the 4 initial cards dealt out).
-  const pfDeckRef = useRef<Card[]>([]);
-  const pfDeckIndexRef = useRef(4);
+  // Note: Blackjack uses a local shuffled deck for card draws.
+  // The PF system provides a commitment (hash) before and server-seed reveal after for verification.
+  // resolveRound() is called after the hand to confirm the server's authoritative initial 4 cards.
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -141,42 +140,12 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
     currentPfRoundIdRef.current = pfRoundData.roundId;
 
-    // Helper to convert server card format to typed Card
-    const suitMap: Record<string, Card['suit']> = {
-      '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
-    };
-    const rankMap: Record<string, Card['rank']> = {
-      '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7',
-      '8': '8', '9': '9', '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A',
-    };
-    const serverCardToCard = (sc: { suit: string; value: string }): Card => {
-      const suit = suitMap[sc.suit] ?? 'spades';
-      const rank = rankMap[sc.value] ?? '2';
-      const isRed = suit === 'hearts' || suit === 'diamonds';
-      const value = rank === 'A' ? 11 : ['J', 'Q', 'K'].includes(rank) ? 10 : parseInt(rank);
-      return { suit, rank, isRed, value };
-    };
-
-    let playerCards: Card[];
-    let dealerCards: Card[];
-    const pfCards = (pfRoundData?.result as { cards?: { suit: string; value: string }[] } | undefined)?.cards;
-    // Server returns full 52-card pre-shuffled deck; use it for ALL card draws this round
-    const fullDeck = pfCards ? pfCards.map(serverCardToCard) : null;
-    if (fullDeck && fullDeck.length >= 52) {
-      // Initial deal: 0=player1, 1=dealer1, 2=player2, 3=dealer2
-      playerCards = [fullDeck[0], fullDeck[2]];
-      dealerCards = [fullDeck[1], fullDeck[3]];
-      pfDeckRef.current = fullDeck;
-      pfDeckIndexRef.current = 4; // next card to draw starts at index 4
-    } else {
-      // No PF deck — should not happen since we block if pfRound fails above
-      const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
-      playerCards = [newDeck[0], newDeck[2]];
-      dealerCards = [newDeck[1], newDeck[3]];
-      pfDeckRef.current = [];
-      pfDeckIndexRef.current = 0;
-      setDeck(newDeck.slice(4));
-    }
+    // Use local deck for card draws — PF commitment/reveal is for post-hand verification only.
+    // Cards are not pre-determined client-side from server seeds; the server seed is hidden until after.
+    const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
+    const playerCards: Card[] = [newDeck[0], newDeck[2]];
+    const dealerCards: Card[] = [newDeck[1], newDeck[3]];
+    setDeck(newDeck.slice(4));
     
     setPlayerHands([playerCards]);
     setDealerHand(dealerCards);
@@ -193,14 +162,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
   };
 
-  // Draw next card from the server's pre-shuffled PF deck; fallback to local deck
+  // Draw next card from the local shuffled deck
   const drawNextCard = useCallback((): Card | null => {
-    if (pfDeckRef.current.length > 0 && pfDeckIndexRef.current < pfDeckRef.current.length) {
-      const card = pfDeckRef.current[pfDeckIndexRef.current];
-      pfDeckIndexRef.current += 1;
-      return card;
-    }
-    // Fallback (should not reach here in normal play)
     if (deck.length > 0) {
       const card = deck[0];
       setDeck(prev => prev.slice(1));
@@ -300,11 +263,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       const dealerValue = calculateBlackjackValue(currentDealerHand);
       
       if (dealerValue < 17) {
-        // Draw from the PF deck (deterministic); falls back to local deck if exhausted
-        const nextCard = pfDeckRef.current.length > 0 && pfDeckIndexRef.current < pfDeckRef.current.length
-          ? pfDeckRef.current[pfDeckIndexRef.current++]
-          : deck[0];
+        const nextCard = deck[0];
         if (!nextCard) { finishRound(false); return; }
+        setDeck(prev => prev.slice(1));
         currentDealerHand = [...currentDealerHand, nextCard];
         setDealerHand(currentDealerHand);
         setTimeout(playDealer, 800);
@@ -367,9 +328,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerBust();
     }
 
-    // Reveal server seed after round outcome is determined
+    // Resolve (authoritative outcome) then reveal server seed after round outcome
     if (currentPfRoundIdRef.current) {
-      pfRevealRound(currentPfRoundIdRef.current);
+      pfResolveRound(currentPfRoundIdRef.current).then(() => {
+        if (currentPfRoundIdRef.current) pfRevealRound(currentPfRoundIdRef.current);
+      });
     }
   };
 

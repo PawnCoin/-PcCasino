@@ -139,7 +139,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const counterRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { isMuted, toggleMute, playSound } = useSoundEffects();
-  const { round, lastReveal, startRound, revealRound } = useProvablyFair('slots');
+  const { round, lastReveal, startRound, resolveRound, revealRound } = useProvablyFair('slots');
   const [showVerify, setShowVerify] = useState(false);
   const currentRoundIdRef = useRef<number | null>(null);
 
@@ -195,10 +195,10 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setMessage('Spinning...');
     playSound('spin');
 
-    // Start provably fair round — must succeed for play to continue
+    // Step 1: Start provably fair round — get commitment only (no result exposed)
     const pfRound = await startRound();
     if (!pfRound) {
-      // Could not create a PF round (not logged in or server error) — block the spin
+      // Not logged in or server error — block play and refund
       setSpinning(false);
       onWin(currentBet); // refund the bet
       setMessage('Log in to play — provably fair requires authentication.');
@@ -206,13 +206,8 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     }
     currentRoundIdRef.current = pfRound.roundId;
 
-    // Use server-derived grid (deterministic outcome from server + client seeds)
-    let finalGrid: ReelSymbol[][];
-    if (pfRound.result?.grid) {
-      finalGrid = (pfRound.result.grid as ReelSymbol[][]).map(row => [...row]);
-    } else {
-      finalGrid = generateGrid();
-    }
+    // Step 2: Animate reels using local RNG (purely visual — real outcome comes from server)
+    const animationGrid = generateGrid();
 
     spinTimers.current.forEach(t => clearTimeout(t));
     spinTimers.current = [];
@@ -231,7 +226,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         setGrid(prev => {
           const newGrid = prev.map(row => [...row]);
           for (let row = 0; row < ROWS; row++) {
-            newGrid[row][col] = finalGrid[row][col];
+            newGrid[row][col] = animationGrid[row][col];
           }
           return newGrid;
         });
@@ -239,12 +234,22 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         playSound('click');
 
         if (col === COLS - 1) {
-          setTimeout(() => {
+          // Step 3: After animation — resolve round with server to get authoritative grid
+          setTimeout(async () => {
+            let finalGrid = animationGrid;
+            const resolved = await resolveRound(pfRound.roundId);
+            if (resolved?.grid) {
+              finalGrid = (resolved.grid as ReelSymbol[][]).map(row => [...row]);
+              // Update display to server's authoritative grid
+              setGrid(finalGrid);
+            }
+
+            // Evaluate wins from the server's authoritative final grid
             const { lines, totalWin } = evaluateWins(finalGrid, currentBet);
-            setGrid(finalGrid);
+
             setSpinning(false);
 
-            // Reveal server seed after round completes
+            // Step 4: Reveal server seed (for verification)
             if (currentRoundIdRef.current) {
               revealRound(currentRoundIdRef.current);
             }
@@ -272,7 +277,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       }, delay);
       spinTimers.current.push(timer);
     }
-  }, [currentBet, spinning, onBet, onWin, playSound, startRound, revealRound]);
+  }, [currentBet, spinning, onBet, onWin, playSound, startRound, resolveRound, revealRound]);
 
   useEffect(() => {
     return () => {

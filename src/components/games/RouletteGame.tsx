@@ -241,7 +241,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
   const placedBetsRef = useRef<PlacedBet[]>([]);
   placedBetsRef.current = placedBets;
 
-  const { round, lastReveal, startRound, revealRound } = useProvablyFair('roulette');
+  const { round, lastReveal, startRound, resolveRound, revealRound } = useProvablyFair('roulette');
   const [showVerify, setShowVerify] = useState(false);
   const currentRoundIdRef = useRef<number | null>(null);
   const { isMuted, toggleMute, playSound } = useSoundEffects();
@@ -440,7 +440,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
     playSound('noMoreBets');
     announceNoMoreBets();
 
-    // Provably fair: get deterministic outcome from server seeds — required
+    // Step 1: Start provably fair round — get commitment hash only (no result exposed)
     const pfRound = await startRound();
     if (!pfRound) {
       setIsSpinning(false);
@@ -453,10 +453,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
     }
     currentRoundIdRef.current = pfRound.roundId;
 
-    // Use server-derived number (deterministic from server+client seeds)
-    const pfResult = pfRound.result as { number?: number } | undefined;
-    const winningNum = pfResult?.number ?? WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
-    winningNumRef.current = winningNum;
+    // Step 2: Pick a local random winning number for animation (not authoritative)
+    // The authoritative outcome is obtained from the server after the spin via resolveRound()
+    const animationNum = WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
+    winningNumRef.current = animationNum;
 
     safeTimeout(() => {
       if (!mountedRef.current) return;
@@ -510,16 +510,29 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
     safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(10); }, 19000);
     safeTimeout(() => { if (mountedRef.current) setCurrentSpeed(7); }, 19500);
 
-    safeTimeout(() => {
+    safeTimeout(async () => {
       if (!mountedRef.current) return;
       setCurrentSpeed(IDLE_SPEED);
-      finishSpin(winningNum);
-      // Reveal server seed after outcome
+
+      // Step 3: Resolve round — get server-authoritative winning number
+      let authoritativeNum = winningNum;
+      if (currentRoundIdRef.current) {
+        const resolved = await resolveRound(currentRoundIdRef.current);
+        if (resolved && typeof resolved.number === 'number') {
+          authoritativeNum = resolved.number;
+          // Update visual display to server's number if different from animation
+          setWinningNumber(authoritativeNum);
+        }
+      }
+
+      finishSpin(authoritativeNum);
+
+      // Step 4: Reveal server seed after outcome
       if (currentRoundIdRef.current) {
         revealRound(currentRoundIdRef.current);
       }
     }, 20300);
-  }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin, startRound, revealRound]);
+  }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin, startRound, resolveRound, revealRound]);
 
   const dismissResult = useCallback(() => {
     setResultOverlay(null);

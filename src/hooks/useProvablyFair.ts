@@ -16,12 +16,13 @@ function generateClientSeed(): string {
   return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack') {
+export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice') {
   const [round, setRound] = useState<ProvablyFairRound | null>(null);
   const [lastReveal, setLastReveal] = useState<ProvablyFairRound | null>(null);
   const nonceRef = useRef(0);
   const clientSeedRef = useRef(generateClientSeed());
 
+  // Step 1: Create a round — gets serverSeedHash commitment only. No result leaked.
   const startRound = useCallback(async (): Promise<ProvablyFairRound | null> => {
     const token = getToken();
     if (!token) return null;
@@ -46,7 +47,7 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack') {
         serverSeedHash: data.serverSeedHash,
         clientSeed,
         nonce,
-        result: data.result,
+        // No result here — outcome is unknown until resolveRound() is called after play
       };
       setRound(newRound);
       return newRound;
@@ -54,6 +55,26 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack') {
       return null;
     }
   }, [game]);
+
+  // Step 2: Resolve — called AFTER the round completes; returns server-authoritative outcome.
+  // For blackjack: returns only first 4 cards (initial deal). Never the full deck.
+  const resolveRound = useCallback(async (roundId: number): Promise<Record<string, unknown> | null> => {
+    const token = getToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`/api/provably-fair/resolve/${roundId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Merge result into round state
+      setRound(prev => prev && prev.roundId === roundId ? { ...prev, result: data.result } : prev);
+      return data.result ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const revealRound = useCallback(async (roundId: number): Promise<ProvablyFairRound | null> => {
     const token = getToken();
@@ -91,6 +112,7 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack') {
     round,
     lastReveal,
     startRound,
+    resolveRound,
     revealRound,
     refreshClientSeed,
     clientSeed: clientSeedRef.current,

@@ -420,20 +420,41 @@ app.get('/api/referrals/:userId', (req, res) => {
 });
 
 // ---- Provably Fair API routes ----
-// Create a new game round (returns serverSeedHash before round starts)
+// Create a new game round — commits server seed hash to client BEFORE round plays out.
+// Does NOT return the result; the outcome is computed after the round ends via /resolve.
 app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   const { game, clientSeed, nonce } = req.body;
   if (!game || !clientSeed || nonce === undefined) {
     return res.status(400).json({ error: 'game, clientSeed, and nonce are required' });
   }
   try {
-    const { roundId, serverSeedHash, result } = await createGameRound(req.user.id, game, clientSeed, nonce);
-    // Return the deterministic result so the client renders from server seeds
-    // The server seed is NOT returned here — only its hash, for commitment
-    res.json({ roundId, serverSeedHash, result });
+    const { roundId, serverSeedHash } = await createGameRound(req.user.id, game, clientSeed, nonce);
+    // Only return the commitment (hash). The result is computed after the round completes.
+    res.json({ roundId, serverSeedHash });
   } catch (err) {
     console.error('[PF] new-round error:', err.message);
     res.status(500).json({ error: 'Failed to create game round' });
+  }
+});
+
+// Resolve a round — client calls this after the round completes to get the authoritative outcome.
+// Returns ONLY the user-visible outcome (e.g., roulette number, slots grid, first 4 blackjack cards).
+// Never reveals the server seed here — that comes from /reveal.
+app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
+  try {
+    const round = await getGameRound(parseInt(req.params.roundId));
+    if (!round) return res.status(404).json({ error: 'Round not found' });
+    if (round.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    // result was computed and stored when the round was created — safe to return now
+    // For blackjack: only expose first 4 cards (initial deal); never the full deck
+    let safeResult = round.result;
+    if (round.game === 'blackjack' && safeResult?.cards) {
+      safeResult = { cards: safeResult.cards.slice(0, 4) };
+    }
+    res.json({ result: safeResult, serverSeedHash: round.server_seed_hash });
+  } catch (err) {
+    console.error('[PF] resolve error:', err.message);
+    res.status(500).json({ error: 'Failed to resolve round' });
   }
 });
 
