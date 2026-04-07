@@ -105,6 +105,24 @@ export const gameApi = {
   claimDailyBonus: () => apiFetch('/game/daily-bonus', { method: 'POST' }),
 
   getSportsEvents: () => apiFetch('/game/sports'),
+
+  savePokerHand: (body: {
+    holeCards: any[];
+    communityCards: any[];
+    actions: any[];
+    pot: number;
+    winner: 'player' | 'opponent';
+    winnerName?: string;
+    handName?: string;
+    net: number;
+    opponents?: any[];
+  }) => apiFetch('/game/poker/hands', { method: 'POST', body: JSON.stringify(body) }),
+
+  getPokerHands: () => apiFetch('/game/poker/hands'),
+
+  getPokerHandById: (id: number) => apiFetch(`/game/poker/hands/${id}`),
+
+  getPokerHandByToken: (token: string) => apiFetch(`/game/poker/hands/share/${token}`),
 };
 
 // Jackpot

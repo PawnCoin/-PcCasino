@@ -260,6 +260,27 @@ export async function initDatabase() {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_jackpot_history_won_at ON jackpot_history(won_at DESC)`);
 
+    // Poker hand history — full hand snapshots for replay
+    await query(`
+      CREATE TABLE IF NOT EXISTS poker_hand_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        share_token VARCHAR(32) UNIQUE NOT NULL,
+        hole_cards JSONB NOT NULL,
+        community_cards JSONB NOT NULL,
+        actions JSONB NOT NULL DEFAULT '[]',
+        pot BIGINT NOT NULL DEFAULT 0,
+        winner VARCHAR(20) NOT NULL,
+        winner_name VARCHAR(100),
+        hand_name VARCHAR(100),
+        net BIGINT NOT NULL DEFAULT 0,
+        opponents JSONB NOT NULL DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_poker_hand_history_user ON poker_hand_history(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_poker_hand_history_token ON poker_hand_history(share_token)`);
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);

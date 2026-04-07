@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomBytes } from 'crypto';
 import { query } from './db.js';
 import { requireAuth } from './auth-routes.js';
 
@@ -369,6 +370,115 @@ router.get('/exchange-rates', async (req, res) => {
       live: false,
       error: err.message
     });
+  }
+});
+
+// ---- Poker Hand History ----
+
+// Save a poker hand (requires auth)
+router.post('/poker/hands', requireAuth, async (req, res) => {
+  const { holeCards, communityCards, actions, pot, winner, winnerName, handName, net, opponents } = req.body;
+  if (!holeCards || !communityCards || !winner) {
+    return res.status(400).json({ error: 'holeCards, communityCards, and winner are required' });
+  }
+  try {
+    let shareToken;
+    let attempts = 0;
+    while (attempts < 5) {
+      shareToken = randomBytes(16).toString('hex');
+      const existing = await query('SELECT id FROM poker_hand_history WHERE share_token = $1', [shareToken]);
+      if (!existing.rows.length) break;
+      attempts++;
+    }
+    if (!shareToken) return res.status(500).json({ error: 'Failed to generate unique share token' });
+
+    const result = await query(
+      `INSERT INTO poker_hand_history
+         (user_id, share_token, hole_cards, community_cards, actions, pot, winner, winner_name, hand_name, net, opponents)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, share_token, created_at`,
+      [
+        req.user.id,
+        shareToken,
+        JSON.stringify(holeCards),
+        JSON.stringify(communityCards),
+        JSON.stringify(actions || []),
+        pot || 0,
+        winner,
+        winnerName || null,
+        handName || null,
+        net || 0,
+        JSON.stringify(opponents || []),
+      ]
+    );
+    const row = result.rows[0];
+    res.json({ success: true, handId: row.id, shareToken: row.share_token, createdAt: row.created_at });
+  } catch (err) {
+    console.error('[poker/hands POST]', err.message);
+    res.status(500).json({ error: 'Failed to save hand history' });
+  }
+});
+
+// List the last 50 poker hands for the authenticated user
+router.get('/poker/hands', requireAuth, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, share_token, hole_cards, community_cards, actions, pot, winner, winner_name, hand_name, net, opponents, created_at
+       FROM poker_hand_history
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ hands: result.rows });
+  } catch (err) {
+    console.error('[poker/hands GET]', err.message);
+    res.status(500).json({ error: 'Failed to fetch hand history' });
+  }
+});
+
+// Get a single hand by id — authenticated, user can only access their own hands
+router.get('/poker/hands/:id', requireAuth, async (req, res) => {
+  const handId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(handId) || handId <= 0) return res.status(400).json({ error: 'Invalid hand id' });
+  try {
+    const result = await query(
+      `SELECT id, share_token, hole_cards, community_cards, actions, pot, winner, winner_name, hand_name, net, opponents, created_at
+       FROM poker_hand_history
+       WHERE id = $1 AND user_id = $2
+       LIMIT 1`,
+      [handId, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Hand not found' });
+    res.json({ hand: result.rows[0] });
+  } catch (err) {
+    console.error('[poker/hands/:id GET]', err.message);
+    res.status(500).json({ error: 'Failed to fetch hand' });
+  }
+});
+
+// Get a single hand by share token — public (no auth required)
+router.get('/poker/hands/share/:token', async (req, res) => {
+  const { token } = req.params;
+  if (!token || typeof token !== 'string' || token.length > 64) {
+    return res.status(400).json({ error: 'Invalid token' });
+  }
+  try {
+    const result = await query(
+      `SELECT ph.id, ph.share_token, ph.hole_cards, ph.community_cards, ph.actions, ph.pot,
+              ph.winner, ph.winner_name, ph.hand_name, ph.net, ph.opponents, ph.created_at,
+              u.username
+       FROM poker_hand_history ph
+       JOIN users u ON u.id = ph.user_id
+       WHERE ph.share_token = $1
+       LIMIT 1`,
+      [token]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Hand not found' });
+    res.json({ hand: result.rows[0] });
+  } catch (err) {
+    console.error('[poker/hands/share GET]', err.message);
+    res.status(500).json({ error: 'Failed to fetch hand' });
   }
 });
 

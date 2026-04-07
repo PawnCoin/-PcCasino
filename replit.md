@@ -288,6 +288,20 @@ All SEO work targets `index.html` (static shell) because the app is CSR (React r
 
 - **Start application**: `npm run dev` on port 5000
 
+## Poker Hand History & Replay (Task #21)
+
+- **DB table**: `poker_hand_history` — stores hole cards, community cards, all player actions by street, pot, winner, hand name, net, share token
+- **Backend API**:
+  - `POST /api/game/poker/hands` — save a hand (auth required); returns `shareToken`
+  - `GET /api/game/poker/hands` — list last 50 hands for authenticated user
+  - `GET /api/game/poker/hands/share/:token` — fetch any single hand publicly by share token (no auth required)
+- **Frontend**:
+  - `src/components/PokerHandReplay.tsx` — shared replay component (mini cards, action timeline by street, step-through replay controls, share button)
+  - `src/components/PokerHandHistory.tsx` — authenticated panel showing the last 50 hands with expandable replays
+  - `src/components/PokerHandSharePage.tsx` — public page for shared hand URLs
+  - `PokerGame.tsx` — tracks actions per street, saves hand to DB at showdown, History toggle button in top bar
+  - `App.tsx` — handles `/poker/hand/:token` URL pattern and renders public share page without requiring login
+
 ## Deployment
 
 - Type: Static site

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Info, RotateCcw, Mic, MicOff, Camera } from 'lucide-react';
+import { Info, RotateCcw, Mic, MicOff, Camera, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -13,6 +13,9 @@ import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { PokerHandHistory } from '@/components/PokerHandHistory';
+import { gameApi } from '@/lib/api';
+import { getToken } from '@/lib/api';
 import type { Card } from '@/types';
 
 interface PokerGameProps {
@@ -531,6 +534,14 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     playerCards?: Card[];
   } | null>(null);
   const [showdownTimer, setShowdownTimer] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
+  const [handActions, setHandActions] = useState<{ street: string; actor: string; action: string; amount?: number; potAfter?: number }[]>([]);
+  const [currentStreet, setCurrentStreet] = useState<string>('preflop');
+  const handActionsRef = useRef(handActions);
+  handActionsRef.current = handActions;
+  const currentStreetRef = useRef(currentStreet);
+  currentStreetRef.current = currentStreet;
+  const isAuthenticated = !!getToken();
 
   const { isMuted, toggleMute, playSound } = useSoundEffects();
   const { announceEvent, stop, isSupported: voiceSupported } = usePokerVoice();
@@ -556,15 +567,22 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         setOppAction(null);
         if (label === 'FOLD') {
           setOpponents(prev => prev.map(o => o.id === opp.id ? { ...o, folded: true } : o));
+          setHandActions(prev => [...prev, { street: currentStreetRef.current, actor: opp.name, action: 'FOLD' }]);
         } else if (label === 'CALL' || label === 'RAISE' || label === 'ALL IN') {
           const betAdd = label === 'ALL IN' ? opp.balance : label === 'RAISE' ? 50 : 20;
           const actual = Math.min(betAdd, opp.balance);
-          setPot(prev => prev + actual);
+          setPot(prev => {
+            const newPot = prev + actual;
+            setHandActions(prevActs => [...prevActs, { street: currentStreetRef.current, actor: opp.name, action: label, amount: actual, potAfter: newPot }]);
+            return newPot;
+          });
           setOpponents(prev => prev.map(o =>
             o.id === opp.id
               ? { ...o, balance: Math.max(0, o.balance - actual), bet: o.bet + actual }
               : o
           ));
+        } else {
+          setHandActions(prev => [...prev, { street: currentStreetRef.current, actor: opp.name, action: 'CHECK' }]);
         }
       }, delay);
       delay += 150;
@@ -607,6 +625,18 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setWinEffect(false);
     setLoseEffect(false);
     setWinText('');
+    // Record forced blind postings at hand start
+    const blindActions: { street: string; actor: string; action: string; amount?: number; potAfter?: number }[] = [
+      { street: 'preflop', actor: 'You', action: 'POST SB', amount: 10 },
+    ];
+    finalOpps.forEach(o => {
+      if (!o.active || !o.name) return;
+      if (o.id === bbId) {
+        blindActions.push({ street: 'preflop', actor: o.name, action: 'POST BB', amount: 20 });
+      }
+    });
+    setHandActions(blindActions);
+    setCurrentStreet('preflop');
     if (showVoice) announceEvent('New hand. Pre-flop betting.');
   }, [opponents, showVoice, announceEvent, playSound]);
 
@@ -638,10 +668,39 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     return true;
   };
 
+  const recordAction = useCallback((actor: string, action: string, amount?: number, potAfter?: number) => {
+    setHandActions(prev => [...prev, { street: currentStreetRef.current, actor, action, amount, potAfter }]);
+  }, []);
+
   const handleFold = () => {
     setMessage('You folded. Starting new hand...');
     playSound('clear');
     if (showVoice) announceEvent('You folded.');
+    recordAction('You', 'FOLD');
+
+    // Capture hand state before clearing
+    const capturedActions = [...handActionsRef.current, { street: currentStreetRef.current, actor: 'You', action: 'FOLD' }];
+    const capturedPot = pot;
+    const capturedCommunityCards = [...communityCards];
+    const capturedPlayerHand = [...playerHand];
+    const capturedOpponents = [...opponents];
+    const capturedPlayerTotalBet = playerTotalBet;
+
+    // Save folded hand to DB
+    if (isAuthenticated) {
+      gameApi.savePokerHand({
+        holeCards: capturedPlayerHand,
+        communityCards: capturedCommunityCards,
+        actions: capturedActions,
+        pot: capturedPot,
+        winner: 'opponent',
+        winnerName: 'Fold',
+        handName: 'Fold',
+        net: -capturedPlayerTotalBet,
+        opponents: capturedOpponents.filter(o => o.active && o.name).map(o => ({ name: o.name, folded: o.folded })),
+      }).catch(() => {});
+    }
+
     setPlayerChips([]);
     setTimeout(startNewHand, 2000);
   };
@@ -650,6 +709,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setMessage('You checked.');
     playSound('click');
     if (showVoice) announceEvent('You checked.');
+    recordAction('You', 'CHECK');
     advancePhase();
   };
 
@@ -658,6 +718,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     if (placeBet(callAmount)) {
       setMessage(`You called ${callAmount} $Pc`);
       if (showVoice) announceEvent(`You called ${callAmount}.`);
+      recordAction('You', 'CALL', callAmount, pot + callAmount);
       advancePhase();
     }
   };
@@ -669,6 +730,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setCurrentBet(playerBet + raiseAmount);
       setMessage(`You raised to ${playerBet + raiseAmount} $Pc`);
       if (showVoice) announceEvent(`You raised to ${playerBet + raiseAmount}.`);
+      recordAction('You', 'RAISE', totalNeeded, pot + totalNeeded);
       advancePhase();
     }
   };
@@ -680,6 +742,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setMessage('ALL IN!');
       playSound('win');
       if (showVoice) announceEvent('All in!');
+      recordAction('You', 'ALL IN', allInAmount, pot + allInAmount);
       advancePhase();
     }
   };
@@ -690,18 +753,21 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         case 'preflop':
           dealCommunity(3); setGamePhase('flop'); setCurrentBet(0); setPlayerBet(0);
           setPlayerChips([]); setOpponents(prev => prev.map(o => ({ ...o, bet: 0 })));
+          setCurrentStreet('flop');
           setMessage('The Flop. Check or bet?');
           if (showVoice) announceEvent('The flop.');
           break;
         case 'flop':
           dealCommunity(1); setGamePhase('turn'); setCurrentBet(0); setPlayerBet(0);
           setPlayerChips([]); setOpponents(prev => prev.map(o => ({ ...o, bet: 0 })));
+          setCurrentStreet('turn');
           setMessage('The Turn. Check or bet?');
           if (showVoice) announceEvent('The turn.');
           break;
         case 'turn':
           dealCommunity(1); setGamePhase('river'); setCurrentBet(0); setPlayerBet(0);
           setPlayerChips([]); setOpponents(prev => prev.map(o => ({ ...o, bet: 0 })));
+          setCurrentStreet('river');
           setMessage('The River. Final betting round.');
           if (showVoice) announceEvent('The river.');
           break;
@@ -721,8 +787,14 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       deck[0] || { rank: 'K', suit: 'spades' },
       deck[1] || { rank: 'Q', suit: 'hearts' },
     ];
+    const capturedPot = pot;
+    const capturedCommunityCards = [...communityCards];
+    const capturedPlayerHand = [...playerHand];
+    const capturedOpponents = [...opponents];
+    const capturedActions = [...handActionsRef.current];
+
     if (playerWins) {
-      const winAmount = pot;
+      const winAmount = capturedPot;
       onWin(winAmount);
       setWinEffect(true);
       setPotSweepToUser(true);
@@ -732,6 +804,20 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       playSound('win');
       if (showVoice) announceEvent(`Winner. You won ${winAmount} with ${handName}.`);
       setShowdownData({ winner: 'player', handName, winAmount, opponentCards: oppCards, playerCards: playerHand });
+
+      // Save hand to DB
+      if (isAuthenticated) {
+        gameApi.savePokerHand({
+          holeCards: capturedPlayerHand,
+          communityCards: capturedCommunityCards,
+          actions: capturedActions,
+          pot: capturedPot,
+          winner: 'player',
+          handName,
+          net: capturedPot - playerTotalBet,
+          opponents: capturedOpponents.filter(o => o.active && o.name).map(o => ({ name: o.name, folded: o.folded })),
+        }).catch(() => {});
+      }
     } else {
       setLoseEffect(true);
       const winnerIdx = Math.floor(Math.random() * 5);
@@ -739,7 +825,22 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setMessage(`${opponentName} wins with ${handName}`);
       playSound('lose');
       if (showVoice) announceEvent(`${opponentName} wins with ${handName}.`);
-      setShowdownData({ winner: 'opponent', handName, winAmount: pot, opponentName, opponentCards: oppCards });
+      setShowdownData({ winner: 'opponent', handName, winAmount: capturedPot, opponentName, opponentCards: oppCards });
+
+      // Save hand to DB
+      if (isAuthenticated) {
+        gameApi.savePokerHand({
+          holeCards: capturedPlayerHand,
+          communityCards: capturedCommunityCards,
+          actions: capturedActions,
+          pot: capturedPot,
+          winner: 'opponent',
+          winnerName: opponentName,
+          handName,
+          net: -playerTotalBet,
+          opponents: capturedOpponents.filter(o => o.active && o.name).map(o => ({ name: o.name, folded: o.folded })),
+        }).catch(() => {});
+      }
     }
     setShowdownTimer(4);
     const countdown = setInterval(() => {
@@ -882,6 +983,16 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setShowHistory(h => !h)} className={showHistory ? 'text-[#D4AF37]' : 'text-gray-500'}>
+                      <History className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Hand History</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
                       <Info className="w-5 h-5" />
                     </Button>
@@ -894,6 +1005,21 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         />
 
         {/* ── MAIN LAYOUT ── */}
+        <div className="flex-1 flex relative z-10" style={{ minHeight: 0 }}>
+
+          {/* Hand History Side Panel */}
+          {showHistory && (
+            <div style={{
+              width: 340, flexShrink: 0,
+              background: 'rgba(5,5,10,0.98)',
+              borderRight: '1px solid rgba(212,175,55,0.2)',
+              display: 'flex', flexDirection: 'column',
+              overflowY: 'auto',
+            }}>
+              <PokerHandHistory isAuthenticated={isAuthenticated} />
+            </div>
+          )}
+
         <div className="flex-1 flex flex-col relative z-10" style={{ minHeight: 0 }}>
           {/* TABLE */}
           <div className="flex-1 relative px-6 pt-3 pb-0 min-h-0">
@@ -1216,6 +1342,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               </div>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Rules dialog */}

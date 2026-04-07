@@ -46,6 +46,8 @@ import { LobbyChat } from '@/components/LobbyChat';
 import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
 import { JackpotCelebration } from '@/components/JackpotCelebration';
+import { PokerHandSharePage } from '@/components/PokerHandSharePage';
+import { JackpotCelebration } from '@/components/JackpotCelebration';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -82,6 +84,10 @@ function App() {
   });
   
   const [currentView, setCurrentView] = useState<'lobby' | GameType>('lobby');
+  const [pokerShareToken, setPokerShareToken] = useState<string | null>(() => {
+    const match = window.location.pathname.match(/^\/poker\/hand\/([a-f0-9]{32})$/);
+    return match ? match[1] : null;
+  });
   const [showAuth, setShowAuth] = useState(false);
   const [, setShowWalletModal] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
@@ -998,6 +1004,26 @@ function App() {
         );
     }
   };
+
+  // Render poker hand share page if URL matches
+  if (pokerShareToken) {
+    return (
+      <GlobalGameProvider balance={0}>
+        <div className="min-h-screen">
+          <CasinoBackground />
+          <Toaster position="top-right" toastOptions={{ style: { background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(212,175,55,0.5)', color: 'white' } }} />
+          <PokerHandSharePage
+            token={pokerShareToken}
+            onBack={() => {
+              setPokerShareToken(null);
+              window.history.replaceState({}, '', '/');
+              setCurrentView('lobby');
+            }}
+          />
+        </div>
+      </GlobalGameProvider>
+    );
+  }
 
   return (
     <GlobalGameProvider balance={user?.balance || 0}>
