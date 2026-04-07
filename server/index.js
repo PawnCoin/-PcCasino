@@ -474,9 +474,24 @@ app.get('/api/referrals/validate/:code', async (req, res) => {
   }
 });
 
-app.get('/api/referrals/:userId', (req, res) => {
-  const userRefs = Array.from(referrals.values()).filter(r => r.referrerId === req.params.userId);
-  res.json({ referrals: userRefs });
+app.get('/api/referrals/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ error: 'Invalid userId' });
+  try {
+    // Fetch from DB to avoid in-memory type mismatch (referrerId stored as numeric id)
+    const result = await query(
+      `SELECT r.id, r.referred_id, r.commission_paid, r.created_at, u.username AS referred_username
+       FROM referrals r
+       JOIN users u ON u.id = r.referred_id
+       WHERE r.referrer_id = $1
+       ORDER BY r.created_at DESC`,
+      [userId]
+    );
+    res.json({ referrals: result.rows });
+  } catch (err) {
+    console.error('[referrals GET]', err.message);
+    res.status(500).json({ error: 'Failed to load referrals' });
+  }
 });
 
 // ---- Provably Fair API routes ----

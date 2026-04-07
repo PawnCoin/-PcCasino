@@ -75,7 +75,7 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
   const shareLink = () => {
     const link = `${window.location.origin}?ref=${code}`;
     if (navigator.share) {
-      navigator.share({ title: '$Pc Casino', text: `Join me on $Pc Casino and get 1B $Pc welcome bonus! Use my code: ${code}`, url: link });
+      navigator.share({ title: '$Pc Casino', text: `Join me on $Pc Casino and get 50M $Pc welcome bonus! Use my code: ${code}`, url: link });
     } else {
       copyLink();
     }
@@ -159,8 +159,8 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
             {[
               { step: '1', text: 'Share your unique code with friends', color: '#c084fc' },
               { step: '2', text: 'They sign up and enter your code', color: '#60a5fa' },
-              { step: '3', text: 'They receive 1B $Pc welcome bonus', color: '#4ade80' },
-              { step: '4', text: 'You earn 50M $Pc instantly', color: '#D4AF37' },
+              { step: '3', text: 'They receive 50M $Pc welcome bonus', color: '#4ade80' },
+              { step: '4', text: 'You earn 10% of their first deposit', color: '#D4AF37' },
             ].map(item => (
               <div key={item.step} className="flex items-center gap-3 py-1.5">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
