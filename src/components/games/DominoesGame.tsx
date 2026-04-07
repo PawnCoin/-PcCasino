@@ -154,7 +154,12 @@ const BASE_DIMS: Record<TileSize, { long: number; short: number; pip: number }> 
 };
 const TILE_GAP = 5;
 const TARGET_SCORE = 150;
-const SPEED_DELAYS: Record<GameSpeed, number> = { 1: 1600, 2: 800, 3: 350, 4: 120 };
+const SPEED_DELAYS: Record<GameSpeed, number> = { 1: 2400, 2: 1800, 3: 700, 4: 200 };
+
+const DOM_QUICK_TEXTS = ['Nice draw! 🎲', "Can't play! 😤", 'Big score! 🔥', 'Good block! 🛡️', 'Ouch! 😬', 'My turn! 😏', 'Watch this! 👀'];
+const DOM_REACTIONS = ['🔥', '😤', '🎉', '👏', '💀', '🤙', '😱'];
+
+interface DomReaction { id: string; player: string; emoji: string; }
 
 const AI_AVATARS: AvatarDef[] = [
   { sheet: 1, row: 1, col: 0, name: 'Carlos' },
@@ -687,7 +692,30 @@ class DominoAudio {
   // Tile placed on carpeted surface — soft thud + brief friction
   place()  { this.carpetThud(0.75); setTimeout(() => this.slideNoise(0.18), 30); }
   draw()   { this.slideNoise(0.3); setTimeout(() => this.carpetThud(0.35), 40); }
-  win()    { [0,130,260,400].forEach((d, i) => this.chime([523.25, 659.25, 784.00, 1046.50][i], d, 0.5)); }
+  win() {
+    if (this.muted) return;
+    // Crowd-cheer swell: noise bursts filtered to simulate crowd + ambient celebration
+    try {
+      const ctx = this.getCtx(); const sr = ctx.sampleRate;
+      const dur = 1.8; const n = Math.floor(sr * dur);
+      const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) {
+        const t = i / sr;
+        // Noise shaped with a swell envelope (attack 0.18s, hold, fade)
+        const env = t < 0.18 ? t / 0.18 : Math.exp(-(t - 0.18) * 1.4);
+        // Low crowd rumble with random modulation
+        d[i] = (Math.random() * 2 - 1) * env * (0.55 + 0.35 * Math.sin(2 * Math.PI * 3.5 * t));
+      }
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      // Band-pass to keep crowd-like frequencies (250–2500 Hz)
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 250;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2500;
+      const g = ctx.createGain(); g.gain.value = 0.65;
+      src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(ctx.destination); src.start();
+    } catch (_) {}
+    // A few physical tile-clack celebratory sounds staggered
+    [0, 220, 440].forEach(delay => setTimeout(() => this.carpetThud(0.45), delay));
+  }
   slam() {
     if (this.muted) return;
     try {
@@ -726,13 +754,14 @@ const audio = new DominoAudio();
 const PIPS: Record<number, [number, number][]> = {
   0: [], 1: [[50,50]], 2: [[28,28],[72,72]], 3: [[28,28],[50,50],[72,72]],
   4: [[28,28],[72,28],[28,72],[72,72]], 5: [[28,28],[72,28],[50,50],[28,72],[72,72]],
+  // Standard two-column 6-pip layout (used for double-6 and as base)
   6: [[28,22],[72,22],[28,50],[72,50],[28,78],[72,78]],
 };
-// 6-pip layout rotated 90°: 3 across × 2 down (used on non-double-6 tiles)
+// On non-double-6 tiles, the 6-pip half displays 3-across × 2-down for correct orientation
 const PIPS_6_ROTATED: [number, number][] = [[22,28],[50,28],[78,28],[22,72],[50,72],[78,72]];
 
-function PipFace({ value, color, size, rotate90 }: { value: number; color: string; size: number; rotate90?: boolean }) {
-  const dots = (rotate90 && value === 6) ? PIPS_6_ROTATED : (PIPS[value] ?? []);
+function PipFace({ value, color, size, rotated }: { value: number; color: string; size: number; rotated?: boolean }) {
+  const dots = (rotated && value === 6) ? PIPS_6_ROTATED : (PIPS[value] ?? []);
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flexShrink: 0 }}>
       {dots.map(([cx, cy], i) => (
@@ -794,10 +823,10 @@ function DominoTileView({
       )}
       {!faceDown && (
         <>
-          {/* Rotate 6-pip faces 90° on any tile that is NOT the double-6 */}
-          <PipFace value={dispLeft}  color={skin.pip} size={dims.pip} rotate90={dispLeft  === 6 && !(dispLeft === 6 && dispRight === 6)} />
+          {/* Non-double tiles: rotate the 6-pip face to 3-across × 2-down */}
+          <PipFace value={dispLeft}  color={skin.pip} size={dims.pip} rotated={dispLeft  === 6 && !isDouble} />
           <div style={{ background: skin.divider, flexShrink: 0, width: isVert ? '78%' : 2, height: isVert ? 2 : '78%' }} />
-          <PipFace value={dispRight} color={skin.pip} size={dims.pip} rotate90={dispRight === 6 && !(dispLeft === 6 && dispRight === 6)} />
+          <PipFace value={dispRight} color={skin.pip} size={dims.pip} rotated={dispRight === 6 && !isDouble} />
         </>
       )}
     </div>
@@ -1259,6 +1288,28 @@ function PickingScreen({
   );
 }
 
+// ─── Thought Bubble / Reaction UI ─────────────────────────────────────────────
+function DomReactionBubble({ reaction, playerColor }: { reaction: DomReaction; playerColor: string }) {
+  return (
+    <div style={{
+      position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(18,12,0,0.96)', border: `1.5px solid ${playerColor}`,
+      borderRadius: 18, padding: '5px 13px', fontSize: 20, whiteSpace: 'nowrap',
+      pointerEvents: 'none', zIndex: 50,
+      boxShadow: `0 4px 18px rgba(0,0,0,0.7), 0 0 10px ${playerColor}55`,
+      animation: 'bubblePop .32s cubic-bezier(0.34,1.56,0.64,1) both',
+    }}>
+      {reaction.emoji}
+      <div style={{
+        position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)',
+        width: 0, height: 0,
+        borderLeft: '6px solid transparent', borderRight: '6px solid transparent',
+        borderTop: `8px solid ${playerColor}`,
+      }} />
+    </div>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 interface DominoesGameProps {
   balance: number; onBack: () => void;
@@ -1288,6 +1339,10 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const [gameSpeed, setGameSpeed] = useState<GameSpeed>(2);
   const [lastPlayBanner, setLastPlayBanner] = useState<{ playerName: string; left: number; right: number } | null>(null);
   const [playSecondsLeft, setPlaySecondsLeft] = useState(30);
+  const [reactions, setReactions] = useState<DomReaction[]>([]);
+  const [showReactionPanel, setShowReactionPanel] = useState(false);
+  const [propCelebrating, setPropCelebrating] = useState(false);
+  const [dropZoneOver, setDropZoneOver] = useState<'left' | 'right' | 'top' | 'bottom' | 'first' | null>(null);
 
   const [chainCenterIdx, setChainCenterIdx] = useState(0);
   const prevChainRef = useRef<PlacedTile[]>([]);
@@ -1296,6 +1351,12 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { audio.muted = muted || isMuted; }, [muted, isMuted]);
+
+  const addReaction = useCallback((emoji: string, pid: string = 'human') => {
+    const r: DomReaction = { id: `${Date.now()}-${Math.random()}`, player: pid, emoji };
+    setReactions(prev => [...prev.slice(-4), r]);
+    setTimeout(() => setReactions(prev => prev.filter(x => x.id !== r.id)), 2800);
+  }, []);
 
   const dims = useMemo(() => {
     const base = BASE_DIMS[tileSize];
@@ -1363,13 +1424,15 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gs.chain.length]);
 
-  // Mid-game score notification
+  // Mid-game score notification + celebrate bounce on human score
   useEffect(() => {
     if (gs.phase !== 'playing' || !gs.lastMoveScore || gs.lastMoveScore <= 0) return;
     const scorer = gs.lastScorer ?? '';
     const isHuman = scorer === 'You';
     if (isHuman) {
       toast.success(`🎯 +${gs.lastMoveScore} pts! (${gs.openEndTotal} open ends)`);
+      setPropCelebrating(true);
+      setTimeout(() => setPropCelebrating(false), 1200);
     } else {
       toast.info(`${scorer} scored +${gs.lastMoveScore} pts`);
     }
@@ -1432,19 +1495,30 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     const player = gs.players[gs.currentPlayer];
     if (!player || player.isHuman) return;
     if (aiTimer.current) clearTimeout(aiTimer.current);
-    const delay = SPEED_DELAYS[gameSpeed] + Math.random() * (SPEED_DELAYS[gameSpeed] * 0.25);
+    const delay = SPEED_DELAYS[gameSpeed] + Math.random() * (SPEED_DELAYS[gameSpeed] * 0.3);
     aiTimer.current = setTimeout(() => {
       const choice = aiChoose(player.hand, gs.leftVal, gs.rightVal, chainEmpty, gs.firstPlayTileId, gs.chain, gs.topChain, gs.bottomChain, gs.topVal, gs.bottomVal, gs.spinnerPlaced, topBottomOpen, gs.spinnerLeftPlayed, gs.spinnerRightPlayed);
       if (choice) {
         audio.place();
+        const reactionRoll = Math.random();
+        if (reactionRoll > 0.75) {
+          // Quick text phrase reaction
+          const phrase = DOM_QUICK_TEXTS[Math.floor(Math.random() * DOM_QUICK_TEXTS.length)];
+          setTimeout(() => addReaction(phrase, player.id), 200);
+        } else if (reactionRoll > 0.5) {
+          // Emoji reaction
+          setTimeout(() => addReaction(DOM_REACTIONS[Math.floor(Math.random() * DOM_REACTIONS.length)], player.id), 200);
+        }
         dispatch({ type: 'PLAY_TILE', playerId: player.id, tileId: choice.tile.id, end: choice.end });
         addAIReaction(player.id);
       } else if (gs.boneyard.length > 0) {
         // AI draws from boneyard — will retry on next drawTrigger cycle
         audio.draw();
+        if (Math.random() > 0.5) setTimeout(() => addReaction(Math.random() > 0.5 ? "😤" : "Can't play! 😤", player.id), 150);
         dispatch({ type: 'DRAW', playerId: player.id });
       } else {
         audio.knock();
+        if (Math.random() > 0.45) setTimeout(() => addReaction(Math.random() > 0.5 ? "🤜" : "Good block! 🛡️", player.id), 100);
         dispatch({ type: 'PASS' });
       }
     }, delay);
@@ -1457,12 +1531,16 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   useEffect(() => {
     if (gs.phase === 'roundOver' && prevPhase.current !== 'roundOver') {
       const humanWon = gs.roundWinner === 'You';
+      setPropCelebrating(true);
+      setTimeout(() => setPropCelebrating(false), 1200);
       if (humanWon) {
         if (slamOn) { setShaking(true); setCracking(true); setTimeout(() => { setShaking(false); setCracking(false); }, 900); }
         audio.slam(); setTimeout(() => audio.crack(), 180); setTimeout(() => audio.win(), 350);
-        if (gs.mode === 'real') { const w = gs.bet * 3; playSound('jackpot'); onWin(w); triggerWinBurst(); addReaction('🎉', 'you'); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
+        addReaction('🎉', 'human');
+        if (gs.mode === 'real') { const w = gs.bet * 3; onWin(w); triggerWinBurst(); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
         else toast.success('DOMINO OUT! (Practice)');
       } else {
+        addReaction('😤', 'human');
         gs.mode === 'real' ? toast.error(`${gs.roundWinner} wins! +${gs.roundScore} pts`) : toast.info(`${gs.roundWinner} wins the round.`);
       }
     }
@@ -1481,13 +1559,13 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     const tileId = tileIdOverride ?? selectedTileId;
     if (!tileId) return;
     audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId, end });
-    setSelectedTileId(null); setDraggingTileId(null);
+    setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null);
   };
   const handlePlayFirst = (tileIdOverride?: string) => {
     const tileId = tileIdOverride ?? selectedTileId;
     if (!tileId) return;
     audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId, end: 'right' });
-    setSelectedTileId(null); setDraggingTileId(null);
+    setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null);
   };
   const handleDraw = () => { if (!canDraw) return; audio.draw(); dispatch({ type: 'DRAW' }); toast.info('Drew a tile'); };
   const handlePass = () => { if (!canPass) return; audio.knock(); dispatch({ type: 'PASS' }); toast.info('🤜 You knocked — passing'); };
@@ -1545,6 +1623,9 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
         @keyframes pulse { 0%,100%{opacity:.65} 50%{opacity:1} }
         @keyframes tileIn { from{opacity:0;transform:scale(0.5) rotate(-15deg)} to{opacity:1;transform:scale(1) rotate(0deg)} }
         @keyframes knockPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 18px rgba(239,83,80,0.7)} }
+        @keyframes bubblePop { 0%{opacity:0;transform:translateX(-50%) scale(0.5) translateY(6px)} 100%{opacity:1;transform:translateX(-50%) scale(1) translateY(0)} }
+        @keyframes dropZonePulse { 0%,100%{box-shadow:0 0 12px rgba(212,175,55,0.5),inset 0 0 8px rgba(212,175,55,0.15)} 50%{box-shadow:0 0 28px rgba(212,175,55,0.9),inset 0 0 18px rgba(212,175,55,0.35)} }
+        @keyframes celebBounce { 0%,100%{transform:scale(1)} 25%{transform:scale(1.15) translateY(-6px)} 50%{transform:scale(0.95)} 75%{transform:scale(1.08) translateY(-3px)} }
         .dom-board::-webkit-scrollbar { width: 5px; height: 5px; }
         .dom-board::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 3px; }
         .dom-board::-webkit-scrollbar-track { background: transparent; }
@@ -1755,6 +1836,9 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               {aiPlayers[0] && (
                 <div style={{ background: gs.currentPlayer === 1 ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${gs.currentPlayer === 1 ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', animation: gs.lastPassedBy === aiPlayers[0].name ? 'knockPulse .6s ease' : 'none', position: 'relative' }}>
                   <PlayerSeat player={aiPlayers[0]} active={gs.currentPlayer === 1} tileCount={aiPlayers[0].hand.length} orientation="top" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[0].name} />
+                  {reactions.filter(r => r.player === aiPlayers[0].id).slice(-1).map(r => (
+                    <DomReactionBubble key={r.id} reaction={r} playerColor={aiPlayers[0].color} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1764,6 +1848,9 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               {aiPlayers[1] && (
                 <div style={{ background: gs.currentPlayer === 2 ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${gs.currentPlayer === 2 ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', position: 'relative', animation: gs.lastPassedBy === aiPlayers[1].name ? 'knockPulse .6s ease' : 'none' }}>
                   <PlayerSeat player={aiPlayers[1]} active={gs.currentPlayer === 2} tileCount={aiPlayers[1].hand.length} orientation="left" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[1].name} />
+                  {reactions.filter(r => r.player === aiPlayers[1].id).slice(-1).map(r => (
+                    <DomReactionBubble key={r.id} reaction={r} playerColor={aiPlayers[1].color} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1780,8 +1867,107 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                   <button onClick={() => setBoardZoom(z => Math.min(z + 0.15, 2.2))} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(212,175,55,.3)', background: 'rgba(0,0,0,.6)', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomIn size={13} /></button>
                   <button onClick={() => setBoardZoom(z => Math.max(z - 0.15, 0.4))} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(212,175,55,.3)', background: 'rgba(0,0,0,.6)', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomOut size={13} /></button>
                 </div>
+                {chainEmpty && activeTile && (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('first'); }}
+                    onDragLeave={() => setDropZoneOver(null)}
+                    onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayFirst(id || undefined); setDropZoneOver(null); }}
+                    onClick={() => handlePlayFirst()}
+                    style={{
+                      position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+                      width: 120, height: 60, borderRadius: 12, zIndex: 10, cursor: 'pointer',
+                      border: `2px dashed ${dropZoneOver === 'first' ? '#D4AF37' : 'rgba(212,175,55,0.6)'}`,
+                      background: dropZoneOver === 'first' ? 'rgba(212,175,55,0.25)' : 'rgba(212,175,55,0.08)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#D4AF37', fontWeight: 700, fontSize: 12,
+                      animation: 'dropZonePulse 1.4s infinite',
+                      transition: 'all .15s',
+                    }}>
+                    Drop here
+                  </div>
+                )}
                 {!chainEmpty && (
                   <>
+                    {/* Left drop zone */}
+                    {activeTile && canPlayLeft && (
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('left'); }}
+                        onDragLeave={() => setDropZoneOver(null)}
+                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('left', id || undefined); setDropZoneOver(null); }}
+                        onClick={() => handlePlayEnd('left')}
+                        style={{
+                          position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                          width: 54, height: 54, borderRadius: 12, zIndex: 10, cursor: 'pointer',
+                          border: `2px dashed ${dropZoneOver === 'left' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
+                          background: dropZoneOver === 'left' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
+                          animation: 'dropZonePulse 1.4s infinite',
+                          transition: 'all .15s',
+                        }}>
+                        ←<span style={{ fontSize: 10 }}>{gs.leftVal}</span>
+                      </div>
+                    )}
+                    {/* Right drop zone */}
+                    {activeTile && canPlayRight && (
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('right'); }}
+                        onDragLeave={() => setDropZoneOver(null)}
+                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('right', id || undefined); setDropZoneOver(null); }}
+                        onClick={() => handlePlayEnd('right')}
+                        style={{
+                          position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                          width: 54, height: 54, borderRadius: 12, zIndex: 10, cursor: 'pointer',
+                          border: `2px dashed ${dropZoneOver === 'right' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
+                          background: dropZoneOver === 'right' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
+                          animation: 'dropZonePulse 1.4s infinite',
+                          transition: 'all .15s',
+                        }}>
+                        →<span style={{ fontSize: 10 }}>{gs.rightVal}</span>
+                      </div>
+                    )}
+                    {/* Top drop zone */}
+                    {activeTile && canPlayTop && (
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('top'); }}
+                        onDragLeave={() => setDropZoneOver(null)}
+                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('top', id || undefined); setDropZoneOver(null); }}
+                        onClick={() => handlePlayEnd('top')}
+                        style={{
+                          position: 'absolute', left: '50%', top: 10, transform: 'translateX(-50%)',
+                          width: 54, height: 48, borderRadius: 12, zIndex: 10, cursor: 'pointer',
+                          border: `2px dashed ${dropZoneOver === 'top' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
+                          background: dropZoneOver === 'top' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
+                          animation: 'dropZonePulse 1.4s infinite',
+                          transition: 'all .15s',
+                        }}>
+                        ▲<span style={{ fontSize: 10 }}>{gs.topVal}</span>
+                      </div>
+                    )}
+                    {/* Bottom drop zone */}
+                    {activeTile && canPlayBottom && (
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('bottom'); }}
+                        onDragLeave={() => setDropZoneOver(null)}
+                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('bottom', id || undefined); setDropZoneOver(null); }}
+                        onClick={() => handlePlayEnd('bottom')}
+                        style={{
+                          position: 'absolute', left: '50%', bottom: 10, transform: 'translateX(-50%)',
+                          width: 54, height: 48, borderRadius: 12, zIndex: 10, cursor: 'pointer',
+                          border: `2px dashed ${dropZoneOver === 'bottom' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
+                          background: dropZoneOver === 'bottom' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
+                          animation: 'dropZonePulse 1.4s infinite',
+                          transition: 'all .15s',
+                        }}>
+                        ▼<span style={{ fontSize: 10 }}>{gs.bottomVal}</span>
+                      </div>
+                    )}
                     <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.leftVal}</div>
                     <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.rightVal}</div>
                     {/* Ends counter — always at bottom-left so it is never blocked by other UI */}
@@ -1924,6 +2110,9 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               {aiPlayers[2] && (
                 <div style={{ background: gs.currentPlayer === 3 ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${gs.currentPlayer === 3 ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', position: 'relative', animation: gs.lastPassedBy === aiPlayers[2].name ? 'knockPulse .6s ease' : 'none' }}>
                   <PlayerSeat player={aiPlayers[2]} active={gs.currentPlayer === 3} tileCount={aiPlayers[2].hand.length} orientation="right" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[2].name} />
+                  {reactions.filter(r => r.player === aiPlayers[2].id).slice(-1).map(r => (
+                    <DomReactionBubble key={r.id} reaction={r} playerColor={aiPlayers[2].color} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1931,8 +2120,11 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             {/* BOTTOM (human) */}
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '2px 0' }}>
               {humanPlayer && (
-                <div style={{ background: isHumanTurn ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${isHumanTurn ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s' }}>
+                <div style={{ background: isHumanTurn ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${isHumanTurn ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', position: 'relative', animation: propCelebrating ? 'celebBounce .6s ease' : 'none' }}>
                   <PlayerSeat player={humanPlayer} active={isHumanTurn} tileCount={humanPlayer.hand.length} isHuman orientation="bottom" skinKey={dominoSkin} dims={dims} />
+                  {reactions.filter(r => r.player === 'human').slice(-1).map(r => (
+                    <DomReactionBubble key={r.id} reaction={r} playerColor={humanPlayer.color} />
+                  ))}
                 </div>
               )}
             </div>
@@ -1991,6 +2183,27 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             )}
           </div>
 
+          {/* Reaction panel */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 14px', flexShrink: 0, justifyContent: 'flex-end' }}>
+            {showReactionPanel && (
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 14, padding: '5px 10px', animation: 'pop .2s ease' }}>
+                {DOM_REACTIONS.map(emoji => (
+                  <button key={emoji} onClick={() => { addReaction(emoji, 'human'); setShowReactionPanel(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '2px 4px', borderRadius: 8, transition: 'transform .1s' }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.3)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
+                    {emoji}
+                  </button>
+                ))}
+                {DOM_QUICK_TEXTS.map(text => (
+                  <button key={text} onClick={() => { addReaction(text, 'human'); setShowReactionPanel(false); }} style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: 10, cursor: 'pointer', fontSize: 10, color: '#D4AF37', fontWeight: 600, padding: '3px 8px', whiteSpace: 'nowrap' }}>
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setShowReactionPanel(p => !p)} style={{ background: showReactionPanel ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showReactionPanel ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 20, cursor: 'pointer', fontSize: 15, padding: '3px 10px', color: '#D4AF37', fontWeight: 700, transition: 'all .15s' }}>
+              💬
+            </button>
+          </div>
+
           {/* Human hand — all tiles shown vertically (portrait) */}
           <div style={{ padding: '5px 14px 10px', background: 'rgba(0,0,0,.55)', borderTop: '1px solid rgba(212,175,55,.15)', flexShrink: 0 }}>
             <div style={{ color: '#D4AF37', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2019,7 +2232,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                       setDraggingTileId(tile.id);
                       setSelectedTileId(tile.id);
                     }}
-                    onDragEnd={() => setDraggingTileId(null)}
+                    onDragEnd={() => { setDraggingTileId(null); setSelectedTileId(null); setDropZoneOver(null); }}
                   />
                 </div>
                 );
