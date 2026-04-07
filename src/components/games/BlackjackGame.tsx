@@ -368,9 +368,13 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
     if (currentPfRoundIdRef.current) {
       const roundId = currentPfRoundIdRef.current;
-      pfFinishBlackjack(roundId)
-        .then(() => pfResolveRound(roundId))
-        .then(() => pfRevealRound(roundId));
+      (async () => {
+        const finished = await pfFinishBlackjack(roundId);
+        if (!finished) return;
+        const resolved = await pfResolveRound(roundId);
+        if (!resolved) return;
+        await pfRevealRound(roundId);
+      })();
     }
   };
 

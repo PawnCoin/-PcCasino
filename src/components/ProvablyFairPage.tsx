@@ -7,7 +7,6 @@ import {
   deriveRouletteNumber,
   deriveSlotGrid,
   deriveDice,
-  verifySeedHash,
 } from '@/lib/provably-fair-client';
 
 interface ProvablyFairPageProps {

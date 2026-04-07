@@ -143,6 +143,7 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
         nonce: data.nonce,
       };
       setLastReveal(revealed);
+      setRound(null); // clear active round after reveal — prevents stale active-round UI
       return revealed;
     } catch {
       return null;
