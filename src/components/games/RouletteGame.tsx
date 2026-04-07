@@ -519,10 +519,14 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
       if (!currentRoundIdRef.current) return;
       const resolved = await resolveRound(currentRoundIdRef.current);
       if (!resolved || typeof resolved.number !== 'number') {
+        // Refund bets and fully clear round state — prevents free-roll on retry
+        const total = placedBetsRef.current.reduce((s, b) => s + b.amount, 0);
+        if (total > 0) onWin(total);
+        setPlacedBets([]);
+        setBetHistory([]);
+        currentRoundIdRef.current = null;
         setIsSpinning(false);
         setMessage('Round could not be verified. Bet refunded.');
-        const total = placedBetsRef.current.reduce((s, b) => s + b.amount, 0);
-        if (total > 0 && onWin) onWin(total);
         return;
       }
       const authoritativeNum = resolved.number;
