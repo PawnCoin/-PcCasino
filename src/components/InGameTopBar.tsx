@@ -73,7 +73,7 @@ export function InGameTopBar({
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: "'Cinzel',serif", fontWeight: 700, color: '#D4AF37', fontSize: 12, letterSpacing: '0.1em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>{gameName.toUpperCase()}</div>
-              <div style={{ fontSize: 9, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>{settings.displayName}</div>
+              <div style={{ fontSize: 9, color: '#9ca3af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>{settings.displayName}</div>
             </div>
           </div>
 
@@ -91,7 +91,7 @@ export function InGameTopBar({
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 10, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', flexShrink: 0 }}>
             <img src="/logos/pc-logo.png" alt="" style={{ width: 14, height: 14 }} />
             <span style={{ fontWeight: 700, color: '#D4AF37', fontSize: 12 }}>{formatPc(balance)}</span>
-            <span style={{ fontSize: 9, color: '#4b5563', display: 'none' }} className="sm-inline">$Pc</span>
+            <span style={{ fontSize: 9, color: '#9ca3af', display: 'none' }} className="sm-inline">$Pc</span>
           </div>
 
           {/* Wallet quick-access */}

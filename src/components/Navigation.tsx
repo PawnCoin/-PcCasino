@@ -663,16 +663,6 @@ export function Navigation({
                 <span className="font-medium">Affiliate Dashboard</span>
               </button>
 
-              {!user?.walletAddress && (
-                <button
-                  onClick={() => { onConnectWallet(); closeDrawer(); }}
-                  className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#D4AF37]/10 text-[#D4AF37] transition-colors min-h-[56px]"
-                >
-                  <Wallet className="w-5 h-5" />
-                  <span className="font-medium">Connect Wallet</span>
-                </button>
-              )}
-
               {isAdmin && (
                 <button 
                   onClick={() => { onShowAdmin?.(); closeDrawer(); }}
@@ -693,14 +683,6 @@ export function Navigation({
             </div>
           ) : (
             <div className="border-t border-[#5D4037]/20 mt-2 pt-2 px-4 space-y-3 pb-4">
-              <Button
-                onClick={() => { onConnectWallet(); closeDrawer(); }}
-                variant="outline"
-                className="w-full flex items-center gap-2 border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10 min-h-[48px]"
-              >
-                <Wallet className="w-4 h-4" />
-                Connect Wallet
-              </Button>
               <Button
                 onClick={() => { onConnect(); closeDrawer(); }}
                 className="w-full btn-primary flex items-center gap-2 min-h-[48px]"
