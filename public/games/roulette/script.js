@@ -179,7 +179,7 @@ function betClick(splitNumbers, splitBets, split) {
     btns[k].classList.remove('disabledCircleBtns')
   );
   const oldValue = splitBets[split];
-  const maxPerZone = 1000;
+  const maxPerZone = 500000000;
   splitAdd[split] = splitNumbers[split];
 
   const allowedToAdd = Math.max(0, Math.min(bet, maxPerZone - (oldValue || 0)));
@@ -222,7 +222,7 @@ function betWindowInfo(buttons, bets, keyPrefix, multiplier) {
     const amount = bets[betKey] || 0;
     const potentialWin = amount * currentMultiplier;
     const maxLabel =
-      amount >= 1000
+      amount >= 500000000
         ? `<span style="color: red; margin-left:0.6vh; font-weight:700;">MAX</span>`
         : '';
     betWindow.innerHTML = `${currentLang[14]} ${amount} $Pc ${maxLabel}<br>${currentLang[15]} ${potentialWin} $Pc`;
@@ -369,7 +369,7 @@ function checkMoney() {
       }
     }
   }
-  if (money < 1) {
+  if (money < 1000000) {
     chips.forEach((chip) => {
       chip.classList.remove('biggerBtn');
       chip.style.pointerEvents = 'none';
@@ -488,7 +488,7 @@ function doubleBets() {
   doubleSound.play();
   history++;
   if (money < betSize) return;
-  const maxPerZone = 1000;
+  const maxPerZone = 500000000;
 
   let extraNeeded = 0;
   const computeExtra = (obj, name) => {
@@ -780,7 +780,7 @@ function endroll() {
 
         if (money >= lastBetSize && lastBetSize > 0)
           btns.repeatBetBtn.classList.remove('disabledCircleBtns');
-        if (money < 1) {
+        if (money < 1000000) {
           oddsInfoDisplay('block', 'blur(1vh)', 'none', 'restartGame', true);
           btns.closeBetInfo.style.display = 'none';
         }
@@ -874,11 +874,11 @@ function handleScroll(e) {
   if (money <= 0 || betStart || menuOpen) return;
   const delta = e.deltaY ?? e.detail ?? e.wheelDelta ?? 0;
   const chips = btns.allChips;
-  if (delta > 0 && bet !== 1 && chips[chipsIndex - 1]) {
+  if (delta > 0 && bet !== 1000000 && chips[chipsIndex - 1]) {
     chips[chipsIndex - 1].click();
   } else if (
     delta < 1 &&
-    bet !== 1000 &&
+    bet !== 1000000000 &&
     chips[chipsIndex + 1] &&
     chips[chipsIndex + 1].style.pointerEvents !== 'none'
   ) {
@@ -1302,7 +1302,7 @@ function repeatLastBet() {
   }
   function applySavedBets(targetObj, savedObj) {
     if (!savedObj) return;
-    const maxPerZone = 1000;
+    const maxPerZone = 500000000;
 
     Object.keys(targetObj).forEach((k) => (targetObj[k] = 0));
     Object.keys(savedObj).forEach((k) => {
@@ -1803,7 +1803,7 @@ bindBetGroup(
 
 btns.allChips.forEach((chip, index) => {
   chip.addEventListener('click', () =>
-    chipSelect([1, 2, 5, 10, 25, 50, 100, 500, 1000][index], index + 1, index)
+    chipSelect([1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 500000000, 1000000000][index], index + 1, index)
   );
 });
 
@@ -1876,7 +1876,7 @@ btns.statisticBtn.addEventListener('click', () =>
 
 fastBet.forEach((btn, index) => {
   btn.addEventListener('click', () => {
-    fastChips([10, 25, 50, 100, 500, 1000][index], [4, 5, 6, 7, 8, 9][index]);
+    fastChips([10000000, 25000000, 50000000, 100000000, 500000000, 1000000000][index], [4, 5, 6, 7, 8, 9][index]);
   });
 });
 

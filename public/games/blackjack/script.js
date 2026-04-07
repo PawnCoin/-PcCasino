@@ -532,40 +532,40 @@ function placeBet(betName, type = 'main') {
     return;
   }
   if (type === 'pair') {
-    if (betZoneInfo[betName].pairsBet + playerInfo.bet > 100) {
-      notification('SIDE BETS MAX 100');
+    if (betZoneInfo[betName].pairsBet + playerInfo.bet > 100000000) {
+      notification('SIDE BETS MAX 100M $Pc');
       return;
     }
     betZoneInfo[betName].pairsBet += playerInfo.bet;
     scoreBet = '.pairInfo';
     betType = 'pairsBet';
   } else if (type === 'plus') {
-    if (betZoneInfo[betName].plus21Bet + playerInfo.bet > 100) {
-      notification('SIDE BETS MAX 100');
+    if (betZoneInfo[betName].plus21Bet + playerInfo.bet > 100000000) {
+      notification('SIDE BETS MAX 100M $Pc');
       return;
     }
     betZoneInfo[betName].plus21Bet += playerInfo.bet;
     scoreBet = '.plus21Info';
     betType = 'plus21Bet';
   } else if (type === 'royal') {
-    if (betZoneInfo[betName].royalBet + playerInfo.bet > 100) {
-      notification('SIDE BETS MAX 100');
+    if (betZoneInfo[betName].royalBet + playerInfo.bet > 100000000) {
+      notification('SIDE BETS MAX 100M $Pc');
       return;
     }
     betZoneInfo[betName].royalBet += playerInfo.bet;
     scoreBet = '.royalInfo';
     betType = 'royalBet';
   } else if (type === 'super7') {
-    if (betZoneInfo[betName].superSevenBet + playerInfo.bet > 100) {
-      notification('SIDE BETS MAX 100');
+    if (betZoneInfo[betName].superSevenBet + playerInfo.bet > 100000000) {
+      notification('SIDE BETS MAX 100M $Pc');
       return;
     }
     betZoneInfo[betName].superSevenBet += playerInfo.bet;
     scoreBet = '.superSevenInfo';
     betType = 'superSevenBet';
   } else {
-    if (betZoneInfo[betName].bet + playerInfo.bet > 1000) {
-      notification('MAX BET 1000');
+    if (betZoneInfo[betName].bet + playerInfo.bet > 500000000) {
+      notification('MAX BET 500M $Pc');
       return;
     }
     betZoneInfo[betName].bet += playerInfo.bet;
