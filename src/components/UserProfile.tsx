@@ -357,7 +357,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                   {kycStatus === 'verified' && <CheckCircle className="w-4 h-4 text-green-400" />}
                 </div>
                 <div className="text-sm text-gray-400 mt-0.5">
-                  {user.email || 'No email linked'} • ID: {user.id.slice(0, 12)}...
+                  {user.email || 'No email linked'} • ID: {String(user.id)}
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="text-xs px-2 py-0.5 rounded-full" style={{

@@ -407,6 +407,7 @@ function App() {
     fetchNotifications();
     toast.success(`Welcome, ${userData.username}! 🎰`);
     setShowAuth(false);
+    setShowProfile(true);
   };
 
   // Socket event handlers for payment confirmation and cashback
