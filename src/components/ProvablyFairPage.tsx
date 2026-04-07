@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, ChevronLeft, CheckCircle, XCircle, Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -28,6 +28,16 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Sync form state whenever the caller provides new prefill data (e.g. different round selected)
+  useEffect(() => {
+    if (!prefill) return;
+    setServerSeed(prefill.serverSeed || '');
+    setClientSeed(prefill.clientSeed || '');
+    setNonce(prefill.nonce !== undefined ? String(prefill.nonce) : '1');
+    setVerifyResult(null);
+    setError('');
+  }, [prefill?.serverSeed, prefill?.clientSeed, prefill?.nonce]);
 
   const copyToClipboard = (val: string, key: string) => {
     navigator.clipboard.writeText(val).then(() => {

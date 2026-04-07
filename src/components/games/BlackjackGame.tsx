@@ -908,26 +908,34 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           </DialogContent>
         </Dialog>
 
-        {(pfRound || pfLastReveal) && gameState === 'finished' && (
+        {/* Provably fair: show server seed hash commitment during the hand, verify button when finished */}
+        {pfRound && (
+          <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <div
+              title={pfRound.serverSeedHash}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(74,222,128,0.7)', fontFamily: 'monospace' }}
+            >
+              <Shield style={{ width: 11, height: 11, flexShrink: 0 }} />
+              {pfRound.serverSeedHash.slice(0, 16)}…
+            </div>
+            {gameState === 'finished' && (
+              <button
+                onClick={() => setShowVerify(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(212,175,55,0.7)', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <Shield style={{ width: 12, height: 12 }} />
+                Verify this round
+              </button>
+            )}
+          </div>
+        )}
+        {!pfRound && pfLastReveal && gameState === 'finished' && (
           <button
             onClick={() => setShowVerify(true)}
-            style={{
-              position: 'absolute',
-              bottom: 16,
-              right: 16,
-              zIndex: 50,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 12,
-              color: 'rgba(212,175,55,0.7)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 50, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(212,175,55,0.7)', background: 'none', border: 'none', cursor: 'pointer' }}
           >
             <Shield style={{ width: 12, height: 12 }} />
-            Verify this round
+            Verify last round
           </button>
         )}
 

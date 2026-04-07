@@ -617,26 +617,34 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         <ResultOverlayDisplay result={resultOverlay} onDismiss={dismissResult} />
       )}
 
-      {(round || lastReveal) && !isSpinning && (
+      {/* Provably fair commitment — shown immediately when a round is active, before spin completes */}
+      {round && (
+        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+          <div
+            title={round.serverSeedHash}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(74,222,128,0.7)', fontFamily: 'monospace' }}
+          >
+            <Shield style={{ width: 11, height: 11, flexShrink: 0 }} />
+            {round.serverSeedHash.slice(0, 16)}…
+          </div>
+          {!isSpinning && (
+            <button
+              onClick={() => setShowVerify(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(212,175,55,0.7)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <Shield style={{ width: 12, height: 12 }} />
+              Verify round
+            </button>
+          )}
+        </div>
+      )}
+      {!round && lastReveal && !isSpinning && (
         <button
           onClick={() => setShowVerify(true)}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 50,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: 12,
-            color: 'rgba(212,175,55,0.7)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-          }}
+          style={{ position: 'absolute', top: 8, right: 8, zIndex: 50, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(212,175,55,0.7)', background: 'none', border: 'none', cursor: 'pointer' }}
         >
           <Shield style={{ width: 12, height: 12 }} />
-          Verify round
+          Verify last round
         </button>
       )}
 

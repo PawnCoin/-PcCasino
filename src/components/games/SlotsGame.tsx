@@ -594,15 +594,33 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                     >
                       {message}
                     </div>
-                    {(round || lastReveal) && !spinning && (
-                      <button
-                        onClick={() => setShowVerify(true)}
-                        className="mt-2 flex items-center gap-1 text-xs text-[#D4AF37]/70 hover:text-[#D4AF37] mx-auto transition-colors"
-                      >
-                        <Shield className="w-3 h-3" />
-                        Verify this round
-                      </button>
-                    )}
+                    {round && (
+                    <div className="mt-2 flex flex-col items-center gap-1">
+                      {/* Server seed hash shown immediately after round creation — provably fair commitment */}
+                      <div className="flex items-center gap-1 text-xs text-green-400/70 font-mono" title={round.serverSeedHash}>
+                        <Shield className="w-3 h-3 flex-shrink-0" />
+                        <span>Commitment: {round.serverSeedHash.slice(0, 16)}…</span>
+                      </div>
+                      {!spinning && (
+                        <button
+                          onClick={() => setShowVerify(true)}
+                          className="flex items-center gap-1 text-xs text-[#D4AF37]/70 hover:text-[#D4AF37] transition-colors"
+                        >
+                          <Shield className="w-3 h-3" />
+                          Verify this round
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {!round && lastReveal && !spinning && (
+                    <button
+                      onClick={() => setShowVerify(true)}
+                      className="mt-2 flex items-center gap-1 text-xs text-[#D4AF37]/70 hover:text-[#D4AF37] mx-auto transition-colors"
+                    >
+                      <Shield className="w-3 h-3" />
+                      Verify last round
+                    </button>
+                  )}
                   </div>
                 )}
               </div>
