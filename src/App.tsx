@@ -769,7 +769,7 @@ function App() {
             gameId="blackjack"
             gameName="Blackjack"
             gameEmoji="🃏"
-            gamePath="/games/blackjack/"
+            gamePath="/games/blackjack/index.html"
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
@@ -782,7 +782,7 @@ function App() {
             gameId="roulette"
             gameName="Roulette"
             gameEmoji="🎡"
-            gamePath="/games/roulette/"
+            gamePath="/games/roulette/index.html"
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
