@@ -1740,7 +1740,7 @@ io.on('connection', (socket) => {
 if (process.env.NODE_ENV === 'production') {
   const distDir = join(__dirname, '..', 'dist');
   app.use(express.static(distDir));
-  app.get('*', (_req, res) => {
+  app.get('/{*splat}', (_req, res) => {
     res.sendFile(join(distDir, 'index.html'));
   });
 }
