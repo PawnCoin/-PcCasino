@@ -247,7 +247,7 @@ const betZoneInfo = {
   },
 };
 const playerInfo = {
-  balance: (() => { const p = new URLSearchParams(window.location.search); const b = parseInt(p.get("balance"), 10); return isNaN(b) ? 1000 : b; })(),
+  balance: (() => { const p = new URLSearchParams(window.location.search); const b = parseInt(p.get("balance"), 10); return isNaN(b) ? 10000000 : b; })(),
   bet: 1,
   totalBet: 0,
   lastWin: 0,
@@ -2152,7 +2152,7 @@ function surrender() {
 function insurance() {
   if (!activeZone) return;
   if (betZoneInfo[activeZone].bet < 2) {
-    notification('CANT INSURANCE 1$');
+    notification('CANT INSURANCE 1$Pc MIN');
     return;
   }
   const betName = activeZone,
@@ -2866,7 +2866,7 @@ groups.forEach(({ arr, type }) => {
 
 newGameBtn.addEventListener('click', () => {
   if (playerInfo.balance == 0) {
-    playerInfo.balance = (() => { const p = new URLSearchParams(window.location.search); const b = parseInt(p.get("balance"), 10); return isNaN(b) ? 1000 : b; })();
+    playerInfo.balance = (() => { const p = new URLSearchParams(window.location.search); const b = parseInt(p.get("balance"), 10); return isNaN(b) ? 10000000 : b; })();
     notification('NO BALANCE | PLAYER BALANCE RESET TO 1000');
     betStatusInfo[0].textContent =
       '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
@@ -2972,5 +2972,6 @@ window.addEventListener('message', function(e) {
     playerInfo.balance = e.data.balance;
     const balEl = document.querySelector('.balanceInfo');
     if (balEl) balEl.textContent = playerInfo.balance.toLocaleString('de-DE') + ' $Pc';
+    if (betStatusInfo && betStatusInfo[0]) betStatusInfo[0].textContent = playerInfo.balance.toLocaleString('de-DE') + ' $Pc';
   }
 });
