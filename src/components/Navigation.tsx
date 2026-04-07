@@ -64,6 +64,7 @@ export function Navigation({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showWeparlayConfirm, setShowWeparlayConfirm] = useState(false);
+  const [showGuideDropdown, setShowGuideDropdown] = useState(false);
 
   const closeDrawer = () => setIsDrawerOpen(false);
 
@@ -110,50 +111,67 @@ export function Navigation({
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a href="#games-section" className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium">
-                    Games
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Browse all casino games</p></TooltipContent>
-              </Tooltip>
+              {/* Guide dropdown */}
+              <div className="relative">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setShowGuideDropdown(v => !v)}
+                      onBlur={() => setTimeout(() => setShowGuideDropdown(false), 150)}
+                      className="flex items-center gap-1 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Guide
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showGuideDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom"><p>Games, Leaderboard, Rules & Rewards</p></TooltipContent>
+                </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a href="#leaderboard" className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium">
-                    Leaderboard
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>View top players & rankings</p></TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onShowLegal?.('rules')}
-                    className="flex items-center gap-1 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium"
+                {showGuideDropdown && (
+                  <div
+                    className="absolute top-full left-0 mt-2 w-48 rounded-xl overflow-hidden z-50"
+                    style={{
+                      background: 'rgba(10, 38, 14, 0.92)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(67,160,71,0.35)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(67,160,71,0.12)',
+                    }}
                   >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Rules
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Game rules, affiliate program & reward terms</p></TooltipContent>
-              </Tooltip>
-
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    onClick={onShowRewards}
-                    className="text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium flex items-center gap-1"
-                  >
-                    <Gift className="w-4 h-4" />
-                    Rewards
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Claim bonuses & daily rewards</p></TooltipContent>
-              </Tooltip>
+                    <a
+                      href="#games-section"
+                      onClick={() => setShowGuideDropdown(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white hover:text-[#D4AF37] hover:bg-white/5 transition-colors"
+                    >
+                      <Layers className="w-4 h-4 text-[#43A047]" />
+                      Games
+                    </a>
+                    <a
+                      href="#leaderboard"
+                      onClick={() => setShowGuideDropdown(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white hover:text-[#D4AF37] hover:bg-white/5 transition-colors border-t border-[#43A047]/10"
+                    >
+                      <Trophy className="w-4 h-4 text-[#43A047]" />
+                      Leaderboard
+                    </a>
+                    <button
+                      onClick={() => { onShowLegal?.('rules'); setShowGuideDropdown(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-white hover:text-[#D4AF37] hover:bg-white/5 transition-colors border-t border-[#43A047]/10"
+                    >
+                      <BookOpen className="w-4 h-4 text-[#43A047]" />
+                      Rules
+                    </button>
+                    <button
+                      onClick={() => { onShowRewards(); setShowGuideDropdown(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-white hover:text-[#D4AF37] hover:bg-white/5 transition-colors border-t border-[#43A047]/10"
+                    >
+                      <Gift className="w-4 h-4 text-[#43A047]" />
+                      Rewards
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <Tooltip>
                 <TooltipTrigger asChild>
