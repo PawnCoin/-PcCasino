@@ -141,52 +141,6 @@ export function Navigation({
                 <TooltipContent side="bottom"><p>Game rules, affiliate program & reward terms</p></TooltipContent>
               </Tooltip>
 
-              {/* WeParlay.io - Compact link */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setShowWeparlayConfirm(true)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-md transition-all hover:scale-105 group"
-                    style={{
-                      border: '1px solid rgba(212,175,55,0.4)',
-                      background: 'rgba(212,175,55,0.08)',
-                      color: '#D4AF37',
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    WeParlay
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Sports Betting on WeParlay.io</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* 18+ VIP - Compact badge */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href="#weparlay"
-                    className="flex items-center px-2 py-1 rounded-md transition-all hover:scale-105"
-                    style={{
-                      border: '1px solid rgba(147,51,234,0.4)',
-                      background: 'rgba(147,51,234,0.1)',
-                      color: '#d8b4fe',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textDecoration: 'none',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    18+ VIP
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>VIP Adult Gaming • 18+ Only</p>
-                </TooltipContent>
-              </Tooltip>
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -620,54 +574,6 @@ export function Navigation({
             <span className="font-medium">Leaderboard</span>
           </a>
 
-          {/* WeParlay image button */}
-          <div className="px-3 py-2">
-            <button
-              className="w-full rounded-xl overflow-hidden"
-              onClick={() => { closeDrawer(); setShowWeparlayConfirm(true); }}
-              style={{ border: '1px solid rgba(212,175,55,0.4)', background: 'none', cursor: 'pointer' }}
-            >
-              <div className="relative h-14 rounded-xl overflow-hidden">
-                <img
-                  src="/images/weparlay-menu.png"
-                  alt="WeParlay.io"
-                  className="w-full h-full object-cover object-center"
-                  style={{ filter: 'brightness(0.85)' }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center gap-2"
-                  style={{ background: 'rgba(0,0,0,0.45)' }}>
-                  <span className="font-bold text-[#D4AF37] text-base tracking-wide">WeParlay.io Sports Betting</span>
-                  <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
-                </div>
-              </div>
-            </button>
-          </div>
-
-          {/* 18+ VIP image button */}
-          <div className="px-3 py-2">
-            <a
-              href="#weparlay"
-              className="block rounded-xl overflow-hidden"
-              onClick={closeDrawer}
-              style={{ border: '1px solid rgba(147,51,234,0.4)' }}
-            >
-              <div className="relative h-12 rounded-xl overflow-hidden">
-                <img
-                  src="/images/adult-menu-banner.png"
-                  alt="18+ VIP"
-                  className="w-full h-full object-cover object-center"
-                  style={{ filter: 'brightness(0.7)' }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.55)' }}>
-                  <span className="font-bold text-sm tracking-widest"
-                    style={{ color: '#d8b4fe', textShadow: '0 0 10px rgba(147,51,234,0.8)' }}>
-                    🔞 18+ VIP ADULT GAMING
-                  </span>
-                </div>
-              </div>
-            </a>
-          </div>
 
           <div className="border-t border-[#5D4037]/20 mt-2 pt-2">
             <button 
