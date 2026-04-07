@@ -50,9 +50,10 @@ localPort = 5173
 externalPort = 5173
 
 [deployment]
-deploymentTarget = "static"
+deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
 publicDir = "dist"
+run = ["bash", "-c", "NODE_ENV=production node server/index.js"]
 
 [postMerge]
 path = "scripts/post-merge.sh"

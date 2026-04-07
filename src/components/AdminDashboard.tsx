@@ -48,7 +48,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
 
   const loadData = async () => {
     const token = getToken();
-    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     try {
       const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes, cashbackRes, affiliateRes] = await Promise.all([
         fetch('/api/admin/stats'),

@@ -44,7 +44,7 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling'],
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // ---- In-memory data stores ----
 const rooms = new Map();
@@ -1735,6 +1735,15 @@ io.on('connection', (socket) => {
     res.send(readFileSync(join(publicDir, `${page}.html`)));
   });
 });
+
+// ---- Production: serve built frontend ----
+if (process.env.NODE_ENV === 'production') {
+  const distDir = join(__dirname, '..', 'dist');
+  app.use(express.static(distDir));
+  app.get('*', (_req, res) => {
+    res.sendFile(join(distDir, 'index.html'));
+  });
+}
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Multiplayer server running on :${PORT}`);
