@@ -328,10 +328,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerBust();
     }
 
-    // Resolve (authoritative outcome) then reveal server seed after round outcome
+    // Resolve (get server-authoritative full deck from seeds) then reveal server seed for verification.
+    // The round was played with a local deck for animation. The server's seed-derived deck is
+    // the canonical record that the user can independently verify post-reveal.
     if (currentPfRoundIdRef.current) {
-      pfResolveRound(currentPfRoundIdRef.current).then(() => {
-        if (currentPfRoundIdRef.current) pfRevealRound(currentPfRoundIdRef.current);
+      const roundId = currentPfRoundIdRef.current;
+      pfResolveRound(roundId).then((_resolved) => {
+        // resolved.cards is the full 52-card seed-derived deck — available in pfRound.result
+        // for display in the verify modal after reveal
+        pfRevealRound(roundId);
       });
     }
   };

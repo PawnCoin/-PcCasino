@@ -57,7 +57,7 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
   }, [game]);
 
   // Step 2: Resolve — called AFTER the round completes; returns server-authoritative outcome.
-  // For blackjack: returns only first 4 cards (initial deal). Never the full deck.
+  // For blackjack: returns the full seed-derived deck post-hand (no advantage since hand is over).
   const resolveRound = useCallback(async (roundId: number): Promise<Record<string, unknown> | null> => {
     const token = getToken();
     if (!token) return null;

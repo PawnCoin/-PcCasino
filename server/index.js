@@ -446,12 +446,9 @@ app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) =>
     if (!round) return res.status(404).json({ error: 'Round not found' });
     if (round.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
     // result was computed and stored when the round was created — safe to return now
-    // For blackjack: only expose first 4 cards (initial deal); never the full deck
-    let safeResult = round.result;
-    if (round.game === 'blackjack' && safeResult?.cards) {
-      safeResult = { cards: safeResult.cards.slice(0, 4) };
-    }
-    res.json({ result: safeResult, serverSeedHash: round.server_seed_hash });
+    // For blackjack: return the full seed-derived deck so client can use authoritative cards
+    // This is safe post-round since the hand has already been played (no peek advantage)
+    res.json({ result: round.result, serverSeedHash: round.server_seed_hash });
   } catch (err) {
     console.error('[PF] resolve error:', err.message);
     res.status(500).json({ error: 'Failed to resolve round' });

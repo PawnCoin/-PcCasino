@@ -493,7 +493,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
       if (!mountedRef.current) return;
       setCurrentSpeed(145);
       setBallDropped(true);
-      setWinningNumber(winningNum);
+      setWinningNumber(animationNum);
       if (clickIntervalRef.current) {
         clearInterval(clickIntervalRef.current);
         clickIntervalRef.current = null;
@@ -515,7 +515,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
       setCurrentSpeed(IDLE_SPEED);
 
       // Step 3: Resolve round — get server-authoritative winning number
-      let authoritativeNum = winningNum;
+      let authoritativeNum = animationNum;
       if (currentRoundIdRef.current) {
         const resolved = await resolveRound(currentRoundIdRef.current);
         if (resolved && typeof resolved.number === 'number') {
