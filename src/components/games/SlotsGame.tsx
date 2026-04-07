@@ -234,28 +234,22 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         playSound('click');
 
         if (col === COLS - 1) {
-          // Step 3: After animation — resolve round with server to get authoritative grid
           setTimeout(async () => {
             const resolved = await resolveRound(pfRound.roundId);
             if (!resolved?.grid) {
-              // Resolve failed — abort without settling (prevents unverifiable outcomes)
               setSpinning(false);
-              onWin(currentBet); // refund bet
+              onWin(currentBet);
               setMessage('Round could not be verified. Bet refunded.');
               return;
             }
             const finalGrid = (resolved.grid as ReelSymbol[][]).map(row => [...row]);
-            // Update display to server's authoritative grid
             setGrid(finalGrid);
-
-            // Evaluate wins from the server's authoritative final grid
             const { lines, totalWin } = evaluateWins(finalGrid, currentBet);
 
             setSpinning(false);
 
-            // Step 4: Reveal server seed (for verification)
             if (currentRoundIdRef.current) {
-              revealRound(currentRoundIdRef.current);
+              await revealRound(currentRoundIdRef.current);
             }
 
             if (totalWin > 0) {

@@ -440,12 +440,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
     playSound('noMoreBets');
     announceNoMoreBets();
 
-    // Step 1: Start provably fair round — get commitment hash only (no result exposed)
     const pfRound = await startRound();
     if (!pfRound) {
       setIsSpinning(false);
       setMessage('Log in to play — provably fair requires authentication.');
-      // Refund bets
       const total = placedBets.reduce((s, b) => s + b.amount, 0);
       if (total > 0) onWin ? onWin(total) : undefined;
       setPlacedBets([]);
@@ -453,8 +451,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
     }
     currentRoundIdRef.current = pfRound.roundId;
 
-    // Step 2: Pick a local random winning number for animation (not authoritative)
-    // The authoritative outcome is obtained from the server after the spin via resolveRound()
     const animationNum = WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
     winningNumRef.current = animationNum;
 
@@ -514,8 +510,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
       if (!mountedRef.current) return;
       setCurrentSpeed(IDLE_SPEED);
 
-      // Step 3: Resolve round — get server-authoritative winning number
-      // If resolve fails, abort without settling (prevents unverifiable outcomes)
       if (!currentRoundIdRef.current) return;
       const resolved = await resolveRound(currentRoundIdRef.current);
       if (!resolved || typeof resolved.number !== 'number') {
@@ -529,13 +523,11 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         return;
       }
       const authoritativeNum = resolved.number;
-      // Update visual display to server's authoritative number
       setWinningNumber(authoritativeNum);
 
       finishSpin(authoritativeNum);
 
-      // Step 4: Reveal server seed after outcome
-      revealRound(currentRoundIdRef.current);
+      await revealRound(currentRoundIdRef.current);
     }, 20300);
   }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin, startRound, resolveRound, revealRound]);
 
