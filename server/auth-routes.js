@@ -81,6 +81,7 @@ router.post('/register', async (req, res) => {
     const user = result.rows[0];
 
     // Handle referral — validate code against persisted referral_codes table (exact match only)
+    let referralBonusCredited = false;
     if (referralCode) {
       try {
         const codeRow = await query(
@@ -97,12 +98,22 @@ router.post('/register', async (req, res) => {
             );
             // Credit welcome bonus to referred user only (referrer earns commission on first deposit)
             await query('UPDATE users SET balance = balance + 50000000 WHERE id = $1', [user.id]);
+            referralBonusCredited = true;
+            // Notify referred user of their welcome bonus
+            await query(
+              "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', '🎁 Welcome Bonus Credited!', $2)",
+              [user.id, `50,000,000 $Pc welcome bonus credited to your account for joining via referral!`]
+            );
           }
         }
       } catch (e) {
         // Non-fatal — referral bonus is secondary; registration must succeed regardless
       }
     }
+
+    // Re-read final balance from DB to reflect any referral bonus credited above
+    const freshUser = await query('SELECT balance FROM users WHERE id = $1', [user.id]);
+    const finalBalance = freshUser.rows.length ? parseInt(freshUser.rows[0].balance) : parseInt(user.balance);
 
     // Send verification email
     try {
@@ -125,7 +136,7 @@ router.post('/register', async (req, res) => {
       token,
       user: {
         id: user.id, username: user.username, email: user.email,
-        balance: parseInt(user.balance), avatar: user.avatar,
+        balance: finalBalance, avatar: user.avatar,
         isAdmin: user.is_admin, emailVerified: user.email_verified,
         vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
         withdrawAddress: user.withdraw_address,

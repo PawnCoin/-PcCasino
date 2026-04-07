@@ -406,9 +406,17 @@ app.post('/api/referrals', async (req, res) => {
       referrals.set(code, { code, referrerId, referrerUsername, uses: 0, earnings: 0, createdAt: Date.now() });
       return res.json({ referral: { code, referrerId, referrerUsername } });
     }
-    // Generate new code and persist to DB
-    const code = `${referrerUsername.toUpperCase().slice(0, 6)}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    await query('INSERT INTO referral_codes (code, user_id) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING', [code, referrerId]);
+    // Generate new code and persist to DB — retry on collision (up to 5 attempts)
+    let code = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = `${referrerUsername.toUpperCase().slice(0, 6)}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const inserted = await query(
+        'INSERT INTO referral_codes (code, user_id) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING RETURNING code',
+        [candidate, referrerId]
+      );
+      if (inserted.rows.length) { code = inserted.rows[0].code; break; }
+    }
+    if (!code) return res.status(500).json({ error: 'Failed to generate unique referral code, please try again' });
     const referral = { code, referrerId, referrerUsername, uses: 0, earnings: 0, createdAt: Date.now() };
     referrals.set(code, referral);
     res.json({ referral });
