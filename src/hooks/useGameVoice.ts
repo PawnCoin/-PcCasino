@@ -1,65 +1,142 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
+
+// ── Module-level singleton ─────────────────────────────────────────────────
+// Shared across all hook instances so voices load once and are available
+// to every component without race conditions.
+
+let _synth: SpeechSynthesis | null = null;
+let _voices: SpeechSynthesisVoice[] = [];
+let _ready = false;
+
+function ensureSynth() {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (_synth) return;
+  _synth = window.speechSynthesis;
+  const load = () => {
+    _voices = _synth!.getVoices();
+    if (_voices.length > 0) _ready = true;
+  };
+  load();
+  if (!_ready) {
+    _synth.onvoiceschanged = () => { load(); };
+    // Fallback: retry after a short delay for browsers that are slow
+    setTimeout(load, 500);
+    setTimeout(load, 1500);
+  }
+}
+
+// Preferred voices — female-first for a smooth dealer sound
+const PREFERRED_VOICES = [
+  'Google UK English Female',
+  'Microsoft Aria Online (Natural)',
+  'Microsoft Jenny Online (Natural)',
+  'Microsoft Michelle Online (Natural)',
+  'Samantha',
+  'Victoria',
+  'Karen',
+  'Google US English',
+  'Microsoft Zira Desktop',
+  'Microsoft Zira',
+  'Google UK English Male',
+  'Microsoft Guy Online (Natural)',
+  'Microsoft Davis Online (Natural)',
+  'Alex',
+];
+
+function pickVoice(): SpeechSynthesisVoice | null {
+  if (_voices.length === 0) return null;
+  for (const name of PREFERRED_VOICES) {
+    const v = _voices.find(v => v.name === name || v.name.startsWith(name));
+    if (v) return v;
+  }
+  const en = _voices.find(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB'));
+  return en || _voices[0] || null;
+}
+
+function doSpeak(text: string, rate: number, pitch = 0.96, volume = 0.92) {
+  if (!_synth || !text) return;
+  _synth.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  const v = pickVoice();
+  if (v) utt.voice = v;
+  utt.rate = rate;
+  utt.pitch = pitch;
+  utt.volume = volume;
+  _synth.speak(utt);
+}
+
+// ── Base hook ──────────────────────────────────────────────────────────────
 
 export function useGameVoice() {
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
-
-  const initSynth = useCallback(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      synthRef.current = window.speechSynthesis;
-      voicesRef.current = synthRef.current.getVoices();
-      if (voicesRef.current.length === 0) {
-        synthRef.current.onvoiceschanged = () => {
-          voicesRef.current = synthRef.current?.getVoices() || [];
-        };
-      }
-    }
-  }, []);
-
-  const getVoice = useCallback(() => {
-    const voices = voicesRef.current;
-    const preferredVoices = [
-      'Google UK English Male',
-      'Google US English',
-      'Microsoft Guy Online (Natural)',
-      'Microsoft Davis Online (Natural)',
-      'Microsoft Mark Online (Natural)',
-      'Microsoft Ryan Online (Natural)',
-      'Microsoft Eric Online (Natural)',
-      'Microsoft David Desktop',
-      'Microsoft Mark',
-      'Samantha',
-      'Alex',
-    ];
-    for (const name of preferredVoices) {
-      const voice = voices.find(v => v.name === name || v.name.startsWith(name));
-      if (voice) return voice;
-    }
-    const enVoice = voices.find(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB'));
-    return enVoice || voices[0];
+  useEffect(() => {
+    ensureSynth();
   }, []);
 
   const speak = useCallback((text: string, rate = 0.88) => {
-    if (!synthRef.current) initSynth();
-    if (synthRef.current && text) {
-      synthRef.current.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.voice = getVoice();
-      utterance.rate = rate;
-      utterance.pitch = 0.96;
-      utterance.volume = 0.92;
-      synthRef.current.speak(utterance);
+    ensureSynth();
+    if (!_synth) return;
+    if (!_ready) {
+      // Voices not loaded yet — wait a tick then try again
+      setTimeout(() => doSpeak(text, rate), 600);
+    } else {
+      doSpeak(text, rate);
     }
-  }, [getVoice, initSynth]);
+  }, []);
 
   const stop = useCallback(() => {
-    if (synthRef.current) synthRef.current.cancel();
+    _synth?.cancel();
   }, []);
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   return { speak, stop, isSupported };
 }
+
+// ── Bingo voice ────────────────────────────────────────────────────────────
+
+export function useBingoVoice() {
+  useEffect(() => {
+    ensureSynth();
+  }, []);
+
+  const callNumber = useCallback((letter: string, num: number) => {
+    ensureSynth();
+    if (!_synth) return;
+    // Format: "B... 15" — a comma creates a natural pause between letter and number
+    const text = `${letter}, ${num}`;
+    const call = () => doSpeak(text, 0.82, 1.0, 0.95);
+    if (!_ready) {
+      setTimeout(call, 600);
+    } else {
+      call();
+    }
+  }, []);
+
+  const announceWin = useCallback((winnerName: string, pattern: string, amount: number) => {
+    ensureSynth();
+    if (!_synth) return;
+    const text = `Bingo! ${winnerName} wins with ${pattern}! ${amount} pawn coin!`;
+    const call = () => doSpeak(text, 0.84, 1.02, 0.96);
+    if (!_ready) setTimeout(call, 600); else call();
+  }, []);
+
+  const announceNotYet = useCallback(() => {
+    ensureSynth();
+    if (!_synth) return;
+    const call = () => doSpeak('Not yet. Keep playing!', 0.86, 0.98, 0.92);
+    if (!_ready) setTimeout(call, 600); else call();
+  }, []);
+
+  const stop = useCallback(() => {
+    _synth?.cancel();
+  }, []);
+
+  const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+  return { callNumber, announceWin, announceNotYet, stop, isSupported };
+}
+
+// ── Poker voice ────────────────────────────────────────────────────────────
 
 export function usePokerVoice() {
   const { speak, stop, isSupported } = useGameVoice();
@@ -101,6 +178,8 @@ export function usePokerVoice() {
   return { announceHand, suggestAction, announceEvent, stop, isSupported };
 }
 
+// ── Roulette voice ─────────────────────────────────────────────────────────
+
 export function useRouletteVoice() {
   const { speak, stop, isSupported } = useGameVoice();
 
@@ -132,6 +211,8 @@ export function useRouletteVoice() {
 
   return { announceBetsOpen, announceNoMoreBets, announceResult, announceWin, announceLoss, stop, isSupported };
 }
+
+// ── Blackjack voice ────────────────────────────────────────────────────────
 
 export function useBlackjackVoice() {
   const { speak, stop, isSupported } = useGameVoice();
