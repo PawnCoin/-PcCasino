@@ -39,7 +39,7 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ referrerId: user.id, referrerUsername: user.username }),
+        body: JSON.stringify({}),
       });
       if (res.ok) {
         const data = await res.json();
@@ -100,8 +100,10 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
     }
   };
 
-  const totalEarnings = referrals.reduce((s: number, r: any) => s + (r.earnings || 0), 0);
-  const totalReferrals = referrals.reduce((s: number, r: any) => s + (r.uses || 0), 0);
+  // DB schema: each row is one referred user — count rows for total referrals
+  const totalReferrals = referrals.length;
+  // commission_paid=true means 10% first-deposit commission was credited for that referral
+  const commissionsEarned = referrals.filter((r: any) => r.commission_paid).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -117,8 +119,8 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: 'Total Referred', value: totalReferrals, color: '#c084fc', icon: '👥' },
-              { label: 'Total Earned', value: totalEarnings >= 1_000_000 ? `${(totalEarnings / 1_000_000).toFixed(0)}M $Pc` : `${totalEarnings.toLocaleString()} $Pc`, color: '#4ade80', icon: '💎' },
-              { label: 'Per Referral', value: '50M $Pc', color: '#D4AF37', icon: '⚡' },
+              { label: 'Commissions Paid', value: commissionsEarned, color: '#4ade80', icon: '💎' },
+              { label: 'Bonus per Referral', value: '50M $Pc', color: '#D4AF37', icon: '⚡' },
             ].map(stat => (
               <div key={stat.label} className="p-3 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="text-xl mb-1">{stat.icon}</div>
