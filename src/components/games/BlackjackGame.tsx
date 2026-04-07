@@ -130,22 +130,52 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setShowWinRings(false);
     setTableShake(false);
 
-    // Provably fair: lock in server seed hash and get deterministic initial cards — required
+    // Step 1: Commit — get server seed hash (commitment) before outcome is known
     const pfRoundData = await pfStartRound();
     if (!pfRoundData) {
-      // Not logged in or server error — refund and block
       onWin(currentBet); // refund
       setMessage('Log in to play — provably fair requires authentication.');
       return;
     }
     currentPfRoundIdRef.current = pfRoundData.roundId;
 
-    // Use local deck for card draws — PF commitment/reveal is for post-hand verification only.
-    // Cards are not pre-determined client-side from server seeds; the server seed is hidden until after.
-    const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
-    const playerCards: Card[] = [newDeck[0], newDeck[2]];
-    const dealerCards: Card[] = [newDeck[1], newDeck[3]];
-    setDeck(newDeck.slice(4));
+    // Step 2: Resolve — get the server's seed-derived deck (initial 4 cards are authoritative)
+    // This is called immediately after commit; the deck was already deterministically computed
+    // server-side from (serverSeed + clientSeed + nonce) before we even asked — no manipulation possible.
+    const resolved = await pfResolveRound(pfRoundData.roundId);
+    
+    // Convert server card format {suit, value} → typed Card
+    const suitMap: Record<string, Card['suit']> = {
+      '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
+    };
+    const serverToCard = (sc: { suit: string; value: string }): Card => {
+      const suit = suitMap[sc.suit] ?? 'spades';
+      const rank = sc.value as Card['rank'];
+      const isRed = suit === 'hearts' || suit === 'diamonds';
+      const value = rank === 'A' ? 11 : ['J', 'Q', 'K'].includes(rank) ? 10 : parseInt(rank);
+      return { suit, rank, isRed, value };
+    };
+
+    // Use server-derived deck (full 52-card Fisher-Yates from seeds)
+    // Fall back to local deck only if resolve fails (logged out mid-session, network error)
+    const serverCards = (resolved as { cards?: { suit: string; value: string }[] } | null)?.cards;
+    let playerCards: Card[];
+    let dealerCards: Card[];
+
+    if (serverCards && serverCards.length >= 52) {
+      // Authoritative: use the seed-derived deck for the entire hand
+      // cards[0]=player1, cards[1]=dealer1, cards[2]=player2, cards[3]=dealer2, cards[4..]=draw pile
+      playerCards = [serverToCard(serverCards[0]), serverToCard(serverCards[2])];
+      dealerCards = [serverToCard(serverCards[1]), serverToCard(serverCards[3])];
+      // Use remaining seed-derived cards for hits and dealer draws
+      setDeck(serverCards.slice(4).map(serverToCard));
+    } else {
+      // Fallback (should not occur — resolve requires auth and valid roundId)
+      const fallbackDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
+      playerCards = [fallbackDeck[0], fallbackDeck[2]];
+      dealerCards = [fallbackDeck[1], fallbackDeck[3]];
+      setDeck(fallbackDeck.slice(4));
+    }
     
     setPlayerHands([playerCards]);
     setDealerHand(dealerCards);
@@ -328,16 +358,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerBust();
     }
 
-    // Resolve (get server-authoritative full deck from seeds) then reveal server seed for verification.
-    // The round was played with a local deck for animation. The server's seed-derived deck is
-    // the canonical record that the user can independently verify post-reveal.
+    // Round was already resolved at deal time (authoritative deck was used for gameplay).
+    // Now just reveal the server seed so users can independently verify the shuffle.
     if (currentPfRoundIdRef.current) {
-      const roundId = currentPfRoundIdRef.current;
-      pfResolveRound(roundId).then((_resolved) => {
-        // resolved.cards is the full 52-card seed-derived deck — available in pfRound.result
-        // for display in the verify modal after reveal
-        pfRevealRound(roundId);
-      });
+      pfRevealRound(currentPfRoundIdRef.current);
     }
   };
 
