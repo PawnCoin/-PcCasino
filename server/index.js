@@ -427,6 +427,10 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   if (!game || !clientSeed || nonce === undefined) {
     return res.status(400).json({ error: 'game, clientSeed, and nonce are required' });
   }
+  const ALLOWED_GAMES = ['slots', 'roulette', 'blackjack', 'dice'];
+  if (!ALLOWED_GAMES.includes(game)) {
+    return res.status(400).json({ error: `Invalid game. Must be one of: ${ALLOWED_GAMES.join(', ')}` });
+  }
   try {
     const { roundId, serverSeedHash } = await createGameRound(req.user.id, game, clientSeed, nonce);
     // Only return the commitment (hash). The result is computed after the round completes.
