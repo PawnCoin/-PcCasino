@@ -203,7 +203,7 @@ export function FinancialModal({
     <TooltipProvider delayDuration={200}>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
-          className="max-w-2xl max-h-[85vh] overflow-hidden"
+          className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
           style={{ 
             background: 'rgba(10,10,10,0.98)',
             border: '1px solid rgba(212,175,55,0.4)',
@@ -219,21 +219,21 @@ export function FinancialModal({
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-4 bg-[#5D4037]/20">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-[#D4AF37]/20 data-[state=active]:text-[#D4AF37]">
-                <PieChart className="w-4 h-4 mr-1" />
-                Overview
+              <TabsTrigger value="overview" className="data-[state=active]:bg-[#D4AF37]/20 data-[state=active]:text-[#D4AF37] text-xs sm:text-sm px-1 sm:px-3">
+                <PieChart className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Overview</span>
               </TabsTrigger>
-              <TabsTrigger value="deposit" className="data-[state=active]:bg-[#43A047]/20 data-[state=active]:text-[#43A047]">
-                <ArrowDownRight className="w-4 h-4 mr-1" />
-                Deposit
+              <TabsTrigger value="deposit" className="data-[state=active]:bg-[#43A047]/20 data-[state=active]:text-[#43A047] text-xs sm:text-sm px-1 sm:px-3">
+                <ArrowDownRight className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Deposit</span>
               </TabsTrigger>
-              <TabsTrigger value="withdraw" className="data-[state=active]:bg-[#EF5350]/20 data-[state=active]:text-[#EF5350]">
-                <ArrowUpRight className="w-4 h-4 mr-1" />
-                Withdraw
+              <TabsTrigger value="withdraw" className="data-[state=active]:bg-[#EF5350]/20 data-[state=active]:text-[#EF5350] text-xs sm:text-sm px-1 sm:px-3">
+                <ArrowUpRight className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Withdraw</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="data-[state=active]:bg-[#1E88E5]/20 data-[state=active]:text-[#1E88E5]">
-                <History className="w-4 h-4 mr-1" />
-                History
+              <TabsTrigger value="history" className="data-[state=active]:bg-[#1E88E5]/20 data-[state=active]:text-[#1E88E5] text-xs sm:text-sm px-1 sm:px-3">
+                <History className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">History</span>
               </TabsTrigger>
             </TabsList>
 

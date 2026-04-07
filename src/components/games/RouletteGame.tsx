@@ -803,10 +803,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         </div>
 
         {/* Betting table */}
-        <div className="flex-1 overflow-auto px-2 pb-1 min-h-0">
-          <div className="max-w-3xl mx-auto">
+        <div className="flex-1 overflow-auto px-1 sm:px-2 pb-1 min-h-0">
+          <div className="max-w-3xl mx-auto min-w-0">
             <div
-              className="rounded-xl p-3 relative"
+              className="rounded-xl p-1.5 sm:p-3 relative"
               style={{
                 background: `
                   repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.006) 1px, transparent 2px, transparent 3px),
@@ -831,9 +831,10 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                 {/* Zero */}
                 <button
                   onClick={() => placeBet('0', [0], 35)}
-                  className="roulette-cell relative flex items-center justify-center font-bold text-xl transition-all flex-shrink-0"
+                  className="roulette-cell relative flex items-center justify-center font-bold text-base sm:text-xl transition-all flex-shrink-0"
                   style={{
-                    width: '42px',
+                    width: '32px',
+                    minWidth: '28px',
                     borderRadius: '6px',
                     background: 'linear-gradient(145deg, #1fa34a, #15803d)',
                     border: winningNumber === 0 ? '2.5px solid #D4AF37' : '1.5px solid rgba(212,175,55,0.35)',
@@ -878,7 +879,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                 </div>
 
                 {/* 2:1 columns */}
-                <div className="flex flex-col gap-[2px] flex-shrink-0" style={{ width: '48px' }}>
+                <div className="flex flex-col gap-[2px] flex-shrink-0" style={{ width: '36px', minWidth: '30px' }}>
                   {[
                     { type: 'col3', nums: [3,6,9,12,15,18,21,24,27,30,33,36] },
                     { type: 'col2', nums: [2,5,8,11,14,17,20,23,26,29,32,35] },
@@ -903,7 +904,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
               </div>
 
               {/* Dozens */}
-              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '44px', marginRight: '50px' }}>
+              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '34px', marginRight: '38px' }}>
                 {[
                   { type: '1st12', label: '1st 12', nums: Array.from({ length: 12 }, (_, i) => i + 1) },
                   { type: '2nd12', label: '2nd 12', nums: Array.from({ length: 12 }, (_, i) => i + 13) },
@@ -926,7 +927,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
               </div>
 
               {/* Outside bets */}
-              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '44px', marginRight: '50px' }}>
+              <div className="flex gap-[2px] mt-[2px]" style={{ marginLeft: '34px', marginRight: '38px' }}>
                 {[
                   { type: 'low', label: '1-18', nums: Array.from({ length: 18 }, (_, i) => i + 1), bg: '', color: '' },
                   { type: 'even', label: 'EVEN', nums: Array.from({ length: 18 }, (_, i) => (i + 1) * 2), bg: '', color: '' },
@@ -983,11 +984,11 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap justify-end">
               <Button
                 onClick={undoBet}
                 disabled={isSpinning || betHistory.length === 0}
-                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px] min-h-[44px] min-w-[44px]"
                 style={{
                   background: isSpinning || betHistory.length === 0 ? '#333' : 'linear-gradient(145deg, #F57C00, #E65100)',
                   boxShadow: isSpinning || betHistory.length === 0 ? 'none' : '0 3px 8px rgba(245,124,0,0.3)',
@@ -1000,20 +1001,20 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
               <Button
                 onClick={() => spin()}
                 disabled={isSpinning || placedBets.length === 0}
-                className="px-4 py-2.5 rounded-lg font-bold text-xs"
+                className="px-3 sm:px-4 py-2.5 rounded-lg font-bold text-xs min-h-[44px]"
                 style={{
                   background: isSpinning || placedBets.length === 0 ? '#333' : 'linear-gradient(145deg, #43A047, #2E7D32)',
                   boxShadow: isSpinning || placedBets.length === 0 ? 'none' : '0 3px 10px rgba(67,160,71,0.4)',
                   color: isSpinning || placedBets.length === 0 ? '#666' : '#fff',
                 }}
               >
-                {isSpinning ? 'SPINNING...' : 'SPIN'}
+                {isSpinning ? '...' : 'SPIN'}
               </Button>
 
               <Button
                 onClick={repeatAndSpin}
                 disabled={isSpinning || lastBets.length === 0}
-                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
+                className="hidden sm:flex px-2 py-2.5 rounded-lg font-bold text-[10px] min-h-[44px]"
                 style={{
                   background: isSpinning || lastBets.length === 0 ? '#333' : 'linear-gradient(145deg, #1E88E5, #1565C0)',
                   boxShadow: isSpinning || lastBets.length === 0 ? 'none' : '0 3px 8px rgba(30,136,229,0.3)',
@@ -1026,7 +1027,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
               <Button
                 onClick={repeatBet}
                 disabled={isSpinning || lastBets.length === 0}
-                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px] min-h-[44px]"
                 style={{
                   background: isSpinning || lastBets.length === 0 ? '#333' : 'linear-gradient(145deg, #D4AF37, #B8860B)',
                   boxShadow: isSpinning || lastBets.length === 0 ? 'none' : '0 3px 8px rgba(212,175,55,0.3)',
@@ -1039,7 +1040,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
               <Button
                 onClick={clearBets}
                 disabled={isSpinning || placedBets.length === 0}
-                className="px-2 py-2.5 rounded-lg font-bold text-[10px]"
+                className="px-2 py-2.5 rounded-lg font-bold text-[10px] min-h-[44px]"
                 style={{
                   background: isSpinning || placedBets.length === 0 ? '#333' : 'linear-gradient(145deg, #B71C1C, #8B0000)',
                   boxShadow: isSpinning || placedBets.length === 0 ? 'none' : '0 3px 8px rgba(183,28,28,0.3)',

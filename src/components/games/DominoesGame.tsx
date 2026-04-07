@@ -1549,7 +1549,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
 
       {/* Settings panel */}
       {showSettings && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 320, zIndex: 200, background: 'rgba(6,4,0,.98)', borderLeft: '1px solid rgba(212,175,55,.3)', padding: '18px 14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(320px, 100vw)', zIndex: 200, background: 'rgba(6,4,0,.98)', borderLeft: '1px solid rgba(212,175,55,.3)', padding: '18px 14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#D4AF37', fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>⚙ Settings</span>
             <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 20 }}>✕</button>
@@ -1615,7 +1615,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       {/* ── Setup ── */}
       {gs.phase === 'setup' && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'rgba(12,9,0,.97)', border: '1px solid rgba(212,175,55,.4)', borderRadius: 20, padding: 36, maxWidth: 440, width: '100%', boxShadow: '0 40px 80px rgba(0,0,0,.85)', animation: 'slideUp .4s ease' }}>
+          <div style={{ background: 'rgba(12,9,0,.97)', border: '1px solid rgba(212,175,55,.4)', borderRadius: 20, padding: 'clamp(16px,4vw,36px)', maxWidth: 440, width: '100%', boxShadow: '0 40px 80px rgba(0,0,0,.85)', animation: 'slideUp .4s ease' }}>
             <div style={{ textAlign: 'center', marginBottom: 22 }}>
               <div style={{ fontSize: 46, marginBottom: 8 }}>🁣🁢🁡</div>
               <div style={{ fontFamily: 'Georgia,serif', fontSize: 24, fontWeight: 800, color: '#D4AF37', letterSpacing: 3 }}>DOMINOES</div>
@@ -1694,7 +1694,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       {/* ── Round over ── */}
       {gs.phase === 'roundOver' && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'rgba(12,9,0,.98)', border: '1px solid rgba(212,175,55,.5)', borderRadius: 20, padding: 36, maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 40px 80px rgba(0,0,0,.9)', animation: 'slideUp .5s ease' }}>
+          <div style={{ background: 'rgba(12,9,0,.98)', border: '1px solid rgba(212,175,55,.5)', borderRadius: 20, padding: 'clamp(16px,4vw,36px)', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 40px 80px rgba(0,0,0,.9)', animation: 'slideUp .5s ease' }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>{isGameWon ? '🏆' : gs.roundWinner === 'You' ? '🏆' : '😔'}</div>
             <div style={{ fontFamily: 'Georgia,serif', fontSize: 20, fontWeight: 800, color: gs.roundWinner === 'You' ? '#D4AF37' : '#EF5350', marginBottom: 4 }}>
               {isGameWon ? `GAME OVER — ${gs.players.find(p => p.score >= gs.targetScore)?.name ?? gs.roundWinner} WINS!` : gs.roundWinner === 'You' ? 'DOMINO OUT!' : `${gs.roundWinner} Wins the Round`}

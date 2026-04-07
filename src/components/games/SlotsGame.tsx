@@ -307,11 +307,12 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           }
         />
 
-        <div className="flex-1 pb-8 px-4 flex flex-col items-center gap-6 relative z-10">
+        <div className="flex-1 pb-4 px-2 sm:px-4 flex flex-col items-center gap-4 sm:gap-6 relative z-10">
           <div
             className="slots-cabinet relative w-full max-w-3xl overflow-hidden"
             style={{
               perspective: '1200px',
+              maxWidth: '100%',
             }}
           >
             <div
@@ -549,7 +550,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                               />
                             )}
                             <span
-                              className="text-4xl md:text-5xl select-none transition-all duration-200"
+                              className="text-2xl sm:text-4xl md:text-5xl select-none transition-all duration-200"
                               style={{
                                 filter: isSpinning ? 'blur(2px)' : isWinCell ? 'drop-shadow(0 0 8px rgba(212,175,55,0.6))' : 'none',
                                 animation: isSpinning
@@ -704,7 +705,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             </div>
           </div>
 
-          <div className="w-full max-w-3xl bg-black/90 border-2 border-[#D4AF37]/20 rounded-2xl p-6"
+          <div className="w-full max-w-3xl bg-black/90 border-2 border-[#D4AF37]/20 rounded-2xl p-3 sm:p-6"
             style={{
               boxShadow: '0 0 20px rgba(0,0,0,0.5)',
               background: 'linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%)',
@@ -717,12 +718,12 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 <div className="text-base font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
               </div>
               {onAddBalance && (
-                <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
+                <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold text-green-400 min-h-[40px]" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
                   + Get $Pc
                 </button>
               )}
             </div>
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="text-center text-[#C0C0C0] text-xs mb-2 tracking-wider">SELECT CHIP VALUE</div>
               <ChipSelector
                 selectedChip={selectedChip}
@@ -732,16 +733,16 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               />
             </div>
 
-            <div className="flex items-center justify-center gap-6 mb-4">
+            <div className="flex items-center justify-center gap-3 sm:gap-6 mb-3">
               <div className="text-center">
                 <div className="text-[#C0C0C0] text-xs mb-1">CURRENT BET</div>
-                <div className="text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
+                <div className="text-xl sm:text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
               </div>
 
               <button
                 onClick={() => addChipToBet(selectedChip)}
                 disabled={spinning}
-                className="w-20 h-20 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center disabled:opacity-30"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] active:border-[#D4AF37] transition-all bg-black/40 flex items-center justify-center disabled:opacity-30"
               >
                 <span className="text-[#D4AF37]/70 text-xs text-center">TAP TO<br/>ADD</span>
               </button>
@@ -749,13 +750,13 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               <button
                 onClick={clearBet}
                 disabled={currentBet === 0 || spinning}
-                className="px-4 py-2 rounded-lg bg-[#B71C1C]/80 hover:bg-[#B71C1C] text-white text-sm font-bold disabled:opacity-30 transition-colors"
+                className="px-4 py-3 rounded-lg bg-[#B71C1C]/80 hover:bg-[#B71C1C] active:bg-[#B71C1C] text-white text-sm font-bold disabled:opacity-30 transition-colors min-h-[44px]"
               >
                 CLEAR
               </button>
             </div>
 
-            <div className="flex justify-center gap-2 mb-4">
+            <div className="flex justify-center gap-1.5 sm:gap-2 mb-3 flex-wrap">
               {[10, 25, 50, 100, 500].map(amount => (
                 <button
                   key={amount}
@@ -764,7 +765,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                     addChipToBet(amount);
                   }}
                   disabled={currentBet + amount > balance || spinning}
-                  className="px-4 py-2 rounded-lg bg-[#5D4037]/50 hover:bg-[#5D4037] text-[#D4AF37] text-sm font-medium border border-[#D4AF37]/30 disabled:opacity-30 transition-colors"
+                  className="px-3 py-2 rounded-lg bg-[#5D4037]/50 hover:bg-[#5D4037] active:bg-[#5D4037] text-[#D4AF37] text-xs sm:text-sm font-medium border border-[#D4AF37]/30 disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px]"
                 >
                   +{amount}
                 </button>
@@ -773,7 +774,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
             <Button
               onClick={spin}
-              className="w-full py-5 text-xl font-bold transition-all"
+              className="w-full py-4 sm:py-5 text-lg sm:text-xl font-bold transition-all min-h-[56px]"
               disabled={currentBet === 0 || currentBet > balance || spinning}
               style={{
                 background: spinning

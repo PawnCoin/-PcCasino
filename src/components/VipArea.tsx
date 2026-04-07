@@ -125,7 +125,7 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
       style={{ background: 'linear-gradient(180deg, #0d0018 0%, #05000d 100%)' }}
     >
       <div
-        className="sticky top-0 z-40 px-4 py-4 flex items-center justify-between"
+        className="sticky top-0 z-40 px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2"
         style={{
           background: 'rgba(10,0,25,0.95)',
           borderBottom: '1px solid rgba(160,32,240,0.3)',
@@ -134,29 +134,30 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
       >
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105"
+          className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl transition-all hover:scale-105 min-h-[44px] text-sm sm:text-base"
           style={{ background: 'rgba(160,32,240,0.15)', border: '1px solid rgba(160,32,240,0.3)', color: '#E040FB' }}
         >
-          ← Back to Lobby
+          ← <span className="hidden sm:inline">Back to Lobby</span><span className="sm:hidden">Back</span>
         </button>
-        <div className="flex items-center gap-3">
-          <Crown className="w-6 h-6" style={{ color: '#E040FB' }} />
-          <span className="font-casino text-xl font-bold" style={{ color: '#E040FB', textShadow: '0 0 15px rgba(224,64,251,0.5)' }}>
-            ADULT V.I.P. LOUNGE
+        <div className="flex items-center gap-1 sm:gap-3">
+          <Crown className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: '#E040FB' }} />
+          <span className="font-casino text-sm sm:text-xl font-bold" style={{ color: '#E040FB', textShadow: '0 0 15px rgba(224,64,251,0.5)' }}>
+            <span className="hidden sm:inline">ADULT V.I.P. LOUNGE</span>
+            <span className="sm:hidden">V.I.P.</span>
           </span>
         </div>
         <div
-          className="flex items-center gap-2 px-4 py-2 rounded-full"
+          className="flex items-center gap-2 px-2 sm:px-4 py-2 rounded-full"
           style={{ background: 'rgba(160,32,240,0.15)', border: '1px solid rgba(160,32,240,0.3)' }}
         >
-          <span className="text-[#E040FB] font-bold">{balance.toLocaleString()} $Pc</span>
+          <span className="text-[#E040FB] font-bold text-xs sm:text-base">{balance.toLocaleString()} $Pc</span>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
         {/* VIP Status Banner */}
         <div
-          className="rounded-3xl p-8 mb-10 relative overflow-hidden"
+          className="rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-8 sm:mb-10 relative overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, rgba(106,13,173,0.3) 0%, rgba(30,0,60,0.6) 100%)',
             border: '1px solid rgba(160,32,240,0.4)',
@@ -191,7 +192,7 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 sm:mt-6">
               {[
                 { icon: '💃', label: 'Live Performers', desc: 'Live entertainment & private shows' },
                 { icon: '🥂', label: 'Premium Service', desc: 'Dedicated hosts, no wait times' },
@@ -199,7 +200,7 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
               ].map(item => (
                 <div
                   key={item.label}
-                  className="p-4 rounded-2xl flex items-center gap-3"
+                  className="p-3 sm:p-4 rounded-2xl flex items-center gap-3"
                   style={{ background: 'rgba(160,32,240,0.1)', border: '1px solid rgba(160,32,240,0.2)' }}
                 >
                   <span className="text-2xl">{item.icon}</span>
@@ -250,14 +251,14 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
               VIP GAMES
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-10 sm:mb-12">
               {vipGames.map((game) => (
                 <div
                   key={game.id}
                   onMouseEnter={() => setHovered(game.id)}
                   onMouseLeave={() => setHovered(null)}
                   onClick={() => onSelectGame(game.id)}
-                  className="cursor-pointer rounded-2xl p-6 transition-all duration-300 hover:-translate-y-2"
+                  className="cursor-pointer rounded-2xl p-5 sm:p-6 transition-all duration-300 hover:-translate-y-2 active:scale-95"
                   style={{
                     background: hovered === game.id
                       ? 'linear-gradient(135deg, rgba(106,13,173,0.5), rgba(60,0,100,0.7))'

@@ -141,14 +141,14 @@ export function Leaderboard() {
   ];
 
   return (
-    <section className="px-4 py-12">
+    <section className="px-3 sm:px-4 py-8 sm:py-12">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="font-casino text-3xl font-bold flex items-center gap-3 metallic-gold-text"
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
+          <h2 className="font-casino text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3 metallic-gold-text"
             style={{ textShadow: '0 0 20px rgba(212,175,55,0.5), 0 2px 4px rgba(0,0,0,0.8)' }}>
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', boxShadow: '0 0 25px rgba(212,175,55,0.5)' }}>
-              <Trophy className="w-7 h-7 text-black" />
+              <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-black" />
             </div>
             LEADERBOARD
           </h2>
@@ -160,7 +160,7 @@ export function Leaderboard() {
                 LIVE
               </span>
             )}
-            <button onClick={() => fetchLeaderboard(activePeriod)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Refresh">
+            <button onClick={() => fetchLeaderboard(activePeriod)} className="p-2 rounded-lg hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" title="Refresh">
               <RefreshCw className={`w-4 h-4 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -172,7 +172,7 @@ export function Leaderboard() {
             const Icon = p.icon;
             return (
               <button key={p.id} onClick={() => handlePeriodChange(p.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[44px] flex-1 sm:flex-none justify-center sm:justify-start"
                 style={{
                   background: activePeriod === p.id ? 'linear-gradient(135deg, rgba(212,175,55,0.25), rgba(212,175,55,0.1))' : 'rgba(255,255,255,0.03)',
                   color: activePeriod === p.id ? '#D4AF37' : '#6b7280',
@@ -191,7 +191,7 @@ export function Leaderboard() {
             const Icon = tab.icon;
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all min-h-[44px] flex-1 sm:flex-none justify-center"
                 style={{
                   background: activeTab === tab.id ? 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.15))' : 'rgba(255,255,255,0.04)',
                   color: activeTab === tab.id ? '#D4AF37' : '#9ca3af',

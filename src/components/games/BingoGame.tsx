@@ -929,10 +929,10 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       {/* PLAYING / WON SCREEN */}
       {(phase === 'playing' || phase === 'won' || phase === 'gameover') && (
-        <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, overflow: 'hidden' }} className="sm:!flex-row">
 
           {/* LEFT COLUMN: Ball machine + number board */}
-          <div style={{ flexShrink: 0, width: 270, borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+          <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }} className="sm:!w-[240px] sm:!flex-shrink-0">
 
             <BallMachine
               machineState={machineState}
@@ -1097,17 +1097,17 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       {/* BOTTOM BINGO BUTTON BAR */}
       {(phase === 'playing' || phase === 'won') && (
-        <div style={{ background: 'rgba(5,5,5,0.99)', borderTop: '2px solid rgba(212,175,55,0.2)', boxShadow: '0 -4px 20px rgba(0,0,0,0.7)', flexShrink: 0, padding: '12px 20px' }}>
-          <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ background: 'rgba(5,5,5,0.99)', borderTop: '2px solid rgba(212,175,55,0.2)', boxShadow: '0 -4px 20px rgba(0,0,0,0.7)', flexShrink: 0, padding: '8px 12px' }}>
+          <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             {/* Hint count */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>UNMARKED HINTS</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: totalHinted > 0 ? '#D4AF37' : '#374151' }}>{totalHinted}</div>
+              <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>HINTS</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: totalHinted > 0 ? '#D4AF37' : '#374151' }}>{totalHinted}</div>
             </div>
 
             {/* BINGO! BUTTON */}
             <button onClick={claimBingo} disabled={phase !== 'playing'} style={{
-              padding: '14px 52px', borderRadius: 14, fontWeight: 900, fontSize: 22,
+              padding: '12px 24px', borderRadius: 14, fontWeight: 900, fontSize: 18,
               fontFamily: "'Cinzel',serif",
               background: bingoFeedback === 'valid' ? 'linear-gradient(135deg,#1B5E20,#43A047)' : bingoFeedback === 'invalid' ? 'linear-gradient(135deg,#B71C1C,#E53935)' : phase === 'won' ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#D4AF37,#B8860B)',
               color: phase === 'won' ? '#4b5563' : bingoFeedback !== 'none' ? '#fff' : '#000',
@@ -1117,23 +1117,22 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               letterSpacing: '0.12em',
               animation: bingoFeedback === 'invalid' ? 'bingoShake 0.4s ease-in-out' : bingoFeedback === 'valid' ? 'bingoFlash 0.6s ease-in-out' : 'none',
               transition: 'background 0.3s, box-shadow 0.3s',
+              minHeight: '52px',
+              flex: '1 0 auto',
+              maxWidth: '200px',
             }}>
               {bingoFeedback === 'valid' ? '✓ BINGO!' : bingoFeedback === 'invalid' ? '✗ NOT YET' : 'BINGO!'}
             </button>
 
             {/* Stats */}
-            <div style={{ display: 'flex', gap: 20 }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>CARDS</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#9ca3af' }}>{numCards}</div>
-              </div>
+            <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>CALLED</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#9ca3af' }}>{calledNumbers.length}<span style={{ fontSize: 11, color: '#374151' }}>/75</span></div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#9ca3af' }}>{calledNumbers.length}<span style={{ fontSize: 10, color: '#374151' }}>/75</span></div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>LINE WIN</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{fmtPc(betAmount * numCards * WIN_PAYOUTS.Line)} $Pc</div>
+                <div style={{ fontSize: 9, color: '#374151', letterSpacing: '0.15em' }}>WIN</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#D4AF37' }}>{fmtPc(betAmount * numCards * WIN_PAYOUTS.Line)}</div>
               </div>
             </div>
           </div>

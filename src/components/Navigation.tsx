@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star, Home, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,9 +56,20 @@ export function Navigation({
   isAdmin,
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showWeparlayConfirm, setShowWeparlayConfirm] = useState(false);
+
+  const closeDrawer = () => setIsDrawerOpen(false);
+
+  useEffect(() => {
+    if (isDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isDrawerOpen]);
 
   const formatAddress = (address?: string) => {
     if (!address) return '';
@@ -216,7 +227,7 @@ export function Navigation({
             </div>
 
             {/* Right Side */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               {/* Live $Pc price — always visible */}
               <div className="hidden md:block">
                 <PcPriceTicker compact={false} />
@@ -228,7 +239,7 @@ export function Navigation({
                     <TooltipTrigger asChild>
                       <button 
                         onClick={onShowFinancial}
-                        className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full hover:scale-105 transition-all group"
+                        className="hidden sm:flex items-center gap-2 px-3 md:px-4 py-2 rounded-full hover:scale-105 transition-all group"
                         style={{ 
                           background: 'linear-gradient(90deg, rgba(27,94,32,0.5), rgba(46,125,50,0.3))',
                           border: '1px solid rgba(67,160,71,0.4)',
@@ -237,7 +248,7 @@ export function Navigation({
                         }}
                       >
                         <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                        <span className="font-bold text-[#D4AF37]">
+                        <span className="font-bold text-[#D4AF37] text-sm">
                           {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </span>
                         <span className="text-xs text-[#808080]">$Pc</span>
@@ -265,7 +276,7 @@ export function Navigation({
                   )}
 
                   {/* User Menu */}
-                  <div className="relative">
+                  <div className="relative hidden md:block">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -367,6 +378,14 @@ export function Navigation({
                           <span className="text-sm">Card Decks</span>
                         </button>
 
+                        <button
+                          onClick={() => { onShowReferral?.(); setShowUserDropdown(false); }}
+                          className="w-full p-3 flex items-center gap-3 text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-colors"
+                        >
+                          <Star className="w-4 h-4" />
+                          <span className="text-sm">Affiliate Dashboard</span>
+                        </button>
+
                         {!user?.walletAddress && (
                           <button
                             onClick={() => { onConnectWallet(); setShowUserDropdown(false); }}
@@ -399,14 +418,14 @@ export function Navigation({
                   </div>
                 </>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         onClick={onConnectWallet}
                         variant="outline"
                         size="sm"
-                        className="hidden sm:flex items-center gap-2 border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                        className="flex items-center gap-2 border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10"
                       >
                         <Wallet className="w-4 h-4" />
                         Wallet
@@ -431,139 +450,306 @@ export function Navigation({
                 </div>
               )}
 
-              {/* Mobile Menu Button */}
+              {/* Mobile: balance pill (sm screens) */}
+              {isAuthenticated && (
+                <button
+                  onClick={onShowFinancial}
+                  className="flex sm:hidden items-center gap-1.5 px-2 py-1.5 rounded-full"
+                  style={{ 
+                    background: 'linear-gradient(90deg, rgba(27,94,32,0.5), rgba(46,125,50,0.3))',
+                    border: '1px solid rgba(67,160,71,0.4)',
+                  }}
+                >
+                  <img src="/logos/pc-logo.png" alt="$Pc" className="w-4 h-4" />
+                  <span className="font-bold text-[#D4AF37] text-xs">
+                    {balance >= 1_000_000 
+                      ? `${(balance/1_000_000).toFixed(1)}M` 
+                      : balance >= 1000 
+                      ? `${(balance/1000).toFixed(0)}K` 
+                      : balance.toFixed(0)}
+                  </span>
+                </button>
+              )}
+
+              {/* Mobile Login Button */}
+              {!isAuthenticated && (
+                <Button
+                  onClick={onConnect}
+                  size="sm"
+                  className="md:hidden btn-primary flex items-center gap-1 text-xs px-3"
+                >
+                  <User className="w-3 h-3" />
+                  LOGIN
+                </Button>
+              )}
+
+              {/* Hamburger Menu Button */}
               <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Toggle menu"
               >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {isDrawerOpen ? <X className="w-6 h-6 text-[#D4AF37]" /> : <Menu className="w-6 h-6 text-white" />}
               </button>
             </div>
           </div>
+        </div>
+      </nav>
 
-          {/* Mobile Menu */}
-          {isMenuOpen && (
-            <div className="md:hidden py-4 border-t border-[#5D4037]/30">
-              <div className="flex flex-col gap-2">
-                <a 
-                  href="#games-section" 
-                  className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Games
-                </a>
-                <a 
-                  href="#leaderboard" 
-                  className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Leaderboard
-                </a>
+      {/* Mobile Drawer Overlay */}
+      {isDrawerOpen && (
+        <div
+          className="fixed inset-0 z-40 md:hidden"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={closeDrawer}
+        />
+      )}
 
-                {/* Mobile WeParlay image button */}
-                <button
-                  className="p-2 rounded-lg overflow-hidden w-full text-left"
-                  onClick={() => { setIsMenuOpen(false); setShowWeparlayConfirm(true); }}
-                  style={{ border: '1px solid rgba(212,175,55,0.4)', background: 'none', cursor: 'pointer' }}
-                >
-                  <div className="relative h-14 rounded-lg overflow-hidden">
-                    <img
-                      src="/images/weparlay-menu.png"
-                      alt="WeParlay.io"
-                      className="w-full h-full object-cover object-center"
-                      style={{ filter: 'brightness(0.85)' }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center gap-2"
-                      style={{ background: 'rgba(0,0,0,0.45)' }}>
-                      <span className="font-bold text-[#D4AF37] text-base tracking-wide">WeParlay.io Sports Betting</span>
-                      <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
-                    </div>
-                  </div>
-                </button>
+      {/* Mobile Slide-Out Drawer */}
+      <div
+        className="fixed top-0 right-0 h-full z-50 md:hidden flex flex-col overflow-y-auto"
+        style={{
+          width: '280px',
+          maxWidth: '85vw',
+          background: 'rgba(8,8,8,0.98)',
+          borderLeft: '1px solid rgba(212,175,55,0.3)',
+          boxShadow: '-20px 0 60px rgba(0,0,0,0.8)',
+          transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between p-4 border-b border-[#D4AF37]/20"
+          style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
+          <div className="flex items-center gap-2">
+            <img src="/logos/pc-logo.png" alt="$Pc" className="w-8 h-8" />
+            <span className="font-casino font-bold text-[#D4AF37]">$Pc CASINO</span>
+          </div>
+          <button
+            onClick={closeDrawer}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <X className="w-5 h-5 text-[#C0C0C0]" />
+          </button>
+        </div>
 
-                {/* Mobile 18+ VIP image button */}
-                <a
-                  href="#weparlay"
-                  className="p-2 rounded-lg overflow-hidden"
-                  onClick={() => setIsMenuOpen(false)}
-                  style={{ border: '1px solid rgba(147,51,234,0.4)' }}
-                >
-                  <div className="relative h-12 rounded-lg overflow-hidden">
-                    <img
-                      src="/images/adult-menu-banner.png"
-                      alt="18+ VIP"
-                      className="w-full h-full object-cover object-center"
-                      style={{ filter: 'brightness(0.7)' }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center"
-                      style={{ background: 'rgba(0,0,0,0.55)' }}>
-                      <span className="font-bold text-sm tracking-widest"
-                        style={{ color: '#d8b4fe', textShadow: '0 0 10px rgba(147,51,234,0.8)' }}>
-                        🔞 18+ VIP ADULT GAMING
-                      </span>
-                    </div>
-                  </div>
-                </a>
-
-                <button 
-                  onClick={() => { onShowRewards(); setIsMenuOpen(false); }}
-                  className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors text-left"
-                >
-                  Rewards
-                </button>
-                <button
-                  onClick={() => { onShowMultiplayer?.(); setIsMenuOpen(false); }}
-                  className="p-3 rounded-lg transition-colors text-left flex items-center gap-2"
-                  style={{ background: 'rgba(147,51,234,0.15)', color: '#C084FC' }}
-                >
-                  <Users className="w-4 h-4" />
-                  Multiplayer
-                </button>
-                
-                {isAuthenticated && (
-                  <>
-                    <button 
-                      onClick={() => { onShowProfile?.(); setIsMenuOpen(false); }}
-                      className="p-3 rounded-lg hover:bg-[#D4AF37]/10 text-[#D4AF37] transition-colors text-left flex items-center gap-2 border border-[#D4AF37]/30"
-                    >
-                      <UserCircle className="w-4 h-4" />
-                      My Profile
-                    </button>
-                    <button 
-                      onClick={() => { onShowFinancial?.(); setIsMenuOpen(false); }}
-                      className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#D4AF37] transition-colors text-left flex items-center gap-2"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      Financial Options
-                    </button>
-                    <button 
-                      onClick={() => { onShowHistory(); setIsMenuOpen(false); }}
-                      className="p-3 rounded-lg hover:bg-[#5D4037]/30 text-[#C0C0C0] transition-colors text-left"
-                    >
-                      History
-                    </button>
-                    {isAdmin && (
-                      <button 
-                        onClick={() => { onShowAdmin?.(); setIsMenuOpen(false); }}
-                        className="p-3 rounded-lg hover:bg-[#EF5350]/10 text-[#EF5350] transition-colors text-left flex items-center gap-2"
-                      >
-                        <Shield className="w-4 h-4" />
-                        Admin Panel
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => { onDisconnect(); setIsMenuOpen(false); }}
-                      className="p-3 rounded-lg hover:bg-[#EF5350]/20 text-[#EF5350] transition-colors text-left"
-                    >
-                      Logout
-                    </button>
-                  </>
-                )}
+        {/* User Info (if authenticated) */}
+        {isAuthenticated && user && (
+          <div className="p-4 border-b border-[#5D4037]/30">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: 44, height: 44 }}>
+                <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
               </div>
+              <div className="min-w-0">
+                <div className="font-bold text-white truncate">{user.username}</div>
+                {user.email && <div className="text-xs text-[#808080] truncate">{user.email}</div>}
+              </div>
+            </div>
+            <button
+              onClick={() => { onShowFinancial?.(); closeDrawer(); }}
+              className="w-full p-3 rounded-xl flex items-center justify-between transition-colors hover:bg-[#D4AF37]/10"
+              style={{ background: 'rgba(27,94,32,0.3)', border: '1px solid rgba(67,160,71,0.3)' }}
+            >
+              <div className="flex items-center gap-2">
+                <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5" />
+                <span className="text-xs text-[#808080]">Balance</span>
+              </div>
+              <span className="font-bold text-[#D4AF37]">{balance.toLocaleString()} $Pc</span>
+            </button>
+          </div>
+        )}
+
+        {/* Nav Links */}
+        <div className="flex-1 py-2">
+          <a 
+            href="#games-section" 
+            className="flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors min-h-[56px]"
+            onClick={closeDrawer}
+          >
+            <Home className="w-5 h-5" />
+            <span className="font-medium">Games</span>
+          </a>
+
+          <a 
+            href="#leaderboard" 
+            className="flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors min-h-[56px]"
+            onClick={closeDrawer}
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="font-medium">Leaderboard</span>
+          </a>
+
+          {/* WeParlay image button */}
+          <div className="px-3 py-2">
+            <button
+              className="w-full rounded-xl overflow-hidden"
+              onClick={() => { closeDrawer(); setShowWeparlayConfirm(true); }}
+              style={{ border: '1px solid rgba(212,175,55,0.4)', background: 'none', cursor: 'pointer' }}
+            >
+              <div className="relative h-14 rounded-xl overflow-hidden">
+                <img
+                  src="/images/weparlay-menu.png"
+                  alt="WeParlay.io"
+                  className="w-full h-full object-cover object-center"
+                  style={{ filter: 'brightness(0.85)' }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center gap-2"
+                  style={{ background: 'rgba(0,0,0,0.45)' }}>
+                  <span className="font-bold text-[#D4AF37] text-base tracking-wide">WeParlay.io Sports Betting</span>
+                  <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* 18+ VIP image button */}
+          <div className="px-3 py-2">
+            <a
+              href="#weparlay"
+              className="block rounded-xl overflow-hidden"
+              onClick={closeDrawer}
+              style={{ border: '1px solid rgba(147,51,234,0.4)' }}
+            >
+              <div className="relative h-12 rounded-xl overflow-hidden">
+                <img
+                  src="/images/adult-menu-banner.png"
+                  alt="18+ VIP"
+                  className="w-full h-full object-cover object-center"
+                  style={{ filter: 'brightness(0.7)' }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.55)' }}>
+                  <span className="font-bold text-sm tracking-widest"
+                    style={{ color: '#d8b4fe', textShadow: '0 0 10px rgba(147,51,234,0.8)' }}>
+                    🔞 18+ VIP ADULT GAMING
+                  </span>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div className="border-t border-[#5D4037]/20 mt-2 pt-2">
+            <button 
+              onClick={() => { onShowRewards(); closeDrawer(); }}
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors min-h-[56px]"
+            >
+              <Gift className="w-5 h-5" />
+              <span className="font-medium">Rewards</span>
+            </button>
+
+            <button
+              onClick={() => { onShowReferral?.(); closeDrawer(); }}
+              className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#D4AF37]/10 transition-colors min-h-[56px]"
+              style={{ color: '#C084FC' }}
+            >
+              <Star className="w-5 h-5" />
+              <span className="font-medium">Affiliate Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => { onShowMultiplayer?.(); closeDrawer(); }}
+              className="w-full flex items-center gap-3 px-4 py-4 transition-colors text-left min-h-[56px]"
+              style={{ color: '#C084FC' }}
+            >
+              <Users className="w-5 h-5" />
+              <span className="font-medium">Multiplayer</span>
+            </button>
+          </div>
+
+          {isAuthenticated ? (
+            <div className="border-t border-[#5D4037]/20 mt-2 pt-2">
+              <button 
+                onClick={() => { onShowProfile?.(); closeDrawer(); }}
+                className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#D4AF37]/10 text-[#D4AF37] transition-colors min-h-[56px]"
+              >
+                <UserCircle className="w-5 h-5" />
+                <span className="font-medium">My Profile</span>
+              </button>
+
+              <button 
+                onClick={() => { onShowFinancial?.(); closeDrawer(); }}
+                className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors min-h-[56px]"
+              >
+                <DollarSign className="w-5 h-5" />
+                <span className="font-medium">Financial Options</span>
+              </button>
+
+              <button 
+                onClick={() => { onShowHistory(); closeDrawer(); }}
+                className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors min-h-[56px]"
+              >
+                <History className="w-5 h-5" />
+                <span className="font-medium">History</span>
+              </button>
+
+              <button 
+                onClick={() => { onShowCardDeck?.(); closeDrawer(); }}
+                className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors min-h-[56px]"
+              >
+                <Layers className="w-5 h-5" />
+                <span className="font-medium">Card Decks</span>
+              </button>
+
+              <button 
+                onClick={() => { onShowReferral?.(); closeDrawer(); }}
+                className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#5D4037]/30 text-[#D4AF37] transition-colors min-h-[56px]"
+              >
+                <Star className="w-5 h-5" />
+                <span className="font-medium">Affiliate Dashboard</span>
+              </button>
+
+              {!user?.walletAddress && (
+                <button
+                  onClick={() => { onConnectWallet(); closeDrawer(); }}
+                  className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#D4AF37]/10 text-[#D4AF37] transition-colors min-h-[56px]"
+                >
+                  <Wallet className="w-5 h-5" />
+                  <span className="font-medium">Connect Wallet</span>
+                </button>
+              )}
+
+              {isAdmin && (
+                <button 
+                  onClick={() => { onShowAdmin?.(); closeDrawer(); }}
+                  className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#EF5350]/10 text-[#EF5350] transition-colors border-t border-[#5D4037]/20 min-h-[56px]"
+                >
+                  <Shield className="w-5 h-5" />
+                  <span className="font-medium">Admin Panel</span>
+                </button>
+              )}
+
+              <button 
+                onClick={() => { onDisconnect(); closeDrawer(); }}
+                className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[#EF5350]/20 text-[#EF5350] transition-colors border-t border-[#5D4037]/20 min-h-[56px]"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Logout</span>
+              </button>
+            </div>
+          ) : (
+            <div className="border-t border-[#5D4037]/20 mt-2 pt-2 px-4 space-y-3 pb-4">
+              <Button
+                onClick={() => { onConnectWallet(); closeDrawer(); }}
+                variant="outline"
+                className="w-full flex items-center gap-2 border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10 min-h-[48px]"
+              >
+                <Wallet className="w-4 h-4" />
+                Connect Wallet
+              </Button>
+              <Button
+                onClick={() => { onConnect(); closeDrawer(); }}
+                className="w-full btn-primary flex items-center gap-2 min-h-[48px]"
+              >
+                <User className="w-4 h-4" />
+                LOGIN / REGISTER
+              </Button>
             </div>
           )}
         </div>
-      </nav>
+
+        {/* Bottom safe area */}
+        <div style={{ height: 'env(safe-area-inset-bottom, 0px)', minHeight: '8px' }} />
+      </div>
 
       <style>{`
         @keyframes pulse-gold {
@@ -595,7 +781,7 @@ export function Navigation({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowWeparlayConfirm(false)}
-                className="flex-1 py-2 rounded-lg text-sm font-medium text-[#C0C0C0] hover:text-white transition-colors"
+                className="flex-1 py-3 rounded-lg text-sm font-medium text-[#C0C0C0] hover:text-white transition-colors"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 Stay Here
@@ -605,16 +791,14 @@ export function Navigation({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setShowWeparlayConfirm(false)}
-                className="flex-1 py-2 rounded-lg text-sm font-bold text-center flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-lg text-sm font-bold text-center flex items-center justify-center gap-2"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(180,140,30,0.3))',
-                  border: '1px solid rgba(212,175,55,0.6)',
-                  color: '#D4AF37',
-                  textDecoration: 'none',
+                  background: 'linear-gradient(135deg, #D4AF37, #B8860B)',
+                  color: '#1a1a1a',
                 }}
               >
-                <ExternalLink className="w-4 h-4" />
-                Continue to WeParlay
+                Go to WeParlay.io
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>

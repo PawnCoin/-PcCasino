@@ -1308,32 +1308,32 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
           {/* ── ACTION BUTTONS ── */}
           <div style={{ background: 'linear-gradient(180deg,rgba(15,15,15,0.98),rgba(5,5,5,1))', borderTop: '2px solid rgba(212,175,55,0.3)', boxShadow: '0 -4px 20px rgba(0,0,0,0.6)' }}>
-            <div className="max-w-5xl mx-auto px-4 py-3">
-              <div className="flex justify-center gap-3">
+            <div className="max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
+              <div className="flex justify-center flex-wrap gap-2 sm:gap-3">
                 {gamePhase === 'showdown' ? (
                   <span className="text-gray-400 text-sm">Next hand in {showdownTimer}s...</span>
                 ) : (
                   <>
-                    <Button onClick={handleFold} variant="destructive" className="px-6 py-3 rounded-lg font-bold text-sm bg-[#B71C1C] hover:bg-[#8B0000]" style={{ boxShadow: '0 3px 10px rgba(183,28,28,0.4)' }}>
+                    <Button onClick={handleFold} variant="destructive" className="px-4 sm:px-6 py-3 rounded-lg font-bold text-sm bg-[#B71C1C] hover:bg-[#8B0000] min-h-[48px]" style={{ boxShadow: '0 3px 10px rgba(183,28,28,0.4)' }}>
                       FOLD
                     </Button>
                     {currentBet === 0 || playerBet >= currentBet ? (
-                      <Button onClick={handleCheck} className="px-6 py-3 rounded-lg font-bold text-sm bg-[#1E88E5] hover:bg-[#1565C0]" style={{ boxShadow: '0 3px 10px rgba(30,136,229,0.4)' }}>
+                      <Button onClick={handleCheck} className="px-4 sm:px-6 py-3 rounded-lg font-bold text-sm bg-[#1E88E5] hover:bg-[#1565C0] min-h-[48px]" style={{ boxShadow: '0 3px 10px rgba(30,136,229,0.4)' }}>
                         CHECK
                       </Button>
                     ) : (
-                      <Button onClick={handleCall} className="px-6 py-3 rounded-lg font-bold text-sm bg-[#43A047] hover:bg-[#2E7D32]" style={{ boxShadow: '0 3px 10px rgba(67,160,71,0.4)' }}>
+                      <Button onClick={handleCall} className="px-4 sm:px-6 py-3 rounded-lg font-bold text-sm bg-[#43A047] hover:bg-[#2E7D32] min-h-[48px]" style={{ boxShadow: '0 3px 10px rgba(67,160,71,0.4)' }}>
                         CALL ({currentBet - playerBet})
                       </Button>
                     )}
-                    <Button onClick={handleRaise} className="px-6 py-3 rounded-lg font-bold text-sm bg-[#D4AF37] hover:bg-[#B8860B] text-black" style={{ boxShadow: '0 3px 10px rgba(212,175,55,0.4)' }}>
+                    <Button onClick={handleRaise} className="px-4 sm:px-6 py-3 rounded-lg font-bold text-sm bg-[#D4AF37] hover:bg-[#B8860B] text-black min-h-[48px]" style={{ boxShadow: '0 3px 10px rgba(212,175,55,0.4)' }}>
                       RAISE +{selectedChip}
                     </Button>
-                    <Button onClick={handleAllIn} className="px-6 py-3 rounded-lg font-bold text-sm bg-gradient-to-r from-[#8B0000] to-[#B71C1C]" style={{ boxShadow: '0 3px 10px rgba(139,0,0,0.4)' }}>
+                    <Button onClick={handleAllIn} className="px-4 sm:px-6 py-3 rounded-lg font-bold text-sm bg-gradient-to-r from-[#8B0000] to-[#B71C1C] min-h-[48px]" style={{ boxShadow: '0 3px 10px rgba(139,0,0,0.4)' }}>
                       ALL IN
                     </Button>
                     {playerChips.length > 0 && (
-                      <Button onClick={clearBet} variant="outline" className="px-3 py-3 rounded-lg border-[#5D4037] text-[#C0C0C0]">
+                      <Button onClick={clearBet} variant="outline" className="px-3 py-3 rounded-lg border-[#5D4037] text-[#C0C0C0] min-h-[48px] min-w-[48px]">
                         <RotateCcw className="w-4 h-4" />
                       </Button>
                     )}

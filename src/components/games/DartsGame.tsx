@@ -365,13 +365,13 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto' }}>
         {/* Board */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div style={{ position: 'relative', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.9), 0 0 0 8px #3E2723' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 380 }}>
+          <div style={{ position: 'relative', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.9), 0 0 0 8px #3E2723', width: '100%', maxWidth: 360, aspectRatio: '1' }}>
             <canvas
               ref={canvasRef}
               width={BOARD_SIZE}
               height={BOARD_SIZE}
-              style={{ display: 'block', cursor: turn === 'player' && gamePhase === 'playing' ? 'crosshair' : 'default', maxWidth: 360, maxHeight: 360, borderRadius: '50%' }}
+              style={{ display: 'block', cursor: turn === 'player' && gamePhase === 'playing' ? 'crosshair' : 'default', width: '100%', height: '100%', borderRadius: '50%' }}
               onMouseMove={handleMouseMove}
               onClick={handleClick}
               onMouseLeave={() => setAim(null)}

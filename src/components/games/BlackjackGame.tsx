@@ -701,7 +701,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
             </div>
           </div>
 
-          <div className="bg-black/90 border-t-2 border-[#5D4037] p-3 mt-1 rounded-xl flex-shrink-0 overflow-y-auto" style={{ maxHeight: '52vh' }}>
+          <div className="bg-black/90 border-t-2 border-[#5D4037] p-2 sm:p-3 mt-1 rounded-xl flex-shrink-0 overflow-y-auto" style={{ maxHeight: '52vh' }}>
             {gameState === 'betting' && (
               <div className="max-w-4xl mx-auto">
                 {/* Balance + Get More row */}
@@ -726,14 +726,14 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                   />
                 </div>
 
-                <div className="flex items-center justify-center gap-8 mb-4">
+                <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4">
                   <div className="text-center">
                     <div className="text-[#C0C0C0] text-xs mb-1">CURRENT BET</div>
-                    <div className="text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
+                    <div className="text-xl sm:text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
                   </div>
 
                   <div className="flex flex-col items-center gap-1">
-                    <div className="text-[9px] text-[#C0C0C0]/60 tracking-widest uppercase">Drag or Click</div>
+                    <div className="text-[9px] text-[#C0C0C0]/60 tracking-widest uppercase">Tap or Click</div>
                     <button
                       onClick={() => addChipToBet(selectedChip)}
                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
@@ -742,7 +742,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                         const amt = parseInt(e.dataTransfer.getData('chip-amount'), 10);
                         if (amt > 0) addChipToBet(amt);
                       }}
-                      className="relative w-32 h-32 rounded-full border-4 border-dashed border-[#D4AF37]/60 hover:border-[#D4AF37] transition-all bg-black/50 flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.2)] hover:shadow-[0_0_50px_rgba(212,175,55,0.5)]"
+                      className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-dashed border-[#D4AF37]/60 hover:border-[#D4AF37] active:border-[#D4AF37] transition-all bg-black/50 flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.2)] hover:shadow-[0_0_50px_rgba(212,175,55,0.5)]"
                     >
                       {tableChips.length > 0 ? (
                         <div className="relative w-24 h-24 flex flex-wrap items-center justify-center gap-0.5">
@@ -773,7 +773,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                   </button>
                 </div>
 
-                <div className="flex justify-center gap-2 mb-4 flex-wrap">
+                <div className="flex justify-center gap-1.5 sm:gap-2 mb-4 flex-wrap">
                   {[1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000].map(amount => (
                     <button
                       key={amount}
@@ -782,7 +782,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                         addChipToBet(amount);
                       }}
                       disabled={currentBet + amount > balance}
-                      className="px-3 py-2 rounded-lg bg-[#5D4037]/50 hover:bg-[#5D4037] text-[#D4AF37] text-xs font-bold border border-[#D4AF37]/30 disabled:opacity-30 transition-all"
+                      className="px-2 sm:px-3 py-2 rounded-lg bg-[#5D4037]/50 hover:bg-[#5D4037] active:bg-[#5D4037] text-[#D4AF37] text-xs font-bold border border-[#D4AF37]/30 disabled:opacity-30 transition-all min-h-[44px] min-w-[44px]"
                     >
                       +{formatChipLabel(amount)}
                     </button>
@@ -791,7 +791,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
                 <Button
                   onClick={startRound}
-                  className="w-full btn-primary py-5 text-xl font-bold"
+                  className="w-full btn-primary py-4 sm:py-5 text-lg sm:text-xl font-bold min-h-[56px]"
                   disabled={currentBet === 0 || currentBet > balance}
                 >
                   DEAL
@@ -801,36 +801,36 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
             {gameState === 'playing' && (
               <div className="max-w-3xl mx-auto">
-                <div className="text-center mb-4">
-                  <span className="text-[#C0C0C0]">Hand {currentHandIndex + 1} of {playerHands.length}</span>
-                  <span className="mx-4 text-[#D4AF37]">|</span>
-                  <span className="text-[#D4AF37] font-bold">Bet: {handBets[currentHandIndex]} $Pc</span>
+                <div className="text-center mb-3">
+                  <span className="text-[#C0C0C0] text-sm">Hand {currentHandIndex + 1} of {playerHands.length}</span>
+                  <span className="mx-2 text-[#D4AF37]">|</span>
+                  <span className="text-[#D4AF37] font-bold text-sm">Bet: {handBets[currentHandIndex]} $Pc</span>
                 </div>
                 
-                <div className="flex flex-wrap justify-center gap-3">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-2 sm:gap-3">
                   <Button
                     onClick={handleHit}
-                    className="px-10 py-5 rounded-xl font-bold bg-gradient-to-b from-[#1E88E5] to-[#1565C0] hover:from-[#42A5F5] hover:to-[#1E88E5] border-b-4 border-[#0D47A1] active:border-b-0 active:translate-y-1"
+                    className="py-4 sm:px-10 sm:py-5 rounded-xl font-bold text-base bg-gradient-to-b from-[#1E88E5] to-[#1565C0] hover:from-[#42A5F5] hover:to-[#1E88E5] border-b-4 border-[#0D47A1] active:border-b-0 active:translate-y-1 min-h-[56px]"
                   >
                     HIT
                   </Button>
                   <Button
                     onClick={handleStand}
-                    className="px-10 py-5 rounded-xl font-bold bg-gradient-to-b from-[#B71C1C] to-[#8B0000] hover:from-[#EF5350] hover:to-[#B71C1C] border-b-4 border-[#5c0000] active:border-b-0 active:translate-y-1"
+                    className="py-4 sm:px-10 sm:py-5 rounded-xl font-bold text-base bg-gradient-to-b from-[#B71C1C] to-[#8B0000] hover:from-[#EF5350] hover:to-[#B71C1C] border-b-4 border-[#5c0000] active:border-b-0 active:translate-y-1 min-h-[56px]"
                   >
                     STAND
                   </Button>
                   <Button
                     onClick={handleDoubleDown}
                     disabled={currentHand.length !== 2 || handBets[currentHandIndex] * 2 > balance}
-                    className="px-8 py-5 rounded-xl font-bold bg-gradient-to-b from-[#43A047] to-[#2E7D32] hover:from-[#66BB6A] hover:to-[#43A047] border-b-4 border-[#1B5E20] active:border-b-0 active:translate-y-1 disabled:opacity-40"
+                    className="py-4 sm:px-8 sm:py-5 rounded-xl font-bold text-base bg-gradient-to-b from-[#43A047] to-[#2E7D32] hover:from-[#66BB6A] hover:to-[#43A047] border-b-4 border-[#1B5E20] active:border-b-0 active:translate-y-1 disabled:opacity-40 min-h-[56px]"
                   >
                     DOUBLE
                   </Button>
                   <Button
                     onClick={handleSplit}
                     disabled={currentHand.length !== 2 || currentHand[0].value !== currentHand[1].value || handBets[currentHandIndex] * 2 > balance}
-                    className="px-8 py-5 rounded-xl font-bold bg-gradient-to-b from-[#D4AF37] to-[#B8860B] hover:from-[#FFD700] hover:to-[#D4AF37] text-black border-b-4 border-[#8B6914] active:border-b-0 active:translate-y-1 disabled:opacity-40"
+                    className="py-4 sm:px-8 sm:py-5 rounded-xl font-bold text-base bg-gradient-to-b from-[#D4AF37] to-[#B8860B] hover:from-[#FFD700] hover:to-[#D4AF37] text-black border-b-4 border-[#8B6914] active:border-b-0 active:translate-y-1 disabled:opacity-40 min-h-[56px]"
                   >
                     SPLIT
                   </Button>
@@ -842,7 +842,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
               <div className="text-center">
                 <Button
                   onClick={resetGame}
-                  className="btn-primary px-16 py-5 text-xl font-bold"
+                  className="btn-primary px-10 sm:px-16 py-4 sm:py-5 text-lg sm:text-xl font-bold min-h-[56px]"
                 >
                   PLAY AGAIN
                 </Button>

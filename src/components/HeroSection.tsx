@@ -60,10 +60,10 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
   }, []);
 
   return (
-    <section className="relative pt-24 pb-12 px-4">
+    <section className="relative pt-20 sm:pt-24 pb-8 sm:pb-12 px-3 sm:px-4">
       <div className="max-w-7xl mx-auto relative z-10">
         <div 
-          className="relative mb-12 rounded-3xl overflow-hidden border border-[#D4AF37]/40 lobby-fade-in"
+          className="relative mb-8 sm:mb-12 rounded-2xl sm:rounded-3xl overflow-hidden border border-[#D4AF37]/40 lobby-fade-in"
           style={{ 
             boxShadow: '0 25px 80px rgba(0,0,0,0.8), 0 0 60px rgba(212,175,55,0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
           }}
@@ -72,30 +72,30 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
           
           <div className="absolute inset-0 bg-gradient-to-t from-[#D4AF37]/5 via-transparent to-[#D4AF37]/5" />
           
-          <div className="relative p-8 md:p-16 text-center">
+          <div className="relative p-5 sm:p-8 md:p-16 text-center">
             <div 
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1B5E20]/40 border border-[#43A047]/50 mb-6"
+              className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-[#1B5E20]/40 border border-[#43A047]/50 mb-4 sm:mb-6"
               style={{ boxShadow: '0 0 20px rgba(67,160,71,0.3), inset 0 1px 0 rgba(255,255,255,0.1)' }}
             >
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-sm text-[#C0C0C0]">Live Network Active</span>
+              <span className="text-xs sm:text-sm text-[#C0C0C0]">Live Network Active</span>
             </div>
             
-            <h1 className="font-casino text-4xl md:text-6xl lg:text-7xl font-black mb-6">
+            <h1 className="font-casino text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black mb-4 sm:mb-6">
               <span className="text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">THE FUTURE OF</span>
               <br />
               <span className="metallic-gold-text drop-shadow-[0_4px_15px_rgba(212,175,55,0.5)]" style={{ fontSize: 'inherit', WebkitTextFillColor: 'transparent' }}>GAMING</span>
             </h1>
             
-            <p className="text-xl text-[#C0C0C0] mb-8 max-w-2xl mx-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <p className="text-base sm:text-xl text-[#C0C0C0] mb-6 sm:mb-8 max-w-2xl mx-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               Play with <span className="text-[#D4AF37] font-bold">$Pc</span> across Poker, 
               Sports, Casino Games. Experience professional-grade gaming with worldwide rules.
             </p>
             
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
               <Button
                 onClick={onScrollToGames}
-                className="btn-primary px-8 py-6 rounded-full font-bold text-lg flex items-center justify-center gap-2 min-w-[220px]"
+                className="btn-primary px-6 sm:px-8 py-4 sm:py-6 rounded-full font-bold text-base sm:text-lg flex items-center justify-center gap-2 min-w-[180px] sm:min-w-[220px] min-h-[56px]"
                 style={{ boxShadow: '0 10px 30px rgba(212,175,55,0.3)' }}
               >
                 <Play className="w-5 h-5" />

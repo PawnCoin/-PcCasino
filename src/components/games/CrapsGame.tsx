@@ -926,7 +926,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
       {/* Game Area */}
       <div className="flex-1 flex flex-col lg:flex-row">
         {/* Left Side - 3D Dice Table */}
-        <div className="flex-1 p-6 flex flex-col items-center justify-center">
+        <div className="flex-1 p-3 sm:p-6 flex flex-col items-center justify-center">
           {/* Phase Indicator + Point Marker Puck */}
           <div className="mb-4 text-center flex items-center gap-4 justify-center">
             <div>
@@ -1154,11 +1154,11 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
           </div>
 
           {/* Roll Button */}
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <Button
               onClick={rollDice}
               disabled={isRolling || bets.length === 0}
-              className="btn-primary px-12 py-6 text-xl font-bold"
+              className="btn-primary flex-1 py-4 sm:py-6 text-lg sm:text-xl font-bold min-h-[56px]"
             >
               {isRolling ? 'ROLLING...' : 'ROLL DICE'}
             </Button>
@@ -1166,16 +1166,16 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               onClick={clearBets}
               disabled={isRolling || bets.length === 0}
               variant="outline"
-              className="border-[#B71C1C]/50 text-[#B71C1C] hover:bg-[#B71C1C]/20"
+              className="border-[#B71C1C]/50 text-[#B71C1C] hover:bg-[#B71C1C]/20 min-h-[56px] px-3 sm:px-4"
             >
-              <RotateCcw className="w-5 h-5 mr-2" />
-              Clear
+              <RotateCcw className="w-5 h-5 sm:mr-2" />
+              <span className="hidden sm:inline">Clear</span>
             </Button>
           </div>
         </div>
 
         {/* Right Side - Betting Table */}
-        <div className="flex-1 p-6 border-l border-[#5D4037]/30 overflow-y-auto" style={{
+        <div className="flex-1 p-3 sm:p-6 border-t lg:border-t-0 lg:border-l border-[#5D4037]/30 overflow-y-auto" style={{
           background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(13,51,18,0.3) 50%, rgba(0,0,0,0.7) 100%)',
         }}>
           <div className="max-w-lg mx-auto">
