@@ -213,6 +213,10 @@ export async function initDatabase() {
       )
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_game_rounds_user ON game_rounds(user_id)`);
+    // Add status column if it doesn't exist (migration-safe)
+    await query(`ALTER TABLE game_rounds ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'created'`);
+    // Backfill: existing revealed rounds → 'revealed'; others → 'created'
+    await query(`UPDATE game_rounds SET status = 'revealed' WHERE revealed_at IS NOT NULL AND status = 'created'`);
 
     console.log('[DB] All tables initialized successfully');
   } catch (err) {

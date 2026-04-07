@@ -438,26 +438,48 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
 });
 
 // Resolve a round — client calls this after the round completes to get the authoritative outcome.
-// Returns ONLY the user-visible outcome (e.g., roulette number, slots grid, first 4 blackjack cards).
-// Never reveals the server seed here — that comes from /reveal.
+// Enforces lifecycle: created → resolved. Rejects if already resolved or revealed.
+// Returns the seed-derived result. Never reveals the server seed (use /reveal for that).
 app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
   try {
-    const round = await getGameRound(parseInt(req.params.roundId));
-    if (!round) return res.status(404).json({ error: 'Round not found' });
-    if (round.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
-    // result was computed and stored when the round was created — safe to return now
-    // For blackjack: return the full seed-derived deck so client can use authoritative cards
-    // This is safe post-round since the hand has already been played (no peek advantage)
-    res.json({ result: round.result, serverSeedHash: round.server_seed_hash });
+    const { rows } = await query(
+      `UPDATE game_rounds SET status = 'resolved'
+       WHERE id = $1 AND user_id = $2 AND status = 'created'
+       RETURNING result, server_seed_hash`,
+      [parseInt(req.params.roundId), req.user.id]
+    );
+    if (!rows.length) {
+      // Check if the round exists but is in wrong state
+      const check = await query(
+        'SELECT status, user_id FROM game_rounds WHERE id = $1',
+        [parseInt(req.params.roundId)]
+      );
+      if (!check.rows.length) return res.status(404).json({ error: 'Round not found' });
+      if (check.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+      return res.status(409).json({ error: `Round already ${check.rows[0].status}` });
+    }
+    res.json({ result: rows[0].result, serverSeedHash: rows[0].server_seed_hash });
   } catch (err) {
     console.error('[PF] resolve error:', err.message);
     res.status(500).json({ error: 'Failed to resolve round' });
   }
 });
 
-// Reveal server seed after a round completes
+// Reveal server seed — only allowed after round has been resolved (status = 'resolved').
+// Enforces lifecycle: resolved → revealed. Prevents pre-game seed disclosure.
 app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => {
   try {
+    // Enforce: must be in 'resolved' state before revealing (prevents pre-play disclosure)
+    const statusCheck = await query(
+      'SELECT status, user_id FROM game_rounds WHERE id = $1',
+      [parseInt(req.params.roundId)]
+    );
+    if (!statusCheck.rows.length) return res.status(404).json({ error: 'Round not found' });
+    const row = statusCheck.rows[0];
+    if (row.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    if (row.status === 'created') {
+      return res.status(409).json({ error: 'Round must be resolved before revealing server seed' });
+    }
     const data = await revealGameRound(parseInt(req.params.roundId), req.user.id);
     if (!data) return res.status(404).json({ error: 'Round not found or already revealed' });
     res.json({

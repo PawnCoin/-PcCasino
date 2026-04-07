@@ -146,7 +146,7 @@ export async function createGameRound(userId, game, clientSeed, nonce) {
 export async function revealGameRound(roundId, userId) {
   const row = await query(
     `UPDATE game_rounds
-     SET revealed_at = NOW()
+     SET revealed_at = NOW(), status = 'revealed'
      WHERE id = $1 AND user_id = $2 AND revealed_at IS NULL
      RETURNING server_seed, server_seed_hash, client_seed, nonce, game, result`,
     [roundId, userId]
