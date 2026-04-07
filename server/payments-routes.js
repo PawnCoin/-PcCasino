@@ -86,8 +86,9 @@ router.post('/deposit/:id/approve', requireAuth, async (req, res) => {
     );
     await query('COMMIT');
 
-    // First-deposit referral commission: idempotent via commission_paid flag (DB-enforced exactly once)
+    // First-deposit referral commission: DB-atomic, exactly once via commission_paid flag
     try {
+      await query('BEGIN');
       const ref = await query(
         `UPDATE referrals SET commission_paid = TRUE
          WHERE referred_id = $1 AND commission_paid = FALSE
@@ -102,12 +103,16 @@ router.post('/deposit/:id/approve', requireAuth, async (req, res) => {
           'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
           [referrerId, 'referral_commission', commission, `Referral commission from user #${d.user_id} first deposit`]
         );
+        await query('COMMIT');
         await query(
           "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
           [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
         );
+      } else {
+        await query('ROLLBACK');
       }
     } catch (commErr) {
+      await query('ROLLBACK').catch(() => {});
       console.error('[referral commission]', commErr.message);
     }
 

@@ -80,31 +80,27 @@ router.post('/register', async (req, res) => {
     );
     const user = result.rows[0];
 
-    // Handle referral — match by USERNAME_XXXX pattern (same lookup as validate endpoint)
+    // Handle referral — validate code against persisted referral_codes table (exact match only)
     if (referralCode) {
       try {
-        const underscoreIdx = referralCode.lastIndexOf('_');
-        if (underscoreIdx > 0 && underscoreIdx < referralCode.length - 1) {
-          const prefix = referralCode.slice(0, underscoreIdx);
-          const suffix = referralCode.slice(underscoreIdx + 1);
-          if (prefix.length >= 2 && /^[A-Z0-9]{4}$/i.test(suffix)) {
-            const refUser = await query(
-              `SELECT id FROM users WHERE UPPER(SUBSTRING(username, 1, $1)) = UPPER($2) LIMIT 1`,
-              [prefix.length, prefix]
+        const codeRow = await query(
+          'SELECT user_id FROM referral_codes WHERE code = $1 LIMIT 1',
+          [referralCode]
+        );
+        if (codeRow.rows.length) {
+          const referrerId = codeRow.rows[0].user_id;
+          if (referrerId !== user.id) {
+            // Link referral (idempotent — ON CONFLICT DO NOTHING)
+            await query(
+              'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              [referrerId, user.id]
             );
-            if (refUser.rows.length) {
-              const referrerId = refUser.rows[0].id;
-              await query(
-                'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                [referrerId, user.id]
-              );
-              // Credit welcome bonus to both referrer and new user
-              await query('UPDATE users SET balance = balance + 50000000 WHERE id IN ($1, $2)', [referrerId, user.id]);
-            }
+            // Credit welcome bonus to referred user only (referrer earns commission on first deposit)
+            await query('UPDATE users SET balance = balance + 50000000 WHERE id = $1', [user.id]);
           }
         }
       } catch (e) {
-        // Non-fatal
+        // Non-fatal — referral bonus is secondary; registration must succeed regardless
       }
     }
 

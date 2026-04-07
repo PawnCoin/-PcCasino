@@ -395,12 +395,27 @@ app.post('/api/tournaments/:id/register', (req, res) => {
 });
 
 // Referrals
-app.post('/api/referrals', (req, res) => {
+app.post('/api/referrals', async (req, res) => {
   const { referrerId, referrerUsername } = req.body;
-  const code = `${referrerUsername.toUpperCase().slice(0, 6)}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-  const referral = { code, referrerId, referrerUsername, uses: 0, earnings: 0, createdAt: Date.now() };
-  referrals.set(code, referral);
-  res.json({ referral });
+  if (!referrerId || !referrerUsername) return res.status(400).json({ error: 'referrerId and referrerUsername required' });
+  try {
+    // Check for existing code for this user in DB
+    const existing = await query('SELECT code FROM referral_codes WHERE user_id = $1 LIMIT 1', [referrerId]);
+    if (existing.rows.length) {
+      const code = existing.rows[0].code;
+      referrals.set(code, { code, referrerId, referrerUsername, uses: 0, earnings: 0, createdAt: Date.now() });
+      return res.json({ referral: { code, referrerId, referrerUsername } });
+    }
+    // Generate new code and persist to DB
+    const code = `${referrerUsername.toUpperCase().slice(0, 6)}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    await query('INSERT INTO referral_codes (code, user_id) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING', [code, referrerId]);
+    const referral = { code, referrerId, referrerUsername, uses: 0, earnings: 0, createdAt: Date.now() };
+    referrals.set(code, referral);
+    res.json({ referral });
+  } catch (err) {
+    console.error('[referrals POST]', err.message);
+    res.status(500).json({ error: 'Failed to generate referral code' });
+  }
 });
 
 app.post('/api/referrals/use', (req, res) => {
@@ -416,44 +431,32 @@ app.post('/api/referrals/use', (req, res) => {
 
 // Public: validate a referral code and return referrer info (no auth required)
 // Must be defined BEFORE /:userId wildcard to avoid being captured by it
+// Validates ONLY against persisted referral_codes table (no prefix guessing)
 app.get('/api/referrals/validate/:code', async (req, res) => {
   const { code } = req.params;
   if (!code || typeof code !== 'string') return res.status(400).json({ error: 'Invalid code' });
   try {
-    // Check in-memory referral map first (exact code match — authoritative)
-    const ref = referrals.get(code);
-    if (ref) {
+    // Exact match against DB — authoritative source of truth
+    const result = await query(
+      `SELECT rc.code, rc.user_id, u.username
+       FROM referral_codes rc
+       JOIN users u ON u.id = rc.user_id
+       WHERE rc.code = $1
+       LIMIT 1`,
+      [code]
+    );
+    if (result.rows.length) {
+      const row = result.rows[0];
+      // Keep in-memory map in sync for /api/referrals/use compatibility
+      if (!referrals.has(code)) {
+        referrals.set(code, { code, referrerId: row.user_id, referrerUsername: row.username, uses: 0, earnings: 0, createdAt: Date.now() });
+      }
       return res.json({
         valid: true,
-        referrerUsername: ref.referrerUsername,
-        referrerId: ref.referrerId,
+        referrerUsername: row.username,
+        referrerId: row.user_id,
         welcomeBonus: 50000000,
       });
-    }
-    // Fallback: match against DB using the USERNAME_XXXX pattern
-    // Code must be exactly "UUUUUU_XXXX" — require at least one underscore separator
-    // and the suffix must be 4 alphanumeric chars to prevent prefix-only guessing
-    const underscoreIdx = code.lastIndexOf('_');
-    if (underscoreIdx > 0 && underscoreIdx < code.length - 1) {
-      const prefix = code.slice(0, underscoreIdx);
-      const suffix = code.slice(underscoreIdx + 1);
-      if (prefix.length >= 2 && /^[A-Z0-9]{4}$/i.test(suffix)) {
-        const found = await query(
-          `SELECT id, username FROM users
-           WHERE UPPER(SUBSTRING(username, 1, $1)) = UPPER($2)
-           LIMIT 1`,
-          [prefix.length, prefix]
-        );
-        if (found.rows.length) {
-          const referrer = found.rows[0];
-          return res.json({
-            valid: true,
-            referrerUsername: referrer.username,
-            referrerId: referrer.id,
-            welcomeBonus: 50000000,
-          });
-        }
-      }
     }
     return res.status(404).json({ valid: false, error: 'Referral code not found' });
   } catch (err) {
@@ -776,8 +779,9 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
       );
       await query('COMMIT');
 
-      // First-deposit referral commission: idempotent via commission_paid flag (DB-enforced exactly once)
+      // First-deposit referral commission: DB-atomic, exactly once via commission_paid flag
       try {
+        await query('BEGIN');
         const ref = await query(
           `UPDATE referrals SET commission_paid = TRUE
            WHERE referred_id = $1 AND commission_paid = FALSE
@@ -792,13 +796,17 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
             'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
             [referrerId, 'referral_commission', commission, `Referral commission from user #${userId} first deposit`]
           );
+          await query('COMMIT');
           await query(
             "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
             [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
           );
           io.to(`user_${referrerId}`).emit('referral:commission', { amount: commission });
+        } else {
+          await query('ROLLBACK');
         }
       } catch (commErr) {
+        await query('ROLLBACK').catch(() => {});
         console.error('[referral commission webhook]', commErr.message);
       }
 

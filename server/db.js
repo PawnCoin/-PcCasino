@@ -177,6 +177,17 @@ export async function initDatabase() {
     // Migration: add commission_paid column if not present
     await query(`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS commission_paid BOOLEAN DEFAULT FALSE`).catch(() => {});
 
+    // Stores durable referral codes so they survive server restarts
+    await query(`
+      CREATE TABLE IF NOT EXISTS referral_codes (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(32) UNIQUE NOT NULL,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_referral_codes_user ON referral_codes(user_id)`);
+
     await query(`
       CREATE TABLE IF NOT EXISTS tournaments (
         id SERIAL PRIMARY KEY,
