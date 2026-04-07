@@ -81,7 +81,6 @@ router.post('/register', async (req, res) => {
     const user = result.rows[0];
 
     // Handle referral — validate code against persisted referral_codes table (exact match only)
-    let referralBonusCredited = false;
     if (referralCode) {
       try {
         const codeRow = await query(
@@ -98,7 +97,6 @@ router.post('/register', async (req, res) => {
             );
             // Credit welcome bonus to referred user only (referrer earns commission on first deposit)
             await query('UPDATE users SET balance = balance + 50000000 WHERE id = $1', [user.id]);
-            referralBonusCredited = true;
             // Notify referred user of their welcome bonus
             await query(
               "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', '🎁 Welcome Bonus Credited!', $2)",

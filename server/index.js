@@ -10,7 +10,7 @@ import authRoutes, { requireAuth, verifyToken } from './auth-routes.js';
 import { createGameRound, revealGameRound, getGameRound, hashServerSeed, deriveGameResult } from './provably-fair.js';
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
-import { initDatabase, query } from './db.js';
+import { initDatabase, query, pool } from './db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -787,10 +787,12 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
       );
       await query('COMMIT');
 
-      // First-deposit referral commission: DB-atomic, exactly once via commission_paid flag
+      // First-deposit referral commission: single DB client transaction for true atomicity
+      // commission_paid flips only if balance credit + transaction record both succeed
+      const commClient = await pool.connect();
       try {
-        await query('BEGIN');
-        const ref = await query(
+        await commClient.query('BEGIN');
+        const ref = await commClient.query(
           `UPDATE referrals SET commission_paid = TRUE
            WHERE referred_id = $1 AND commission_paid = FALSE
            RETURNING referrer_id`,
@@ -799,23 +801,26 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
         if (ref.rows.length) {
           const referrerId = ref.rows[0].referrer_id;
           const commission = Math.floor(parseInt(amount) * 0.1);
-          await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [commission, referrerId]);
-          await query(
+          await commClient.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [commission, referrerId]);
+          await commClient.query(
             'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
             [referrerId, 'referral_commission', commission, `Referral commission from user #${userId} first deposit`]
           );
-          await query('COMMIT');
+          await commClient.query('COMMIT');
+          // Notification is outside the transaction — non-fatal side effect
           await query(
             "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
             [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
           );
           io.to(`user_${referrerId}`).emit('referral:commission', { amount: commission });
         } else {
-          await query('ROLLBACK');
+          await commClient.query('ROLLBACK');
         }
       } catch (commErr) {
-        await query('ROLLBACK').catch(() => {});
+        await commClient.query('ROLLBACK').catch(() => {});
         console.error('[referral commission webhook]', commErr.message);
+      } finally {
+        commClient.release();
       }
 
       // Notify user in-app
