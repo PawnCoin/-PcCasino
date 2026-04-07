@@ -282,7 +282,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [smackActive, setSmackActive] = useState(false);
 
   // Disarm smack if the player's turn ends before they play a card
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentPlayer !== 0 || gamePhase !== 'playing') {
       setSmackMode(false);
     }
@@ -1333,10 +1333,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       <div className="text-xs font-bold text-white">{players[2].name}</div>
                       <div className="text-xs text-white/60">{players[2].nilBid ? '🚫NIL' : `Bid: ${players[2].bid ?? '?'}`} · {players[2].tricks}✓</div>
                       {gamePhase === 'playing' && bookStacks[2] > 0 && (
-                        <div className="flex gap-0.5 mt-0.5">
-                          {Array.from({ length: Math.min(bookStacks[2], 13) }).map((_, bi) => (
-                            <div key={bi} style={{ width: 5, height: 7, borderRadius: 1, background: animatingBook === 'p3' && bi === bookStacks[2] - 1 ? '#D4AF37' : '#4CAF50', border: '1px solid rgba(255,255,255,0.15)', transition: 'background 0.3s' }} />
-                          ))}
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div style={{ position: 'relative', width: 20, height: 14 }}>
+                            {[0,1,2].map(layer => (
+                              <div key={layer} style={{ position: 'absolute', width: 12, height: 16, borderRadius: 2, background: animatingBook === 'p3' ? '#D4AF37' : '#4CAF50', border: '1px solid rgba(255,255,255,0.25)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'background 0.3s' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: '#43A047', letterSpacing: '0.02em' }}>×{bookStacks[2]}</span>
                         </div>
                       )}
                     </div>
@@ -1376,10 +1379,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-[10px] text-white/60">{players[1].nilBid ? '🚫NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
                     <div className="text-[10px] text-white/60">{players[1].tricks}✓</div>
                     {gamePhase === 'playing' && bookStacks[1] > 0 && (
-                      <div className="flex gap-0.5 mt-1">
-                        {Array.from({ length: Math.min(bookStacks[1], 13) }).map((_, bi) => (
-                          <div key={bi} style={{ width: 4, height: 6, borderRadius: 1, background: animatingBook === 'p2' && bi === bookStacks[1] - 1 ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.12)', transition: 'background 0.3s' }} />
-                        ))}
+                      <div className="flex items-center gap-1 mt-1">
+                        <div style={{ position: 'relative', width: 20, height: 14 }}>
+                          {[0,1,2].map(layer => (
+                            <div key={layer} style={{ position: 'absolute', width: 12, height: 16, borderRadius: 2, background: animatingBook === 'p2' ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.25)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'background 0.3s' }} />
+                          ))}
+                        </div>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: '#ef5350', letterSpacing: '0.02em' }}>×{bookStacks[1]}</span>
                       </div>
                     )}
                   </div>
@@ -1418,10 +1424,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-[10px] text-white/60">{players[3].nilBid ? '🚫NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
                     <div className="text-[10px] text-white/60">{players[3].tricks}✓</div>
                     {gamePhase === 'playing' && bookStacks[3] > 0 && (
-                      <div className="flex gap-0.5 mt-1">
-                        {Array.from({ length: Math.min(bookStacks[3], 13) }).map((_, bi) => (
-                          <div key={bi} style={{ width: 4, height: 6, borderRadius: 1, background: animatingBook === 'p4' && bi === bookStacks[3] - 1 ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.12)', transition: 'background 0.3s' }} />
-                        ))}
+                      <div className="flex items-center gap-1 mt-1">
+                        <div style={{ position: 'relative', width: 20, height: 14 }}>
+                          {[0,1,2].map(layer => (
+                            <div key={layer} style={{ position: 'absolute', width: 12, height: 16, borderRadius: 2, background: animatingBook === 'p4' ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.25)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'background 0.3s' }} />
+                          ))}
+                        </div>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: '#ef5350', letterSpacing: '0.02em' }}>×{bookStacks[3]}</span>
                       </div>
                     )}
                   </div>
@@ -1453,10 +1462,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-sm font-bold text-white">You</div>
                     <div className="text-xs text-white/60">{players[0].nilBid ? '🚫NIL' : players[0].blindNilBid ? '🔮BNIL' : `Bid: ${players[0].bid ?? '?'}`} · {players[0].tricks}✓</div>
                     {gamePhase === 'playing' && bookStacks[0] > 0 && (
-                      <div className="flex gap-0.5 mt-0.5">
-                        {Array.from({ length: Math.min(bookStacks[0], 13) }).map((_, bi) => (
-                          <div key={bi} style={{ width: 6, height: 8, borderRadius: 1, background: animatingBook === 'you' && bi === bookStacks[0] - 1 ? '#FFD700' : '#43A047', border: '1px solid rgba(255,255,255,0.2)', transition: 'background 0.3s' }} />
-                        ))}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <div style={{ position: 'relative', width: 22, height: 14 }}>
+                          {[0,1,2].map(layer => (
+                            <div key={layer} style={{ position: 'absolute', width: 14, height: 18, borderRadius: 2, background: animatingBook === 'you' ? '#FFD700' : '#43A047', border: '1px solid rgba(255,255,255,0.3)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 4px rgba(0,0,0,0.5)', transition: 'background 0.3s' }} />
+                          ))}
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 900, color: animatingBook === 'you' ? '#FFD700' : '#43A047', letterSpacing: '0.02em', transition: 'color 0.3s' }}>×{bookStacks[0]}</span>
                       </div>
                     )}
                   </div>
@@ -1525,6 +1537,30 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       } as React.CSSProperties}
                     >
                       {renderCardFace(tossCard.card, undefined, { size: 'lg' })}
+                    </div>
+                  );
+                })()}
+
+                {/* ── TRICK-WIN BOOK BUNDLE (flies from center to winner corner) ── */}
+                {animatingBook !== null && (() => {
+                  const bookIdx = ['you','p2','p3','p4'].indexOf(animatingBook);
+                  const isYourTeam = animatingBook === 'you' || animatingBook === 'p3';
+                  if (bookIdx < 0) return null;
+                  return (
+                    <div className="absolute pointer-events-none" style={{
+                      top: '50%', left: '50%', zIndex: 42,
+                      animation: `bookSlide-${bookIdx} 0.9s cubic-bezier(0.22,0.61,0.36,1) forwards`,
+                    }}>
+                      {[0,1,2,3].map(layer => (
+                        <div key={layer} style={{
+                          position: 'absolute',
+                          width: 22, height: 30, borderRadius: 3,
+                          background: isYourTeam ? 'rgba(67,160,71,0.88)' : 'rgba(239,83,80,0.88)',
+                          border: '1.5px solid rgba(255,255,255,0.35)',
+                          transform: `translate(-50%,-50%) rotate(${(layer - 1.5) * 7}deg)`,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.55)',
+                        }} />
+                      ))}
                     </div>
                   );
                 })()}
