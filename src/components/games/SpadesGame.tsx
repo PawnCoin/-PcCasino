@@ -278,7 +278,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [bookStacks, setBookStacks] = useState<number[]>([0, 0, 0, 0]);
   const [propCelebrating, setPropCelebrating] = useState(false);
   const [animatingBook, setAnimatingBook] = useState<string | null>(null);
-  const [dealSmacks, setDealSmacks] = useState<{ id: number; target: number }[]>([]);
+  const [smackMode, setSmackMode] = useState(false);
+  const [smackActive, setSmackActive] = useState(false);
+
+  // Disarm smack if the player's turn ends before they play a card
+  React.useEffect(() => {
+    if (currentPlayer !== 0 || gamePhase !== 'playing') {
+      setSmackMode(false);
+    }
+  }, [currentPlayer, gamePhase]);
 
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -378,15 +386,10 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
       setBookStacks([0, 0, 0, 0]);
 
       let step = 0;
-      let smackId = 0;
       const dealInterval = setInterval(() => {
         step++;
         playSound('card');
         setDealStep(step);
-        const smId = smackId++;
-        const target = step % 4;
-        setDealSmacks(prev => [...prev, { id: smId, target }]);
-        setTimeout(() => setDealSmacks(prev => prev.filter(s => s.id !== smId)), 500);
         if (step >= 13) {
           clearInterval(dealInterval);
           setTimeout(() => {
@@ -456,7 +459,14 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
     const rotation = (Math.random() - 0.5) * 28;
     setTossCard({ card, rotation, fromPlayer: true, playerIdx: 0 });
-    playSound('card');
+    if (smackMode) {
+      playSound('ballLand');
+      setSmackMode(false);
+      setSmackActive(true);
+      setTimeout(() => setSmackActive(false), 700);
+    } else {
+      playSound('card');
+    }
     setTimeout(() => setTossCard(null), 850);
 
     if (card.suit === 'spades' && !spadesBroken) { setSpadesBroken(true); triggerSpadesBroken(); }
@@ -675,13 +685,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           setCompletedTricks([]); setCurrentTrick([]); setLastTrick(null); setSpadesBroken(false);
           setBookStacks([0, 0, 0, 0]);
           let step = 0;
-          let smId2 = 0;
           const di = setInterval(() => {
             step++; playSound('card'); setDealStep(step);
-            const sid = smId2++;
-            const tgt = step % 4;
-            setDealSmacks(prev => [...prev, { id: sid, target: tgt }]);
-            setTimeout(() => setDealSmacks(prev => prev.filter(s => s.id !== sid)), 500);
             if (step >= 13) {
               clearInterval(di);
               setTimeout(() => { setGamePhase('bidding'); setCurrentPlayer(0); setMessage('New round! Place your bid.'); }, 400);
@@ -938,6 +943,16 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 0.9; border-width: 4px; }
             60%  { transform: translate(-50%,-50%) scale(1.8); opacity: 0.5; border-width: 2px; }
             100% { transform: translate(-50%,-50%) scale(3); opacity: 0; border-width: 1px; }
+          }
+          @keyframes smackText {
+            0%   { transform: translate(-50%, -50%) scale(0.5) rotate(-8deg); opacity: 0; }
+            25%  { transform: translate(-50%, -60%) scale(1.2) rotate(4deg); opacity: 1; }
+            60%  { transform: translate(-50%, -70%) scale(1.0) rotate(-2deg); opacity: 1; }
+            100% { transform: translate(-50%, -90%) scale(0.85) rotate(0deg); opacity: 0; }
+          }
+          @keyframes smackArmPulse {
+            0%,100% { box-shadow: 0 0 6px rgba(212,175,55,0.4); }
+            50%     { box-shadow: 0 0 16px rgba(212,175,55,0.9), 0 0 32px rgba(212,175,55,0.4); }
           }
           @keyframes bookSlide-0 {
             0%   { transform: translate(-50%,-50%) translate(0px, 90px) scale(0.5) rotate(-15deg); opacity: 0; }
@@ -1514,25 +1529,30 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   );
                 })()}
 
-                {/* ── DEAL SMACK RIPPLES ── */}
-                {dealSmacks.map(smack => {
-                  const smackPos: React.CSSProperties[] = [
-                    { bottom: '20%', left: '50%' },
-                    { left: '16%', top: '50%' },
-                    { top: '20%', left: '50%' },
-                    { right: '16%', top: '50%' },
-                  ];
-                  return (
-                    <div key={smack.id} className="absolute pointer-events-none" style={{
-                      ...smackPos[smack.target],
-                      width: 54, height: 54,
-                      borderRadius: '50%',
-                      border: '3px solid rgba(212,175,55,0.7)',
-                      zIndex: 35,
-                      animation: 'smackRipple 0.45s ease-out forwards',
+                {/* ── CARD SMACK VISUAL (when user smacks a card) ── */}
+                {smackActive && (
+                  <div className="absolute pointer-events-none" style={{ top: '50%', left: '50%', zIndex: 55 }}>
+                    <div style={{
+                      position: 'absolute', width: 90, height: 90, borderRadius: '50%',
+                      border: '4px solid rgba(212,175,55,0.9)',
+                      animation: 'smackRipple 0.55s ease-out forwards',
                     }} />
-                  );
-                })}
+                    <div style={{
+                      position: 'absolute', width: 140, height: 140, borderRadius: '50%',
+                      border: '2px solid rgba(212,175,55,0.45)',
+                      animation: 'smackRipple 0.55s 0.06s ease-out forwards',
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      transform: 'translate(-50%, -50%)',
+                      fontFamily: "'Cinzel',serif", fontWeight: 900, fontSize: 22,
+                      color: '#D4AF37', letterSpacing: '0.08em',
+                      textShadow: '0 0 20px rgba(212,175,55,0.9), 0 2px 4px rgba(0,0,0,0.8)',
+                      animation: 'smackText 0.65s ease-out forwards',
+                      whiteSpace: 'nowrap',
+                    }}>SMACK!</div>
+                  </div>
+                )}
 
                 {/* ── DEALING ANIMATION OVERLAY ── */}
                 {gamePhase === 'dealing' && (
@@ -1650,7 +1670,25 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 <div style={{ background: 'linear-gradient(180deg, rgba(8,8,14,0.95) 0%, rgba(5,5,10,1) 100%)', borderTop: '2px solid rgba(93,64,55,0.5)', padding: '10px 8px 12px', position: 'relative' }}>
                   {/* Reaction + Quick Text buttons */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
+                      {/* SMACK button — arm before playing a card you're confident about */}
+                      {gamePhase === 'playing' && currentPlayer === 0 && (
+                        <button
+                          onClick={() => setSmackMode(m => !m)}
+                          title={smackMode ? 'SMACK armed — play any card to slam it!' : 'Arm the SMACK — play with attitude!'}
+                          style={{
+                            fontSize: 11, padding: '2px 7px', borderRadius: 8,
+                            background: smackMode ? 'rgba(212,175,55,0.25)' : 'rgba(255,255,255,0.05)',
+                            border: `1.5px solid ${smackMode ? '#D4AF37' : 'rgba(255,255,255,0.15)'}`,
+                            color: smackMode ? '#D4AF37' : '#666',
+                            cursor: 'pointer', fontWeight: 800, letterSpacing: '0.04em',
+                            transition: 'all 0.2s',
+                            animation: smackMode ? 'smackArmPulse 0.8s ease-in-out infinite' : undefined,
+                            userSelect: 'none',
+                          }}>
+                          💥 {smackMode ? 'ARMED!' : 'SMACK'}
+                        </button>
+                      )}
                       {REACTIONS.map(emoji => (
                         <button key={emoji} onClick={() => addReaction(emoji)}
                           className="text-base hover:scale-125 transition-transform" style={{ lineHeight: 1 }}>
