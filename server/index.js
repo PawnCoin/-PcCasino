@@ -421,7 +421,6 @@ app.get('/api/referrals/:userId', (req, res) => {
 
 // ---- Provably Fair API routes ----
 // Create a new game round — commits server seed hash to client BEFORE round plays out.
-// Does NOT return the result; the outcome is computed after the round ends via /resolve.
 app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   const { game, clientSeed, nonce } = req.body;
   if (!game || !clientSeed || nonce === undefined) {
@@ -433,7 +432,6 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   }
   try {
     const { roundId, serverSeedHash } = await createGameRound(req.user.id, game, clientSeed, nonce);
-    // Only return the commitment (hash). The result is computed after the round completes.
     res.json({ roundId, serverSeedHash });
   } catch (err) {
     console.error('[PF] new-round error:', err.message);
@@ -441,9 +439,7 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   }
 });
 
-// Blackjack deal — returns the authoritative initial 4 cards from the seed-derived deck.
-// Transitions status: created → dealing. Rejects if called again (idempotent guard).
-// Only for blackjack game type.
+// Blackjack: created → dealing, returns initial 4 cards
 app.post('/api/provably-fair/blackjack-deal/:roundId', requireAuth, async (req, res) => {
   try {
     const roundId = parseInt(req.params.roundId);
@@ -461,7 +457,6 @@ app.post('/api/provably-fair/blackjack-deal/:roundId', requireAuth, async (req, 
     }
     const cards = rows[0].result?.cards;
     if (!cards || cards.length < 4) return res.status(500).json({ error: 'Invalid round data' });
-    // Return only initial 4 cards: [player1, dealer1, player2, dealer2]
     res.json({ cards: cards.slice(0, 4), serverSeedHash: rows[0].server_seed_hash });
   } catch (err) {
     console.error('[PF] blackjack-deal error:', err.message);
@@ -469,12 +464,10 @@ app.post('/api/provably-fair/blackjack-deal/:roundId', requireAuth, async (req, 
   }
 });
 
-// Blackjack draw — returns the next card from the seed-derived deck sequentially.
-// Requires status = 'dealing'. Advances draw_index atomically to prevent duplicate draws.
+// Blackjack: atomically advance draw_index, return next card
 app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, res) => {
   try {
     const roundId = parseInt(req.params.roundId);
-    // Atomically increment draw_index and read the card at that position
     const { rows } = await query(
       `UPDATE game_rounds SET draw_index = draw_index + 1
        WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'dealing'
@@ -488,7 +481,7 @@ app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, 
       return res.status(409).json({ error: `Cannot draw: round is ${check.rows[0].status}` });
     }
     const cards = rows[0].result?.cards;
-    const idx = rows[0].draw_index - 1; // draw_index was incremented, so current card is at idx
+    const idx = rows[0].draw_index - 1;
     if (!cards || idx >= cards.length) return res.status(410).json({ error: 'Deck exhausted' });
     res.json({ card: cards[idx] });
   } catch (err) {
@@ -497,9 +490,7 @@ app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, 
   }
 });
 
-// Blackjack finish — marks hand as complete after all player/dealer actions are done.
-// Transitions status: dealing → finished. Must be called before resolve/reveal.
-// Returns no cards — only confirms the hand is over server-side.
+// Blackjack: dealing → finished (must precede resolve)
 app.post('/api/provably-fair/blackjack-finish/:roundId', requireAuth, async (req, res) => {
   try {
     const roundId = parseInt(req.params.roundId);
@@ -522,16 +513,11 @@ app.post('/api/provably-fair/blackjack-finish/:roundId', requireAuth, async (req
   }
 });
 
-// Resolve a round — client calls this after the round completes to get the authoritative outcome.
-// Enforces lifecycle:
-//   Slots/Roulette/Dice: created → resolved
-//   Blackjack: finished → resolved (cannot resolve while still dealing)
-// Returns the seed-derived result. For blackjack: returns ONLY draw_index (card count used),
-// NOT the full deck — full deck is revealed post-reveal for verification only.
+// Resolve: blackjack requires finished→resolved; others require created→resolved.
+// Returns minimal result only (blackjack: card count, not full deck).
 app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
   try {
     const roundId = parseInt(req.params.roundId);
-    // Fetch round to check game type and status
     const { rows: checkRows } = await query(
       'SELECT game, status, user_id, result, server_seed_hash FROM game_rounds WHERE id = $1',
       [roundId]
@@ -539,23 +525,14 @@ app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) =>
     if (!checkRows.length) return res.status(404).json({ error: 'Round not found' });
     const round = checkRows[0];
     if (round.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
-
-    // Enforce correct terminal state per game type
-    const validFromStates = round.game === 'blackjack' ? ['finished'] : ['created'];
-    if (!validFromStates.includes(round.status)) {
+    const validFrom = round.game === 'blackjack' ? ['finished'] : ['created'];
+    if (!validFrom.includes(round.status)) {
       return res.status(409).json({ error: `Cannot resolve: round is ${round.status}` });
     }
-
-    // Transition to resolved
-    await query(
-      `UPDATE game_rounds SET status = 'resolved' WHERE id = $1`,
-      [roundId]
-    );
-
-    // Return only minimal outcome — for blackjack do NOT return full deck (prevents cheating on future rounds)
+    await query(`UPDATE game_rounds SET status = 'resolved' WHERE id = $1`, [roundId]);
     let safeResult = round.result;
     if (round.game === 'blackjack' && safeResult?.cards) {
-      safeResult = { cardCount: safeResult.cards.length }; // just confirms deck was 52 cards
+      safeResult = { cardCount: safeResult.cards.length };
     }
     res.json({ result: safeResult, serverSeedHash: round.server_seed_hash });
   } catch (err) {
@@ -564,11 +541,9 @@ app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) =>
   }
 });
 
-// Reveal server seed — only allowed after round has been resolved (status = 'resolved').
-// Enforces lifecycle: resolved → revealed. Prevents pre-game seed disclosure.
+// Reveal: resolved → revealed. Returns server seed for independent verification.
 app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => {
   try {
-    // Enforce: must be in 'resolved' state before revealing (prevents pre-play disclosure)
     const statusCheck = await query(
       'SELECT status, user_id FROM game_rounds WHERE id = $1',
       [parseInt(req.params.roundId)]
@@ -577,7 +552,7 @@ app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => 
     const row = statusCheck.rows[0];
     if (row.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
     if (row.status !== 'resolved') {
-      return res.status(409).json({ error: `Round must be resolved before revealing server seed (current status: ${row.status})` });
+      return res.status(409).json({ error: `Cannot reveal: round is ${row.status}` });
     }
     const data = await revealGameRound(parseInt(req.params.roundId), req.user.id);
     if (!data) return res.status(404).json({ error: 'Round not found or already revealed' });
@@ -595,13 +570,14 @@ app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => 
   }
 });
 
-// Public verification — only returns revealed rounds; never exposes user_id or pre-reveal data
+// Public round lookup — only revealed rounds, user_id excluded.
+// Intentionally unauthenticated: provably-fair requires players can share round IDs
+// with third parties for independent verification without needing an account.
 app.get('/api/provably-fair/verify/:roundId', async (req, res) => {
   try {
     const round = await getGameRound(parseInt(req.params.roundId));
     if (!round) return res.status(404).json({ error: 'Round not found' });
     if (!round.revealed_at) return res.status(403).json({ error: 'Round not yet revealed' });
-    // Return only what is needed for independent verification; omit user_id
     const { server_seed, server_seed_hash, client_seed, nonce, game, result, created_at, revealed_at } = round;
     res.json({ server_seed, server_seed_hash, client_seed, nonce, game, result, created_at, revealed_at });
   } catch (err) {
@@ -609,7 +585,6 @@ app.get('/api/provably-fair/verify/:roundId', async (req, res) => {
   }
 });
 
-// Client-side verification endpoint — reproduce result from seeds (no DB lookup needed)
 app.post('/api/provably-fair/verify', (req, res) => {
   const { game, serverSeed, clientSeed, nonce } = req.body;
   if (!game || !serverSeed || !clientSeed || nonce === undefined) {

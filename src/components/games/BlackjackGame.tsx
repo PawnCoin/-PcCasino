@@ -180,9 +180,6 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
   };
 
-  // Draw next card from the server's seed-derived deck (sequential, server-authoritative).
-  // Uses pfDrawBlackjackCard which atomically advances draw_index server-side.
-  // NOTE: callers must acquire actionLockRef before calling and release it after.
   const drawNextCard = useCallback(async (): Promise<Card | null> => {
     const roundId = currentPfRoundIdRef.current;
     if (!roundId) return null;
@@ -303,7 +300,6 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       const dealerValue = calculateBlackjackValue(currentDealerHand);
       
       if (dealerValue < 17) {
-        // Acquire lock for each dealer draw — prevents any stray player action during dealer turn
         if (!acquireAction()) { setTimeout(playDealer, 200); return; }
         const nextCard = await drawNextCard();
         releaseAction();
@@ -370,8 +366,6 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerBust();
     }
 
-    // Blackjack lifecycle: dealing → finished → resolved → revealed
-    // finish must be called BEFORE resolve — resolve rejects if status is still 'dealing'.
     if (currentPfRoundIdRef.current) {
       const roundId = currentPfRoundIdRef.current;
       pfFinishBlackjack(roundId)

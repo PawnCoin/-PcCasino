@@ -88,7 +88,6 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
     }
   }, []);
 
-  // Blackjack: draw next card from seed-derived deck. Server advances draw_index atomically.
   const drawBlackjackCard = useCallback(async (roundId: number): Promise<{ suit: string; value: string } | null> => {
     const token = getToken();
     if (!token) return null;
