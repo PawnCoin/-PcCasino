@@ -1008,6 +1008,59 @@ app.post('/api/pcpayments/config', requireAuth, (req, res) => {
   res.json({ success: true, config: { ...pcpaymentsConfig, apiKey: '***set***', webhookSecret: '***set***' } });
 });
 
+// PcPay checkout initiation — calls pcpayments.online on behalf of the user
+app.post('/api/deposit/initiate', requireAuth, async (req, res) => {
+  const apiKey = process.env.PCPAY_API_KEY || pcpaymentsConfig.apiKey;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'PCPAY_NOT_CONFIGURED' });
+  }
+  const { amount } = req.body;
+  const parsedAmount = parseInt(amount);
+  if (!parsedAmount || parsedAmount <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' });
+  }
+  const userId = req.user.id;
+  const username = req.user.username;
+  const siteUrl = process.env.SITE_URL || 'https://pccasino.online';
+  try {
+    const response = await fetch('https://pcpayments.online/api/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-PcPay-Key': apiKey,
+      },
+      body: JSON.stringify({
+        amount: parsedAmount,
+        currency: 'PC',
+        userId: String(userId),
+        username,
+        callbackUrl: `${siteUrl}/api/pcpayments/webhook`,
+        returnUrl: siteUrl,
+        metadata: { casinoUserId: userId },
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error('[PcPay checkout] Error', response.status, data);
+      return res.status(502).json({ error: data.error || 'PcPay checkout failed', status: response.status });
+    }
+    console.log('[PcPay checkout] Session created for user', userId, 'amount', parsedAmount);
+    res.json(data);
+  } catch (err) {
+    console.error('[PcPay checkout] Exception:', err.message);
+    res.status(502).json({ error: 'PcPay checkout unavailable. Try again later.' });
+  }
+});
+
+// Token info endpoint — returns contract address & network so frontend can display it
+app.get('/api/pc-token-info', (req, res) => {
+  const contractAddress = process.env.PC_TOKEN_CONTRACT || null;
+  const network = process.env.PC_TOKEN_NETWORK || 'eth';
+  const pcpayEnabled = !!(process.env.PCPAY_API_KEY || pcpaymentsConfig.apiKey);
+  res.json({ contractAddress, network, pcpayEnabled });
+});
+
 // PcPay webhook - auto-credit user balance
 // Raw body captured by the path-specific middleware registered before express.json()
 app.post('/api/pcpayments/webhook', async (req, res) => {

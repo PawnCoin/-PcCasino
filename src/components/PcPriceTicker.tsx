@@ -32,7 +32,7 @@ function formatCompact(n: number | null): string {
 
 const POLL_INTERVAL = 30_000;
 
-export function PcPriceTicker({ compact = false }: { compact?: boolean }) {
+export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boolean; onFullInfo?: () => void }) {
   const [data, setData] = useState<PcPriceData | null>(null);
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
@@ -282,6 +282,21 @@ export function PcPriceTicker({ compact = false }: { compact?: boolean }) {
               CoinGecko
             </a>
           </div>
+          {onFullInfo && (
+            <button
+              onClick={() => { setExpanded(false); onFullInfo(); }}
+              style={{
+                marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                padding: '7px 8px', borderRadius: 8,
+                background: 'linear-gradient(135deg, rgba(212,175,55,0.22), rgba(212,175,55,0.08))',
+                border: '1px solid rgba(212,175,55,0.4)',
+                color: '#D4AF37', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              <Activity size={10} />
+              Full Chart & Token Info
+            </button>
+          )}
 
           <div style={{ marginTop: 8, fontSize: 9, color: '#444', textAlign: 'center' }}>
             Updates every 30s · Live on-chain data

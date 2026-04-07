@@ -29,6 +29,7 @@ interface NavigationProps {
   onShowTournaments?: () => void;
   onShowReferral?: () => void;
   onShowLegal?: (page: string) => void;
+  onShowPcToken?: () => void;
   isAdmin?: boolean;
 }
 
@@ -53,6 +54,7 @@ export function Navigation({
   onShowTournaments,
   onShowReferral,
   onShowLegal,
+  onShowPcToken,
   isAdmin,
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
@@ -230,7 +232,7 @@ export function Navigation({
             <div className="flex items-center gap-2 md:gap-4">
               {/* Live $Pc price — always visible */}
               <div className="hidden md:block">
-                <PcPriceTicker compact={false} />
+                <PcPriceTicker compact={false} onFullInfo={onShowPcToken} />
               </div>
 
               {isAuthenticated ? (

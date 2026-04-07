@@ -47,6 +47,7 @@ import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
 import { JackpotCelebration } from '@/components/JackpotCelebration';
 import { PokerHandSharePage } from '@/components/PokerHandSharePage';
+import { PcTokenModal } from '@/components/PcTokenModal';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -110,6 +111,7 @@ function App() {
   const [showDispute, setShowDispute] = useState(false);
   const [showTournaments, setShowTournaments] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
+  const [showPcToken, setShowPcToken] = useState(false);
 
   // Jackpot celebration state (shown when the logged-in user wins the jackpot)
   const [jackpotCelebration, setJackpotCelebration] = useState<{ amount: number; username: string } | null>(null);
@@ -1068,6 +1070,7 @@ function App() {
           onShowTournaments={() => setShowTournaments(true)}
           onShowReferral={() => setShowReferral(true)}
           onShowLegal={handleShowLegal}
+          onShowPcToken={() => setShowPcToken(true)}
           isAdmin={user?.isAdmin === true}
         />
       )}
@@ -1459,6 +1462,13 @@ function App() {
         isOpen={showReferral}
         onClose={() => setShowReferral(false)}
         user={user}
+      />
+
+      {/* $Pc Token Info Modal */}
+      <PcTokenModal
+        isOpen={showPcToken}
+        onClose={() => setShowPcToken(false)}
+        onShowDeposit={() => { setShowPcToken(false); setShowDeposit(true); }}
       />
 
       {/* Provably Fair Page */}

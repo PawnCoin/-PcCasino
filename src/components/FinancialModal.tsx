@@ -20,7 +20,9 @@ import {
   QrCode,
   AlertCircle,
   Filter,
-  Search
+  Search,
+  ExternalLink,
+  CreditCard
 } from 'lucide-react';
 import type { Transaction } from '@/types';
 
@@ -82,6 +84,45 @@ export function FinancialModal({
   const [historySearch, setHistorySearch] = useState('');
   const [showQR, setShowQR] = useState(false);
   const [depositAddressFetched, setDepositAddressFetched] = useState('');
+  const [pcpayEnabled, setPcpayEnabled] = useState(false);
+  const [pcpayLoading, setPcpayLoading] = useState(false);
+  const [pcpayError, setPcpayError] = useState('');
+  const [pcpayAmount, setPcpayAmount] = useState('');
+
+  useEffect(() => {
+    fetch('/api/pc-token-info')
+      .then(r => r.json())
+      .then(d => { if (d?.pcpayEnabled) setPcpayEnabled(true); })
+      .catch(() => {});
+  }, []);
+
+  const handlePcPayCheckout = async (amount: number) => {
+    setPcpayLoading(true);
+    setPcpayError('');
+    try {
+      const token = localStorage.getItem('pcasino_token') || '';
+      const res = await fetch('/api/deposit/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPcpayError(data.error || 'PcPay checkout failed. Try manual deposit.');
+        return;
+      }
+      const checkoutUrl = data.checkout_url || data.checkoutUrl || data.url || data.redirect_url;
+      if (checkoutUrl) {
+        window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        setPcpayError('Checkout URL not returned. Contact support.');
+      }
+    } catch {
+      setPcpayError('Could not reach PcPay. Try manual deposit.');
+    } finally {
+      setPcpayLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!depositAddressProp && isOpen) {
@@ -441,6 +482,53 @@ export function FinancialModal({
                         <div className="text-sm text-[#808080]">Send $Pc to your casino wallet</div>
                       </div>
                     </div>
+
+                    {/* PcPay Express Checkout */}
+                    {pcpayEnabled && (
+                      <div className="mb-4 p-4 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.4)' }}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <CreditCard className="w-4 h-4 text-[#D4AF37]" />
+                          <span className="text-sm font-bold text-[#D4AF37]">Pay via $PcPay</span>
+                          <span className="text-xs text-[#555] ml-1">— Instant checkout at pcpayments.online</span>
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                          <input
+                            type="number"
+                            value={pcpayAmount}
+                            onChange={e => setPcpayAmount(e.target.value)}
+                            placeholder="Amount in $Pc..."
+                            min="100"
+                            className="flex-1 p-2.5 rounded-lg bg-black/50 border border-[#D4AF37]/40 text-white placeholder-[#606060] focus:outline-none focus:border-[#D4AF37] text-sm"
+                          />
+                          <button
+                            onClick={() => handlePcPayCheckout(parseInt(pcpayAmount) || 0)}
+                            disabled={pcpayLoading || !pcpayAmount || parseInt(pcpayAmount) < 100}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000' }}
+                          >
+                            {pcpayLoading ? '…' : <><ExternalLink className="w-4 h-4" /> Pay</>}
+                          </button>
+                        </div>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {[1000, 5000, 10000, 50000].map(amt => (
+                            <button
+                              key={amt}
+                              onClick={() => handlePcPayCheckout(amt)}
+                              disabled={pcpayLoading}
+                              className="px-3 py-1 rounded-lg text-xs font-bold disabled:opacity-50"
+                              style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}
+                            >
+                              {amt.toLocaleString()} $Pc
+                            </button>
+                          ))}
+                        </div>
+                        {pcpayError && (
+                          <div className="mt-2 text-xs text-[#ef5350] flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {pcpayError}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="p-4 rounded-xl bg-black/50 border border-[#5D4037]/30 mb-3">
                       <div className="flex items-center justify-between mb-2">
