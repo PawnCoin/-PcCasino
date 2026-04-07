@@ -168,9 +168,9 @@ function App() {
             welcomeBonus: data.welcomeBonus ?? 50000000,
             code: refCode,
           });
-        } else if (refCode) {
-          // Code stored but not validated — keep it for the register form fallback
-          setPendingReferralCode(refCode);
+        } else {
+          // Validation failed — clear invalid code so stale UX is not shown
+          sessionStorage.removeItem('pcasino_ref_code');
         }
       })
       .catch(() => {});
