@@ -7,6 +7,7 @@ export interface ProvablyFairRound {
   clientSeed: string;
   nonce: number;
   serverSeed?: string;
+  result?: Record<string, unknown>;
 }
 
 function generateClientSeed(): string {
@@ -45,6 +46,7 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack') {
         serverSeedHash: data.serverSeedHash,
         clientSeed,
         nonce,
+        result: data.result,
       };
       setRound(newRound);
       return newRound;

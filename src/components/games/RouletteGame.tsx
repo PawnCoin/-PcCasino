@@ -439,11 +439,13 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
     playSound('noMoreBets');
     announceNoMoreBets();
 
-    // Provably fair: capture server seed hash before outcome
+    // Provably fair: get deterministic outcome from server seeds
     const pfRound = await startRound();
     if (pfRound) currentRoundIdRef.current = pfRound.roundId;
 
-    const winningNum = WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
+    // Use server-derived number if available, otherwise fall back to local random
+    const winningNum = (pfRound?.result as { number?: number } | undefined)?.number
+      ?? WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
     winningNumRef.current = winningNum;
 
     safeTimeout(() => {

@@ -7,6 +7,8 @@ interface ProvablyFairPageProps {
   onBack?: () => void;
   isOpen?: boolean;
   onClose?: () => void;
+  prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number };
+  inline?: boolean;
 }
 
 interface VerifyResult {
@@ -15,17 +17,13 @@ interface VerifyResult {
   valid: boolean;
 }
 
-function truncate(s: string, n = 24) {
-  if (!s) return '';
-  return s.length > n ? `${s.slice(0, n)}…` : s;
-}
 
-export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPageProps) {
+export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: ProvablyFairPageProps) {
   const handleBack = onBack || onClose || (() => {});
   const [game, setGame] = useState<'slots' | 'roulette' | 'blackjack'>('slots');
-  const [serverSeed, setServerSeed] = useState('');
-  const [clientSeed, setClientSeed] = useState('');
-  const [nonce, setNonce] = useState('1');
+  const [serverSeed, setServerSeed] = useState(prefill?.serverSeed || '');
+  const [clientSeed, setClientSeed] = useState(prefill?.clientSeed || '');
+  const [nonce, setNonce] = useState(prefill?.nonce !== undefined ? String(prefill.nonce) : '1');
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,8 +58,8 @@ export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPagePr
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Verification failed');
       setVerifyResult(data);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Verification failed');
     } finally {
       setLoading(false);
     }
@@ -93,14 +91,9 @@ export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPagePr
 
   const cardClass = "bg-[#1a1a1a] border border-[#333] rounded-xl p-5";
 
-  const content = (
-    <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%)' }}>
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
-          <ChevronLeft className="w-5 h-5" />
-          Back to Casino
-        </button>
-
+  const toolContent = (
+    <>
+      {!inline && (
         <div className="flex items-center gap-3 mb-8">
           <div className="p-2 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30">
             <Shield className="w-7 h-7 text-[#D4AF37]" />
@@ -110,8 +103,9 @@ export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPagePr
             <p className="text-sm text-gray-400">Cryptographic game verification — every result is independently verifiable</p>
           </div>
         </div>
+      )}
 
-        {/* How it works */}
+      {!inline && (
         <div className={`${cardClass} mb-6`}>
           <h2 className="font-bold text-lg mb-4">How It Works</h2>
           <ol className="space-y-3 text-sm text-gray-300">
@@ -133,87 +127,87 @@ export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPagePr
             </li>
           </ol>
         </div>
+      )}
 
-        {/* Verification tool */}
-        <div className={`${cardClass} mb-6`}>
-          <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-[#D4AF37]" />
-            Verification Tool
-          </h2>
+      <div className={`${cardClass} mb-6`}>
+        <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+          <RefreshCw className="w-5 h-5 text-[#D4AF37]" />
+          Verification Tool
+        </h2>
 
-          <div className="grid gap-4">
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Game Type</label>
-              <div className="flex gap-2">
-                {(['slots', 'roulette', 'blackjack'] as const).map(g => (
-                  <button
-                    key={g}
-                    onClick={() => setGame(g)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
-                      game === g
-                        ? 'bg-[#D4AF37] text-black'
-                        : 'bg-[#222] text-gray-300 hover:bg-[#333]'
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
+        <div className="grid gap-4">
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Game Type</label>
+            <div className="flex gap-2">
+              {(['slots', 'roulette', 'blackjack'] as const).map(g => (
+                <button
+                  key={g}
+                  onClick={() => setGame(g)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+                    game === g
+                      ? 'bg-[#D4AF37] text-black'
+                      : 'bg-[#222] text-gray-300 hover:bg-[#333]'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
-
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Server Seed (revealed after round)</label>
-              <input
-                type="text"
-                value={serverSeed}
-                onChange={e => setServerSeed(e.target.value)}
-                placeholder="Paste the revealed server seed here"
-                className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Client Seed</label>
-              <input
-                type="text"
-                value={clientSeed}
-                onChange={e => setClientSeed(e.target.value)}
-                placeholder="The client seed used for that round"
-                className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Nonce (round number)</label>
-              <input
-                type="number"
-                value={nonce}
-                onChange={e => setNonce(e.target.value)}
-                min="0"
-                className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]/50"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-red-400 text-sm">
-                <XCircle className="w-4 h-4" />
-                {error}
-              </div>
-            )}
-
-            <Button
-              onClick={handleVerify}
-              disabled={loading}
-              className="w-full bg-[#D4AF37] hover:bg-[#B8960C] text-black font-bold"
-            >
-              {loading ? 'Verifying…' : 'Verify Result'}
-            </Button>
           </div>
 
-          {renderResult()}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Server Seed (revealed after round)</label>
+            <input
+              type="text"
+              value={serverSeed}
+              onChange={e => setServerSeed(e.target.value)}
+              placeholder="Paste the revealed server seed here"
+              className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]/50"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Client Seed</label>
+            <input
+              type="text"
+              value={clientSeed}
+              onChange={e => setClientSeed(e.target.value)}
+              placeholder="The client seed used for that round"
+              className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]/50"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Nonce (round number)</label>
+            <input
+              type="number"
+              value={nonce}
+              onChange={e => setNonce(e.target.value)}
+              min="0"
+              className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]/50"
+            />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <XCircle className="w-4 h-4" />
+              {error}
+            </div>
+          )}
+
+          <Button
+            onClick={handleVerify}
+            disabled={loading}
+            className="w-full bg-[#D4AF37] hover:bg-[#B8960C] text-black font-bold"
+          >
+            {loading ? 'Verifying…' : 'Verify Result'}
+          </Button>
         </div>
 
-        {/* Technical spec */}
+        {renderResult()}
+      </div>
+
+      {!inline && (
         <div className={cardClass}>
           <h2 className="font-bold text-lg mb-4">Technical Specification</h2>
           <div className="space-y-3 text-sm text-gray-300">
@@ -243,6 +237,22 @@ export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPagePr
             </div>
           </div>
         </div>
+      )}
+    </>
+  );
+
+  if (inline) {
+    return <div className="text-white">{toolContent}</div>;
+  }
+
+  const fullPage = (
+    <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%)' }}>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <button onClick={handleBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
+          <ChevronLeft className="w-5 h-5" />
+          Back to Casino
+        </button>
+        {toolContent}
       </div>
     </div>
   );
@@ -251,11 +261,11 @@ export function ProvablyFairPage({ onBack, isOpen, onClose }: ProvablyFairPagePr
     return (
       <Dialog open={isOpen} onOpenChange={v => { if (!v && onClose) onClose(); }}>
         <DialogContent className="max-w-3xl p-0 bg-transparent border-none overflow-y-auto max-h-[90vh]">
-          {content}
+          {fullPage}
         </DialogContent>
       </Dialog>
     );
   }
 
-  return content;
+  return fullPage;
 }

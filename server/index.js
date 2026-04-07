@@ -428,9 +428,9 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   }
   try {
     const { roundId, serverSeedHash, result } = await createGameRound(req.user.id, game, clientSeed, nonce);
-    res.json({ roundId, serverSeedHash });
-    // result is stored but NOT returned yet (revealed after round completes)
-    void result;
+    // Return the deterministic result so the client renders from server seeds
+    // The server seed is NOT returned here — only its hash, for commitment
+    res.json({ roundId, serverSeedHash, result });
   } catch (err) {
     console.error('[PF] new-round error:', err.message);
     res.status(500).json({ error: 'Failed to create game round' });

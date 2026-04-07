@@ -89,6 +89,7 @@ function App() {
   const [showVappTV, setShowVappTV] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showProvablyFair, setShowProvablyFair] = useState(false);
+  const [provablyFairPrefill, setProvablyFairPrefill] = useState<{ serverSeed?: string; clientSeed?: string; nonce?: number } | undefined>();
   const [showLobby, setShowLobby] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1362,7 +1363,8 @@ function App() {
       {/* Provably Fair Page */}
       <ProvablyFairPage
         isOpen={showProvablyFair}
-        onClose={() => setShowProvablyFair(false)}
+        onClose={() => { setShowProvablyFair(false); setProvablyFairPrefill(undefined); }}
+        prefill={provablyFairPrefill}
       />
 
       {/* Quick Action Buttons */}

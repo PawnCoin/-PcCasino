@@ -194,11 +194,17 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setMessage('Spinning...');
     playSound('spin');
 
-    // Start provably fair round — get server seed hash before outcome
+    // Start provably fair round — get deterministic result from server seeds
     const pfRound = await startRound();
     if (pfRound) currentRoundIdRef.current = pfRound.roundId;
 
-    const finalGrid = generateGrid();
+    // Use server-derived grid if available, otherwise fall back to local random
+    let finalGrid: ReelSymbol[][];
+    if (pfRound?.result?.grid) {
+      finalGrid = (pfRound.result.grid as ReelSymbol[][]).map(row => [...row]);
+    } else {
+      finalGrid = generateGrid();
+    }
 
     spinTimers.current.forEach(t => clearTimeout(t));
     spinTimers.current = [];

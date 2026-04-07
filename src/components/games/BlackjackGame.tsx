@@ -126,16 +126,40 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setShowWinRings(false);
     setTableShake(false);
 
-    // Provably fair: lock in server seed hash before cards are dealt
+    // Provably fair: lock in server seed hash and get deterministic initial cards
     const pfRoundData = await pfStartRound();
     if (pfRoundData) currentPfRoundIdRef.current = pfRoundData.roundId;
 
-    const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
+    // Helper to convert server card format to typed Card
+    const suitMap: Record<string, Card['suit']> = {
+      '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
+    };
+    const rankMap: Record<string, Card['rank']> = {
+      '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7',
+      '8': '8', '9': '9', '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A',
+    };
+    const serverCardToCard = (sc: { suit: string; value: string }): Card => {
+      const suit = suitMap[sc.suit] ?? 'spades';
+      const rank = rankMap[sc.value] ?? '2';
+      const isRed = suit === 'hearts' || suit === 'diamonds';
+      const value = rank === 'A' ? 11 : ['J', 'Q', 'K'].includes(rank) ? 10 : parseInt(rank);
+      return { suit, rank, isRed, value };
+    };
+
+    let playerCards: Card[];
+    let dealerCards: Card[];
+    const pfCards = (pfRoundData?.result as { cards?: { suit: string; value: string }[] } | undefined)?.cards;
+    if (pfCards && pfCards.length >= 4) {
+      // Server-determined initial cards: [playerCard1, dealerCard1, playerCard2, dealerCard2]
+      playerCards = [serverCardToCard(pfCards[0]), serverCardToCard(pfCards[2])];
+      dealerCards = [serverCardToCard(pfCards[1]), serverCardToCard(pfCards[3])];
+    } else {
+      const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
+      playerCards = [newDeck[0], newDeck[2]];
+      dealerCards = [newDeck[1], newDeck[3]];
+      setDeck(newDeck.slice(4));
+    }
     
-    const playerCards = [newDeck[0], newDeck[2]];
-    const dealerCards = [newDeck[1], newDeck[3]];
-    
-    setDeck(newDeck.slice(4));
     setPlayerHands([playerCards]);
     setDealerHand(dealerCards);
     setGameState('playing');

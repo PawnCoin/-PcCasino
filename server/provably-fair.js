@@ -1,4 +1,4 @@
-import { randomBytes, createHmac } from 'crypto';
+import { randomBytes, createHmac, createHash } from 'crypto';
 import { query } from './db.js';
 
 /**
@@ -17,7 +17,7 @@ export function generateServerSeed() {
 }
 
 export function hashServerSeed(serverSeed) {
-  return createHmac('sha256', serverSeed).update('hash').digest('hex');
+  return createHash('sha256').update(serverSeed).digest('hex');
 }
 
 /**
