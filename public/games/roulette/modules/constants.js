@@ -526,8 +526,8 @@ export const CHIP_IMAGE_BY_VALUE = {
   25000000: 'src/images/tableChips5.png',
   50000000: 'src/images/tableChips6.png',
   100000000: 'src/images/tableChips7.png',
-  500000000: 'src/images/tableChips8.png',
-  1000000000: 'src/images/tableChips9.png',
+  250000000: 'src/images/tableChips8.png',
+  500000000: 'src/images/tableChips9.png',
 };
 export const songName = [
   'Night Skies',
@@ -544,4 +544,4 @@ export const langTexts = {
   ruLang: 'Выберите язык',
   frLang: 'Choisissez la langue',
 };
-export const chipValues = [1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 500000000, 1000000000];
+export const chipValues = [1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000];

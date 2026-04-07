@@ -3,7 +3,7 @@ import * as infoConstants from './modules/constants.js';
 import imageManifest from './modules/image-manifest.js';
 import * as btns from './modules/buttons.js';
 
-const DENOMS_DESC = [1000, 500, 100, 50, 25, 10, 5, 2, 1];
+const DENOMS_DESC = [500000000, 250000000, 100000000, 50000000, 25000000, 10000000, 5000000, 2000000, 1000000];
 const FPS = 60;
 const FRAME_DELAY = 1000 / FPS;
 const STACK_STEP = 0.4;
@@ -208,7 +208,7 @@ function betClick(splitNumbers, splitBets, split) {
 
 function betWindowInfo(buttons, bets, keyPrefix, multiplier) {
   const updateBetWindow = (index) => {
-    const betKey = `${keyPrefix} $Pc{index}`;
+    const betKey = `${keyPrefix} ${index}`;
     const currentMultiplier = [
       'section3',
       'section4',
@@ -249,7 +249,7 @@ function bindBetGroup(buttons, numbersMap, betsObj, prefix) {
       const sfx = hadStack ? chipsPutSfx2 : chipsPutSfx;
       sfx.currentTime = 0;
       sfx.play();
-      const key = `${prefix} $Pc{i}`;
+      const key = `${prefix} ${i}`;
       betClick(numbersMap, betsObj, key);
       updateChipsForButton(btn, betsObj[key]);
     });
@@ -290,7 +290,7 @@ function cancelLastBet() {
     money += betSize;
     updateUI();
     const halve = (obj, prefix) =>
-      Object.keys(obj).forEach((_, i) => (obj[`${prefix} $Pc{i}`] /= 2));
+      Object.keys(obj).forEach((_, i) => (obj[`${prefix} ${i}`] /= 2));
     [
       ['number', numberBets],
       ['split', splitBetsX],
@@ -825,7 +825,7 @@ function getCoordsForButton(btn) {
   const check = (cls, prefix, next = true) => {
     if (!btn.classList.contains(cls)) return;
     const num = parseInt(id.replace(prefix, ''), 10);
-    return get(`${prefix} $Pc{next ? num + 1 : num}`);
+    return get(`${prefix} ${next ? num + 1 : num}`);
   };
 
   if (btn.classList.contains('numbers')) {
@@ -878,7 +878,7 @@ function handleScroll(e) {
     chips[chipsIndex - 1].click();
   } else if (
     delta < 1 &&
-    bet !== 1000000000 &&
+    bet !== 500000000 &&
     chips[chipsIndex + 1] &&
     chips[chipsIndex + 1].style.pointerEvents !== 'none'
   ) {
@@ -1065,7 +1065,7 @@ function historyList() {
 function initializeBets(buttons, prefix) {
   const bets = {};
   for (let i = 0; i < buttons.length; i++) {
-    bets[`${prefix} $Pc{i}`] = 0;
+    bets[`${prefix} ${i}`] = 0;
   }
   return bets;
 }
@@ -1279,7 +1279,7 @@ function refreshAllZonesWithPositiveBets() {
   refreshMap.forEach(({ obj, prefix, buttons }) => {
     const count = buttons.length;
     for (let i = 0; i < count; i++) {
-      const key = `${prefix} $Pc{i}`;
+      const key = `${prefix} ${i}`;
       const amount = obj[key] || 0;
       if (amount > 0 || getZoneStack(buttons[i]).length) {
         updateChipsForButton(buttons[i], amount);
@@ -1803,7 +1803,7 @@ bindBetGroup(
 
 btns.allChips.forEach((chip, index) => {
   chip.addEventListener('click', () =>
-    chipSelect([1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 500000000, 1000000000][index], index + 1, index)
+    chipSelect([1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], index + 1, index)
   );
 });
 
@@ -1876,7 +1876,7 @@ btns.statisticBtn.addEventListener('click', () =>
 
 fastBet.forEach((btn, index) => {
   btn.addEventListener('click', () => {
-    fastChips([10000000, 25000000, 50000000, 100000000, 500000000, 1000000000][index], [4, 5, 6, 7, 8, 9][index]);
+    fastChips([10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], [4, 5, 6, 7, 8, 9][index]);
   });
 });
 
