@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameType } from '@/types';
+import { ChipFace } from '@/components/PokerChip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GameCard {
   id: GameType;
@@ -281,6 +283,7 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
   };
 
   return (
+    <TooltipProvider delayDuration={300}>
     <section id="games-section" className="px-4 pb-12 relative">
       <ParticleBackground />
       <div className="max-w-7xl mx-auto relative" style={{ zIndex: 1 }}>
@@ -288,23 +291,17 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
           className="font-casino text-3xl font-bold mb-8 flex items-center gap-3 metallic-gold-text"
           style={{ textShadow: '0 0 20px rgba(212,175,55,0.5), 0 2px 4px rgba(0,0,0,0.8)' }}
         >
-          <div 
-            className="w-12 h-12 rounded-xl flex items-center justify-center"
-            style={{ 
-              background: 'linear-gradient(135deg, #D4AF37, #B8860B)',
-              boxShadow: '0 0 25px rgba(212,175,55,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
-              border: '1px solid rgba(255,215,0,0.5)'
-            }}
-          >
-            <span className="text-2xl">🎲</span>
+          <div style={{ filter: 'drop-shadow(0 0 14px rgba(212,175,55,0.7))' }}>
+            <ChipFace amount={100_000_000} size={52} />
           </div>
           CASINO GAMES
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {games.map((game, index) => (
+            <Tooltip key={game.id}>
+              <TooltipTrigger asChild>
             <div
-              key={game.id}
               onClick={() => {
                 if (game.isExternal && game.externalUrl) {
                   window.open(game.externalUrl, '_blank', 'noopener,noreferrer');
@@ -514,9 +511,19 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                 </div>
               </div>
             </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px] text-center">
+                <p className="font-semibold text-[#D4AF37] mb-0.5">{game.name}</p>
+                <p className="text-xs text-gray-300">{game.description}</p>
+                {game.isSpecial !== 'sports' && game.isSpecial !== 'vip' && (
+                  <p className="text-xs text-[#D4AF37] mt-1">Min Bet: {game.minBet} $Pc</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
           ))}
         </div>
       </div>
     </section>
+    </TooltipProvider>
   );
 }

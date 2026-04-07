@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star, Home, Trophy } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star, Home, Trophy, BookOpen, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -31,6 +31,7 @@ interface NavigationProps {
   onShowReferral?: () => void;
   onShowLegal?: (page: string) => void;
   onShowPcToken?: () => void;
+  onShowVIPCurrency?: () => void;
   isAdmin?: boolean;
 }
 
@@ -56,6 +57,7 @@ export function Navigation({
   onShowReferral,
   onShowLegal,
   onShowPcToken,
+  onShowVIPCurrency,
   isAdmin,
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
@@ -124,6 +126,19 @@ export function Navigation({
                   </a>
                 </TooltipTrigger>
                 <TooltipContent side="bottom"><p>View top players & rankings</p></TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onShowLegal?.('rules')}
+                    className="flex items-center gap-1 text-[#C0C0C0] hover:text-[#D4AF37] transition-colors font-medium"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Rules
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><p>Game rules, affiliate program & reward terms</p></TooltipContent>
               </Tooltip>
 
               {/* WeParlay.io - Compact link */}
@@ -221,12 +236,21 @@ export function Navigation({
                         onClick={onShowFinancial}
                         className="hidden sm:flex items-center gap-2 px-3 md:px-4 py-2 rounded-full hover:scale-105 transition-all group"
                         style={{ 
-                          background: 'linear-gradient(90deg, rgba(27,94,32,0.5), rgba(46,125,50,0.3))',
-                          border: '1px solid rgba(67,160,71,0.4)',
-                          boxShadow: '0 0 15px rgba(67,160,71,0.2), 0 0 30px rgba(212,175,55,0.1)',
+                          background: balance >= 100_000_000
+                            ? 'linear-gradient(90deg, rgba(40,20,0,0.7), rgba(80,40,0,0.5))'
+                            : 'linear-gradient(90deg, rgba(27,94,32,0.5), rgba(46,125,50,0.3))',
+                          border: balance >= 100_000_000
+                            ? '1px solid rgba(212,175,55,0.7)'
+                            : '1px solid rgba(67,160,71,0.4)',
+                          boxShadow: balance >= 100_000_000
+                            ? '0 0 20px rgba(212,175,55,0.4), 0 0 40px rgba(212,175,55,0.15)'
+                            : '0 0 15px rgba(67,160,71,0.2), 0 0 30px rgba(212,175,55,0.1)',
                           animation: 'pulse-gold 2s ease-in-out infinite'
                         }}
                       >
+                        {balance >= 100_000_000 && (
+                          <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        )}
                         <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                         <span className="font-bold text-[#D4AF37] text-sm">
                           {formatPcAmount(balance)}
@@ -235,8 +259,45 @@ export function Navigation({
                         <BarChart3 className="w-4 h-4 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom"><p>Click for financial options & statistics</p></TooltipContent>
+                    <TooltipContent side="bottom">
+                      {balance >= 100_000_000 ? (
+                        <div className="text-center">
+                          <p className="font-bold text-yellow-400">👑 VIP Member</p>
+                          <p className="text-xs">100M+ $Pc — Bet with fiat, crypto & commodities</p>
+                          <p className="text-xs text-gray-400">Click for financial options</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p>Click for financial options & statistics</p>
+                          <p className="text-xs text-gray-400">Hold 100M+ $Pc to unlock VIP betting</p>
+                        </div>
+                      )}
+                    </TooltipContent>
                   </Tooltip>
+
+                  {/* VIP badge — shown when balance >= 100M */}
+                  {balance >= 100_000_000 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={onShowVIPCurrency}
+                          className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-lg transition-all hover:scale-105"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(212,175,55,0.25), rgba(180,140,30,0.12))',
+                            border: '1px solid rgba(212,175,55,0.6)',
+                            boxShadow: '0 0 12px rgba(212,175,55,0.3)',
+                          }}
+                        >
+                          <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <span className="text-[#D4AF37] font-bold text-xs">VIP</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="font-bold text-yellow-400">👑 VIP Multi-Currency</p>
+                        <p className="text-xs">Bet with fiat, crypto & commodities</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
                   {!user?.walletAddress && (
                     <Tooltip>

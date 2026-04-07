@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Play, TrendingUp, Users, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getSocket } from '@/lib/socket';
 import { formatPcAmount } from '@/utils/formatPc';
 
@@ -93,36 +94,52 @@ export function HeroSection({ onScrollToGames, onOpenDeposit }: HeroSectionProps
               Sports, Casino Games. Experience professional-grade gaming with worldwide rules.
             </p>
             
+            <TooltipProvider delayDuration={300}>
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-              <Button
-                onClick={onScrollToGames}
-                className="btn-primary px-6 sm:px-8 py-4 sm:py-6 rounded-full font-bold text-base sm:text-lg flex items-center justify-center gap-2 min-w-[180px] sm:min-w-[220px] min-h-[56px]"
-                style={{ boxShadow: '0 10px 30px rgba(212,175,55,0.3)' }}
-              >
-                <Play className="w-5 h-5" />
-                START PLAYING
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={onScrollToGames}
+                    className="btn-primary px-6 sm:px-8 py-4 sm:py-6 rounded-full font-bold text-base sm:text-lg flex items-center justify-center gap-2 min-w-[180px] sm:min-w-[220px] min-h-[56px]"
+                    style={{ boxShadow: '0 10px 30px rgba(212,175,55,0.3)' }}
+                  >
+                    <Play className="w-5 h-5" />
+                    START PLAYING
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Browse all casino games — Poker, Blackjack, Roulette & more</p>
+                </TooltipContent>
+              </Tooltip>
               
-              <button
-                onClick={onOpenDeposit}
-                className="relative px-2 py-1 rounded-full font-bold transition-all hover:scale-105 overflow-hidden group flex items-center justify-center"
-                style={{ 
-                  background: 'linear-gradient(145deg, #D4AF37, #B8860B)',
-                  boxShadow: '0 6px 20px rgba(212,175,55,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
-                  border: '2px solid rgba(255,215,0,0.5)',
-                  height: '44px',
-                  minWidth: '140px'
-                }}
-              >
-                <img 
-                  src="/logos/pcpay-button.png" 
-                  alt="$PcPay" 
-                  className="h-20 w-auto object-contain max-w-[180px]"
-                  style={{ transform: 'scale(1.3)' }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onOpenDeposit}
+                    className="relative px-2 py-1 rounded-full font-bold transition-all hover:scale-105 overflow-hidden group flex items-center justify-center"
+                    style={{ 
+                      background: 'linear-gradient(145deg, #D4AF37, #B8860B)',
+                      boxShadow: '0 6px 20px rgba(212,175,55,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                      border: '2px solid rgba(255,215,0,0.5)',
+                      height: '44px',
+                      minWidth: '140px'
+                    }}
+                  >
+                    <img 
+                      src="/logos/pcpay-button.png" 
+                      alt="$PcPay" 
+                      className="h-20 w-auto object-contain max-w-[180px]"
+                      style={{ transform: 'scale(1.3)' }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Deposit $Pc using PcPay — fast & secure crypto payments</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
+            </TooltipProvider>
           </div>
         </div>
 

@@ -48,6 +48,7 @@ import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
 import { JackpotCelebration } from '@/components/JackpotCelebration';
 import { PokerHandSharePage } from '@/components/PokerHandSharePage';
 import { PcTokenModal } from '@/components/PcTokenModal';
+import { VIPCurrencyModal } from '@/components/VIPCurrencyModal';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -112,6 +113,7 @@ function App() {
   const [showTournaments, setShowTournaments] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [showPcToken, setShowPcToken] = useState(false);
+  const [showVIPCurrency, setShowVIPCurrency] = useState(false);
 
   // Jackpot celebration state (shown when the logged-in user wins the jackpot)
   const [jackpotCelebration, setJackpotCelebration] = useState<{ amount: number; username: string } | null>(null);
@@ -1071,6 +1073,7 @@ function App() {
           onShowReferral={() => setShowReferral(true)}
           onShowLegal={handleShowLegal}
           onShowPcToken={() => setShowPcToken(true)}
+          onShowVIPCurrency={() => setShowVIPCurrency(true)}
           isAdmin={user?.isAdmin === true}
         />
       )}
@@ -1469,6 +1472,15 @@ function App() {
         isOpen={showPcToken}
         onClose={() => setShowPcToken(false)}
         onShowDeposit={() => { setShowPcToken(false); setShowDeposit(true); }}
+      />
+
+      {/* VIP Multi-Currency Modal */}
+      <VIPCurrencyModal
+        isOpen={showVIPCurrency}
+        onClose={() => setShowVIPCurrency(false)}
+        balance={user?.balance || 0}
+        walletVerified={!!user?.walletAddress}
+        onOpenDeposit={() => { setShowVIPCurrency(false); setShowDeposit(true); }}
       />
 
       {/* Provably Fair Page */}

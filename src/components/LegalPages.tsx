@@ -1,9 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { FileText, Shield, Coins, AlertTriangle, Scale, Cookie, ChevronLeft, BookOpen, Heart } from 'lucide-react';
+import { FileText, Shield, Coins, AlertTriangle, Scale, Cookie, ChevronLeft, BookOpen, Heart, Users, Star } from 'lucide-react';
 
-export type LegalPage = 'terms' | 'privacy' | 'responsible' | 'rules' | 'crypto' | 'malfunction' | 'cookies' | 'aml';
+export type LegalPage = 'terms' | 'privacy' | 'responsible' | 'rules' | 'crypto' | 'malfunction' | 'cookies' | 'aml' | 'affiliate' | 'rewards';
 
 interface LegalPagesProps {
   isOpen: boolean;
@@ -13,10 +13,12 @@ interface LegalPagesProps {
 }
 
 const pages: { id: LegalPage; label: string; icon: typeof FileText }[] = [
+  { id: 'rules', label: '📋 Game Rules & Steps', icon: Scale },
+  { id: 'affiliate', label: '🤝 Affiliate Program', icon: Users },
+  { id: 'rewards', label: '⭐ Rewards & Bonuses', icon: Star },
   { id: 'terms', label: 'Terms of Service', icon: FileText },
   { id: 'privacy', label: 'Privacy Policy', icon: Shield },
   { id: 'responsible', label: 'Responsible Gaming', icon: Heart },
-  { id: 'rules', label: 'Game Rules', icon: Scale },
   { id: 'crypto', label: 'Crypto & Money Rules', icon: Coins },
   { id: 'malfunction', label: 'Malfunction Policy', icon: AlertTriangle },
   { id: 'aml', label: 'AML / KYC Policy', icon: BookOpen },
@@ -212,6 +214,41 @@ function RulesContent() {
         'Winning patterns: any line, X, T, L, blackout (full card)',
         'Multiple winners split the jackpot equally',
       ]} />
+
+      <SectionTitle>🚫 Anti-Cheating & Fair Play Policy</SectionTitle>
+      <Warning>Any attempt to cheat, collude, or gain an unfair advantage will result in immediate permanent ban and forfeiture of all funds. No appeals for confirmed cheating cases.</Warning>
+      <BulletList items={[
+        'No direct messaging between players during active game sessions — private communication is disabled',
+        'No sharing of hand cards, board state, or game information with other active players in any way',
+        'No external communication tools (Discord, SMS, phone calls) to coordinate with opponents during play',
+        'No use of bots, scripts, macros, or any automated software to play on your behalf',
+        'No ghosting — do not allow someone else to view your screen and give hints during a live game',
+        'No chip dumping — intentionally losing to transfer chips to another account is forbidden',
+        'Players at the same physical location may not play at the same table — IP flagging is active',
+        'Collusion (coordinating with other players to gain advantage over the table) is grounds for instant ban',
+        'Attempted communication through bet patterns, timing tells, or other coded signals is prohibited',
+      ]} />
+
+      <SectionTitle>How We Detect Cheating</SectionTitle>
+      <BulletList items={[
+        'Real-time server-side monitoring of all bet patterns and timing data',
+        'IP and device fingerprint clustering to detect multi-accounting',
+        'Statistical analysis of win rates across suspicious player groupings',
+        'Manual review triggered by player reports or automated anomaly alerts',
+        'Blockchain ledger of all transactions to detect fund flow irregularities',
+      ]} />
+
+      <SectionTitle>How to Play — Step by Step</SectionTitle>
+      <BulletList items={[
+        'Step 1: Create your account (email or Google/Discord login)',
+        'Step 2: Claim your 1B $Pc welcome bonus from the Rewards tab',
+        'Step 3: Connect your crypto wallet to deposit real $Pc (optional)',
+        'Step 4: Choose a game from the Casino Games section',
+        'Step 5: Select your bet amount using the chip selector',
+        'Step 6: Play — results are determined by provably fair RNG',
+        'Step 7: Winnings credit instantly to your casino balance',
+        'Step 8: Withdraw to your wallet anytime from Wallet → Withdraw',
+      ]} />
     </div>
   );
 }
@@ -384,6 +421,136 @@ function CookiesContent() {
   );
 }
 
+function AffiliateContent() {
+  return (
+    <div>
+      <Paragraph>The $Pc Casino Affiliate Program lets you earn real $Pc rewards by referring new players to the platform. There is no cap on earnings — the more active referrals you bring, the more you earn.</Paragraph>
+      <Warning>Affiliate commissions are paid in $Pc token. Commissions are credited after a referred player makes their first qualifying deposit and places at least one real-money bet.</Warning>
+
+      <SectionTitle>How to Join (Step-by-Step)</SectionTitle>
+      <BulletList items={[
+        'Step 1: Create or log into your $Pc Casino account',
+        'Step 2: Navigate to Rewards → Referral Program',
+        'Step 3: Copy your unique referral link or referral code',
+        'Step 4: Share it anywhere — social media, Discord, YouTube, etc.',
+        'Step 5: Each person who signs up through your link is tracked as your referral',
+        'Step 6: Once they deposit and bet, your commission is credited automatically',
+      ]} />
+
+      <SectionTitle>Commission Structure</SectionTitle>
+      <BulletList items={[
+        'Welcome bonus per referral: 50,000,000 $Pc credited to you when they deposit',
+        'Revenue share: 5% of all rake/house edge generated by your referrals — paid monthly',
+        'Tier 1 (1–10 referrals): 5% revenue share on all referred players',
+        'Tier 2 (11–50 referrals): 8% revenue share + priority support',
+        'Tier 3 (51+ referrals): 12% revenue share + VIP status + custom promo materials',
+        'Bonus: Extra 500M $Pc for every 10 active referrals in a calendar month',
+      ]} />
+
+      <SectionTitle>Rules & Requirements</SectionTitle>
+      <BulletList items={[
+        'You may not refer yourself or create fake accounts to earn commissions',
+        'Self-referral or multi-accounting results in permanent ban and forfeiture of all commissions',
+        'Referrals must be genuine new users — not existing players switching accounts',
+        'Incentivized referrals (paying people to sign up) must be disclosed to the affiliate team',
+        'Commissions are only earned on real-money play — not on bonus/free play wagers',
+        'Commission payments are subject to the same withdrawal rules as regular balances',
+        'We reserve the right to reverse commissions from players who were found cheating or banned',
+      ]} />
+
+      <SectionTitle>Tracking & Payments</SectionTitle>
+      <BulletList items={[
+        'Your referral dashboard shows all referred users, their activity, and your earnings in real-time',
+        'Revenue share commissions are calculated monthly and credited on the 1st of each month',
+        'Welcome bonuses are credited within 24 hours of the qualifying deposit',
+        'Minimum payout threshold for revenue share: 1,000,000 $Pc',
+        'No minimum for welcome bonuses — credited automatically per referral',
+      ]} />
+
+      <SectionTitle>Affiliate Link Rules</SectionTitle>
+      <BulletList items={[
+        'Do not advertise on platforms where gambling promotions are prohibited (some social networks)',
+        'Do not use spam, unsolicited email, or bot-driven traffic to drive referrals',
+        'Do not misrepresent the casino — affiliates are held to the same honesty standard as the platform',
+        'Use of prohibited advertising methods results in affiliate account termination without payment',
+      ]} />
+    </div>
+  );
+}
+
+function RewardsContent() {
+  return (
+    <div>
+      <Paragraph>$Pc Casino has a comprehensive rewards system designed to reward both loyalty and high-volume play. All rewards are paid in $Pc token directly to your casino balance.</Paragraph>
+
+      <SectionTitle>Welcome Bonus</SectionTitle>
+      <BulletList items={[
+        'Amount: 1,000,000,000 $Pc (1 Billion) on account creation',
+        'Wagering requirement: 30× before withdrawal',
+        'Example: You receive 1B $Pc. You must wager 30B $Pc total before withdrawing the bonus',
+        'Valid for: 30 days from account creation',
+        'Cannot be combined with deposit bonus on the same session',
+      ]} />
+
+      <SectionTitle>Daily Bonus (How to Claim)</SectionTitle>
+      <BulletList items={[
+        'Step 1: Log into your account',
+        'Step 2: Click "Rewards" in the top navigation bar',
+        'Step 3: Click "Claim Daily Bonus" — resets every 24 hours',
+        'Amount: 50,000,000 $Pc per day',
+        'Wagering requirement: 5× (250M $Pc must be wagered before withdrawal)',
+        'Bonus available even if you have a balance — there is no maximum balance requirement',
+      ]} />
+
+      <SectionTitle>Referral Rewards</SectionTitle>
+      <BulletList items={[
+        'You earn 50,000,000 $Pc for each friend you refer who signs up and deposits',
+        'Your friend receives an extra welcome bonus for using your code',
+        'No wagering requirement on referral bonuses received from friends signing up with your code',
+        'Referral bonus paid immediately after the referred user makes their first bet',
+        'See the Affiliate Program tab for full referral commission details',
+      ]} />
+
+      <SectionTitle>VIP Program — 100M+ $Pc Holders</SectionTitle>
+      <BulletList items={[
+        'Hold 100,000,000+ $Pc in your wallet to unlock VIP status automatically',
+        'VIP members can bet using fiat currencies (USD, EUR, GBP, etc.)',
+        'VIP members can bet with top 25 cryptocurrencies (BTC, ETH, BNB, SOL, and more)',
+        'VIP members can bet with commodities (Gold, Silver, Oil) at live market rates',
+        'VIP members can deposit in any supported currency — auto-converted to $Pc',
+        'VIP members receive priority withdrawals (processed within 2 hours)',
+        'VIP members get a dedicated account manager and private support channel',
+        'VIP badge displayed on profile and at the table for other players to see',
+      ]} />
+
+      <SectionTitle>Jackpot & Tournament Prizes</SectionTitle>
+      <BulletList items={[
+        'Progressive jackpot: accumulates from 1% of every slot spin, resets after each win',
+        'Jackpot has no wagering requirement — full amount is withdrawable immediately',
+        'Tournament prizes are always real withdrawable $Pc (no wagering requirement)',
+        'Tournament entry fees are collected into the prize pool (zero house take)',
+        'Regular tournaments run weekly — see Tournaments section in the app',
+      ]} />
+
+      <SectionTitle>Wagering Requirements Explained</SectionTitle>
+      <BulletList items={[
+        'Wagering requirement means you must bet the bonus amount × multiplier before withdrawing',
+        'Example: 50M $Pc bonus with 5× wager = must bet 250M $Pc total across any game',
+        'Any game counts toward wagering — poker, blackjack, roulette, slots, etc.',
+        'Progress is shown in your Profile → Bonuses section',
+        'If your balance reaches zero before completing wagering, the bonus is forfeited',
+      ]} />
+
+      <SectionTitle>Anti-Abuse Policy</SectionTitle>
+      <BulletList items={[
+        'Claiming bonuses across multiple accounts is strictly prohibited and will result in a ban',
+        'Low-risk hedging strategies to clear wagering requirements may result in bonus cancellation',
+        'We reserve the right to cancel any bonus and remove associated funds for abuse',
+      ]} />
+    </div>
+  );
+}
+
 function renderContent(page: LegalPage) {
   switch (page) {
     case 'terms': return <TermsContent />;
@@ -394,7 +561,9 @@ function renderContent(page: LegalPage) {
     case 'malfunction': return <MalfunctionContent />;
     case 'aml': return <AMLContent />;
     case 'cookies': return <CookiesContent />;
-    default: return <TermsContent />;
+    case 'affiliate': return <AffiliateContent />;
+    case 'rewards': return <RewardsContent />;
+    default: return <RulesContent />;
   }
 }
 
