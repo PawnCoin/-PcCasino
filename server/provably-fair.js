@@ -84,16 +84,23 @@ export function deriveGameResult(game, serverSeed, clientSeed, nonce) {
   }
 
   if (game === 'blackjack') {
-    const cards = [];
-    for (let i = 0; i < 4; i++) {
-      const cellNonce = `${nonce}:card${i}`;
-      const [f] = deriveOutcomes(serverSeed, clientSeed, cellNonce, 1);
-      const cardIdx = Math.floor(f * 52);
-      const suit = CARD_SUITS[Math.floor(cardIdx / 13)];
-      const value = CARD_VALUES[cardIdx % 13];
-      cards.push({ suit, value });
+    // Generate a full shuffled deck (52 cards) using Fisher-Yates with HMAC-derived floats.
+    // Each card position i uses nonce `${nonce}:card${i}` for an independent HMAC float.
+    const deck = [];
+    for (let suit of CARD_SUITS) {
+      for (let value of CARD_VALUES) {
+        deck.push({ suit, value });
+      }
     }
-    return { cards };
+    // Fisher-Yates shuffle: for position i (from 51 down to 1), pick j from [0..i]
+    for (let i = deck.length - 1; i > 0; i--) {
+      const [f] = deriveOutcomes(serverSeed, clientSeed, `${nonce}:card${i}`, 1);
+      const j = Math.floor(f * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    // cards[0..3] = initial deal: player1, dealer1, player2, dealer2
+    // cards[4..] = remaining deck for hits and dealer draws
+    return { cards: deck };
   }
 
   return {};

@@ -456,12 +456,15 @@ app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => 
   }
 });
 
-// Public verification — anyone can verify any revealed round by ID
+// Public verification — only returns revealed rounds; never exposes user_id or pre-reveal data
 app.get('/api/provably-fair/verify/:roundId', async (req, res) => {
   try {
     const round = await getGameRound(parseInt(req.params.roundId));
     if (!round) return res.status(404).json({ error: 'Round not found' });
-    res.json(round);
+    if (!round.revealed_at) return res.status(403).json({ error: 'Round not yet revealed' });
+    // Return only what is needed for independent verification; omit user_id
+    const { server_seed, server_seed_hash, client_seed, nonce, game, result, created_at, revealed_at } = round;
+    res.json({ server_seed, server_seed_hash, client_seed, nonce, game, result, created_at, revealed_at });
   } catch (err) {
     res.status(500).json({ error: 'Verification lookup failed' });
   }

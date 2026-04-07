@@ -21,6 +21,8 @@ import { JackpotTicker } from '@/components/JackpotTicker';
 import { PokerGame } from '@/components/games/PokerGame';
 import { SpadesGame } from '@/components/games/SpadesGame';
 import { SlotsGame } from '@/components/games/SlotsGame';
+import { BlackjackGame } from '@/components/games/BlackjackGame';
+import { RouletteGame } from '@/components/games/RouletteGame';
 import { BingoGame } from '@/components/games/BingoGame';
 import { DominoesGame } from '@/components/games/DominoesGame';
 import { PoolGame } from '@/components/games/PoolGame';
@@ -694,30 +696,25 @@ function App() {
         );
       case 'blackjack':
         return (
-          <IframeGameWrapper
-            gameId="blackjack"
-            gameName="Blackjack"
-            gameEmoji="🃏"
-            gamePath="/games/blackjack/index.html"
+          <BlackjackGame
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-            onShowWallet={() => setShowDeposit(true)}
+            onAddBalance={handleAddBalance}
+            cardBackStyle={getCardBackStyle()}
+            onOpenProvablyFair={prefill => { setProvablyFairPrefill(prefill); setShowProvablyFair(true); }}
           />
         );
       case 'roulette':
         return (
-          <IframeGameWrapper
-            gameId="roulette"
-            gameName="French Roulette"
-            gameEmoji="🎡"
-            gamePath="/games/roulette/index.html"
+          <RouletteGame
             balance={user?.balance || 0}
             onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-            onShowWallet={() => setShowDeposit(true)}
+            onAddBalance={handleAddBalance}
+            onOpenProvablyFair={prefill => { setProvablyFairPrefill(prefill); setShowProvablyFair(true); }}
           />
         );
       case 'craps':
@@ -755,6 +752,7 @@ function App() {
             onWin={handleWin}
             onAddBalance={handleAddBalance}
             onShowWallet={() => setShowDeposit(true)}
+            onOpenProvablyFair={prefill => { setProvablyFairPrefill(prefill); setShowProvablyFair(true); }}
           />
         );
       case 'bingo':

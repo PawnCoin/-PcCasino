@@ -17,6 +17,7 @@ interface SlotsGameProps {
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
   onShowWallet?: () => void;
+  onOpenProvablyFair?: (prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number }) => void;
 }
 
 const SYMBOLS = ['🍒', '🍋', '🍊', '🔔', '⭐', '💎', '7️⃣', '🎰'] as const;
@@ -122,7 +123,7 @@ const slotsRules = {
 
 const LED_COUNT = 24;
 
-export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: SlotsGameProps) {
+export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, onOpenProvablyFair }: SlotsGameProps) {
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
   const [currentBet, setCurrentBet] = useState(0);
@@ -194,13 +195,20 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setMessage('Spinning...');
     playSound('spin');
 
-    // Start provably fair round — get deterministic result from server seeds
+    // Start provably fair round — must succeed for play to continue
     const pfRound = await startRound();
-    if (pfRound) currentRoundIdRef.current = pfRound.roundId;
+    if (!pfRound) {
+      // Could not create a PF round (not logged in or server error) — block the spin
+      setSpinning(false);
+      onWin(currentBet); // refund the bet
+      setMessage('Log in to play — provably fair requires authentication.');
+      return;
+    }
+    currentRoundIdRef.current = pfRound.roundId;
 
-    // Use server-derived grid if available, otherwise fall back to local random
+    // Use server-derived grid (deterministic outcome from server + client seeds)
     let finalGrid: ReelSymbol[][];
-    if (pfRound?.result?.grid) {
+    if (pfRound.result?.grid) {
       finalGrid = (pfRound.result.grid as ReelSymbol[][]).map(row => [...row]);
     } else {
       finalGrid = generateGrid();
@@ -870,7 +878,11 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         onClose={() => setShowVerify(false)}
         round={round}
         lastReveal={lastReveal}
-        onOpenProvablyFairPage={() => { setShowVerify(false); onBack(); }}
+        onOpenProvablyFairPage={prefill => {
+          setShowVerify(false);
+          if (onOpenProvablyFair) onOpenProvablyFair(prefill);
+          else onBack();
+        }}
       />
     </CasinoEnvironment>
   );

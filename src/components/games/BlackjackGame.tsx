@@ -19,6 +19,7 @@ interface BlackjackGameProps {
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
   cardBackStyle?: { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
+  onOpenProvablyFair?: (prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number }) => void;
 }
 
 const CHIP_VALUES = [1_000_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000];
@@ -57,7 +58,7 @@ const blackjackRules = {
   ],
 };
 
-export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle }: BlackjackGameProps) {
+export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle, onOpenProvablyFair }: BlackjackGameProps) {
   const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealer' | 'finished'>('betting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHands, setPlayerHands] = useState<Card[][]>([[]]);
@@ -80,6 +81,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
   const [showVerify, setShowVerify] = useState(false);
   const currentPfRoundIdRef = useRef<number | null>(null);
+  // pfDeckRef holds the server's full pre-shuffled deck for the current round.
+  // Index 4 onwards are draw cards (0-3 are the 4 initial cards dealt out).
+  const pfDeckRef = useRef<Card[]>([]);
+  const pfDeckIndexRef = useRef(4);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -126,9 +131,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setShowWinRings(false);
     setTableShake(false);
 
-    // Provably fair: lock in server seed hash and get deterministic initial cards
+    // Provably fair: lock in server seed hash and get deterministic initial cards — required
     const pfRoundData = await pfStartRound();
-    if (pfRoundData) currentPfRoundIdRef.current = pfRoundData.roundId;
+    if (!pfRoundData) {
+      // Not logged in or server error — refund and block
+      onWin(currentBet); // refund
+      setMessage('Log in to play — provably fair requires authentication.');
+      return;
+    }
+    currentPfRoundIdRef.current = pfRoundData.roundId;
 
     // Helper to convert server card format to typed Card
     const suitMap: Record<string, Card['suit']> = {
@@ -149,14 +160,21 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     let playerCards: Card[];
     let dealerCards: Card[];
     const pfCards = (pfRoundData?.result as { cards?: { suit: string; value: string }[] } | undefined)?.cards;
-    if (pfCards && pfCards.length >= 4) {
-      // Server-determined initial cards: [playerCard1, dealerCard1, playerCard2, dealerCard2]
-      playerCards = [serverCardToCard(pfCards[0]), serverCardToCard(pfCards[2])];
-      dealerCards = [serverCardToCard(pfCards[1]), serverCardToCard(pfCards[3])];
+    // Server returns full 52-card pre-shuffled deck; use it for ALL card draws this round
+    const fullDeck = pfCards ? pfCards.map(serverCardToCard) : null;
+    if (fullDeck && fullDeck.length >= 52) {
+      // Initial deal: 0=player1, 1=dealer1, 2=player2, 3=dealer2
+      playerCards = [fullDeck[0], fullDeck[2]];
+      dealerCards = [fullDeck[1], fullDeck[3]];
+      pfDeckRef.current = fullDeck;
+      pfDeckIndexRef.current = 4; // next card to draw starts at index 4
     } else {
+      // No PF deck — should not happen since we block if pfRound fails above
       const newDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
       playerCards = [newDeck[0], newDeck[2]];
       dealerCards = [newDeck[1], newDeck[3]];
+      pfDeckRef.current = [];
+      pfDeckIndexRef.current = 0;
       setDeck(newDeck.slice(4));
     }
     
@@ -175,9 +193,25 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
   };
 
+  // Draw next card from the server's pre-shuffled PF deck; fallback to local deck
+  const drawNextCard = useCallback((): Card | null => {
+    if (pfDeckRef.current.length > 0 && pfDeckIndexRef.current < pfDeckRef.current.length) {
+      const card = pfDeckRef.current[pfDeckIndexRef.current];
+      pfDeckIndexRef.current += 1;
+      return card;
+    }
+    // Fallback (should not reach here in normal play)
+    if (deck.length > 0) {
+      const card = deck[0];
+      setDeck(prev => prev.slice(1));
+      return card;
+    }
+    return null;
+  }, [deck]);
+
   const handleHit = () => {
-    const newCard = deck[0];
-    setDeck(prev => prev.slice(1));
+    const newCard = drawNextCard();
+    if (!newCard) return;
     
     const newHands = [...playerHands];
     newHands[currentHandIndex] = [...currentHand, newCard];
@@ -215,8 +249,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       return newBets;
     });
     
-    const newCard = deck[0];
-    setDeck(prev => prev.slice(1));
+    const newCard = drawNextCard();
+    if (!newCard) return;
     
     const newHands = [...playerHands];
     newHands[currentHandIndex] = [...currentHand, newCard];
@@ -240,10 +274,12 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     const card1 = currentHand[0];
     const card2 = currentHand[1];
     
-    newHands[currentHandIndex] = [card1, deck[0]];
-    newHands.splice(currentHandIndex + 1, 0, [card2, deck[1]]);
+    const splitCard1 = drawNextCard();
+    const splitCard2 = drawNextCard();
+    if (!splitCard1 || !splitCard2) return;
+    newHands[currentHandIndex] = [card1, splitCard1];
+    newHands.splice(currentHandIndex + 1, 0, [card2, splitCard2]);
     
-    setDeck(prev => prev.slice(2));
     setPlayerHands(newHands);
     setHandBets(prev => {
       const newBets = [...prev];
@@ -259,16 +295,18 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setMessage('Dealer\'s turn...');
     
     let currentDealerHand = [...dealerHand];
-    let currentDeck = [...deck];
     
     const playDealer = () => {
       const dealerValue = calculateBlackjackValue(currentDealerHand);
       
       if (dealerValue < 17) {
-        currentDealerHand = [...currentDealerHand, currentDeck[0]];
-        currentDeck = currentDeck.slice(1);
+        // Draw from the PF deck (deterministic); falls back to local deck if exhausted
+        const nextCard = pfDeckRef.current.length > 0 && pfDeckIndexRef.current < pfDeckRef.current.length
+          ? pfDeckRef.current[pfDeckIndexRef.current++]
+          : deck[0];
+        if (!nextCard) { finishRound(false); return; }
+        currentDealerHand = [...currentDealerHand, nextCard];
         setDealerHand(currentDealerHand);
-        setDeck(currentDeck);
         setTimeout(playDealer, 800);
       } else {
         finishRound(false);
@@ -898,7 +936,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           onClose={() => setShowVerify(false)}
           round={pfRound}
           lastReveal={pfLastReveal}
-          onOpenProvablyFairPage={() => { setShowVerify(false); onBack(); }}
+          onOpenProvablyFairPage={prefill => {
+            setShowVerify(false);
+            if (onOpenProvablyFair) onOpenProvablyFair(prefill);
+            else onBack();
+          }}
         />
       </div>
     </CasinoEnvironment>

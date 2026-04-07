@@ -19,6 +19,7 @@ interface RouletteGameProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onAddBalance?: (amount: number) => void;
+  onOpenProvablyFair?: (prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number }) => void;
 }
 
 interface PlacedBet {
@@ -214,7 +215,7 @@ function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; on
   );
 }
 
-export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: RouletteGameProps) {
+export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOpenProvablyFair }: RouletteGameProps) {
   const [selectedChip, setSelectedChip] = useState(1_000_000);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
@@ -439,13 +440,22 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
     playSound('noMoreBets');
     announceNoMoreBets();
 
-    // Provably fair: get deterministic outcome from server seeds
+    // Provably fair: get deterministic outcome from server seeds — required
     const pfRound = await startRound();
-    if (pfRound) currentRoundIdRef.current = pfRound.roundId;
+    if (!pfRound) {
+      setIsSpinning(false);
+      setMessage('Log in to play — provably fair requires authentication.');
+      // Refund bets
+      const total = placedBets.reduce((s, b) => s + b.amount, 0);
+      if (total > 0) onWin ? onWin(total) : undefined;
+      setPlacedBets([]);
+      return;
+    }
+    currentRoundIdRef.current = pfRound.roundId;
 
-    // Use server-derived number if available, otherwise fall back to local random
-    const winningNum = (pfRound?.result as { number?: number } | undefined)?.number
-      ?? WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
+    // Use server-derived number (deterministic from server+client seeds)
+    const pfResult = pfRound.result as { number?: number } | undefined;
+    const winningNum = pfResult?.number ?? WHEEL_NUMBERS[Math.floor(Math.random() * WHEEL_NUMBERS.length)];
     winningNumRef.current = winningNum;
 
     safeTimeout(() => {
@@ -635,7 +645,11 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance }: Ro
         onClose={() => setShowVerify(false)}
         round={round}
         lastReveal={lastReveal}
-        onOpenProvablyFairPage={() => { setShowVerify(false); onBack(); }}
+        onOpenProvablyFairPage={prefill => {
+          setShowVerify(false);
+          if (onOpenProvablyFair) onOpenProvablyFair(prefill);
+          else onBack();
+        }}
       />
 
       {/* Header */}
