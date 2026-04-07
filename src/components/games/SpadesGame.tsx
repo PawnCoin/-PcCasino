@@ -1282,15 +1282,18 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* 3D Table prop - user selected */}
                 {(() => {
                   const prop = TABLE_PROPS.find(p => p.id === selectedProp) || TABLE_PROPS[0];
+                  const celebratoryProps = ['beer', 'whiskey', 'cigar', 'cocktail'];
+                  const doSparkle = propCelebrating && celebratoryProps.includes(prop.id);
                   return (
                     <div className="absolute top-3 right-3 select-none z-[10]"
                       style={{
                         opacity: 0.88,
                         cursor: 'pointer',
-                        animation: propCelebrating ? 'propBounce 0.7s ease-out both' : undefined,
                         filter: propCelebrating ? undefined : 'drop-shadow(0 4px 12px rgba(0,0,0,0.75))',
-                        animationName: propCelebrating ? 'propBounce, propSparkle' : undefined,
-                        animationDuration: propCelebrating ? '0.7s, 0.7s' : undefined,
+                        animationName: doSparkle ? 'propBounce, propSparkle' : propCelebrating ? 'propBounce' : undefined,
+                        animationDuration: doSparkle ? '0.7s, 0.7s' : propCelebrating ? '0.7s' : undefined,
+                        animationTimingFunction: 'ease-out',
+                        animationFillMode: 'both',
                       }}
                       onClick={() => setShowPropPicker(true)}
                       title="Click to change prop">
