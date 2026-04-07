@@ -44,6 +44,7 @@ import { TournamentsPage } from '@/components/TournamentsPage';
 import { ReferralPage } from '@/components/ReferralPage';
 import { LobbyChat } from '@/components/LobbyChat';
 import { ProvablyFairPage } from '@/components/ProvablyFairPage';
+import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -104,6 +105,13 @@ function App() {
   const [showTournaments, setShowTournaments] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
 
+  // Referral welcome overlay state
+  const [referralOverlay, setReferralOverlay] = useState<{
+    referrerUsername: string;
+    welcomeBonus: number;
+    code: string;
+  } | null>(null);
+
   // Card deck preference
   const { selectedDeck, selectDeck, getCardBackStyle, addCustomDeck, allDecks } = useCardDeck();
 
@@ -137,6 +145,35 @@ function App() {
       setUnreadCount(data.unread || 0);
     } catch { }
   }, []);
+
+  // Detect ?ref=CODE on load — validate, store in sessionStorage, show welcome overlay
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (!refCode || isAuthenticated) return;
+
+    // Persist code so it survives page refresh before registration
+    sessionStorage.setItem('pcasino_ref_code', refCode);
+
+    // Validate and fetch referrer info
+    fetch(`/api/referrals/validate/${encodeURIComponent(refCode)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.valid && data.referrerUsername) {
+          setReferralOverlay({
+            referrerUsername: data.referrerUsername,
+            welcomeBonus: data.welcomeBonus ?? 50000000,
+            code: refCode,
+          });
+        }
+      })
+      .catch(() => {});
+
+    // Clean ref from URL without reload
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('ref');
+    window.history.replaceState({}, '', clean.toString());
+  }, [isAuthenticated]);
 
   // Handle OAuth callback from URL params (?oauth_token=...&oauth_provider=...)
   useEffect(() => {
@@ -986,6 +1023,19 @@ function App() {
       <div id="app-content">
         {renderView()}
       </div>
+
+      {/* Referral welcome overlay — shown when ?ref=CODE is detected for non-authenticated visitors */}
+      {referralOverlay && !isAuthenticated && (
+        <ReferralWelcomeOverlay
+          referrerUsername={referralOverlay.referrerUsername}
+          welcomeBonus={referralOverlay.welcomeBonus}
+          onRegister={() => {
+            setReferralOverlay(null);
+            setShowAuth(true);
+          }}
+          onDismiss={() => setReferralOverlay(null)}
+        />
+      )}
 
       {/* Auth Modal - Email/Social/Wallet */}
       <AuthModal

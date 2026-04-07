@@ -27,7 +27,9 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
   const [email, setEmail]       = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [referral, setReferral] = useState('');
+  const [referral, setReferral] = useState(
+    () => sessionStorage.getItem('pcasino_ref_code') || ''
+  );
 
   const reset = () => {
     setError('');
@@ -55,6 +57,8 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
     try {
       const res = await authApi.register({ username, email, password, referralCode: referral || undefined });
       setToken(res.token);
+      // Clear the stored referral code after successful registration
+      sessionStorage.removeItem('pcasino_ref_code');
       onEmailLogin?.(res.user);
       onClose();
     } catch (err: any) {
@@ -336,6 +340,13 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
                 value={referral}
                 onChange={e => setReferral(e.target.value)}
               />
+              {referral && (
+                <div className="mt-1 text-xs px-2 py-0.5 rounded flex items-center gap-1"
+                  style={{ color: '#D4AF37' }}>
+                  <span>✓</span>
+                  <span>Referral code applied — welcome bonus included!</span>
+                </div>
+              )}
             </div>
             <button
               onClick={handleRegister}

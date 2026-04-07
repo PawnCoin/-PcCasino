@@ -414,6 +414,46 @@ app.post('/api/referrals/use', (req, res) => {
   res.json({ success: true, bonusAmount: 50000000 });
 });
 
+// Public: validate a referral code and return referrer info (no auth required)
+// Must be defined BEFORE /:userId wildcard to avoid being captured by it
+app.get('/api/referrals/validate/:code', async (req, res) => {
+  const { code } = req.params;
+  if (!code || typeof code !== 'string') return res.status(400).json({ error: 'Invalid code' });
+  try {
+    // Try DB: find referrer by username prefix of the code pattern (USERNAME_XXXX)
+    const prefix = code.split('_')[0];
+    if (prefix) {
+      const found = await query(
+        'SELECT id, username FROM users WHERE username ILIKE $1',
+        [prefix]
+      );
+      if (found.rows.length) {
+        const referrer = found.rows[0];
+        return res.json({
+          valid: true,
+          referrerUsername: referrer.username,
+          referrerId: referrer.id,
+          welcomeBonus: 50000000,
+        });
+      }
+    }
+    // Try in-memory map as fallback
+    const ref = referrals.get(code);
+    if (ref) {
+      return res.json({
+        valid: true,
+        referrerUsername: ref.referrerUsername,
+        referrerId: ref.referrerId,
+        welcomeBonus: 50000000,
+      });
+    }
+    return res.status(404).json({ valid: false, error: 'Referral code not found' });
+  } catch (err) {
+    console.error('[referral:validate]', err.message);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
 app.get('/api/referrals/:userId', (req, res) => {
   const userRefs = Array.from(referrals.values()).filter(r => r.referrerId === req.params.userId);
   res.json({ referrals: userRefs });
@@ -727,6 +767,33 @@ app.post('/api/pcpayments/webhook', async (req, res) => {
         [userId]
       );
       await query('COMMIT');
+
+      // First-deposit referral commission
+      try {
+        const prevDeps = await query(
+          `SELECT COUNT(*) as cnt FROM deposit_requests
+           WHERE user_id = $1 AND status = 'confirmed' AND tx_hash != $2`,
+          [userId, txHash || '']
+        );
+        if (parseInt(prevDeps.rows[0]?.cnt || '0') === 0) {
+          const ref = await query('SELECT referrer_id FROM referrals WHERE referred_id = $1', [userId]);
+          if (ref.rows.length) {
+            const referrerId = ref.rows[0].referrer_id;
+            const commission = Math.floor(parseInt(amount) * 0.1);
+            await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [commission, referrerId]);
+            await query(
+              'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
+              [referrerId, 'referral_commission', commission, `Referral commission from user #${userId} first deposit`]
+            );
+            await query(
+              "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
+              [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
+            );
+          }
+        }
+      } catch (commErr) {
+        console.error('[referral commission webhook]', commErr.message);
+      }
 
       // Notify user in-app
       await query(

@@ -86,6 +86,36 @@ router.post('/deposit/:id/approve', requireAuth, async (req, res) => {
     );
     await query('COMMIT');
 
+    // First-deposit referral commission: credit referrer 10% of deposit amount
+    try {
+      const prevDeposits = await query(
+        `SELECT COUNT(*) as cnt FROM deposit_requests
+         WHERE user_id = $1 AND status = 'approved' AND id != $2`,
+        [d.user_id, d.id]
+      );
+      if (parseInt(prevDeposits.rows[0]?.cnt || '0') === 0) {
+        const ref = await query(
+          'SELECT referrer_id FROM referrals WHERE referred_id = $1',
+          [d.user_id]
+        );
+        if (ref.rows.length) {
+          const referrerId = ref.rows[0].referrer_id;
+          const commission = Math.floor(parseInt(d.amount) * 0.1);
+          await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [commission, referrerId]);
+          await query(
+            'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
+            [referrerId, 'referral_commission', commission, `Referral commission from user #${d.user_id} first deposit`]
+          );
+          await query(
+            "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
+            [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
+          );
+        }
+      }
+    } catch (commErr) {
+      console.error('[referral commission]', commErr.message);
+    }
+
     // Send email
     const user = await query('SELECT email, username FROM users WHERE id = $1', [d.user_id]);
     if (user.rows[0]?.email) {
