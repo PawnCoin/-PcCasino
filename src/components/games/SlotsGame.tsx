@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info, Shield } from 'lucide-react';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -124,6 +126,8 @@ const slotsRules = {
 const LED_COUNT = 24;
 
 export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, onOpenProvablyFair }: SlotsGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
   const [currentBet, setCurrentBet] = useState(0);
@@ -256,6 +260,8 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               setWinLines(lines);
               setLastWin(totalWin);
               onWin(totalWin + currentBet);
+              triggerWinBurst();
+              addReaction(lines.some(l => l.symbol === '🎰' && l.count === 5) ? '👑' : '🎉', 'you');
 
               const hasJackpot = lines.some(l => l.symbol === '🎰' && l.count === 5);
               if (hasJackpot) {
@@ -285,6 +291,12 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
   return (
     <CasinoEnvironment gameType="slots">
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+      />
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
         <InGameTopBar
           gameName="Slots"
@@ -464,6 +476,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                     boxShadow: 'inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(212,175,55,0.1)',
                   }}
                 >
+                  <TableBrand style={{ opacity: 0.06 }} />
                   <div className="absolute left-0 top-0 bottom-0 w-1 z-10" style={{ background: 'linear-gradient(180deg, #D4AF37, #B8860B, #D4AF37)' }} />
                   <div className="absolute right-0 top-0 bottom-0 w-1 z-10" style={{ background: 'linear-gradient(180deg, #D4AF37, #B8860B, #D4AF37)' }} />
 
@@ -787,6 +800,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             >
               {spinning ? '⏳ SPINNING...' : '🎰 SPIN'}
             </Button>
+            <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
           </div>
 
           {lastWin > 0 && !spinning && (

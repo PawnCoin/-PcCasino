@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -474,6 +476,8 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
 }
 
 export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: CrapsGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gamePhase, setGamePhase] = useState<'comeout' | 'point'>('comeout');
   const [point, setPoint] = useState<number | null>(null);
   const [dice, setDice] = useState<[number, number]>([1, 1]);
@@ -825,6 +829,8 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
 
     if (totalWin > 0) {
       onWin(totalWin);
+      triggerWinBurst();
+      addReaction('💰', 'you');
       setMessage(prev => `${prev} You won ${totalWin} $Pc!`);
       setWinFlash(true);
       setWinText(`+${totalWin} $Pc`);
@@ -849,6 +855,12 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
 
   return (
     <CasinoEnvironment gameType="craps">
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+      />
     <div 
       className="h-screen flex flex-col overflow-hidden"
       style={{
@@ -985,11 +997,8 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               transition: 'box-shadow 0.3s ease',
             }}
           >
-            {/* Casino table decorations */}
-            <div className="absolute top-2 left-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.72, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🥃</div>
-            <div className="absolute top-2 right-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🚬</div>
-            <div className="absolute bottom-4 left-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍸</div>
-            <div className="absolute bottom-4 right-2 z-[25] pointer-events-none select-none" style={{ opacity: 0.65, fontSize: 16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍺</div>
+            {/* $Pc watermark */}
+            <TableBrand style={{ opacity: 0.09 }} />
 
             {/* Premium felt surface */}
             <div className="absolute inset-[12px] rounded-xl premium-felt" style={{
@@ -1162,6 +1171,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
             >
               {isRolling ? 'ROLLING...' : 'ROLL DICE'}
             </Button>
+            <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
             <Button
               onClick={clearBets}
               disabled={isRolling || bets.length === 0}

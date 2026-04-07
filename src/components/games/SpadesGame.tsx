@@ -9,6 +9,8 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { chooseAICard, calculateAIBid } from '@/hooks/useSpadesAI';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { AvatarSprite, SPADES_AVATARS } from '@/components/AvatarSprite';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import type { AIDifficulty } from '@/hooks/useSpadesAI';
 import type { Card } from '@/types';
 
@@ -45,139 +47,9 @@ interface HouseRules {
 }
 
 interface PlayerStats { wins: number; losses: number; mmr: number; }
-interface Reaction { id: string; player: string; emoji: string; }
 
 const CHIP_VALUES = ALL_CHIP_DENOMS;
-const REACTIONS = ['🔥', '👏', '😤', '🎉', '💀', '🤙'];
 
-interface TablePropDef { id: string; label: string; el: React.ReactNode; }
-const TABLE_PROPS: TablePropDef[] = [
-  {
-    id: 'whiskey', label: '🥃 Whiskey', el: (
-      <svg width="52" height="60" viewBox="0 0 52 60">
-        <defs>
-          <linearGradient id="wg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#f5c542"/><stop offset="50%" stopColor="#b8832a"/><stop offset="100%" stopColor="#7a4f10"/></linearGradient>
-          <linearGradient id="wg2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="rgba(255,255,255,0.35)"/><stop offset="100%" stopColor="transparent"/></linearGradient>
-        </defs>
-        <rect x="10" y="12" width="32" height="36" rx="4" fill="url(#wg1)" opacity="0.92"/>
-        <rect x="10" y="12" width="12" height="36" rx="4" fill="url(#wg2)"/>
-        <rect x="10" y="30" width="32" height="3" fill="rgba(180,120,20,0.5)"/>
-        <ellipse cx="26" cy="12" rx="16" ry="4" fill="#c8973a"/>
-        <ellipse cx="26" cy="48" rx="16" ry="4" fill="#7a4f10"/>
-        <rect x="14" y="14" width="24" height="32" rx="2" fill="rgba(255,220,80,0.12)"/>
-        <ellipse cx="20" cy="22" rx="4" ry="6" fill="rgba(255,255,255,0.18)" transform="rotate(-15 20 22)"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'beer', label: '🍺 Beer', el: (
-      <svg width="52" height="64" viewBox="0 0 52 64">
-        <defs>
-          <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#f5b220"/><stop offset="60%" stopColor="#d4860a"/><stop offset="100%" stopColor="#a05e05"/></linearGradient>
-          <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="rgba(255,255,255,0.4)"/><stop offset="100%" stopColor="transparent"/></linearGradient>
-        </defs>
-        <rect x="8" y="16" width="28" height="40" rx="4" fill="url(#bg1)"/>
-        <rect x="8" y="16" width="10" height="40" rx="4" fill="url(#bg2)"/>
-        <path d="M36 22 Q44 22 44 30 Q44 38 36 38" fill="none" stroke="#c8920a" strokeWidth="5" strokeLinecap="round"/>
-        <path d="M36 23 Q42 23 42 30 Q42 37 36 37" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2"/>
-        <ellipse cx="22" cy="16" rx="14" ry="5" fill="white" opacity="0.9"/>
-        <ellipse cx="22" cy="14" rx="13" ry="4" fill="white"/>
-        <ellipse cx="16" cy="14" rx="4" ry="3" fill="rgba(255,255,255,0.7)"/>
-        <ellipse cx="15" cy="30" rx="3" ry="5" fill="rgba(255,255,255,0.18)" transform="rotate(-10 15 30)"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'money', label: '💰 Cash', el: (
-      <svg width="60" height="52" viewBox="0 0 60 52">
-        <defs>
-          <linearGradient id="mg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#5dc769"/><stop offset="50%" stopColor="#2e8b40"/><stop offset="100%" stopColor="#1a5c28"/></linearGradient>
-        </defs>
-        {[6,4,2,0].map(o => <rect key={o} x={4+o} y={8+o} width="52" height="32" rx="3" fill={`rgba(30,110,50,${0.5+o*0.1})`} stroke="rgba(100,200,100,0.2)" strokeWidth="0.5"/>)}
-        <rect x="4" y="8" width="52" height="32" rx="3" fill="url(#mg1)"/>
-        <rect x="4" y="8" width="18" height="32" rx="3" fill="rgba(255,255,255,0.12)"/>
-        <ellipse cx="30" cy="24" rx="10" ry="10" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-        <text x="30" y="28" textAnchor="middle" fontSize="11" fontWeight="bold" fill="rgba(255,255,255,0.85)">$</text>
-        <rect x="8" y="14" width="12" height="2" rx="1" fill="rgba(255,255,255,0.3)"/>
-        <rect x="8" y="30" width="12" height="2" rx="1" fill="rgba(255,255,255,0.3)"/>
-        <rect x="40" y="14" width="12" height="2" rx="1" fill="rgba(255,255,255,0.3)"/>
-        <rect x="40" y="30" width="12" height="2" rx="1" fill="rgba(255,255,255,0.3)"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'jewelry', label: '💍 Ring', el: (
-      <svg width="52" height="58" viewBox="0 0 52 58">
-        <defs>
-          <linearGradient id="jg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ffe066"/><stop offset="50%" stopColor="#d4af37"/><stop offset="100%" stopColor="#8b6914"/></linearGradient>
-          <linearGradient id="jg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a8edfc"/><stop offset="40%" stopColor="#5bc8f5"/><stop offset="100%" stopColor="#1a7ac8"/></linearGradient>
-        </defs>
-        <ellipse cx="26" cy="40" rx="18" ry="10" fill="none" stroke="url(#jg1)" strokeWidth="7"/>
-        <ellipse cx="26" cy="40" rx="18" ry="10" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2"/>
-        <polygon points="26,4 34,16 26,24 18,16" fill="url(#jg2)"/>
-        <polygon points="26,4 34,16 26,24 18,16" fill="url(#jg2)" opacity="0.6"/>
-        <polygon points="26,4 34,16 26,10" fill="rgba(255,255,255,0.6)"/>
-        <polygon points="18,16 26,24 20,20" fill="rgba(255,255,255,0.3)"/>
-        <rect x="20" y="22" width="12" height="7" fill="url(#jg1)"/>
-        <line x1="26" y1="4" x2="18" y2="16" stroke="rgba(255,255,255,0.7)" strokeWidth="0.8"/>
-        <line x1="26" y1="4" x2="34" y2="16" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'cigar', label: '🚬 Cigar', el: (
-      <svg width="68" height="36" viewBox="0 0 68 36">
-        <defs>
-          <linearGradient id="cg1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#8B4513"/><stop offset="50%" stopColor="#6B3410"/><stop offset="100%" stopColor="#4a2108"/></linearGradient>
-          <linearGradient id="cg2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#c8a84b"/><stop offset="100%" stopColor="#9a7a25"/></linearGradient>
-        </defs>
-        <rect x="4" y="12" width="46" height="12" rx="6" fill="url(#cg1)"/>
-        <rect x="4" y="12" width="12" height="12" rx="6" fill="rgba(255,255,255,0.12)"/>
-        <rect x="46" y="12" width="8" height="12" rx="3" fill="url(#cg2)"/>
-        <rect x="50" y="13" width="14" height="10" rx="5" fill="#d4a04a"/>
-        <rect x="62" y="14" width="4" height="8" rx="4" fill="#e8e0d0" opacity="0.9"/>
-        <path d="M64 14 Q66 8 62 4 Q68 6 66 12" fill="rgba(200,200,200,0.4)"/>
-        <path d="M62 12 Q65 5 60 2" stroke="rgba(220,220,220,0.35)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'cocktail', label: '🍸 Cocktail', el: (
-      <svg width="50" height="66" viewBox="0 0 50 66">
-        <defs>
-          <linearGradient id="ckg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ff6b9d"/><stop offset="100%" stopColor="#c0392b"/></linearGradient>
-          <linearGradient id="ckg2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="rgba(255,255,255,0.35)"/><stop offset="100%" stopColor="transparent"/></linearGradient>
-        </defs>
-        <polygon points="4,8 46,8 28,38 22,38" fill="rgba(255,120,170,0.25)" stroke="rgba(200,100,150,0.5)" strokeWidth="1"/>
-        <polygon points="4,8 46,8 28,38 22,38" fill="url(#ckg1)" opacity="0.85"/>
-        <polygon points="4,8 20,8 22,38" fill="url(#ckg2)"/>
-        <line x1="25" y1="38" x2="25" y2="56" stroke="#c8a855" strokeWidth="2.5"/>
-        <ellipse cx="25" cy="57" rx="10" ry="3" fill="#a07830" opacity="0.7"/>
-        <line x1="34" y1="14" x2="46" y2="6" stroke="#90ee90" strokeWidth="2" strokeLinecap="round"/>
-        <ellipse cx="46" cy="6" rx="4" ry="4" fill="#2e8b57"/>
-        <circle cx="14" cy="22" r="2.5" fill="rgba(255,255,255,0.3)"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'coffee', label: '☕ Coffee', el: (
-      <svg width="54" height="64" viewBox="0 0 54 64">
-        <defs>
-          <linearGradient id="cofg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#f5f5f0"/><stop offset="100%" stopColor="#ddd8cc"/></linearGradient>
-        </defs>
-        <rect x="6" y="20" width="32" height="32" rx="6" fill="url(#cofg1)"/>
-        <rect x="6" y="20" width="10" height="32" rx="6" fill="rgba(255,255,255,0.5)"/>
-        <path d="M38 26 Q46 26 46 32 Q46 38 38 38" fill="none" stroke="#ccc" strokeWidth="4" strokeLinecap="round"/>
-        <ellipse cx="22" cy="20" rx="16" ry="5" fill="#e8e0d0"/>
-        <ellipse cx="22" cy="22" rx="13" ry="4" fill="#4a2c10" opacity="0.9"/>
-        <ellipse cx="16" cy="22" rx="4" ry="2" fill="rgba(255,255,255,0.2)"/>
-        <path d="M16 8 Q16 4 20 6 Q20 2 24 4 Q24 1 28 3" stroke="rgba(200,200,200,0.6)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-        <rect x="8" y="50" width="36" height="4" rx="2" fill="#c8b89a"/>
-        <rect x="4" y="54" width="44" height="3" rx="1.5" fill="#b8a888"/>
-      </svg>
-    ),
-  },
-];
 
 const CARD_BACK_PRESETS = [
   { id: 'classic_blue', label: 'Classic Blue', style: { background: 'linear-gradient(135deg, #1a237e 0%, #283593 50%, #1a237e 100%)' } as React.CSSProperties },
@@ -214,6 +86,8 @@ const PLAYER_TEXT_COLORS = ['text-[#D4AF37]', 'text-[#ef5350]', 'text-[#64b5f6]'
 
 export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: SpadesGameProps) {
   const { playSound } = useSoundEffects();
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
 
   const mkPlayer = (idx: number): SpadesPlayer => ({
     id: idx === 0 ? 'you' : `p${idx + 1}`,
@@ -251,7 +125,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [aiDifficulty, setAIDifficulty] = useState<AIDifficulty>('medium');
   const [rankedMode, setRankedMode] = useState(false);
   const [playerStats, setPlayerStats] = useState<PlayerStats>({ wins: 0, losses: 0, mmr: 1200 });
-  const [reactions, setReactions] = useState<Reaction[]>([]);
   const [tooltip, setTooltip] = useState<string | null>(null);
   const [tooltipsEnabled, setTooltipsEnabled] = useState(true);
   const [roundHistory, setRoundHistory] = useState<{ your: number; opp: number; round: number }[]>([]);
@@ -271,12 +144,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     newTotalYou: number; newTotalOpp: number;
     continueFn: () => void;
   } | null>(null);
-  const [selectedProp, setSelectedProp] = useState('beer');
-  const [showPropPicker, setShowPropPicker] = useState(false);
   const [localCardBack, setLocalCardBack] = useState<null | { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string }>(null);
   const [showCardBackPicker, setShowCardBackPicker] = useState(false);
   const [bookStacks, setBookStacks] = useState<number[]>([0, 0, 0, 0]);
-  const [propCelebrating, setPropCelebrating] = useState(false);
   const [animatingBook, setAnimatingBook] = useState<string | null>(null);
   const [smackMode, setSmackMode] = useState(false);
   const [smackActive, setSmackActive] = useState(false);
@@ -335,12 +205,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     setTooltip(msg);
     setTimeout(() => setTooltip(null), 3000);
   }, [tooltipsEnabled]);
-
-  const addReaction = (emoji: string, pid: string = 'you') => {
-    const r: Reaction = { id: `${Date.now()}-${Math.random()}`, player: pid, emoji };
-    setReactions(prev => [...prev.slice(-4), r]);
-    setTimeout(() => setReactions(prev => prev.filter(x => x.id !== r.id)), 2800);
-  };
 
   const addChipToBet = (amount: number) => {
     if (currentBet + amount > balance) { setMessage('Insufficient balance!'); return; }
@@ -509,7 +373,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
       updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
       trickCards = [...trickCards, { player: player.id, card: chosen }];
       setCurrentTrick([...trickCards]);
-      if (Math.random() > 0.7) setTimeout(() => addReaction(REACTIONS[Math.floor(Math.random() * REACTIONS.length)], player.id), 200);
+      if (Math.random() > 0.7) setTimeout(() => addAIReaction(player.id), 200);
       nextPlayer = (nextPlayer + 3) % 4;
       aiTimer.current = setTimeout(playNext, Math.round(580 / gameSpeed));
     };
@@ -555,7 +419,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
       updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
       trickCards = [...trickCards, { player: player.id, card: chosen }];
       setCurrentTrick([...trickCards]);
-      if (Math.random() > 0.7) setTimeout(() => addReaction(REACTIONS[Math.floor(Math.random() * REACTIONS.length)], player.id), 200);
+      if (Math.random() > 0.7) setTimeout(() => addAIReaction(player.id), 200);
       nextPIdx = (nextPIdx + 3) % 4;
       aiTimer.current = setTimeout(playNext, Math.round(580 / gameSpeed));
     };
@@ -593,9 +457,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     }
     setAnimatingBook(winner);
     setTimeout(() => setAnimatingBook(null), 1100);
-    setPropCelebrating(true);
-    setTimeout(() => setPropCelebrating(false), 700);
-
     playSound('shuffle');
     setTimeout(() => setTrickWinner(null), Math.round(1300 / gameSpeed));
     const winnerIdx = newPlayers.findIndex(p => p.id === winner);
@@ -658,6 +519,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         const won = ny > no;
         if (won) {
           onWin(currentBet * 2);
+          triggerWinBurst();
           setMessage(`🎉 You won! +${currentBet * 2} $Pc`);
           setWinFlash(true); setTimeout(() => setWinFlash(false), 2500);
           playSound('win');
@@ -1152,7 +1014,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => setShowPropPicker(true)} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-all" title="Table Props">🎭</button>
                     <button onClick={() => setShowCardBackPicker(true)} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-all" title="Card Back">🃏</button>
                     <span className="text-[#D4AF37]/50 text-[10px]">{houseRules.targetScore}pt</span>
                   </div>
@@ -1245,62 +1106,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   }}>EST. MMI</div>
                 </div>
 
-                {/* ══ THOUGHT BUBBLE REACTIONS ══ */}
-                {reactions.map(r => {
-                  const posMap: Record<string, React.CSSProperties> = {
-                    you:  { bottom: '18%', left: '50%', transform: 'translateX(-50%)' },
-                    p2:   { left: '16%',  top: '50%',  transform: 'translateY(-50%)' },
-                    p3:   { top: '18%',   left: '50%', transform: 'translateX(-50%)' },
-                    p4:   { right: '16%', top: '50%',  transform: 'translateY(-50%)' },
-                  };
-                  const tailMap: Record<string, React.CSSProperties> = {
-                    you:  { flexDirection: 'column-reverse' as const, alignItems: 'center' },
-                    p2:   { flexDirection: 'row-reverse' as const, alignItems: 'center' },
-                    p3:   { flexDirection: 'column' as const, alignItems: 'center' },
-                    p4:   { flexDirection: 'row' as const, alignItems: 'center' },
-                  };
-                  const pos = posMap[r.player] || posMap.you;
-                  const tail = tailMap[r.player] || tailMap.you;
-                  return (
-                    <div key={r.id} className="absolute pointer-events-none" style={{ ...pos, zIndex: 62, display: 'flex', ...tail, gap: 2, animation: 'thoughtBubbleFade 2.8s ease-out forwards' }}>
-                      <div style={{
-                        background: 'rgba(255,255,255,0.96)',
-                        borderRadius: 16, padding: '6px 11px',
-                        lineHeight: 1.3, textAlign: 'center',
-                        boxShadow: '0 4px 18px rgba(0,0,0,0.4), 0 0 0 1.5px rgba(0,0,0,0.08)',
-                        maxWidth: 170, color: '#333', fontWeight: 600, fontSize: 14,
-                        animation: 'thoughtBubblePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both',
-                        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      }}>{r.emoji}</div>
-                      {[9, 6, 4].map((sz, di) => (
-                        <div key={di} style={{ width: sz, height: sz, borderRadius: '50%', background: 'rgba(255,255,255,0.96)', boxShadow: '0 2px 6px rgba(0,0,0,0.3)', flexShrink: 0 }} />
-                      ))}
-                    </div>
-                  );
-                })}
-
-                {/* 3D Table prop - user selected */}
-                {(() => {
-                  const prop = TABLE_PROPS.find(p => p.id === selectedProp) || TABLE_PROPS[0];
-                  const celebratoryProps = ['beer', 'whiskey', 'cigar', 'cocktail'];
-                  const doSparkle = propCelebrating && celebratoryProps.includes(prop.id);
-                  return (
-                    <div className="absolute top-3 right-3 select-none z-[10]"
-                      style={{
-                        opacity: 0.88,
-                        cursor: 'pointer',
-                        filter: propCelebrating ? undefined : 'drop-shadow(0 4px 12px rgba(0,0,0,0.75))',
-                        animationName: doSparkle ? 'propBounce, propSparkle' : propCelebrating ? 'propBounce' : undefined,
-                        animationDuration: doSparkle ? '0.7s, 0.7s' : propCelebrating ? '0.7s' : undefined,
-                        animationTimingFunction: 'ease-out',
-                        animationFillMode: 'both',
-                      }}
-                      onClick={() => setShowPropPicker(true)}
-                      title="Click to change prop">
-                      {prop.el}
-                    </div>
-                  );
-                })()}
+                {/* $Pc watermark */}
+                <TableBrand style={{ opacity: 0.09 }} />
 
                 {/* ── PARTNER (TOP) ── */}
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-10">
@@ -1707,7 +1514,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
               {/* ── YOUR HAND ── shown during bidding AND playing */}
               {(gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
                 <div style={{ background: 'linear-gradient(180deg, rgba(8,8,14,0.95) 0%, rgba(5,5,10,1) 100%)', borderTop: '2px solid rgba(93,64,55,0.5)', padding: '10px 8px 12px', position: 'relative' }}>
-                  {/* Reaction + Quick Text buttons */}
+                  {/* Reaction buttons + SMACK */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
                     <div className="flex gap-1 items-center">
                       {/* SMACK button — arm before playing a card you're confident about */}
@@ -1728,20 +1535,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                           💥 {smackMode ? 'ARMED!' : 'SMACK'}
                         </button>
                       )}
-                      {REACTIONS.map(emoji => (
-                        <button key={emoji} onClick={() => addReaction(emoji)}
-                          className="text-base hover:scale-125 transition-transform" style={{ lineHeight: 1 }}>
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-1 flex-wrap justify-end" style={{ maxWidth: 280 }}>
-                      {QUICK_TEXTS.map(txt => (
-                        <button key={txt} onClick={() => addReaction(txt)}
-                          style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)', color: '#D4AF37', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                          {txt}
-                        </button>
-                      ))}
+                      <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
                     </div>
                   </div>
 
@@ -1855,28 +1649,14 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           </DialogContent>
         </Dialog>
 
-        {/* ═══ PROP PICKER DIALOG ═══ */}
-        <Dialog open={showPropPicker} onOpenChange={setShowPropPicker}>
-          <DialogContent className="max-w-sm glass-panel-strong border-[#D4AF37]/30">
-            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">🎭 Table Props</DialogTitle></DialogHeader>
-            <div className="py-2">
-              <div className="text-xs text-gray-500 mb-3">Choose a prop to display on the table</div>
-              <div className="grid grid-cols-3 gap-3">
-                {TABLE_PROPS.map(prop => (
-                  <button key={prop.id} onClick={() => { setSelectedProp(prop.id); setShowPropPicker(false); }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all"
-                    style={{
-                      background: selectedProp === prop.id ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
-                      borderColor: selectedProp === prop.id ? '#D4AF37' : 'rgba(255,255,255,0.1)',
-                    }}>
-                    <div style={{ filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.6))' }}>{prop.el}</div>
-                    <span className="text-[10px] font-bold" style={{ color: selectedProp === prop.id ? '#D4AF37' : '#888' }}>{prop.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* ═══ CELEBRATION SYSTEM ═══ */}
+        <CelebrationSystem
+          enabled={settings.celebrationsEnabled}
+          reactions={reactions}
+          winBursts={winBursts}
+          onBurstComplete={removeBurst}
+          playerPositions={{ you: 'bottom', p2: 'left', p3: 'top', p4: 'right' }}
+        />
 
         {/* ═══ CARD BACK PICKER DIALOG ═══ */}
         <Dialog open={showCardBackPicker} onOpenChange={setShowCardBackPicker}>

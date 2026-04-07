@@ -13,6 +13,7 @@ export interface GameSettings {
   casinoSoundEnabled: boolean;
   cardSkin: string;
   vappTVEnabled: boolean;
+  celebrationsEnabled: boolean;
 }
 
 export interface PcMembership {
@@ -45,6 +46,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   casinoSoundEnabled: true,
   cardSkin: 'default',
   vappTVEnabled: false,
+  celebrationsEnabled: true,
 };
 
 export const QUICK_BETS = [

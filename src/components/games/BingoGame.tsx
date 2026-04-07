@@ -3,6 +3,8 @@ import {
   ArrowLeft, Volume2, VolumeX, RefreshCw, Info, Users, Award,
   Plus, Minus, ChevronLeft, ChevronRight, Share2, PlusCircle,
 } from 'lucide-react';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -523,6 +525,8 @@ function ConfettiPiece({ x, y, color, delay, shape }: { x: number; y: number; co
 
 // ── MAIN GAME ────────────────────────────────────────────────────────────────
 export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: BingoGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [phase, setPhase] = useState<GamePhase>('setup');
   const [numCards, setNumCards] = useState(1);
   const [betAmount, setBetAmount] = useState(5_000_000);
@@ -699,6 +703,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       const prize = betAmount * numCards * mult;
       playSound('jackpot');
       onWin(prize);
+      triggerWinBurst();
+      addReaction('🎉', 'you');
       setWonPrize(prize);
       setWinCells(newWinCells);
       setWinPattern(bestPattern);
@@ -733,6 +739,12 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#080808 0%,#0b140b 50%,#080808 100%)', color: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+      />
       <style>{`
         @keyframes hb0{0%{transform:translate(0,0) rotate(-5deg)}25%{transform:translate(42px,-32px) rotate(14deg)}50%{transform:translate(85px,-6px) rotate(-10deg)}75%{transform:translate(40px,30px) rotate(12deg)}100%{transform:translate(0,0) rotate(-5deg)}}
         @keyframes hb1{0%{transform:translate(0,0) rotate(8deg)}30%{transform:translate(-35px,28px) rotate(-18deg)}60%{transform:translate(60px,22px) rotate(12deg)}100%{transform:translate(0,0) rotate(8deg)}}
@@ -929,7 +941,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       {/* PLAYING / WON SCREEN */}
       {(phase === 'playing' || phase === 'won' || phase === 'gameover') && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, overflow: 'hidden' }} className="sm:!flex-row">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, overflow: 'hidden', position: 'relative' }} className="sm:!flex-row">
+          <TableBrand style={{ opacity: 0.06 }} />
 
           {/* LEFT COLUMN: Ball machine + number board */}
           <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }} className="sm:!w-[240px] sm:!flex-shrink-0">
@@ -949,6 +962,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             {/* Auto-play toggle */}
             {phase === 'playing' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
                 <button onClick={() => setAutoPlay(a => !a)} style={{
                   padding: '8px 0', borderRadius: 10, fontWeight: 800, fontSize: 11,
                   background: autoPlay ? 'linear-gradient(135deg,#B71C1C,#E53935)' : 'linear-gradient(135deg,#1565C0,#1E88E5)',

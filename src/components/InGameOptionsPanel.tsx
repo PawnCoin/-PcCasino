@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music } from 'lucide-react';
+import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music, Sparkles } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -127,6 +127,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember }: InGameOptionsP
               <ToggleRow icon={<Mic size={13} />} label="Voice Caller" sub="Spoken ball / dealer calls" value={settings.voiceEnabled} onChange={() => toggle('voiceEnabled')} />
               <ToggleRow icon={<MessageSquare size={13} />} label="On-Screen Text" sub="Captions and tips" value={settings.textEnabled} onChange={() => toggle('textEnabled')} />
               <ToggleRow icon={<Bot size={13} />} label="AI Help" sub="Strategy hints and tips" value={settings.aiHelpEnabled} onChange={() => toggle('aiHelpEnabled')} />
+              <ToggleRow icon={<Sparkles size={13} />} label="Celebrations" sub="Emoji reactions & win bursts" value={settings.celebrationsEnabled} onChange={() => toggle('celebrationsEnabled')} />
               {isMember && (
                 <ToggleRow icon={<Tv size={13} />} label="VappTV Overlay" sub="Watch TV while you play" value={settings.vappTVEnabled} onChange={() => toggle('vappTVEnabled')} />
               )}

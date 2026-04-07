@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info, RotateCcw, Mic, MicOff, Camera, History } from 'lucide-react';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -491,6 +493,8 @@ function UserSeat({
 }
 
 export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: PokerGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -561,6 +565,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       const label = ACTION_POOL[Math.floor(Math.random() * ACTION_POOL.length)];
       setTimeout(() => {
         setOppAction({ idx: opp.idx, label, thinking: false });
+        addAIReaction(opp.name || `opponent-${opp.id}`);
       }, delay);
       delay += 950;
       setTimeout(() => {
@@ -796,6 +801,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     if (playerWins) {
       const winAmount = capturedPot;
       onWin(winAmount);
+      triggerWinBurst();
+      addReaction('🔥', 'you');
       setWinEffect(true);
       setPotSweepToUser(true);
       setTimeout(() => setPotSweepToUser(false), 1200);
@@ -885,6 +892,12 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
   return (
     <CasinoEnvironment gameType="poker">
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+      />
       <div className="h-screen bg-[#0a0a0a] relative flex flex-col overflow-hidden">
         <style>{`
           @keyframes pokerTrailFade { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(0.3)} }
@@ -1027,12 +1040,6 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               className="relative w-full max-w-5xl mx-auto h-full"
               style={{ animation: loseEffect ? 'pokerLoseShake 0.6s ease-out' : undefined }}
             >
-              {/* Casino table decorations */}
-              <div className="absolute top-[8%] left-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.75, fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🥃</div>
-              <div className="absolute top-[8%] right-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.7, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🚬</div>
-              <div className="absolute bottom-[8%] left-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍸</div>
-              <div className="absolute bottom-[8%] right-[8%] z-[16] pointer-events-none select-none" style={{ opacity: 0.7, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍺</div>
-
               {/* Wood rail */}
               <div className="absolute inset-0 rounded-[50%/38%]" style={{
                 background: 'linear-gradient(180deg,#6D4C2E 0%,#5D4037 20%,#4E342E 50%,#3E2723 80%,#2E1F18 100%)',
@@ -1061,10 +1068,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 <div className="absolute top-[8%] left-1/2 -translate-x-1/2 pointer-events-none select-none" style={{ fontFamily:"'Cinzel',serif", fontSize:14, letterSpacing:'0.4em', color:'rgba(212,175,55,0.3)', whiteSpace:'nowrap' }}>
                   TEXAS HOLD'EM POKER
                 </div>
-                <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none flex items-center gap-2" style={{ opacity:0.15 }}>
-                  <img src="/logos/pc-logo.png" alt="" className="w-8 h-8" />
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:18, color:'#D4AF37', letterSpacing:'0.3em' }}>$Pc CASINO</span>
-                </div>
+                <TableBrand style={{ opacity: 0.09 }} />
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[45%] pointer-events-none rounded-[50%/38%]" style={{ background:'radial-gradient(ellipse at center top,rgba(255,255,220,0.08) 0%,transparent 60%)', animation:'pokerSpotlight 4s ease-in-out infinite' }} />
               </div>
 
@@ -1337,6 +1341,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                         <RotateCcw className="w-4 h-4" />
                       </Button>
                     )}
+                    <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
                   </>
                 )}
               </div>

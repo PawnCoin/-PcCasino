@@ -1,5 +1,7 @@
 import React, { useState, useReducer, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Settings, RotateCcw, Zap, GraduationCap, PlusCircle, ZoomIn, ZoomOut } from 'lucide-react';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -1266,6 +1268,8 @@ interface DominoesGameProps {
 }
 
 export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DominoesGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const { isMuted, playSound } = useSoundEffects();
   const [muted, setMuted] = useState(false);
@@ -1434,6 +1438,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       if (choice) {
         audio.place();
         dispatch({ type: 'PLAY_TILE', playerId: player.id, tileId: choice.tile.id, end: choice.end });
+        addAIReaction(player.id);
       } else if (gs.boneyard.length > 0) {
         // AI draws from boneyard — will retry on next drawTrigger cycle
         audio.draw();
@@ -1455,7 +1460,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       if (humanWon) {
         if (slamOn) { setShaking(true); setCracking(true); setTimeout(() => { setShaking(false); setCracking(false); }, 900); }
         audio.slam(); setTimeout(() => audio.crack(), 180); setTimeout(() => audio.win(), 350);
-        if (gs.mode === 'real') { const w = gs.bet * 3; playSound('jackpot'); onWin(w); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
+        if (gs.mode === 'real') { const w = gs.bet * 3; playSound('jackpot'); onWin(w); triggerWinBurst(); addReaction('🎉', 'you'); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
         else toast.success('DOMINO OUT! (Practice)');
       } else {
         gs.mode === 'real' ? toast.error(`${gs.roundWinner} wins! +${gs.roundScore} pts`) : toast.info(`${gs.roundWinner} wins the round.`);
@@ -1523,6 +1528,13 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
 
   return (
     <div style={{ minHeight: '100vh', background: '#060606', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+        playerPositions={{ human: 'bottom', you: 'bottom', ai1: 'top', ai2: 'left', ai3: 'right' }}
+      />
       <style>{`
         @keyframes crackDraw { to { stroke-dashoffset: 0 } }
         @keyframes flashFade { 0%{opacity:1} 100%{opacity:0} }
@@ -1760,10 +1772,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             <div style={{ position: 'relative', minHeight: 0, minWidth: 0 }}>
               <div style={{ width: '100%', height: '100%', borderRadius: 16, position: 'relative', overflow: 'hidden', background: table.felt, border: `3px solid ${table.border}`, boxShadow: `inset 0 2px 24px rgba(0,0,0,.55), 0 0 0 5px rgba(0,0,0,.3)` }}>
                 <div style={{ position: 'absolute', inset: 0, opacity: .05, pointerEvents: 'none', backgroundImage: `repeating-linear-gradient(0deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px),repeating-linear-gradient(90deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px)` }} />
-                <div style={{ position: 'absolute', top: 7, left: 8, zIndex: 5, opacity: 0.7, fontSize: 17, pointerEvents: 'none' }}>🥃</div>
-                <div style={{ position: 'absolute', top: 7, right: 8, zIndex: 5, opacity: 0.65, fontSize: 15, pointerEvents: 'none' }}>🚬</div>
-                <div style={{ position: 'absolute', bottom: 7, left: 8, zIndex: 5, opacity: 0.65, fontSize: 15, pointerEvents: 'none' }}>🍸</div>
-                <div style={{ position: 'absolute', bottom: 7, right: 8, zIndex: 5, opacity: 0.65, fontSize: 14, pointerEvents: 'none' }}>🍺</div>
+                <TableBrand style={{ opacity: 0.08 }} />
                 <CrackOverlay active={cracking} />
                 {lastPlayBanner && <LastPlayBanner playerName={lastPlayBanner.playerName} left={lastPlayBanner.left} right={lastPlayBanner.right} skinKey={dominoSkin} />}
                 <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 6, display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -1984,9 +1993,10 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
 
           {/* Human hand — all tiles shown vertically (portrait) */}
           <div style={{ padding: '5px 14px 10px', background: 'rgba(0,0,0,.55)', borderTop: '1px solid rgba(212,175,55,.15)', flexShrink: 0 }}>
-            <div style={{ color: '#D4AF37', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>
-              Your Hand — {humanPlayer?.hand.length ?? 0} tile{(humanPlayer?.hand.length ?? 0) !== 1 ? 's' : ''}
-              {!isHumanTurn && <span style={{ color: '#888', fontWeight: 400, marginLeft: 8, fontSize: 9 }}>Waiting…</span>}
+            <div style={{ color: '#D4AF37', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Your Hand — {humanPlayer?.hand.length ?? 0} tile{(humanPlayer?.hand.length ?? 0) !== 1 ? 's' : ''}
+              {!isHumanTurn && <span style={{ color: '#888', fontWeight: 400, marginLeft: 8, fontSize: 9 }}>Waiting…</span>}</span>
+              <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-end' }}>
               {humanPlayer?.hand.map(tile => {

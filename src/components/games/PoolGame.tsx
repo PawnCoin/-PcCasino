@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { toast } from 'sonner';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 
 interface PoolGameProps {
   balance: number;
@@ -73,6 +75,8 @@ function makeBalls(): Ball[] {
 }
 
 export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: PoolGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ballsRef = useRef<Ball[]>(makeBalls());
   const animRef = useRef<number>(0);
@@ -301,9 +305,12 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
             setGamePhase('won');
             setMessage('🏆 You win! Eight ball pocketed legally!');
             if (betPlaced) { onWin(betAmount * 2); }
+            triggerWinBurst();
+            addReaction('👑', 'you');
           } else {
             setGamePhase('lost');
             setMessage('You lose! Eight ball pocketed too early.');
+            addAIReaction('ai');
           }
           return;
         }
@@ -411,6 +418,13 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0a', color: '#fff' }}>
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom', ai: 'top' }}
+      />
       <InGameTopBar gameName="Pool Table" balance={ballBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 16 }}>
@@ -428,6 +442,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
         {/* Canvas */}
         <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.8), 0 0 0 6px #5D4037, 0 0 0 10px #3E2723' }}>
+          <TableBrand style={{ opacity: 0.1 }} />
           <canvas
             ref={canvasRef}
             width={TABLE_W}
@@ -470,6 +485,9 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               <span style={{ fontSize: 12, color: '#6b7280' }}>
                 {canShoot ? '🎯 Click & drag from cue ball to aim' : movingRef.current ? '⌛ Balls in motion...' : ''}
               </span>
+              {settings.celebrationsEnabled && (
+                <EmojiReactionPicker onReact={emoji => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
+              )}
               {(gamePhase === 'idle' || gamePhase === 'aiming') && (
                 <button onClick={resetGame} style={{ padding: '6px 16px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>
                   Forfeit

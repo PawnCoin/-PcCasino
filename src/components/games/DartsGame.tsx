@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { toast } from 'sonner';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 
 interface DartsGameProps {
   balance: number;
@@ -172,6 +174,8 @@ function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: 
 }
 
 export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DartsGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerScore, setPlayerScore] = useState(501);
   const [aiScore, setAiScore] = useState(501);
@@ -245,6 +249,8 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setGamePhase('won');
       setMessage('🎯 You win! 501 reached exactly!');
       if (betPlaced) onWin(betAmount * 2);
+      triggerWinBurst();
+      addReaction('🎯', 'you');
       return;
     } else if (newScore < 0) {
       setMessage('Bust! Score went below 0. Turn forfeited.');
@@ -303,12 +309,17 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       setRoundHistory(prev => [`AI: ${result.label} (${result.score})`, ...prev.slice(0, 9)]);
 
+      if (result.label === 'BULLSEYE!' || result.score >= 57) {
+        addAIReaction('ai');
+      }
+
       const newAiScore = currentAiScore - result.score;
       if (newAiScore <= 0) {
         if (newAiScore === 0) {
           setAiScore(0);
           setGamePhase('lost');
           setMessage('AI wins! Game over.');
+          addAIReaction('ai');
           return;
         }
         // AI bust
@@ -361,12 +372,20 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0a', color: '#fff' }}>
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom', ai: 'top' }}
+      />
       <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
 
       <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto' }}>
         {/* Board */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 380 }}>
           <div style={{ position: 'relative', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.9), 0 0 0 8px #3E2723', width: '100%', maxWidth: 360, aspectRatio: '1' }}>
+            <TableBrand style={{ borderRadius: '50%', bottom: '50%', opacity: 0.08 }} />
             <canvas
               ref={canvasRef}
               width={BOARD_SIZE}
@@ -381,6 +400,12 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           {message && (
             <div style={{ padding: '8px 20px', borderRadius: 10, background: 'rgba(22,101,52,0.3)', border: '1px solid rgba(34,197,94,0.3)', fontSize: 13, color: '#86efac', textAlign: 'center', maxWidth: 360 }}>
               {message}
+            </div>
+          )}
+
+          {gamePhase === 'playing' && settings.celebrationsEnabled && (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <EmojiReactionPicker onReact={emoji => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
             </div>
           )}
 

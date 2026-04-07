@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Info, Settings, Undo2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -216,6 +218,8 @@ function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; on
 }
 
 export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOpenProvablyFair }: RouletteGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [selectedChip, setSelectedChip] = useState(1_000_000);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
@@ -407,6 +411,8 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
 
       if (totalWinAmount > 0) {
         onWin(totalWinAmount);
+        triggerWinBurst();
+        addReaction('🤑', 'you');
         setLastWin(totalWinAmount);
         setMessage(laPartageRefund > 0
           ? `Zero! La Partage: ${laPartageRefund} $Pc returned!`
@@ -583,6 +589,12 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         background: `radial-gradient(ellipse at 50% 30%, #1a1a2e 0%, #0a0a0a 50%, #000 100%)`,
       }}
     >
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+      />
       <style>{`
         @keyframes rouletteChipDrop {
           0% { transform: translateX(-50%) translateY(-12px) scale(0.4); opacity: 0; }
@@ -706,12 +718,6 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        {/* Casino table decorations */}
-        <div className="absolute top-16 left-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.72, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🥃</div>
-        <div className="absolute top-16 right-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🚬</div>
-        <div className="absolute bottom-20 left-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.66, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍸</div>
-        <div className="absolute bottom-20 right-2 z-[30] pointer-events-none select-none" style={{ opacity: 0.66, fontSize: 16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }}>🍺</div>
-
         {/* Top: 3D Wheel + Credit + History */}
         <div className="relative flex-shrink-0" style={{ height: '34%', minHeight: '220px' }}>
           {/* Dealer side Vegas props */}
@@ -822,10 +828,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                 `,
               }}
             >
-              {/* $Pc watermark */}
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 0 }}>
-                <img src="/pc-logo.png" alt="" style={{ width: 96, height: 96, opacity: 0.07, filter: 'grayscale(100%) brightness(3)' }} draggable={false} />
-              </div>
+              <TableBrand style={{ opacity: 0.08 }} />
               {/* Number grid */}
               <div className="flex gap-[2px]">
                 {/* Zero */}
@@ -1010,6 +1013,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
               >
                 {isSpinning ? '...' : 'SPIN'}
               </Button>
+              <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
 
               <Button
                 onClick={repeatAndSpin}

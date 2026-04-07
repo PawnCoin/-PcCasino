@@ -11,6 +11,8 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import type { Card } from '@/types';
 import { useProvablyFair } from '@/hooks/useProvablyFair';
 import { VerifyRoundModal } from '@/components/VerifyRoundModal';
+import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 
 interface BlackjackGameProps {
   balance: number;
@@ -59,6 +61,8 @@ const blackjackRules = {
 };
 
 export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, cardBackStyle, onOpenProvablyFair }: BlackjackGameProps) {
+  const { settings } = useGlobalGame();
+  const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealer' | 'finished'>('betting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHands, setPlayerHands] = useState<Card[][]>([[]]);
@@ -361,6 +365,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       onWin(totalWin);
       setMessage(`You win! +${totalWin.toFixed(2)} $Pc`);
       triggerWin(playerBlackjack);
+      triggerWinBurst();
+      addReaction(playerBlackjack ? '🎉' : '🤑', 'you');
     } else {
       setMessage('Dealer wins.');
       triggerBust();
@@ -450,6 +456,12 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
   return (
     <CasinoEnvironment gameType="blackjack">
+      <CelebrationSystem
+        enabled={settings.celebrationsEnabled}
+        reactions={reactions}
+        winBursts={winBursts}
+        onBurstComplete={removeBurst}
+      />
       <div className="h-screen bg-[#0a0a0a] flex flex-col overflow-hidden">
         <InGameTopBar
           gameName="Blackjack"
@@ -475,11 +487,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           <div
             className={`flex-1 min-h-0 rounded-3xl wood-rail relative overflow-hidden p-3 ${tableShake ? 'bust-effect' : ''}`}
           >
-            {/* Casino table corner decorations */}
-            <div className="absolute top-4 left-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.75, fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🥃</div>
-            <div className="absolute top-4 right-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.7, fontSize: 20, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🚬</div>
-            <div className="absolute bottom-16 left-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🍸</div>
-            <div className="absolute bottom-16 right-4 z-[5] pointer-events-none select-none" style={{ opacity: 0.68, fontSize: 18, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>🎰</div>
+            {/* $Pc watermark */}
+            <TableBrand style={{ bottom: '10%', opacity: 0.09 }} />
 
             <div className="absolute inset-3 rounded-2xl premium-felt overflow-hidden">
               <div className="absolute inset-0"
@@ -807,6 +816,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                   <span className="text-[#D4AF37] font-bold text-sm">Bet: {handBets[currentHandIndex]} $Pc</span>
                 </div>
                 
+                <div className="flex justify-end mb-1">
+                  <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
+                </div>
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-2 sm:gap-3">
                   <Button
                     onClick={handleHit}
