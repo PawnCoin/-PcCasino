@@ -8,7 +8,7 @@ import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { useGameVoice } from '@/hooks/useGameVoice';
+import { useBingoVoice } from '@/hooks/useGameVoice';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { PokerChip, ALL_CHIP_DENOMS, formatChipLabel } from '@/components/PokerChip';
 
@@ -558,7 +558,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDrawing = useRef(false);
 
-  const { speak, isSupported: voiceSupported } = useGameVoice();
+  const { callNumber, announceWin: announceWinVoice, announceNotYet, isSupported: voiceSupported } = useBingoVoice();
   const { playSound } = useSoundEffects();
 
   // Fluctuating online players
@@ -624,7 +624,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           setCalledTicker(t => [drawn, ...t].slice(0, 12));
 
           if (voiceOn && voiceSupported) {
-            speak(`${getColumnLetter(drawn)} ${drawn}`, 0.9);
+            callNumber(getColumnLetter(drawn), drawn);
           }
 
           // Build new hints
@@ -651,7 +651,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       return rest;
     });
-  }, [voiceOn, voiceSupported, speak]);
+  }, [voiceOn, voiceSupported, callNumber]);
 
   // Auto-play
   useEffect(() => {
@@ -718,7 +718,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       const winnerName = settings.displayName || 'Player';
       setWinnerDisplayName(winnerName);
       setMessage(`BINGO! ${bestPattern} — You win ${fmtPc(prize)} $Pc (${mult}×)!`);
-      if (voiceOn && voiceSupported) speak(`BINGO! ${winnerName} wins with ${bestPattern}! ${prize} pawn coin!`, 0.88);
+      if (voiceOn && voiceSupported) announceWinVoice(winnerName, bestPattern, prize);
 
       const colors = ['#D4AF37', '#FFD700', '#43A047', '#1E88E5', '#E53935', '#9C27B0', '#FF9800', '#fff', '#00BCD4'];
       const pieces = Array.from({ length: 90 }, (_, i) => ({
@@ -732,10 +732,10 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     } else {
       setBingoFeedback('invalid');
       setMessage('Not a valid BINGO yet — keep marking your numbers!');
-      if (voiceOn && voiceSupported) speak('Not yet. Keep playing!', 0.88);
+      if (voiceOn && voiceSupported) announceNotYet();
       setTimeout(() => setBingoFeedback('none'), 2200);
     }
-  }, [phase, daubed, betAmount, numCards, onWin, voiceOn, voiceSupported, speak, playSound]);
+  }, [phase, daubed, betAmount, numCards, onWin, voiceOn, voiceSupported, announceWinVoice, announceNotYet, playSound]);
 
   const calledSet = new Set(calledNumbers);
   const totalHinted = hinted.size;
