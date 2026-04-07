@@ -29,6 +29,17 @@ let buttonName = [];
 let chipsIndex = 0;
 let chipsMenuOpen = document.querySelector('.menu-open');
 let chipsPut = 'src/images/tableChips1.png';
+const CHIP_COLOR_BY_VALUE = {
+  1000000:   '#ef4444',
+  2000000:   '#3b82f6',
+  5000000:   '#22c55e',
+  10000000:  '#f97316',
+  25000000:  '#374151',
+  50000000:  '#D4AF37',
+  100000000: '#8b5cf6',
+  250000000: '#ec4899',
+  500000000: '#06b6d4',
+};
 let chipsPutSfx = new Audio(`src/sfx/sfx/chipPut.mp3`);
 let chipsPutSfx2 = new Audio(`src/sfx/sfx/chipPut2.mp3`);
 let cornerBets = initializeBets(btns.cornerBtns, 'corner');
@@ -147,7 +158,12 @@ function appendChip(btn, denom, animate = true) {
     chip.style.setProperty('animation', 'none', 'important');
     chip.style.setProperty('transition', 'none', 'important');
   }
-  chip.style.backgroundImage = `url(${infoConstants.CHIP_IMAGE_BY_VALUE[denom]})`;
+  const chipColor = CHIP_COLOR_BY_VALUE[denom] || '#888888';
+  chip.style.background = `radial-gradient(circle at 35% 35%, ${chipColor}ff, ${chipColor}88)`;
+  chip.style.backgroundImage = 'none';
+  chip.style.border = '2px solid rgba(255,255,255,0.35)';
+  chip.style.borderRadius = '50%';
+  chip.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.25)';
   chip.setAttribute('data-denom', denom);
   chip.setAttribute('data-zone', btn.id);
   const coords = getCoordsForButton(btn);
@@ -408,7 +424,12 @@ function chipHandler(e) {
 
 function chipSelect(cost, chips, chipIndex) {
   bet = cost;
-  mouseChip.style.backgroundImage = `url('src/images/chips${chips}.png')`;
+  const mColor = CHIP_COLOR_BY_VALUE[cost] || '#888888';
+  mouseChip.style.background = `radial-gradient(circle at 35% 35%, ${mColor}ff, ${mColor}88)`;
+  mouseChip.style.backgroundImage = 'none';
+  mouseChip.style.border = '2px solid rgba(255,255,255,0.35)';
+  mouseChip.style.borderRadius = '50%';
+  mouseChip.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.25)';
   chipsPut = `src/images/tableChips${chips}.png`;
   const list = btns.allChips,
     idx = chips - 1;

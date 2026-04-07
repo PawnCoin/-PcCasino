@@ -5,6 +5,8 @@ type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' |
 
 let sharedAudioContext: AudioContext | null = null;
 let masterGainNode: GainNode | null = null;
+let chipSoundBuffer: AudioBuffer | null = null;
+let chipSoundLoading = false;
 
 function getAudioContext(): AudioContext {
   if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
@@ -126,7 +128,31 @@ function playCardFlip(ctx: AudioContext, master: GainNode, now: number, vol: num
   thumpOsc.stop(now + 0.06);
 }
 
+function loadChipSoundBuffer(ctx: AudioContext): Promise<AudioBuffer | null> {
+  if (chipSoundBuffer) return Promise.resolve(chipSoundBuffer);
+  if (chipSoundLoading) return Promise.resolve(null);
+  chipSoundLoading = true;
+  return fetch('/games/roulette/src/sfx/sfx/chipPut.mp3')
+    .then(r => r.arrayBuffer())
+    .then(ab => ctx.decodeAudioData(ab))
+    .then(buf => { chipSoundBuffer = buf; chipSoundLoading = false; return buf; })
+    .catch(() => { chipSoundLoading = false; return null; });
+}
+
 function playChipClink(ctx: AudioContext, master: GainNode, now: number, vol: number) {
+  loadChipSoundBuffer(ctx).then(buf => {
+    if (!buf) { playChipClinkSynthetic(ctx, master, ctx.currentTime, vol); return; }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol * 0.75, ctx.currentTime);
+    src.connect(g);
+    g.connect(master);
+    src.start(ctx.currentTime);
+  });
+}
+
+function playChipClinkSynthetic(ctx: AudioContext, master: GainNode, now: number, vol: number) {
   const layer = ctx.createGain();
   layer.connect(master);
   addReverb(ctx, master, layer, 0.1, 0.25);
