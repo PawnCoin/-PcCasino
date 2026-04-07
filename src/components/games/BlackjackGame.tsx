@@ -78,9 +78,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const [tossChips, setTossChips] = useState<{ id: number; amount: number }[]>([]);
   const tossIdRef = useRef(0);
 
-  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, dealBlackjack: pfDealBlackjack, drawBlackjackCard: pfDrawBlackjackCard, resolveRound: pfResolveRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
+  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, dealBlackjack: pfDealBlackjack, finishBlackjack: pfFinishBlackjack, drawBlackjackCard: pfDrawBlackjackCard, resolveRound: pfResolveRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
   const [showVerify, setShowVerify] = useState(false);
   const currentPfRoundIdRef = useRef<number | null>(null);
+  // actionLockRef prevents concurrent card draw requests (hit/doubledown/split/dealer)
+  const actionLockRef = useRef(false);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -180,6 +182,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
   // Draw next card from the server's seed-derived deck (sequential, server-authoritative).
   // Uses pfDrawBlackjackCard which atomically advances draw_index server-side.
+  // NOTE: callers must acquire actionLockRef before calling and release it after.
   const drawNextCard = useCallback(async (): Promise<Card | null> => {
     const roundId = currentPfRoundIdRef.current;
     if (!roundId) return null;
@@ -195,8 +198,17 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     return { suit, rank, isRed, value };
   }, [pfDrawBlackjackCard]);
 
+  const acquireAction = () => {
+    if (actionLockRef.current) return false;
+    actionLockRef.current = true;
+    return true;
+  };
+  const releaseAction = () => { actionLockRef.current = false; };
+
   const handleHit = async () => {
+    if (!acquireAction()) return; // prevent concurrent requests
     const newCard = await drawNextCard();
+    releaseAction();
     if (!newCard) return;
     
     const newHands = [...playerHands];
@@ -226,8 +238,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   };
 
   const handleDoubleDown = async () => {
+    if (!acquireAction()) return;
     const handBet = handBets[currentHandIndex];
-    if (!onBet(handBet)) return;
+    if (!onBet(handBet)) { releaseAction(); return; }
     
     setHandBets(prev => {
       const newBets = [...prev];
@@ -236,6 +249,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     });
     
     const newCard = await drawNextCard();
+    releaseAction();
     if (!newCard) return;
     
     const newHands = [...playerHands];
@@ -252,17 +266,19 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   };
 
   const handleSplit = async () => {
-    if (currentHand.length !== 2 || currentHand[0].value !== currentHand[1].value) return;
+    if (!acquireAction()) return;
+    if (currentHand.length !== 2 || currentHand[0].value !== currentHand[1].value) { releaseAction(); return; }
     const handBet = handBets[currentHandIndex];
-    if (!onBet(handBet)) return;
+    if (!onBet(handBet)) { releaseAction(); return; }
     
     const newHands = [...playerHands];
     const card1 = currentHand[0];
     const card2 = currentHand[1];
     
-    // Sequential server draws — each fetched in order so no duplicate cards
+    // Sequential server draws — each awaited in order so draw_index advances correctly
     const splitCard1 = await drawNextCard();
     const splitCard2 = await drawNextCard();
+    releaseAction();
     if (!splitCard1 || !splitCard2) return;
     newHands[currentHandIndex] = [card1, splitCard1];
     newHands.splice(currentHandIndex + 1, 0, [card2, splitCard2]);
@@ -287,8 +303,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       const dealerValue = calculateBlackjackValue(currentDealerHand);
       
       if (dealerValue < 17) {
-        // Draw from server's seed-derived deck — sequential, no future card exposure
+        // Acquire lock for each dealer draw — prevents any stray player action during dealer turn
+        if (!acquireAction()) { setTimeout(playDealer, 200); return; }
         const nextCard = await drawNextCard();
+        releaseAction();
         if (!nextCard) { finishRound(false); return; }
         currentDealerHand = [...currentDealerHand, nextCard];
         setDealerHand(currentDealerHand);
@@ -352,10 +370,13 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerBust();
     }
 
-    // Resolve (dealing → resolved) then reveal server seed for independent verification.
+    // Blackjack lifecycle: dealing → finished → resolved → revealed
+    // finish must be called BEFORE resolve — resolve rejects if status is still 'dealing'.
     if (currentPfRoundIdRef.current) {
       const roundId = currentPfRoundIdRef.current;
-      pfResolveRound(roundId).then(() => pfRevealRound(roundId));
+      pfFinishBlackjack(roundId)
+        .then(() => pfResolveRound(roundId))
+        .then(() => pfRevealRound(roundId));
     }
   };
 
@@ -368,6 +389,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setResultOverlay(null);
     setShowWinRings(false);
     setTableShake(false);
+    actionLockRef.current = false; // reset action lock for new hand
   };
 
   useEffect(() => {

@@ -493,24 +493,67 @@ app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, 
   }
 });
 
-// Resolve a round — client calls this after the round completes to get the authoritative outcome.
-// Enforces lifecycle: created/dealing → resolved. Rejects if already resolved or revealed.
-// Returns the seed-derived result. Never reveals the server seed (use /reveal for that).
-app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
+// Blackjack finish — marks hand as complete after all player/dealer actions are done.
+// Transitions status: dealing → finished. Must be called before resolve/reveal.
+// Returns no cards — only confirms the hand is over server-side.
+app.post('/api/provably-fair/blackjack-finish/:roundId', requireAuth, async (req, res) => {
   try {
+    const roundId = parseInt(req.params.roundId);
     const { rows } = await query(
-      `UPDATE game_rounds SET status = 'resolved'
-       WHERE id = $1 AND user_id = $2 AND status IN ('created', 'dealing')
-       RETURNING result, server_seed_hash`,
-      [parseInt(req.params.roundId), req.user.id]
+      `UPDATE game_rounds SET status = 'finished'
+       WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'dealing'
+       RETURNING id`,
+      [roundId, req.user.id]
     );
     if (!rows.length) {
-      const check = await query('SELECT status, user_id FROM game_rounds WHERE id = $1', [parseInt(req.params.roundId)]);
+      const check = await query('SELECT status, user_id FROM game_rounds WHERE id = $1', [roundId]);
       if (!check.rows.length) return res.status(404).json({ error: 'Round not found' });
       if (check.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
-      return res.status(409).json({ error: `Round already ${check.rows[0].status}` });
+      return res.status(409).json({ error: `Cannot finish: round is ${check.rows[0].status}` });
     }
-    res.json({ result: rows[0].result, serverSeedHash: rows[0].server_seed_hash });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[PF] blackjack-finish error:', err.message);
+    res.status(500).json({ error: 'Failed to finish blackjack round' });
+  }
+});
+
+// Resolve a round — client calls this after the round completes to get the authoritative outcome.
+// Enforces lifecycle:
+//   Slots/Roulette/Dice: created → resolved
+//   Blackjack: finished → resolved (cannot resolve while still dealing)
+// Returns the seed-derived result. For blackjack: returns ONLY draw_index (card count used),
+// NOT the full deck — full deck is revealed post-reveal for verification only.
+app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
+  try {
+    const roundId = parseInt(req.params.roundId);
+    // Fetch round to check game type and status
+    const { rows: checkRows } = await query(
+      'SELECT game, status, user_id, result, server_seed_hash FROM game_rounds WHERE id = $1',
+      [roundId]
+    );
+    if (!checkRows.length) return res.status(404).json({ error: 'Round not found' });
+    const round = checkRows[0];
+    if (round.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+    // Enforce correct terminal state per game type
+    const validFromStates = round.game === 'blackjack' ? ['finished'] : ['created'];
+    if (!validFromStates.includes(round.status)) {
+      return res.status(409).json({ error: `Cannot resolve: round is ${round.status}` });
+    }
+
+    // Transition to resolved
+    await query(
+      `UPDATE game_rounds SET status = 'resolved' WHERE id = $1`,
+      [roundId]
+    );
+
+    // Return only minimal outcome — for blackjack do NOT return full deck (prevents cheating on future rounds)
+    let safeResult = round.result;
+    if (round.game === 'blackjack' && safeResult?.cards) {
+      safeResult = { cardCount: safeResult.cards.length }; // just confirms deck was 52 cards
+    }
+    res.json({ result: safeResult, serverSeedHash: round.server_seed_hash });
   } catch (err) {
     console.error('[PF] resolve error:', err.message);
     res.status(500).json({ error: 'Failed to resolve round' });

@@ -73,6 +73,21 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
     }
   }, []);
 
+  // Blackjack: mark hand as finished (dealing → finished). Must be called before resolve.
+  const finishBlackjack = useCallback(async (roundId: number): Promise<boolean> => {
+    const token = getToken();
+    if (!token) return false;
+    try {
+      const res = await fetch(`/api/provably-fair/blackjack-finish/${roundId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Blackjack: draw next card from seed-derived deck. Server advances draw_index atomically.
   const drawBlackjackCard = useCallback(async (roundId: number): Promise<{ suit: string; value: string } | null> => {
     const token = getToken();
@@ -147,6 +162,7 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
     lastReveal,
     startRound,
     dealBlackjack,
+    finishBlackjack,
     drawBlackjackCard,
     resolveRound,
     revealRound,
