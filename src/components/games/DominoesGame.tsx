@@ -1320,7 +1320,7 @@ interface DominoesGameProps {
 
 export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DominoesGameProps) {
   const { settings } = useGlobalGame();
-  const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { reactions: emojiReactions, winBursts, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const { isMuted, playSound } = useSoundEffects();
   const [muted, setMuted] = useState(false);
@@ -1608,7 +1608,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     <div style={{ minHeight: '100vh', background: '#060606', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
       <CelebrationSystem
         enabled={settings.celebrationsEnabled}
-        reactions={reactions}
+        reactions={emojiReactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
         playerPositions={{ human: 'bottom', you: 'bottom', ai1: 'top', ai2: 'left', ai3: 'right' }}
