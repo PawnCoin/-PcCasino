@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, Copy, Share2 } from 'lucide-react';
+import { Star, Copy, CheckCircle, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
