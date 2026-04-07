@@ -225,17 +225,76 @@ router.get('/referral', requireAuth, async (req, res) => {
   }
 });
 
-// DB-backed leaderboard
+// DB-backed leaderboard with period support
 router.get('/leaderboard/db', async (req, res) => {
+  const period = ['daily', 'weekly', 'alltime'].includes(req.query.period) ? req.query.period : 'alltime';
   try {
-    const result = await query(
-      `SELECT l.*, u.avatar FROM leaderboard l
-       JOIN users u ON l.user_id = u.id
-       ORDER BY l.total_won DESC LIMIT 20`
-    );
-    res.json({ leaderboard: result.rows.map((r, i) => ({ ...r, rank: i + 1, totalWon: parseInt(r.total_won), balance: parseInt(r.balance), gamesPlayed: parseInt(r.games_played), winStreak: parseInt(r.win_streak || 0), favoriteGame: r.favorite_game || 'Casino' })) });
+    let sql;
+    if (period === 'daily') {
+      sql = `SELECT u.id as user_id, u.username, u.balance, u.avatar,
+                    COALESCE(SUM(gh.win_amount), 0) as total_won,
+                    COUNT(gh.id) as games_played, NULL as favorite_game, 0 as win_streak
+             FROM game_history gh
+             JOIN users u ON gh.user_id = u.id
+             WHERE gh.result = 'win' AND gh.created_at >= NOW() - INTERVAL '24 hours'
+             GROUP BY u.id, u.username, u.balance, u.avatar
+             ORDER BY total_won DESC LIMIT 20`;
+    } else if (period === 'weekly') {
+      sql = `SELECT u.id as user_id, u.username, u.balance, u.avatar,
+                    COALESCE(SUM(gh.win_amount), 0) as total_won,
+                    COUNT(gh.id) as games_played, NULL as favorite_game, 0 as win_streak
+             FROM game_history gh
+             JOIN users u ON gh.user_id = u.id
+             WHERE gh.result = 'win' AND gh.created_at >= NOW() - INTERVAL '7 days'
+             GROUP BY u.id, u.username, u.balance, u.avatar
+             ORDER BY total_won DESC LIMIT 20`;
+    } else {
+      sql = `SELECT l.*, u.avatar FROM leaderboard l
+             JOIN users u ON l.user_id = u.id
+             ORDER BY l.total_won DESC LIMIT 20`;
+    }
+    const result = await query(sql);
+    res.json({
+      leaderboard: result.rows.map((r, i) => ({
+        ...r,
+        id: String(r.user_id),
+        rank: i + 1,
+        totalWon: parseInt(r.total_won || 0),
+        balance: parseInt(r.balance || 0),
+        gamesPlayed: parseInt(r.games_played || 0),
+        winStreak: parseInt(r.win_streak || 0),
+        favoriteGame: r.favorite_game || 'Casino',
+      })),
+      period,
+    });
   } catch (err) {
+    console.error('Leaderboard error:', err);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// Record a win to the leaderboard (called by frontend after game resolution)
+router.post('/leaderboard/record-win', requireAuth, async (req, res) => {
+  const { amount, game } = req.body;
+  if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+  try {
+    const userRow = await query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
+    const balance = userRow.rows[0]?.balance ? parseInt(userRow.rows[0].balance) : 0;
+    await query(
+      `INSERT INTO leaderboard (user_id, username, total_won, balance, games_played, favorite_game, updated_at)
+       VALUES ($1, $2, $3, $4, 1, $5, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         total_won = leaderboard.total_won + $3,
+         balance = $4,
+         games_played = leaderboard.games_played + 1,
+         favorite_game = COALESCE(EXCLUDED.favorite_game, leaderboard.favorite_game),
+         updated_at = NOW()`,
+      [req.user.id, req.user.username, amount, balance, game || 'Casino']
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Record win error:', err);
+    res.status(500).json({ error: 'Failed to record win' });
   }
 });
 

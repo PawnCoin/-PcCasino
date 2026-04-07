@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Trophy, TrendingUp, Flame, Crown, Medal, RefreshCw, ChevronRight } from 'lucide-react';
+import { Trophy, TrendingUp, Flame, Crown, Medal, RefreshCw, Calendar, Clock } from 'lucide-react';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket } from '@/lib/socket';
+import { gameApi } from '@/lib/api';
 
 interface LeaderboardPlayer {
   rank: number;
@@ -21,40 +22,69 @@ function nameToAvatarIdx(name: string): number {
   return Math.abs(h) % ALL_AVATARS.length;
 }
 
-
 type LeaderboardTab = 'balance' | 'totalWon' | 'winStreak';
+type PeriodTab = 'daily' | 'weekly' | 'alltime';
 
 export function Leaderboard() {
   const [activeTab, setActiveTab] = useState<LeaderboardTab>('totalWon');
+  const [activePeriod, setActivePeriod] = useState<PeriodTab>('alltime');
   const [leaders, setLeaders] = useState<LeaderboardPlayer[]>([]);
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [isLive, setIsLive] = useState(false);
   const [pulse, setPulse] = useState(false);
+  const [loading, setLoading] = useState(false);
   const loaded = useRef(false);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (period: PeriodTab = activePeriod) => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.leaderboard?.length) {
-          setLeaders(data.leaderboard.map((p: any, i: number) => ({
-            ...p,
-            rank: i + 1,
-            avatarIdx: nameToAvatarIdx(p.username),
-          })));
-          setLastUpdated(data.lastUpdated || Date.now());
-        }
+      const data = await gameApi.getLeaderboard(period);
+      if (data.leaderboard?.length) {
+        setLeaders(data.leaderboard.map((p: any, i: number) => ({
+          ...p,
+          rank: i + 1,
+          avatarIdx: nameToAvatarIdx(p.username),
+        })));
+        setLastUpdated(Date.now());
+      } else {
+        setLeaders([]);
       }
-    } catch { /* use fallback */ }
+    } catch {
+      try {
+        const res = await fetch(`/api/leaderboard?period=${period}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.leaderboard?.length) {
+            setLeaders(data.leaderboard.map((p: any, i: number) => ({
+              ...p,
+              rank: i + 1,
+              avatarIdx: nameToAvatarIdx(p.username),
+            })));
+            setLastUpdated(data.lastUpdated || Date.now());
+          } else {
+            setLeaders([]);
+          }
+        }
+      } catch { /* ignore */ }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    if (!loaded.current) { loaded.current = true; fetchLeaderboard(); }
+    if (!loaded.current) {
+      loaded.current = true;
+      fetchLeaderboard('alltime');
+    }
+
     const socket = getSocket();
     const onUpdate = ({ leaderboard }: any) => {
-      if (leaderboard?.length) {
-        setLeaders(leaderboard.map((p: any, i: number) => ({ ...p, rank: i + 1, avatarIdx: nameToAvatarIdx(p.username) })));
+      if (leaderboard?.length && activePeriod === 'alltime') {
+        setLeaders(leaderboard.map((p: any, i: number) => ({
+          ...p,
+          rank: i + 1,
+          avatarIdx: nameToAvatarIdx(p.username),
+        })));
         setLastUpdated(Date.now());
         setIsLive(true);
         setPulse(true);
@@ -62,8 +92,22 @@ export function Leaderboard() {
       }
     };
     socket.on('leaderboard:update', onUpdate);
-    return () => { socket.off('leaderboard:update', onUpdate); };
-  }, []);
+
+    const interval = setInterval(() => {
+      fetchLeaderboard(activePeriod);
+    }, 30000);
+
+    return () => {
+      socket.off('leaderboard:update', onUpdate);
+      clearInterval(interval);
+    };
+  }, [activePeriod]);
+
+  const handlePeriodChange = (period: PeriodTab) => {
+    setActivePeriod(period);
+    setIsLive(false);
+    fetchLeaderboard(period);
+  };
 
   const sortedLeaders = [...leaders].sort((a, b) => {
     if (activeTab === 'balance') return b.balance - a.balance;
@@ -90,6 +134,12 @@ export function Leaderboard() {
     { id: 'winStreak', label: 'Win Streaks', icon: Flame },
   ];
 
+  const periods: { id: PeriodTab; label: string; icon: typeof Calendar }[] = [
+    { id: 'daily', label: '24h', icon: Clock },
+    { id: 'weekly', label: '7 Days', icon: Calendar },
+    { id: 'alltime', label: 'All Time', icon: Trophy },
+  ];
+
   return (
     <section className="px-4 py-12">
       <div className="max-w-4xl mx-auto">
@@ -110,13 +160,32 @@ export function Leaderboard() {
                 LIVE
               </span>
             )}
-            <button onClick={fetchLeaderboard} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Refresh">
-              <RefreshCw className="w-4 h-4 text-gray-400" />
+            <button onClick={() => fetchLeaderboard(activePeriod)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Refresh">
+              <RefreshCw className={`w-4 h-4 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Period Tabs */}
+        <div className="flex gap-2 mb-4">
+          {periods.map(p => {
+            const Icon = p.icon;
+            return (
+              <button key={p.id} onClick={() => handlePeriodChange(p.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: activePeriod === p.id ? 'linear-gradient(135deg, rgba(212,175,55,0.25), rgba(212,175,55,0.1))' : 'rgba(255,255,255,0.03)',
+                  color: activePeriod === p.id ? '#D4AF37' : '#6b7280',
+                  border: activePeriod === p.id ? '1px solid rgba(212,175,55,0.35)' : '1px solid rgba(255,255,255,0.06)',
+                }}>
+                <Icon className="w-3 h-3" />
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Category Tabs */}
         <div className="flex gap-2 mb-6">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -135,14 +204,22 @@ export function Leaderboard() {
           })}
         </div>
 
-        {sortedLeaders.length === 0 && (
+        {sortedLeaders.length === 0 && !loading && (
           <div className="py-20 flex flex-col items-center justify-center gap-4 rounded-2xl"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <Trophy className="w-12 h-12 text-[#D4AF37]/30" />
             <div className="text-center">
               <div className="text-lg font-bold text-[#D4AF37]/60 mb-1">No players yet</div>
-              <div className="text-sm text-gray-600">Be the first to play and claim the top spot!</div>
+              <div className="text-sm text-gray-600">
+                {activePeriod === 'daily' ? 'No wins in the last 24 hours.' : activePeriod === 'weekly' ? 'No wins in the last 7 days.' : 'Be the first to play and claim the top spot!'}
+              </div>
             </div>
+          </div>
+        )}
+
+        {loading && leaders.length === 0 && (
+          <div className="py-20 flex items-center justify-center">
+            <RefreshCw className="w-8 h-8 text-[#D4AF37]/40 animate-spin" />
           </div>
         )}
 
@@ -202,7 +279,7 @@ export function Leaderboard() {
 
         {lastUpdated && (
           <div className="text-center text-xs text-gray-600 mt-3">
-            Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+            Last updated: {new Date(lastUpdated).toLocaleTimeString()} • Auto-refreshes every 30s
           </div>
         )}
       </div>

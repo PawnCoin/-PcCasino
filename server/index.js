@@ -61,32 +61,76 @@ setInterval(() => broadcastJackpot(), 5000);
 
 // ---- Leaderboard (DB-only — no fake fallback) ----
 
-async function getLeaderboardFromDB() {
+async function getLeaderboardFromDB(period = 'alltime') {
   try {
-    const result = await query(
-      `SELECT l.user_id as id, l.username, l.total_won as "totalWon", l.balance, l.games_played as "gamesPlayed",
-              l.favorite_game as "favoriteGame", COALESCE(l.win_streak, 0) as "winStreak"
-       FROM leaderboard l
-       ORDER BY l.total_won DESC LIMIT 20`
-    );
+    let sql;
+    if (period === 'daily') {
+      sql = `SELECT u.id, u.username, u.balance, u.avatar,
+                    COALESCE(SUM(gh.win_amount), 0) as "totalWon",
+                    COUNT(gh.id) as "gamesPlayed"
+             FROM game_history gh
+             JOIN users u ON gh.user_id = u.id
+             WHERE gh.result = 'win' AND gh.created_at >= NOW() - INTERVAL '24 hours'
+             GROUP BY u.id, u.username, u.balance, u.avatar
+             ORDER BY "totalWon" DESC LIMIT 20`;
+    } else if (period === 'weekly') {
+      sql = `SELECT u.id, u.username, u.balance, u.avatar,
+                    COALESCE(SUM(gh.win_amount), 0) as "totalWon",
+                    COUNT(gh.id) as "gamesPlayed"
+             FROM game_history gh
+             JOIN users u ON gh.user_id = u.id
+             WHERE gh.result = 'win' AND gh.created_at >= NOW() - INTERVAL '7 days'
+             GROUP BY u.id, u.username, u.balance, u.avatar
+             ORDER BY "totalWon" DESC LIMIT 20`;
+    } else {
+      sql = `SELECT l.user_id as id, l.username, l.total_won as "totalWon", l.balance, l.games_played as "gamesPlayed",
+                    l.favorite_game as "favoriteGame", COALESCE(l.win_streak, 0) as "winStreak"
+             FROM leaderboard l
+             ORDER BY l.total_won DESC LIMIT 20`;
+    }
+    const result = await query(sql);
     if (result.rows.length > 0) {
       return result.rows.map(r => ({
         ...r,
-        totalWon: parseInt(r.totalWon),
-        balance: parseInt(r.balance),
-        gamesPlayed: parseInt(r.gamesPlayed),
-        winStreak: parseInt(r.winStreak),
+        id: String(r.id),
+        totalWon: parseInt(r.totalWon || 0),
+        balance: parseInt(r.balance || 0),
+        gamesPlayed: parseInt(r.gamesPlayed || 0),
+        winStreak: parseInt(r.winStreak || 0),
+        favoriteGame: r.favoriteGame || 'Casino',
       }));
     }
-  } catch (e) {}
-  return null;
+  } catch (e) {
+    console.error('[Leaderboard DB]', e.message);
+  }
+  return [];
+}
+
+async function recordWinToDB(userId, username, amount, game) {
+  if (!userId || !amount || amount <= 0) return;
+  try {
+    const userRow = await query('SELECT balance, avatar FROM users WHERE id = $1', [userId]);
+    const balance = userRow.rows[0]?.balance ? parseInt(userRow.rows[0].balance) : 0;
+    await query(
+      `INSERT INTO leaderboard (user_id, username, total_won, balance, games_played, favorite_game, updated_at)
+       VALUES ($1, $2, $3, $4, 1, $5, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         total_won = leaderboard.total_won + $3,
+         balance = $4,
+         games_played = leaderboard.games_played + 1,
+         favorite_game = COALESCE(EXCLUDED.favorite_game, leaderboard.favorite_game),
+         updated_at = NOW()`,
+      [userId, username, amount, balance, game || 'Casino']
+    );
+  } catch (e) {
+    console.error('[recordWinToDB]', e.message);
+  }
 }
 
 async function broadcastLeaderboard() {
-  const dbData = await getLeaderboardFromDB();
-  const data = dbData || [];
-  io.emit('leaderboard:update', { leaderboard: data, lastUpdated: Date.now() });
-  return data;
+  const dbData = await getLeaderboardFromDB('alltime');
+  io.emit('leaderboard:update', { leaderboard: dbData, lastUpdated: Date.now() });
+  return dbData;
 }
 
 // Broadcast leaderboard updates every 30 seconds with real DB data
@@ -192,12 +236,12 @@ function logAdmin(action, data) { adminLogs.unshift({ id: Date.now(), action, da
 // Health
 app.get('/health', (req, res) => res.json({ status: 'ok', rooms: rooms.size, players: players.size }));
 
-// Leaderboard - real DB only
+// Leaderboard - real DB only, supports ?period=daily|weekly|alltime
 app.get('/api/leaderboard', async (req, res) => {
-  const dbData = await getLeaderboardFromDB();
-  const data = dbData || [];
-  const sorted = [...data].sort((a, b) => (b.totalWon || 0) - (a.totalWon || 0)).map((p, i) => ({ ...p, rank: i + 1 }));
-  res.json({ leaderboard: sorted, totalPlayers: players.size, lastUpdated: Date.now() });
+  const period = ['daily', 'weekly', 'alltime'].includes(req.query.period) ? req.query.period : 'alltime';
+  const dbData = await getLeaderboardFromDB(period);
+  const sorted = dbData.map((p, i) => ({ ...p, rank: i + 1 }));
+  res.json({ leaderboard: sorted, totalPlayers: players.size, lastUpdated: Date.now(), period });
 });
 
 // Recent winners
@@ -869,7 +913,6 @@ app.get('/api/admin/stats', (req, res) => {
     activeDisputes: Array.from(disputes.values()).filter(d => d.status === 'open').length,
     activeTournaments: Array.from(tournaments.values()).filter(t => t.status !== 'finished').length,
     totalReferrals: referrals.size,
-    totalWon: leaderboard.reduce((s, p) => s + p.totalWon, 0),
     jackpot: getJackpot(),
     adminLogs: adminLogs.slice(0, 20),
   });
@@ -1109,10 +1152,11 @@ io.on('connection', (socket) => {
     io.emit('lobby:stats', { playersOnline: players.size });
   });
 
-  socket.on('lobby:get', () => {
+  socket.on('lobby:get', async () => {
     socket.emit('lobby:update', { rooms: getPublicRooms() });
     socket.emit('lobby:stats', { playersOnline: players.size });
-    socket.emit('leaderboard:update', { leaderboard });
+    const dbData = await getLeaderboardFromDB('alltime');
+    socket.emit('leaderboard:update', { leaderboard: dbData, lastUpdated: Date.now() });
     socket.emit('winners:list', { winners: recentWinners.slice(0, 10) });
   });
 
@@ -1201,7 +1245,7 @@ io.on('connection', (socket) => {
     broadcastLobby();
   });
 
-  socket.on('game:win', ({ amount, game, username }) => {
+  socket.on('game:win', ({ amount, game, username, userId }) => {
     const winner = generateWinner();
     winner.name = username || winner.name;
     winner.game = game || winner.game;
@@ -1209,9 +1253,15 @@ io.on('connection', (socket) => {
     recentWinners.unshift(winner);
     if (recentWinners.length > 50) recentWinners.pop();
     io.emit('winners:new', winner);
-    const lb = leaderboard.find(p => p.username === username);
-    if (lb) { lb.totalWon += amount; lb.gamesPlayed++; }
-    broadcastLeaderboard();
+    // Record win to DB leaderboard if we have a userId
+    const player = players.get(socket.id);
+    const resolvedUserId = userId || player?.id;
+    const resolvedUsername = username || player?.username;
+    if (resolvedUserId && typeof resolvedUserId === 'number') {
+      recordWinToDB(resolvedUserId, resolvedUsername, amount, game).then(() => broadcastLeaderboard());
+    } else {
+      broadcastLeaderboard();
+    }
     broadcastJackpot();
   });
 
@@ -1264,10 +1314,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('leaderboard:submitWin', ({ username, amount, game }) => {
-    const entry = leaderboard.find(p => p.username === username);
-    if (entry) { entry.totalWon += amount; entry.gamesPlayed++; }
-    broadcastLeaderboard();
+  socket.on('leaderboard:submitWin', ({ username, amount, game, userId }) => {
+    const player = players.get(socket.id);
+    const resolvedUserId = userId || player?.id;
+    const resolvedUsername = username || player?.username;
+    if (resolvedUserId && typeof resolvedUserId === 'number') {
+      recordWinToDB(resolvedUserId, resolvedUsername, amount, game).then(() => broadcastLeaderboard());
+    } else {
+      broadcastLeaderboard();
+    }
   });
 
   socket.on('disconnect', () => {

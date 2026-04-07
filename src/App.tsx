@@ -540,6 +540,7 @@ function App() {
       setSessionWins(prev => prev + amount);
       addTransaction('win', amount, currentView === 'lobby' ? undefined : currentView);
       toast.success(`You won ${amount.toLocaleString()} $Pc!`);
+      const gameLabel = currentView === 'lobby' ? 'Casino' : currentView;
       // Record to DB asynchronously
       if (getToken()) {
         paymentsApi.recordTransaction({ type: 'win', amount, game: currentView === 'lobby' ? undefined : currentView })
@@ -549,16 +550,19 @@ function App() {
           .catch(() => {});
         // Save game history
         gameApi.saveGameHistory({
-          game: currentView === 'lobby' ? 'Casino' : currentView,
+          game: gameLabel,
           result: 'win',
           winAmount: amount,
           net: amount - betAmount,
         }).catch(() => {});
+        // Record win to leaderboard DB
+        gameApi.recordWin({ amount, game: gameLabel }).catch(() => {});
       }
       getSocket().emit('game:win', {
         amount,
-        game: currentView === 'lobby' ? 'Casino' : currentView,
+        game: gameLabel,
         username: user.username,
+        userId: parseInt(user.id),
       });
     }
   };

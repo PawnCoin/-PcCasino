@@ -96,7 +96,10 @@ export const gameApi = {
 
   getReferral: () => apiFetch('/game/referral'),
 
-  getLeaderboard: () => apiFetch('/game/leaderboard/db'),
+  getLeaderboard: (period?: 'daily' | 'weekly' | 'alltime') => apiFetch(`/game/leaderboard/db${period ? `?period=${period}` : ''}`),
+
+  recordWin: (body: { amount: number; game?: string }) =>
+    apiFetch('/game/leaderboard/record-win', { method: 'POST', body: JSON.stringify(body) }),
 
   getExchangeRates: () => apiFetch('/game/exchange-rates'),
 
