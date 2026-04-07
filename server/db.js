@@ -58,6 +58,7 @@ export async function initDatabase() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_bonus_claimed_at TIMESTAMP`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS cashback_paid_at TIMESTAMP`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_avatar_url TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed BOOLEAN DEFAULT FALSE`,
     ];
     for (const sql of alterColumns) {
       await query(sql).catch(() => {});

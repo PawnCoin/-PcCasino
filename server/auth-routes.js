@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { createHash, randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from './db.js';
-import { sendVerificationEmail, sendWelcomeEmail } from './email.js';
+import { sendVerificationEmail, sendWelcomeEmail, generateUnsubscribeToken } from './email.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
@@ -113,12 +113,13 @@ router.post('/register', async (req, res) => {
     const freshUser = await query('SELECT balance FROM users WHERE id = $1', [user.id]);
     const finalBalance = freshUser.rows.length ? parseInt(freshUser.rows[0].balance) : parseInt(user.balance);
 
-    // Send verification email
+    // Send verification email + welcome email on registration
     try {
       await sendVerificationEmail(email, username, verifyToken);
     } catch (e) {
-      console.error('Email send failed:', e.message);
+      console.error('[Email] Verification email failed:', e.message);
     }
+    sendWelcomeEmail(email, username).catch(e => console.error('[Email] Welcome email failed:', e.message));
 
     const token = generateToken(user.id);
     await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
@@ -290,10 +291,40 @@ router.get('/verify-email', async (req, res) => {
   try {
     const result = await query('SELECT id FROM users WHERE email_verify_token = $1', [token]);
     if (!result.rows.length) return res.status(400).send('Invalid or expired link');
-    await query('UPDATE users SET email_verified = TRUE, email_verify_token = NULL WHERE id = $1', [result.rows[0].id]);
+    const { id } = result.rows[0];
+    await query('UPDATE users SET email_verified = TRUE, email_verify_token = NULL WHERE id = $1', [id]);
     res.redirect('/?verified=1');
   } catch (err) {
     res.status(500).send('Verification failed');
+  }
+});
+
+// Unsubscribe from emails (token-based, no login required)
+router.get('/unsubscribe', async (req, res) => {
+  const { email, token } = req.query;
+  if (!email || !token) return res.status(400).send('Invalid unsubscribe link');
+  const expected = generateUnsubscribeToken(email);
+  if (!expected || expected !== token) return res.status(400).send('Invalid unsubscribe link');
+  try {
+    await query('UPDATE users SET email_unsubscribed = TRUE WHERE email = $1', [email]);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>Unsubscribed</title>
+      <style>body{background:#0a0a0a;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+      .card{text-align:center;border:1px solid #D4AF37;padding:40px;border-radius:8px;max-width:400px;}
+      h1{color:#D4AF37;}a{color:#D4AF37;}</style></head>
+      <body><div class="card">
+        <h1>$Pc Casino</h1>
+        <h2>Unsubscribed</h2>
+        <p>You've been unsubscribed from $Pc Casino emails. You won't receive marketing or notification emails.</p>
+        <p>You can re-subscribe at any time from your account settings.</p>
+        <p><a href="/">Return to Casino</a></p>
+      </div></body>
+      </html>
+    `);
+  } catch (err) {
+    res.status(500).send('Failed to unsubscribe. Please try again.');
   }
 });
 

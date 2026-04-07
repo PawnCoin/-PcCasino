@@ -12,6 +12,7 @@ import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
 import { initDatabase, query, pool } from './db.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
+import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -143,10 +144,13 @@ const recentWinners = [];
 const VIP_CASHBACK_RATES = { bronze: 0, silver: 0.01, gold: 0.02, platinum: 0.05, diamond: 0.10 };
 
 async function runVipCashback() {
+  // Only send cashback email notifications on Monday (day 1 in JS; Sunday = 0)
+  const isMonday = new Date().getDay() === 1;
+
   try {
     // Find users who haven't received cashback in the last 7 days
     const users = await query(
-      `SELECT id, username, vip_tier, total_wagered, cashback_paid_at
+      `SELECT id, username, email, vip_tier, total_wagered, cashback_paid_at, email_unsubscribed
        FROM users
        WHERE vip_tier != 'bronze'
          AND (cashback_paid_at IS NULL OR cashback_paid_at < NOW() - INTERVAL '7 days')`
@@ -182,6 +186,13 @@ async function runVipCashback() {
 
       // Notify connected user
       io.to(`user_${user.id}`).emit('cashback:credited', { amount: cashback, tier: user.vip_tier });
+
+      // Send cashback email on Mondays (weekly payout day) if user has email and hasn't unsubscribed
+      if (isMonday && user.email && !user.email_unsubscribed) {
+        sendCashbackEmail(user.email, user.username, cashback, user.vip_tier).catch(e =>
+          console.error('[Email] Cashback email failed:', e.message)
+        );
+      }
       count++;
     }
     if (count > 0) console.log(`[VIP Cashback] Credited ${count} users`);
@@ -215,6 +226,49 @@ const defaultTournaments = [
   { id: 't5', name: 'Spades Open', game: 'spades', entryFee: 500, prizePool: 50000, maxPlayers: 40, registeredPlayers: 12, startTime: Date.now() + 172800000, status: 'registering', type: 'round-robin' },
 ];
 defaultTournaments.forEach(t => tournaments.set(t.id, t));
+
+// ---- Tournament Reminder Emails ----
+// Track which tournaments have already had their 1h reminder sent
+const tournamentRemindersSent = new Set();
+
+async function checkTournamentReminders() {
+  const now = Date.now();
+  const oneHour = 60 * 60 * 1000;
+  const windowMs = 5 * 60 * 1000; // remind if start is within 55-65 min from now
+
+  for (const [tid, t] of tournaments) {
+    if (t.status !== 'registering') continue;
+    if (tournamentRemindersSent.has(tid)) continue;
+    const timeUntilStart = t.startTime - now;
+    if (timeUntilStart > oneHour + windowMs || timeUntilStart < oneHour - windowMs) continue;
+
+    tournamentRemindersSent.add(tid);
+    console.log(`[Tournament] Sending 1h reminders for: ${t.name}`);
+
+    // Use registeredUserIds from in-memory tournament data (populated by /api/tournaments/:id/register)
+    const userIds = Array.isArray(t.registeredUserIds) ? t.registeredUserIds : [];
+    if (userIds.length === 0) continue;
+
+    try {
+      const placeholders = userIds.map((_, i) => `$${i + 1}`).join(',');
+      const result = await query(
+        `SELECT email, username FROM users
+         WHERE id IN (${placeholders}) AND email IS NOT NULL AND email_unsubscribed IS NOT TRUE`,
+        userIds
+      );
+      for (const row of result.rows) {
+        sendTournamentReminderEmail(row.email, row.username, t).catch(e =>
+          console.error('[Email] Tournament reminder failed:', e.message)
+        );
+      }
+    } catch (e) {
+      console.error('[Tournament] Reminder query failed:', e.message);
+    }
+  }
+}
+
+// Check for tournament reminders every 5 minutes
+setInterval(checkTournamentReminders, 5 * 60 * 1000);
 
 // ---- Helper functions ----
 function generateRoomId() { return `room_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
@@ -413,11 +467,12 @@ app.get('/api/tournaments', (req, res) => {
   res.json({ tournaments: Array.from(tournaments.values()) });
 });
 
-app.post('/api/tournaments/:id/register', (req, res) => {
+app.post('/api/tournaments/:id/register', requireAuth, (req, res) => {
   const t = tournaments.get(req.params.id);
   if (!t) return res.status(404).json({ error: 'Not found' });
   if (t.registeredPlayers >= t.maxPlayers) return res.status(400).json({ error: 'Tournament full' });
-  const { userId, username } = req.body;
+  const userId = req.user.id;
+  const username = req.user.username;
   if (!t.registeredUserIds) t.registeredUserIds = [];
   if (t.registeredUserIds.includes(userId)) return res.status(400).json({ error: 'Already registered' });
   t.registeredUserIds.push(userId);
