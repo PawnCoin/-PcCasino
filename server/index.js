@@ -427,15 +427,11 @@ app.post('/api/referrals', requireAuth, async (req, res) => {
   }
 });
 
+// Deprecated: referral codes are now applied at registration via auth-routes.js
+// against the durable referral_codes table. This endpoint is a no-op stub kept
+// for backwards compatibility only.
 app.post('/api/referrals/use', (req, res) => {
-  const { code, newUserId } = req.body;
-  const ref = referrals.get(code);
-  if (!ref) return res.status(404).json({ error: 'Invalid referral code' });
-  ref.uses++;
-  ref.earnings += 50000000;
-  referrals.set(code, ref);
-  logAdmin('referral:used', { code, newUserId });
-  res.json({ success: true, bonusAmount: 50000000 });
+  res.status(410).json({ error: 'Referral codes must be applied at registration. This endpoint is deprecated.' });
 });
 
 // Public: validate a referral code and return referrer info (no auth required)
