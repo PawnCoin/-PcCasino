@@ -114,26 +114,31 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
 
   if (noData) {
     return (
-      <div
-        title="Live $Pc price feed unavailable"
+      <a
+        href="https://etherscan.io/token/0x2Fe269292f74F0a98C5786088317B4f86313C211"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="$Pc token — not yet listed on a DEX. Click to view on Etherscan."
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: compact ? '3px 8px' : '5px 12px', borderRadius: 20,
           background: 'rgba(10,8,0,0.75)',
           border: '1px solid rgba(212,175,55,0.15)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-          cursor: 'default',
+          textDecoration: 'none',
+          cursor: 'pointer',
         }}
       >
         <img src="/logos/pc-logo.png" alt="$Pc" style={{ width: compact ? 14 : 16, height: compact ? 14 : 16, borderRadius: '50%' }} />
         <span style={{ fontSize: compact ? 10 : 11, color: '#D4AF37', fontWeight: 900, letterSpacing: '0.05em' }}>$Pc</span>
-        <span style={{ fontSize: compact ? 10 : 11, color: '#666', fontWeight: 700 }}>—</span>
+        <span style={{ fontSize: compact ? 10 : 11, color: '#888', fontWeight: 700 }}>Pre-DEX</span>
         <div style={{
           width: 6, height: 6, borderRadius: '50%',
-          background: '#888',
-          opacity: 0.5,
+          background: '#D4AF37',
+          opacity: 0.4,
+          animation: 'pulse 3s infinite',
         }} />
-      </div>
+      </a>
     );
   }
 
