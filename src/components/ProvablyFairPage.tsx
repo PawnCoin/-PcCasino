@@ -14,14 +14,14 @@ interface ProvablyFairPageProps {
   onBack?: () => void;
   isOpen?: boolean;
   onClose?: () => void;
-  prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number; game?: string };
+  prefill?: { serverSeed?: string; serverSeedHash?: string; clientSeed?: string; nonce?: number; game?: string };
   inline?: boolean;
 }
 
 interface VerifyResult {
   serverSeedHash: string;
   result: Record<string, unknown>;
-  hashMatch: boolean;
+  hashMatch: boolean | null; // null = no committed hash supplied; true/false = explicit match result
 }
 
 
@@ -31,6 +31,7 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
   const [serverSeed, setServerSeed] = useState(prefill?.serverSeed || '');
   const [clientSeed, setClientSeed] = useState(prefill?.clientSeed || '');
   const [nonce, setNonce] = useState(prefill?.nonce !== undefined ? String(prefill.nonce) : '1');
+  const [serverSeedHash, setServerSeedHash] = useState(prefill?.serverSeedHash || '');
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,6 +44,7 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
   useEffect(() => {
     if (!prefill) return;
     setServerSeed(prefill.serverSeed || '');
+    setServerSeedHash(prefill.serverSeedHash || '');
     setClientSeed(prefill.clientSeed || '');
     setNonce(prefill.nonce !== undefined ? String(prefill.nonce) : '1');
     if (prefill.game && ['slots','roulette','blackjack','dice'].includes(prefill.game)) {
@@ -50,7 +52,7 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
     }
     setVerifyResult(null);
     setError('');
-  }, [prefill?.serverSeed, prefill?.clientSeed, prefill?.nonce, prefill?.game]);
+  }, [prefill?.serverSeed, prefill?.serverSeedHash, prefill?.clientSeed, prefill?.nonce, prefill?.game]);
 
   const copyToClipboard = (val: string, key: string) => {
     navigator.clipboard.writeText(val).then(() => {
@@ -79,10 +81,14 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
       const ss = serverSeed.trim();
       const cs = clientSeed.trim();
 
-      // 1. Independently verify the server seed matches the hash commitment
+      // 1. Independently compute SHA-256(serverSeed) locally
       const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ss));
       const hashBytes = Array.from(new Uint8Array(hashBuffer));
       const computedHash = hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // If the user supplied the pre-round committed hash, compare explicitly
+      const committedHash = serverSeedHash.trim().toLowerCase();
+      const hashMatch = committedHash ? computedHash === committedHash : null;
 
       // 2. Re-derive the game result locally using SubtleCrypto HMAC-SHA256
       let result: Record<string, unknown>;
@@ -145,14 +151,41 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
 
   const renderResult = () => {
     if (!verifyResult) return null;
-    const { result } = verifyResult;
+    const { result, hashMatch } = verifyResult;
+    const hashCheckPassed = hashMatch === true;
+    const hashCheckFailed = hashMatch === false;
+    const borderColor = hashCheckFailed ? 'border-red-500/30 bg-red-500/10' : 'border-green-500/30 bg-green-500/10';
     return (
-      <div className="mt-4 p-4 rounded-xl border border-green-500/30 bg-green-500/10">
+      <div className={`mt-4 p-4 rounded-xl border ${borderColor}`}>
         <div className="flex items-center gap-2 mb-3">
-          <CheckCircle className="w-5 h-5 text-green-400" />
-          <span className="font-bold text-green-400">Verification Complete — computed locally in your browser</span>
+          {hashCheckFailed
+            ? <XCircle className="w-5 h-5 text-red-400" />
+            : <CheckCircle className="w-5 h-5 text-green-400" />}
+          <span className={`font-bold ${hashCheckFailed ? 'text-red-400' : 'text-green-400'}`}>
+            {hashCheckFailed
+              ? 'Hash mismatch — server seed does not match the pre-round commitment!'
+              : 'Verification Complete — computed locally in your browser'}
+          </span>
         </div>
-        <div className="text-xs text-gray-400 mb-1">SHA-256 of your server seed (compare to the hash shown before the round):</div>
+
+        {/* Commitment hash validation */}
+        {hashCheckPassed && (
+          <div className="mb-3 p-2 rounded bg-green-500/10 border border-green-500/20 text-xs text-green-400">
+            ✓ SHA-256(serverSeed) matches the committed hash — server could not have changed the outcome.
+          </div>
+        )}
+        {hashCheckFailed && (
+          <div className="mb-3 p-2 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+            ✗ SHA-256(serverSeed) does NOT match the committed hash. The seed may have been tampered with.
+          </div>
+        )}
+        {hashMatch === null && (
+          <div className="mb-3 p-2 rounded bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-400">
+            No committed hash supplied — paste the hash shown before the round to verify the commitment.
+          </div>
+        )}
+
+        <div className="text-xs text-gray-400 mb-1">SHA-256 of your server seed:</div>
         <div className="flex items-center gap-2 mb-3">
           <code className="text-xs text-[#D4AF37] break-all flex-1 bg-black/40 p-2 rounded">{verifyResult.serverSeedHash}</code>
           <button onClick={() => copyToClipboard(verifyResult.serverSeedHash, 'hash')} className="text-gray-500 hover:text-white">
@@ -272,6 +305,16 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
             </div>
           </div>
 
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Server Seed Hash (shown before the round — paste to verify commitment)</label>
+            <input
+              type="text"
+              value={serverSeedHash}
+              onChange={e => setServerSeedHash(e.target.value)}
+              placeholder="The SHA-256 hash shown before the round started (optional)"
+              className="w-full bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]/50"
+            />
+          </div>
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Server Seed (revealed after round)</label>
             <input

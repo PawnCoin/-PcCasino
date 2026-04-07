@@ -91,7 +91,7 @@ function App() {
   const [showVappTV, setShowVappTV] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showProvablyFair, setShowProvablyFair] = useState(false);
-  const [provablyFairPrefill, setProvablyFairPrefill] = useState<{ serverSeed?: string; clientSeed?: string; nonce?: number } | undefined>();
+  const [provablyFairPrefill, setProvablyFairPrefill] = useState<{ serverSeed?: string; serverSeedHash?: string; clientSeed?: string; nonce?: number; game?: string } | undefined>();
   const [showLobby, setShowLobby] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);

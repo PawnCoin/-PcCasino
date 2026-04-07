@@ -11,7 +11,7 @@ interface VerifyRoundModalProps {
   round: ProvablyFairRound | null;
   lastReveal: ProvablyFairRound | null;
   game?: string;
-  onOpenProvablyFairPage: (prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number; game?: string }) => void;
+  onOpenProvablyFairPage: (prefill?: { serverSeed?: string; serverSeedHash?: string; clientSeed?: string; nonce?: number; game?: string }) => void;
 }
 
 export function VerifyRoundModal({ isOpen, onClose, round, lastReveal, game, onOpenProvablyFairPage }: VerifyRoundModalProps) {
@@ -45,7 +45,13 @@ export function VerifyRoundModal({ isOpen, onClose, round, lastReveal, game, onO
 
   const display = lastReveal || round;
   const prefill = lastReveal?.serverSeed
-    ? { serverSeed: lastReveal.serverSeed, clientSeed: lastReveal.clientSeed, nonce: lastReveal.nonce, game }
+    ? {
+        serverSeed: lastReveal.serverSeed,
+        serverSeedHash: lastReveal.serverSeedHash, // pre-round commitment hash for verification
+        clientSeed: lastReveal.clientSeed,
+        nonce: lastReveal.nonce,
+        game,
+      }
     : undefined;
 
   return (
