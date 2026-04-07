@@ -529,8 +529,8 @@ app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => 
     if (!statusCheck.rows.length) return res.status(404).json({ error: 'Round not found' });
     const row = statusCheck.rows[0];
     if (row.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
-    if (row.status === 'created') {
-      return res.status(409).json({ error: 'Round must be resolved before revealing server seed' });
+    if (row.status !== 'resolved') {
+      return res.status(409).json({ error: `Round must be resolved before revealing server seed (current status: ${row.status})` });
     }
     const data = await revealGameRound(parseInt(req.params.roundId), req.user.id);
     if (!data) return res.status(404).json({ error: 'Round not found or already revealed' });
