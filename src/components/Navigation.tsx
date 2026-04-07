@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -348,6 +348,15 @@ export function Navigation({
                         >
                           <Gift className="w-4 h-4" />
                           <span className="text-sm">Rewards</span>
+                        </button>
+
+                        <button
+                          onClick={() => { onShowReferral?.(); setShowUserDropdown(false); }}
+                          className="w-full p-3 flex items-center gap-3 hover:bg-[#D4AF37]/10 transition-colors border-b border-[#5D4037]/20"
+                          style={{ color: '#c084fc' }}
+                        >
+                          <Star className="w-4 h-4" />
+                          <span className="text-sm font-semibold">Affiliate Dashboard</span>
                         </button>
 
                         <button

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, DollarSign, AlertTriangle, Settings, BarChart3, Trophy, Zap, X, CheckCircle, XCircle, RefreshCw, Send, Key, Globe, Database, Crown } from 'lucide-react';
+import { Shield, Users, DollarSign, AlertTriangle, Settings, BarChart3, Trophy, Zap, X, CheckCircle, XCircle, RefreshCw, Send, Key, Globe, Database, Crown, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,7 @@ interface AdminDashboardProps {
   isAdmin?: boolean;
 }
 
-type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'broadcast' | 'pcpayments' | 'vip' | 'settings';
+type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'affiliates' | 'broadcast' | 'pcpayments' | 'vip' | 'settings';
 
 export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps) {
   const [isAuthed, setIsAuthed] = useState(() => isAdmin === true || localStorage.getItem(ADMIN_KEY) === 'true');
@@ -35,6 +35,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   const [users, setUsers] = useState<any[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [cashbackLog, setCashbackLog] = useState<any[]>([]);
+  const [affiliatePayouts, setAffiliatePayouts] = useState<any[]>([]);
   const [siteSettings, setSiteSettings] = useState({
     maintenanceMode: false, maxDeposit: 0, minWithdrawal: 100, houseEdge: 2.5, welcomeBonus: 1000000000,
   });
@@ -43,15 +44,20 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
     toast.error('Direct admin access is disabled. Use your admin account.');
   };
 
+  const getToken = () => localStorage.getItem('pcasino_token');
+
   const loadData = async () => {
+    const token = getToken();
+    const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
     try {
-      const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes, cashbackRes] = await Promise.all([
+      const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes, cashbackRes, affiliateRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/disputes'),
         fetch('/api/admin/logs'),
         fetch('/api/admin/users'),
         fetch('/api/tournaments'),
         fetch('/api/admin/cashback-log'),
+        fetch('/api/admin/affiliate-payouts', { headers: authHeader }),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (disputesRes.ok) { const d = await disputesRes.json(); setDisputes(d.disputes || []); }
@@ -59,6 +65,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
       if (usersRes.ok) { const u = await usersRes.json(); setUsers(u.users || []); }
       if (tournamentsRes.ok) { const t = await tournamentsRes.json(); setTournaments(t.tournaments || []); }
       if (cashbackRes.ok) { const c = await cashbackRes.json(); setCashbackLog(c.payments || []); }
+      if (affiliateRes.ok) { const a = await affiliateRes.json(); setAffiliatePayouts(a.payouts || []); }
     } catch { /* server may not be running */ }
   };
 
@@ -98,12 +105,39 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
 
   const logout = () => { setIsAuthed(false); localStorage.removeItem(ADMIN_KEY); };
 
+  const approveAffiliatePayout = async (id: number) => {
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/admin/affiliate-payouts/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) { toast.success('Payout approved'); loadData(); }
+      else { const d = await res.json(); toast.error(d.error || 'Failed'); }
+    } catch { toast.error('Server not available'); }
+  };
+
+  const rejectAffiliatePayout = async (id: number, note: string) => {
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/admin/affiliate-payouts/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ note }),
+      });
+      if (res.ok) { toast.success('Payout rejected'); loadData(); }
+      else { const d = await res.json(); toast.error(d.error || 'Failed'); }
+    } catch { toast.error('Server not available'); }
+  };
+
   const tabs: { id: AdminTab; label: string; icon: typeof Shield }[] = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
     { id: 'tournaments', label: 'Tournaments', icon: Trophy },
     { id: 'payments', label: 'Financials', icon: DollarSign },
+    { id: 'affiliates', label: 'Affiliates', icon: Star },
     { id: 'broadcast', label: 'Broadcast', icon: Send },
     { id: 'pcpayments', label: 'PcPayments', icon: Key },
     { id: 'vip', label: 'VIP Cashback', icon: Crown },
@@ -179,6 +213,11 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                   {tab.id === 'disputes' && disputes.filter(d => d.status === 'open').length > 0 && (
                     <span className="ml-auto text-xs bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
                       {disputes.filter(d => d.status === 'open').length}
+                    </span>
+                  )}
+                  {tab.id === 'affiliates' && affiliatePayouts.filter(p => p.status === 'pending').length > 0 && (
+                    <span className="ml-auto text-xs bg-yellow-500 text-black rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                      {affiliatePayouts.filter(p => p.status === 'pending').length}
                     </span>
                   )}
                 </button>
@@ -402,6 +441,73 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                       <Send className="w-4 h-4 mr-2" /> Broadcast to All Users
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* AFFILIATES */}
+              {activeTab === 'affiliates' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white">Affiliate Payout Requests</h3>
+                    <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}>
+                      {affiliatePayouts.filter(p => p.status === 'pending').length} pending
+                    </span>
+                  </div>
+                  {affiliatePayouts.length === 0 ? (
+                    <div className="text-center py-10 text-gray-500 text-sm">No payout requests yet</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {affiliatePayouts.map(payout => (
+                        <div key={payout.id} className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${payout.status === 'pending' ? 'rgba(212,175,55,0.3)' : payout.status === 'approved' ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-white text-sm">{payout.username}</span>
+                                <span
+                                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                  style={{
+                                    background: payout.status === 'pending' ? 'rgba(212,175,55,0.15)' : payout.status === 'approved' ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)',
+                                    color: payout.status === 'pending' ? '#D4AF37' : payout.status === 'approved' ? '#4ade80' : '#f87171',
+                                    border: `1px solid ${payout.status === 'pending' ? 'rgba(212,175,55,0.3)' : payout.status === 'approved' ? 'rgba(74,222,128,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                                  }}
+                                >
+                                  {payout.status.toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="text-lg font-bold" style={{ color: '#D4AF37' }}>
+                                {parseInt(payout.amount).toLocaleString()} $Pc
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Requested: {new Date(payout.created_at).toLocaleString()}
+                                {payout.processed_at && ` • Processed: ${new Date(payout.processed_at).toLocaleString()}`}
+                              </div>
+                              {payout.admin_note && (
+                                <div className="text-xs text-gray-400 mt-1">Note: {payout.admin_note}</div>
+                              )}
+                            </div>
+                            {payout.status === 'pending' && (
+                              <div className="flex flex-col gap-2 flex-shrink-0">
+                                <Button
+                                  onClick={() => approveAffiliatePayout(payout.id)}
+                                  size="sm"
+                                  style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)', fontSize: 11 }}
+                                >
+                                  <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                                </Button>
+                                <Button
+                                  onClick={() => rejectAffiliatePayout(payout.id, 'Rejected by admin')}
+                                  size="sm"
+                                  style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}
+                                >
+                                  <XCircle className="w-3 h-3 mr-1" /> Reject
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

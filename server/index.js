@@ -612,6 +612,191 @@ app.get('/api/referrals/:userId', requireAuth, async (req, res) => {
   }
 });
 
+// Affiliate dashboard stats — aggregated referral data for the authenticated user
+app.get('/api/affiliate/stats', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    // Get all referrals with referred user details and their deposit totals
+    const referralsResult = await query(
+      `SELECT
+         r.id,
+         r.referred_id,
+         r.commission_paid,
+         r.created_at,
+         u.username AS referred_username,
+         COALESCE(SUM(d.amount), 0) AS deposit_total
+       FROM referrals r
+       JOIN users u ON u.id = r.referred_id
+       LEFT JOIN deposit_requests d ON d.user_id = r.referred_id AND d.status = 'approved'
+       WHERE r.referrer_id = $1
+       GROUP BY r.id, r.referred_id, r.commission_paid, r.created_at, u.username
+       ORDER BY r.created_at DESC`,
+      [userId]
+    );
+
+    // Commission earned = sum of referral_commission transactions
+    const commissionResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
+       WHERE user_id = $1 AND type = 'referral_commission'`,
+      [userId]
+    );
+
+    // Commission pending = unpaid referrals (no first deposit yet → no commission)
+    // We track as: referrals where commission_paid = false (awaiting first deposit)
+    const pendingCount = referralsResult.rows.filter(r => !r.commission_paid).length;
+    const commissionEarned = parseInt(commissionResult.rows[0].total);
+
+    // Pending payout = commission earned that has not been paid out yet
+    // (earned commission minus any approved payout requests)
+    const paidOutResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM affiliate_payout_requests
+       WHERE user_id = $1 AND status = 'approved'`,
+      [userId]
+    );
+    const commissionPendingPayout = Math.max(0, commissionEarned - parseInt(paidOutResult.rows[0].total));
+
+    // Active payout request (pending)
+    const activePayout = await query(
+      `SELECT id, amount, status, created_at FROM affiliate_payout_requests
+       WHERE user_id = $1 AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+
+    res.json({
+      totalReferrals: referralsResult.rows.length,
+      totalDeposits: referralsResult.rows.reduce((s, r) => s + parseInt(r.deposit_total), 0),
+      commissionEarned,
+      commissionPendingPayout,
+      pendingReferrals: pendingCount,
+      activePayoutRequest: activePayout.rows[0] || null,
+      referrals: referralsResult.rows.map(r => ({
+        id: r.id,
+        referredId: r.referred_id,
+        referredUsername: r.referred_username,
+        joinedAt: r.created_at,
+        depositTotal: parseInt(r.deposit_total),
+        commissionPaid: r.commission_paid,
+        commissionAmount: r.commission_paid ? Math.floor(parseInt(r.deposit_total) * 0.1) : 0,
+      })),
+    });
+  } catch (err) {
+    console.error('[affiliate stats]', err.message);
+    res.status(500).json({ error: 'Failed to load affiliate stats' });
+  }
+});
+
+// Request affiliate commission payout
+app.post('/api/affiliate/payout-request', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    // Check for already pending request
+    const existing = await query(
+      `SELECT id FROM affiliate_payout_requests WHERE user_id = $1 AND status = 'pending'`,
+      [userId]
+    );
+    if (existing.rows.length) {
+      return res.status(400).json({ error: 'You already have a pending payout request. Please wait for it to be processed.' });
+    }
+
+    // Calculate how much commission is available for payout
+    const commissionResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
+       WHERE user_id = $1 AND type = 'referral_commission'`,
+      [userId]
+    );
+    const paidOutResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM affiliate_payout_requests
+       WHERE user_id = $1 AND status = 'approved'`,
+      [userId]
+    );
+    const available = parseInt(commissionResult.rows[0].total) - parseInt(paidOutResult.rows[0].total);
+
+    if (available <= 0) {
+      return res.status(400).json({ error: 'No commission available to request payout for.' });
+    }
+
+    const result = await query(
+      `INSERT INTO affiliate_payout_requests (user_id, amount) VALUES ($1, $2) RETURNING *`,
+      [userId, available]
+    );
+
+    // Notify admin via notification to admin users
+    const admins = await query(`SELECT id FROM users WHERE is_admin = TRUE`);
+    for (const admin of admins.rows) {
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'affiliate_payout', 'Affiliate Payout Request', $2)",
+        [admin.id, `${req.user.username} requested a payout of ${available.toLocaleString()} $Pc in affiliate commissions.`]
+      ).catch(() => {});
+    }
+
+    res.json({ success: true, request: result.rows[0] });
+  } catch (err) {
+    console.error('[affiliate payout request]', err.message);
+    res.status(500).json({ error: 'Failed to create payout request' });
+  }
+});
+
+// Admin: get all affiliate payout requests
+app.get('/api/admin/affiliate-payouts', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const result = await query(
+      `SELECT apr.*, u.username FROM affiliate_payout_requests apr
+       JOIN users u ON u.id = apr.user_id
+       ORDER BY apr.created_at DESC LIMIT 100`
+    );
+    res.json({ payouts: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load payout requests' });
+  }
+});
+
+// Admin: approve affiliate payout request
+app.post('/api/admin/affiliate-payouts/:id/approve', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const pr = await query('SELECT * FROM affiliate_payout_requests WHERE id = $1', [req.params.id]);
+    if (!pr.rows.length) return res.status(404).json({ error: 'Not found' });
+    const p = pr.rows[0];
+    if (p.status !== 'pending') return res.status(400).json({ error: 'Already processed' });
+
+    await query(
+      `UPDATE affiliate_payout_requests SET status = 'approved', processed_at = NOW(), admin_note = $1 WHERE id = $2`,
+      [req.body.note || null, p.id]
+    );
+    await query(
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'affiliate_payout', 'Affiliate Payout Approved ✅', $2)",
+      [p.user_id, `Your affiliate commission payout of ${parseInt(p.amount).toLocaleString()} $Pc has been approved and is being processed.`]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Approval failed' });
+  }
+});
+
+// Admin: reject affiliate payout request
+app.post('/api/admin/affiliate-payouts/:id/reject', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const pr = await query('SELECT * FROM affiliate_payout_requests WHERE id = $1', [req.params.id]);
+    if (!pr.rows.length) return res.status(404).json({ error: 'Not found' });
+    if (pr.rows[0].status !== 'pending') return res.status(400).json({ error: 'Already processed' });
+
+    await query(
+      `UPDATE affiliate_payout_requests SET status = 'rejected', processed_at = NOW(), admin_note = $1 WHERE id = $2`,
+      [req.body.note || null, pr.rows[0].id]
+    );
+    await query(
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'affiliate_payout', 'Affiliate Payout Rejected', $2)",
+      [pr.rows[0].user_id, `Your affiliate payout request was rejected. ${req.body.note ? 'Reason: ' + req.body.note : 'Please contact support for details.'}`]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Rejection failed' });
+  }
+});
+
 // ---- Provably Fair API routes ----
 // Create a new game round — commits server seed hash to client BEFORE round plays out.
 app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {

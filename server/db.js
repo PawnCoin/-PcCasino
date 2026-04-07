@@ -300,6 +300,24 @@ export async function initDatabase() {
     await query(`CREATE INDEX IF NOT EXISTS idx_poker_hand_history_user ON poker_hand_history(user_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_poker_hand_history_token ON poker_hand_history(share_token)`);
 
+    // Affiliate payout requests — created when an affiliate clicks "Request Payout"
+    await query(`
+      CREATE TABLE IF NOT EXISTS affiliate_payout_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        amount BIGINT NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_note TEXT,
+        processed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_affiliate_payout_user ON affiliate_payout_requests(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_affiliate_payout_status ON affiliate_payout_requests(status)`);
+
+    // Migration: add deposit_total to referrals for caching referred user totals
+    await query(`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS deposit_total BIGINT DEFAULT 0`).catch(() => {});
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);
