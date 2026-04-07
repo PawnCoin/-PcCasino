@@ -1,6 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
-
-type PerspectiveMode = 'overview' | 'third-person' | 'first-person';
+import { useEffect, useRef, useMemo } from 'react';
 
 interface CasinoBackgroundProps {
   videoUrl?: string;
@@ -9,8 +7,6 @@ interface CasinoBackgroundProps {
 
 export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [perspective, setPerspective] = useState<PerspectiveMode>('overview');
-  const [showToggle, setShowToggle] = useState(false);
 
   const particles = useMemo(() => {
     return Array.from({ length: 120 }, () => ({
@@ -93,155 +89,13 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
       ctx.restore();
     };
 
-    const drawThirdPerson = (w: number, h: number) => {
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-      bgGrad.addColorStop(0, 'rgba(5,2,12,0.98)');
-      bgGrad.addColorStop(0.4, 'rgba(15,5,2,0.95)');
-      bgGrad.addColorStop(0.7, 'rgba(8,20,8,0.92)');
-      bgGrad.addColorStop(1, 'rgba(0,0,0,0.98)');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.save();
-      ctx.globalAlpha = 0.08;
-      const floorY = h * 0.65;
-      const tileSize = 60;
-      for (let tx = -tileSize; tx < w + tileSize; tx += tileSize) {
-        for (let ty = floorY; ty < h + tileSize; ty += tileSize * 0.5) {
-          const prog = (ty - floorY) / (h - floorY);
-          const scaledTile = tileSize * (0.5 + prog * 2);
-          const offsetX = ((tx / tileSize) % 2) * tileSize * 0.5;
-          ctx.fillStyle = (Math.floor(tx / tileSize) + Math.floor((ty - floorY) / (tileSize * 0.5))) % 2 === 0
-            ? 'rgba(30,80,30,1)' : 'rgba(20,55,20,1)';
-          ctx.fillRect(tx + offsetX - scaledTile * 0.5, ty, scaledTile, scaledTile * 0.5);
-        }
-      }
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalAlpha = 0.04;
-      const wallY = h * 0.25;
-      ctx.fillStyle = 'rgba(80,30,10,0.8)';
-      ctx.fillRect(0, wallY, w, h * 0.4);
-      ctx.globalAlpha = 0.06;
-      for (let wx = 0; wx < w; wx += 80) {
-        ctx.strokeStyle = 'rgba(212,175,55,0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(wx, wallY);
-        ctx.lineTo(wx, h * 0.65);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      const numTables = 3;
-      for (let i = 0; i < numTables; i++) {
-        const tx = (w / (numTables + 1)) * (i + 1);
-        const ty = h * 0.62;
-        const tw = 120 + Math.sin(t + i) * 5;
-        const th = 60;
-        ctx.save();
-        ctx.globalAlpha = 0.12 + 0.02 * Math.sin(t * 0.5 + i);
-        const tGrad = ctx.createRadialGradient(tx, ty, 0, tx, ty, tw * 0.7);
-        tGrad.addColorStop(0, 'rgba(10,80,10,0.9)');
-        tGrad.addColorStop(0.7, 'rgba(5,50,5,0.9)');
-        tGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = tGrad;
-        ctx.ellipse(tx, ty, tw, th, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(212,175,55,0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
-      }
-    };
-
-    const drawFirstPerson = (w: number, h: number) => {
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-      bgGrad.addColorStop(0, 'rgba(3,1,8,0.99)');
-      bgGrad.addColorStop(0.35, 'rgba(8,3,2,0.97)');
-      bgGrad.addColorStop(0.5, 'rgba(5,15,5,0.97)');
-      bgGrad.addColorStop(1, 'rgba(0,0,0,0.99)');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      const horizY = h * 0.42;
-      const vanishX = w * 0.5 + Math.sin(t * 0.3) * w * 0.03;
-
-      ctx.save();
-      ctx.globalAlpha = 0.09;
-      for (let lx = -w; lx < w * 2; lx += 80) {
-        ctx.strokeStyle = 'rgba(212,175,55,0.4)';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(vanishX, horizY);
-        ctx.lineTo(lx, h);
-        ctx.stroke();
-      }
-      for (let row = 0; row < 8; row++) {
-        const yPct = horizY + (h - horizY) * (row / 8) ** 1.5;
-        const spread = (yPct - horizY) / (h - horizY);
-        ctx.beginPath();
-        ctx.moveTo(vanishX - spread * w * 1.5, yPct);
-        ctx.lineTo(vanishX + spread * w * 1.5, yPct);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalAlpha = 0.12;
-      const tableW = w * 0.8;
-      const tableH = h * 0.35;
-      const tableX = (w - tableW) / 2;
-      const tableY = horizY + 10;
-      const tGrad = ctx.createRadialGradient(w * 0.5, tableY + tableH * 0.3, 10, w * 0.5, tableY + tableH * 0.5, tableW * 0.5);
-      tGrad.addColorStop(0, 'rgba(15,90,15,0.9)');
-      tGrad.addColorStop(0.6, 'rgba(8,60,8,0.9)');
-      tGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = tGrad;
-      ctx.beginPath();
-      ctx.ellipse(w * 0.5, tableY + tableH * 0.5, tableW * 0.5, tableH * 0.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(212,175,55,0.5)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalAlpha = 0.06;
-      for (let ci = 0; ci < 5; ci++) {
-        const cx2 = tableX + (ci + 0.5) * (tableW / 5);
-        const cy2 = tableY + tableH * (0.3 + Math.sin(ci * 1.3) * 0.2);
-        ctx.beginPath();
-        ctx.arc(cx2, cy2, 8 + Math.sin(t + ci) * 1, 0, Math.PI * 2);
-        ctx.strokeStyle = ci % 2 === 0 ? 'rgba(212,175,55,0.5)' : 'rgba(255,50,50,0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalAlpha = 0.05;
-      ctx.fillStyle = 'rgba(50,15,5,0.5)';
-      ctx.fillRect(0, 0, w * 0.12, h * 0.8);
-      ctx.fillRect(w * 0.88, 0, w * 0.12, h * 0.8);
-      ctx.restore();
-    };
-
     const animate = () => {
       t += 0.004;
       const w = canvas.width / devicePixelRatio;
       const h = canvas.height / devicePixelRatio;
 
       ctx.clearRect(0, 0, w, h);
-
-      if (perspective === 'third-person') {
-        drawThirdPerson(w, h);
-      } else if (perspective === 'first-person') {
-        drawFirstPerson(w, h);
-      } else {
-        drawOverview(w, h);
-      }
+      drawOverview(w, h);
 
       for (const spot of localSpots) {
         spot.angle += spot.speed;
@@ -321,96 +175,7 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', resize);
     };
-  }, [videoUrl, particles, spotlights, perspective]);
-
-  const perspectiveLabels: Record<PerspectiveMode, string> = {
-    'overview': '🗺️ Overview',
-    'third-person': '👁️ 3rd Person',
-    'first-person': '🎭 1st Person',
-  };
-
-  const nextPerspective: Record<PerspectiveMode, PerspectiveMode> = {
-    'overview': 'third-person',
-    'third-person': 'first-person',
-    'first-person': 'overview',
-  };
-
-  const PerspectiveToggle = () => (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 20,
-        right: 20,
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: 6,
-      }}
-    >
-      {showToggle && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            padding: '8px',
-            borderRadius: 12,
-            background: 'rgba(10,5,20,0.95)',
-            border: '1px solid rgba(212,175,55,0.3)',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
-          }}
-        >
-          {(['overview', 'third-person', 'first-person'] as PerspectiveMode[]).map(mode => (
-            <button
-              key={mode}
-              onClick={() => { setPerspective(mode); setShowToggle(false); }}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: perspective === mode ? '1px solid rgba(212,175,55,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                background: perspective === mode ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
-                color: perspective === mode ? '#D4AF37' : '#C0C0C0',
-                fontSize: 12,
-                fontWeight: perspective === mode ? 'bold' : 'normal',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s',
-              }}
-            >
-              {perspectiveLabels[mode]}
-            </button>
-          ))}
-          <div style={{ fontSize: 10, color: '#606060', textAlign: 'center', paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            Casino View Mode
-          </div>
-        </div>
-      )}
-      <button
-        onClick={() => setShowToggle(prev => !prev)}
-        title="Toggle casino view"
-        style={{
-          padding: '8px 14px',
-          borderRadius: 10,
-          background: 'rgba(10,5,20,0.9)',
-          border: '1px solid rgba(212,175,55,0.4)',
-          color: '#D4AF37',
-          fontSize: 12,
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.7), 0 0 15px rgba(212,175,55,0.1)',
-          backdropFilter: 'blur(10px)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          transition: 'all 0.2s',
-        }}
-      >
-        <span>🎰</span>
-        <span>{perspectiveLabels[perspective]}</span>
-      </button>
-    </div>
-  );
+  }, [videoUrl, particles, spotlights]);
 
   if (videoUrl) {
     return (
@@ -424,7 +189,6 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
           <div style={{ position: 'absolute', inset: 0, background: `rgba(0,0,0,${1 - opacity * 0.6})` }} />
           <CasinoOverlay />
         </div>
-        <PerspectiveToggle />
       </>
     );
   }
@@ -443,7 +207,6 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
         style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: -1, pointerEvents: 'none' }}
       />
       <CasinoOverlay />
-      <PerspectiveToggle />
     </>
   );
 }

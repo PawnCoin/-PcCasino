@@ -258,7 +258,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [dealStep, setDealStep] = useState(0);
   const [isShuffling, setIsShuffling] = useState(false);
-  const [tossCard, setTossCard] = useState<{ card: Card; rotation: number; fromPlayer?: boolean } | null>(null);
+  const [tossCard, setTossCard] = useState<{ card: Card; rotation: number; fromPlayer?: boolean; playerIdx?: number } | null>(null);
   const [firstPlayer, setFirstPlayer] = useState(0);
   const [pendingBid, setPendingBid] = useState<{ amount: number; isNil: boolean; isBlindNil: boolean } | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -275,6 +275,10 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [showPropPicker, setShowPropPicker] = useState(false);
   const [localCardBack, setLocalCardBack] = useState<null | { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string }>(null);
   const [showCardBackPicker, setShowCardBackPicker] = useState(false);
+  const [bookStacks, setBookStacks] = useState<number[]>([0, 0, 0, 0]);
+  const [propCelebrating, setPropCelebrating] = useState(false);
+  const [animatingBook, setAnimatingBook] = useState<string | null>(null);
+  const [dealSmacks, setDealSmacks] = useState<{ id: number; target: number }[]>([]);
 
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -371,12 +375,18 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
       setLastTrick(null);
       setSpadesBroken(false);
       setRoundHistory([]);
+      setBookStacks([0, 0, 0, 0]);
 
       let step = 0;
+      let smackId = 0;
       const dealInterval = setInterval(() => {
         step++;
         playSound('card');
         setDealStep(step);
+        const smId = smackId++;
+        const target = step % 4;
+        setDealSmacks(prev => [...prev, { id: smId, target }]);
+        setTimeout(() => setDealSmacks(prev => prev.filter(s => s.id !== smId)), 500);
         if (step >= 13) {
           clearInterval(dealInterval);
           setTimeout(() => {
@@ -445,7 +455,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     }
 
     const rotation = (Math.random() - 0.5) * 28;
-    setTossCard({ card, rotation, fromPlayer: true });
+    setTossCard({ card, rotation, fromPlayer: true, playerIdx: 0 });
     playSound('card');
     setTimeout(() => setTossCard(null), 850);
 
@@ -483,7 +493,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
       playSound('card');
 
       const aiRotation = (Math.random() - 0.5) * 24;
-      setTossCard({ card: chosen, rotation: aiRotation });
+      setTossCard({ card: chosen, rotation: aiRotation, playerIdx: pIdx });
       setTimeout(() => setTossCard(null), 500);
 
       updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
@@ -530,7 +540,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
       if (chosen.suit === 'spades' && !localBroken) { setSpadesBroken(true); triggerSpadesBroken(); localBroken = true; }
       playSound('card');
       const rot = (Math.random() - 0.5) * 24;
-      setTossCard({ card: chosen, rotation: rot });
+      setTossCard({ card: chosen, rotation: rot, playerIdx: pIdx });
       setTimeout(() => setTossCard(null), 500);
       updated[pIdx] = { ...updated[pIdx], hand: updated[pIdx].hand.filter(c => !(c.suit === chosen.suit && c.rank === chosen.rank)) };
       trickCards = [...trickCards, { player: player.id, card: chosen }];
@@ -566,6 +576,16 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     setTrickWinner(winner);
     const playerIdOrder = ['you', 'p2', 'p3', 'p4'];
     const wname = PLAYER_NAMES[playerIdOrder.indexOf(winner)] ?? 'Unknown';
+
+    const winnerBookIdx = playerIdOrder.indexOf(winner);
+    if (winnerBookIdx >= 0) {
+      setBookStacks(prev => { const n = [...prev]; n[winnerBookIdx]++; return n; });
+    }
+    setAnimatingBook(winner);
+    setTimeout(() => setAnimatingBook(null), 1100);
+    setPropCelebrating(true);
+    setTimeout(() => setPropCelebrating(false), 700);
+
     playSound('shuffle');
     setTimeout(() => setTrickWinner(null), Math.round(1300 / gameSpeed));
     const winnerIdx = newPlayers.findIndex(p => p.id === winner);
@@ -653,9 +673,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           const np = dealCards();
           setPlayers(np);
           setCompletedTricks([]); setCurrentTrick([]); setLastTrick(null); setSpadesBroken(false);
+          setBookStacks([0, 0, 0, 0]);
           let step = 0;
+          let smId2 = 0;
           const di = setInterval(() => {
             step++; playSound('card'); setDealStep(step);
+            const sid = smId2++;
+            const tgt = step % 4;
+            setDealSmacks(prev => [...prev, { id: sid, target: tgt }]);
+            setTimeout(() => setDealSmacks(prev => prev.filter(s => s.id !== sid)), 500);
             if (step >= 13) {
               clearInterval(di);
               setTimeout(() => { setGamePhase('bidding'); setCurrentPlayer(0); setMessage('New round! Place your bid.'); }, 400);
@@ -806,24 +832,36 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             60% { transform: rotateY(-5deg) scale(1.02); opacity: 1; }
             100% { transform: rotateY(0deg) scale(1); opacity: 1; }
           }
-          @keyframes tossCard {
-            0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-            40% { transform: translateY(-60px) rotate(var(--tr)) scale(1.12); opacity: 1; }
-            100% { transform: translateY(-120px) rotate(calc(var(--tr)*1.5)) scale(0.9); opacity: 0; }
+          @keyframes cardSmackIn {
+            0%   { transform: translate(-50%, -50%) scale(1.5) rotate(calc(var(--tr) * 1.8)); opacity: 0; filter: drop-shadow(0 30px 40px rgba(0,0,0,0.9)); }
+            35%  { transform: translate(-50%, -50%) scale(0.92) rotate(var(--tr)); opacity: 1; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.7)); }
+            55%  { transform: translate(-50%, -50%) scale(1.04) rotate(var(--tr)); opacity: 1; }
+            72%  { transform: translate(-50%, -50%) scale(1.0) rotate(var(--tr)); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.88) rotate(var(--tr)); opacity: 0; }
           }
-          @keyframes tossCardIn {
-            0% { transform: translate(-50%, -50%) rotate(calc(var(--tr) * 2)) scale(0.4); opacity: 0; }
-            35% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.18); opacity: 1; }
-            70% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
-            100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.85); opacity: 0; }
+          @keyframes cardSlideIn-0 {
+            0%   { transform: translate(-50%,120px) rotate(calc(var(--tr) + 15deg)) scale(0.65); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
           }
-          @keyframes playerCardFly {
-            0%   { transform: translate(-50%, 400px) rotate(4deg) scale(0.58); opacity: 1; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.95)); }
-            30%  { transform: translate(-50%, 180px) rotate(2deg) scale(0.8); opacity: 1; filter: drop-shadow(0 18px 42px rgba(0,0,0,0.85)); }
-            62%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.2); opacity: 1; filter: drop-shadow(0 24px 55px rgba(0,0,0,0.7)); }
-            82%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(1.06); opacity: 1; filter: none; }
-            94%  { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.95); opacity: 1; }
-            100% { transform: translate(-50%, -50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+          @keyframes cardSlideIn-1 {
+            0%   { transform: translate(-50%,-50%) translateX(-120px) rotate(calc(var(--tr) - 18deg)) scale(0.65); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+          }
+          @keyframes cardSlideIn-2 {
+            0%   { transform: translate(-50%,-50%) translateY(-110px) rotate(calc(var(--tr) + 12deg)) scale(0.65); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+          }
+          @keyframes cardSlideIn-3 {
+            0%   { transform: translate(-50%,-50%) translateX(120px) rotate(calc(var(--tr) - 14deg)) scale(0.65); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
           }
           @keyframes slideToCenter-0 {
             0%  { transform: translateY(80px) scale(0.8) rotate(var(--tr)); opacity: 0; }
@@ -864,17 +902,62 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             50% { filter: drop-shadow(0 0 20px rgba(212,175,55,0.95)); }
           }
           @keyframes winPulse {
-            0%,100% { box-shadow: inset 0 0 0 transparent; }
-            40%      { box-shadow: inset 0 0 120px rgba(67,160,71,0.3); }
+            0%,100% { filter: brightness(1); }
+            35%      { filter: brightness(1.15) saturate(1.3); }
           }
           @keyframes loseShake {
             0%,100% { transform: translateX(0); }
             20%,60% { transform: translateX(-6px); }
             40%,80% { transform: translateX(6px); }
           }
-          @keyframes reactionFloat {
-            0%   { transform: translateY(0) scale(0.6); opacity: 1; }
-            100% { transform: translateY(-90px) scale(1.5); opacity: 0; }
+          @keyframes thoughtBubblePop {
+            0%   { transform: scale(0.4) translateY(12px); opacity: 0; }
+            60%  { transform: scale(1.08) translateY(-2px); opacity: 1; }
+            80%  { transform: scale(0.97) translateY(0); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+          }
+          @keyframes thoughtBubbleFade {
+            0%,75% { opacity: 1; }
+            100%   { opacity: 0; }
+          }
+          @keyframes propBounce {
+            0%   { transform: translateY(0) rotate(0deg) scale(1); }
+            20%  { transform: translateY(-14px) rotate(-6deg) scale(1.15); }
+            45%  { transform: translateY(4px) rotate(5deg) scale(0.95); }
+            65%  { transform: translateY(-7px) rotate(-3deg) scale(1.08); }
+            82%  { transform: translateY(2px) rotate(2deg) scale(0.98); }
+            100% { transform: translateY(0) rotate(0deg) scale(1); }
+          }
+          @keyframes propSparkle {
+            0%   { filter: drop-shadow(0 4px 12px rgba(0,0,0,0.75)); }
+            30%  { filter: drop-shadow(0 0 18px rgba(212,175,55,0.9)) drop-shadow(0 0 8px rgba(255,255,255,0.7)); }
+            60%  { filter: drop-shadow(0 0 12px rgba(212,175,55,0.6)); }
+            100% { filter: drop-shadow(0 4px 12px rgba(0,0,0,0.75)); }
+          }
+          @keyframes smackRipple {
+            0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 0.9; border-width: 4px; }
+            60%  { transform: translate(-50%,-50%) scale(1.8); opacity: 0.5; border-width: 2px; }
+            100% { transform: translate(-50%,-50%) scale(3); opacity: 0; border-width: 1px; }
+          }
+          @keyframes bookSlide-0 {
+            0%   { transform: translate(-50%,-50%) translate(0px, 90px) scale(0.5) rotate(-15deg); opacity: 0; }
+            50%  { opacity: 1; }
+            100% { transform: translate(-50%,-50%) translate(0px, calc(50vh * 0.32)) scale(1) rotate(-5deg); opacity: 1; }
+          }
+          @keyframes bookSlide-1 {
+            0%   { transform: translate(-50%,-50%) translate(-80px, 0) scale(0.5) rotate(12deg); opacity: 0; }
+            50%  { opacity: 1; }
+            100% { transform: translate(-50%,-50%) translate(calc(-50vw * 0.38), 0) scale(1) rotate(8deg); opacity: 1; }
+          }
+          @keyframes bookSlide-2 {
+            0%   { transform: translate(-50%,-50%) translate(0, -80px) scale(0.5) rotate(10deg); opacity: 0; }
+            50%  { opacity: 1; }
+            100% { transform: translate(-50%,-50%) translate(0, calc(-50vh * 0.32)) scale(1) rotate(5deg); opacity: 1; }
+          }
+          @keyframes bookSlide-3 {
+            0%   { transform: translate(-50%,-50%) translate(80px, 0) scale(0.5) rotate(-12deg); opacity: 0; }
+            50%  { opacity: 1; }
+            100% { transform: translate(-50%,-50%) translate(calc(50vw * 0.38), 0) scale(1) rotate(-8deg); opacity: 1; }
           }
           @keyframes tipSlide {
             0%   { transform: translateY(-10px); opacity: 0; }
@@ -917,12 +1000,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           </div>
         )}
 
-        {/* FLOATING REACTIONS */}
-        <div className="fixed bottom-44 right-3 z-50 pointer-events-none flex flex-col gap-1">
-          {reactions.map(r => (
-            <div key={r.id} className="text-3xl" style={{ animation: 'reactionFloat 2.8s ease-out forwards' }}>{r.emoji}</div>
-          ))}
-        </div>
+        {/* THOUGHT BUBBLES - rendered inside table area, see below */}
 
         {/* AI INDICATOR */}
         {isAIThinking && (
@@ -1089,15 +1167,40 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
               <div
                 className="flex-1 relative"
                 style={{
-                  background: 'radial-gradient(ellipse at 50% 45%, #2e7d32 0%, #1b5e20 45%, #0d3312 100%)',
+                  background: '#050308',
                   animation: winFlash ? 'winPulse 2s ease-out' : loseFlash ? 'loseShake 0.5s ease-out' : undefined,
                   minHeight: '300px',
+                  overflow: 'hidden',
                 }}
               >
-                {/* Felt texture lines */}
-                <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px), repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,0.008) 3px, rgba(255,255,255,0.008) 4px)' }} />
-                {/* Inner border */}
-                <div className="absolute inset-[10px] pointer-events-none rounded-sm" style={{ border: '1px solid rgba(212,175,55,0.15)', boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)' }} />
+                {/* ══ OVAL TABLE LAYERS ══ */}
+                {/* Leather outer ring */}
+                <div className="absolute pointer-events-none" style={{
+                  top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  width: '90%', height: '94%', minHeight: 260, minWidth: 260,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(ellipse at 38% 30%, #4a2208 0%, #2a1205 45%, #1a0902 100%)',
+                  boxShadow: '0 8px 60px rgba(0,0,0,0.85), 0 2px 8px rgba(0,0,0,0.6), inset 0 2px 6px rgba(255,255,255,0.05)',
+                  zIndex: 0,
+                }} />
+                {/* Wood-grain rail */}
+                <div className="absolute pointer-events-none" style={{
+                  top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  width: 'calc(90% - 16px)', height: 'calc(94% - 12px)', minHeight: 248, minWidth: 248,
+                  borderRadius: '50%',
+                  background: 'conic-gradient(from 0deg, #8B5E3C 0%, #6B4226 8%, #9a6a44 16%, #5a3418 24%, #8B5E3C 32%, #7a5230 40%, #9a6742 48%, #6B4226 56%, #8B5E3C 64%, #5a3418 72%, #9a6a44 80%, #7a5230 88%, #8B5E3C 100%)',
+                  boxShadow: 'inset 0 3px 10px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06)',
+                  zIndex: 1,
+                }} />
+                {/* Felt surface */}
+                <div className="absolute pointer-events-none" style={{
+                  top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  width: 'calc(90% - 48px)', height: 'calc(94% - 38px)', minHeight: 222, minWidth: 212,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(ellipse at 50% 45%, #2e7d32 0%, #1b5e20 45%, #0d3312 100%)',
+                  boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4)',
+                  zIndex: 2,
+                }} />
 
                 {/* $Pc logo engraving in table center — realistic felt engraving */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1]" style={{ textAlign: 'center' }}>
@@ -1127,12 +1230,53 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   }}>EST. MMI</div>
                 </div>
 
+                {/* ══ THOUGHT BUBBLE REACTIONS ══ */}
+                {reactions.map(r => {
+                  const posMap: Record<string, React.CSSProperties> = {
+                    you:  { bottom: '18%', left: '50%', transform: 'translateX(-50%)' },
+                    p2:   { left: '16%',  top: '50%',  transform: 'translateY(-50%)' },
+                    p3:   { top: '18%',   left: '50%', transform: 'translateX(-50%)' },
+                    p4:   { right: '16%', top: '50%',  transform: 'translateY(-50%)' },
+                  };
+                  const tailMap: Record<string, React.CSSProperties> = {
+                    you:  { flexDirection: 'column-reverse' as const, alignItems: 'center' },
+                    p2:   { flexDirection: 'row-reverse' as const, alignItems: 'center' },
+                    p3:   { flexDirection: 'column' as const, alignItems: 'center' },
+                    p4:   { flexDirection: 'row' as const, alignItems: 'center' },
+                  };
+                  const pos = posMap[r.player] || posMap.you;
+                  const tail = tailMap[r.player] || tailMap.you;
+                  return (
+                    <div key={r.id} className="absolute pointer-events-none" style={{ ...pos, zIndex: 62, display: 'flex', ...tail, gap: 2, animation: 'thoughtBubbleFade 2.8s ease-out forwards' }}>
+                      <div style={{
+                        background: 'rgba(255,255,255,0.96)',
+                        borderRadius: 16, padding: '6px 11px',
+                        lineHeight: 1.3, textAlign: 'center',
+                        boxShadow: '0 4px 18px rgba(0,0,0,0.4), 0 0 0 1.5px rgba(0,0,0,0.08)',
+                        maxWidth: 170, color: '#333', fontWeight: 600, fontSize: 14,
+                        animation: 'thoughtBubblePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both',
+                        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      }}>{r.emoji}</div>
+                      {[9, 6, 4].map((sz, di) => (
+                        <div key={di} style={{ width: sz, height: sz, borderRadius: '50%', background: 'rgba(255,255,255,0.96)', boxShadow: '0 2px 6px rgba(0,0,0,0.3)', flexShrink: 0 }} />
+                      ))}
+                    </div>
+                  );
+                })}
+
                 {/* 3D Table prop - user selected */}
                 {(() => {
                   const prop = TABLE_PROPS.find(p => p.id === selectedProp) || TABLE_PROPS[0];
                   return (
-                    <div className="absolute top-3 right-3 select-none z-[2]"
-                      style={{ opacity: 0.88, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.75))', cursor: 'pointer' }}
+                    <div className="absolute top-3 right-3 select-none z-[10]"
+                      style={{
+                        opacity: 0.88,
+                        cursor: 'pointer',
+                        animation: propCelebrating ? 'propBounce 0.7s ease-out both' : undefined,
+                        filter: propCelebrating ? undefined : 'drop-shadow(0 4px 12px rgba(0,0,0,0.75))',
+                        animationName: propCelebrating ? 'propBounce, propSparkle' : undefined,
+                        animationDuration: propCelebrating ? '0.7s, 0.7s' : undefined,
+                      }}
                       onClick={() => setShowPropPicker(true)}
                       title="Click to change prop">
                       {prop.el}
@@ -1173,6 +1317,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div>
                       <div className="text-xs font-bold text-white">{players[2].name}</div>
                       <div className="text-xs text-white/60">{players[2].nilBid ? '🚫NIL' : `Bid: ${players[2].bid ?? '?'}`} · {players[2].tricks}✓</div>
+                      {gamePhase === 'playing' && bookStacks[2] > 0 && (
+                        <div className="flex gap-0.5 mt-0.5">
+                          {Array.from({ length: Math.min(bookStacks[2], 13) }).map((_, bi) => (
+                            <div key={bi} style={{ width: 5, height: 7, borderRadius: 1, background: animatingBook === 'p3' && bi === bookStacks[2] - 1 ? '#D4AF37' : '#4CAF50', border: '1px solid rgba(255,255,255,0.15)', transition: 'background 0.3s' }} />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1209,6 +1360,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-xs font-bold text-white">{players[1].name}</div>
                     <div className="text-[10px] text-white/60">{players[1].nilBid ? '🚫NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
                     <div className="text-[10px] text-white/60">{players[1].tricks}✓</div>
+                    {gamePhase === 'playing' && bookStacks[1] > 0 && (
+                      <div className="flex gap-0.5 mt-1">
+                        {Array.from({ length: Math.min(bookStacks[1], 13) }).map((_, bi) => (
+                          <div key={bi} style={{ width: 4, height: 6, borderRadius: 1, background: animatingBook === 'p2' && bi === bookStacks[1] - 1 ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.12)', transition: 'background 0.3s' }} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1244,6 +1402,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-xs font-bold text-white">{players[3].name}</div>
                     <div className="text-[10px] text-white/60">{players[3].nilBid ? '🚫NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
                     <div className="text-[10px] text-white/60">{players[3].tricks}✓</div>
+                    {gamePhase === 'playing' && bookStacks[3] > 0 && (
+                      <div className="flex gap-0.5 mt-1">
+                        {Array.from({ length: Math.min(bookStacks[3], 13) }).map((_, bi) => (
+                          <div key={bi} style={{ width: 4, height: 6, borderRadius: 1, background: animatingBook === 'p4' && bi === bookStacks[3] - 1 ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.12)', transition: 'background 0.3s' }} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1272,6 +1437,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   <div>
                     <div className="text-sm font-bold text-white">You</div>
                     <div className="text-xs text-white/60">{players[0].nilBid ? '🚫NIL' : players[0].blindNilBid ? '🔮BNIL' : `Bid: ${players[0].bid ?? '?'}`} · {players[0].tricks}✓</div>
+                    {gamePhase === 'playing' && bookStacks[0] > 0 && (
+                      <div className="flex gap-0.5 mt-0.5">
+                        {Array.from({ length: Math.min(bookStacks[0], 13) }).map((_, bi) => (
+                          <div key={bi} style={{ width: 6, height: 8, borderRadius: 1, background: animatingBook === 'you' && bi === bookStacks[0] - 1 ? '#FFD700' : '#43A047', border: '1px solid rgba(255,255,255,0.2)', transition: 'background 0.3s' }} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1321,25 +1493,46 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   )}
                 </div>
 
-                {/* ── TOSS CARD OVERLAY ── */}
-                {tossCard && (
-                  <div
-                    key={`${tossCard.card.suit}${tossCard.card.rank}-${Math.round(tossCard.rotation * 1000)}`}
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      zIndex: 50,
-                      pointerEvents: 'none',
-                      animation: tossCard.fromPlayer
-                        ? 'playerCardFly 0.85s cubic-bezier(0.22,1,0.36,1) forwards'
-                        : 'tossCardIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
-                      '--tr': `${tossCard.rotation}deg`,
-                    } as React.CSSProperties}
-                  >
-                    {renderCardFace(tossCard.card, undefined, { size: 'lg' })}
-                  </div>
-                )}
+                {/* ── TOSS CARD OVERLAY (slide-and-turn from player direction) ── */}
+                {tossCard && (() => {
+                  const pi = tossCard.playerIdx ?? 0;
+                  const dur = tossCard.fromPlayer ? '0.85s' : '0.55s';
+                  return (
+                    <div
+                      key={`${tossCard.card.suit}${tossCard.card.rank}-${Math.round(tossCard.rotation * 1000)}`}
+                      style={{
+                        position: 'absolute',
+                        top: '50%', left: '50%',
+                        zIndex: 50,
+                        pointerEvents: 'none',
+                        animation: `cardSlideIn-${pi} ${dur} cubic-bezier(0.22,1,0.36,1) forwards`,
+                        '--tr': `${tossCard.rotation}deg`,
+                      } as React.CSSProperties}
+                    >
+                      {renderCardFace(tossCard.card, undefined, { size: 'lg' })}
+                    </div>
+                  );
+                })()}
+
+                {/* ── DEAL SMACK RIPPLES ── */}
+                {dealSmacks.map(smack => {
+                  const smackPos: React.CSSProperties[] = [
+                    { bottom: '20%', left: '50%' },
+                    { left: '16%', top: '50%' },
+                    { top: '20%', left: '50%' },
+                    { right: '16%', top: '50%' },
+                  ];
+                  return (
+                    <div key={smack.id} className="absolute pointer-events-none" style={{
+                      ...smackPos[smack.target],
+                      width: 54, height: 54,
+                      borderRadius: '50%',
+                      border: '3px solid rgba(212,175,55,0.7)',
+                      zIndex: 35,
+                      animation: 'smackRipple 0.45s ease-out forwards',
+                    }} />
+                  );
+                })}
 
                 {/* ── DEALING ANIMATION OVERLAY ── */}
                 {gamePhase === 'dealing' && (
