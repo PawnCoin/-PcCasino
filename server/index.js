@@ -140,6 +140,10 @@ setInterval(broadcastLeaderboard, 30000);
 // ---- Recent winners feed (real data only — populated by game wins) ----
 const recentWinners = [];
 
+function generateWinner() {
+  return { name: '', game: '', amount: 0 };
+}
+
 // ---- VIP Cashback Automation ----
 const VIP_CASHBACK_RATES = { bronze: 0, silver: 0.01, gold: 0.02, platinum: 0.05, diamond: 0.10 };
 

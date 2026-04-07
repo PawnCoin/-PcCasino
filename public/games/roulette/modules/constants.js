@@ -519,15 +519,15 @@ export const tableCoords = {
 };
 
 export const CHIP_IMAGE_BY_VALUE = {
-  1: 'src/images/tableChips1.png',
-  2: 'src/images/tableChips2.png',
-  5: 'src/images/tableChips3.png',
-  10: 'src/images/tableChips4.png',
-  25: 'src/images/tableChips5.png',
-  50: 'src/images/tableChips6.png',
-  100: 'src/images/tableChips7.png',
-  500: 'src/images/tableChips8.png',
-  1000: 'src/images/tableChips9.png',
+  1000000: 'src/images/tableChips1.png',
+  2000000: 'src/images/tableChips2.png',
+  5000000: 'src/images/tableChips3.png',
+  10000000: 'src/images/tableChips4.png',
+  25000000: 'src/images/tableChips5.png',
+  50000000: 'src/images/tableChips6.png',
+  100000000: 'src/images/tableChips7.png',
+  500000000: 'src/images/tableChips8.png',
+  1000000000: 'src/images/tableChips9.png',
 };
 export const songName = [
   'Night Skies',
@@ -544,4 +544,4 @@ export const langTexts = {
   ruLang: 'Выберите язык',
   frLang: 'Choisissez la langue',
 };
-export const chipValues = [1, 2, 5, 10, 25, 50, 100, 500, 1000];
+export const chipValues = [1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 500000000, 1000000000];

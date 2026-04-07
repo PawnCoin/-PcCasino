@@ -272,10 +272,8 @@ function cancelLastBet() {
     number: numberBets,
   }[name];
   const updateUI = () => {
-    moneyInfo.innerHTML = `${currentLang[0]} $Pc{money.toLocaleString('en-US')} $Pc`;
-    totalBet.innerHTML = `${currentLang[1]} $Pc{betSize.toLocaleString(
-      'en-US'
-    )} $Pc`;
+    moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
+    totalBet.innerHTML = `${currentLang[1]} ${betSize.toLocaleString("en-US")} $Pc`;
   };
   if (history > 0 && betType && last.splitNumbers) {
     betType[last.splitNumbers] = last.oldValue;
@@ -327,8 +325,8 @@ function changeLang(lang) {
   currentLang = lang;
   const fmt = (n) => n.toLocaleString('en-US');
   const $ = (s) => document.querySelector(s);
-  moneyInfo.innerHTML = `${currentLang[0]} $Pc{fmt(money)} $Pc`;
-  totalBet.innerHTML = `${currentLang[1]} $Pc{fmt(betSize)} $Pc`;
+  moneyInfo.innerHTML = `${currentLang[0]} ${fmt(money)} $Pc`;
+  totalBet.innerHTML = `${currentLang[1]} ${fmt(betSize)} $Pc`;
   totalWin.innerHTML = `${currentLang[2]}0 $Pc`;
   $('#langChoose').style.transform = 'scale(0)';
   setTimeout(() => {
@@ -548,8 +546,8 @@ function doubleBets() {
   betSize = recomputeTotalBet();
   money -= betSize;
   window.parent.postMessage({ type: "bet", amount: betSize }, "*");
-  moneyInfo.innerHTML = `${currentLang[0]} $Pc{money.toLocaleString('en-US')} $Pc`;
-  totalBet.innerHTML = `${currentLang[1]} $Pc{betSize.toLocaleString('en-US')} $Pc`;
+  moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
+  totalBet.innerHTML = `${currentLang[1]} ${betSize.toLocaleString("en-US")} $Pc`;
   [
     'number',
     'split',
@@ -1394,8 +1392,8 @@ function restartGame() {
     sixainBets,
     sectionBets
   );
-  moneyInfo.innerHTML = `${currentLang[0]} $Pc{money.toLocaleString('en-US')} $Pc`;
-  totalBet.innerHTML = `${currentLang[1]} $Pc{betSize.toLocaleString('en-US')} $Pc`;
+  moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
+  totalBet.innerHTML = `${currentLang[1]} ${betSize.toLocaleString("en-US")} $Pc`;
   totalWin.innerHTML = `${currentLang[2]}0 $Pc`;
   document.querySelector('#restartGame').style.display = 'none';
   historyMenu.innerHTML = '';

@@ -52,7 +52,9 @@ const zoneInsuranceChips = [[], [], []];
 const zoneSurrenderChips = [[], [], [], [], [], []];
 const betHistory = [];
 const BASE_ZONES = ['betZone1', 'betZone2', 'betZone3'];
-const chipValues = [1, 5, 10, 25, 100, 1000];
+const chipValues = [1000000, 5000000, 10000000, 25000000, 100000000, 500000000];
+const CHIP_IMG_MAP = {1000000: 1, 5000000: 5, 10000000: 10, 25000000: 25, 100000000: 100, 500000000: 1000};
+function chipImg(v) { return 'src/images/chips/chip' + (CHIP_IMG_MAP[v] || v) + '.png'; }
 const REBET_CHECK_BY = 'amount';
 const songName = [
   'Velvet Groove',
@@ -65,11 +67,11 @@ const songName = [
   'Moonlight',
 ];
 const upgradeRules = {
-  1: { count: 5, next: 5 },
-  5: { count: 2, next: 10 },
-  10: { count: 10, next: 100 },
-  25: { count: 4, next: 100 },
-  100: { count: 10, next: 1000 },
+  1000000: { count: 5, next: 5000000 },
+  5000000: { count: 2, next: 10000000 },
+  10000000: { count: 10, next: 100000000 },
+  25000000: { count: 4, next: 100000000 },
+  100000000: { count: 10, next: 500000000 },
 };
 
 const groups = [
@@ -576,11 +578,11 @@ function placeBet(betName, type = 'main') {
   playerInfo.balance -= playerInfo.bet;
   playerInfo.totalBet += playerInfo.bet;
   betStatusInfo[1].textContent =
-    '$' + playerInfo.totalBet.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
   betStatusInfo[0].textContent =
-    '$' + playerInfo.balance.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   scoreElement[index].textContent =
-    '$' + betZoneInfo[betName][betType].toLocaleString('de-DE');
+    '$Pc ' + betZoneInfo[betName][betType].toLocaleString('de-DE');
   scoreElement[index].style.opacity = 1;
   betHistory.push({
     betName,
@@ -623,7 +625,7 @@ function clearBets() {
   }
   playerInfo.totalBet = 0;
   betStatusInfo[0].textContent =
-    '$' + playerInfo.balance.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   betStatusInfo[1].textContent = '0 $Pc';
   BASE_ZONES.forEach((z) => {
     const bz = betZoneInfo[z];
@@ -911,7 +913,7 @@ function split() {
   scoreInfo[mapping[activeZone][2]].style.left = mapping[activeZone][4] + '%';
   scoreInfo[mapping[activeZone][3]].style.left = mapping[activeZone][5] + '%';
   scoreInfo[mapping[activeZone][3]].textContent =
-    '$' + betZoneInfo[splitZone2].bet.toLocaleString('de-DE');
+    '$Pc ' + betZoneInfo[splitZone2].bet.toLocaleString('de-DE');
   scoreInfo[mapping[activeZone][3]].style.opacity = 1;
   cards.forEach((card) => {
     card.style.transform = 'none';
@@ -989,9 +991,9 @@ function split() {
   playerInfo.totalBet += betZoneInfo[activeZone].bet;
   betZoneInfo[activeZone].bet = 0;
   betStatusInfo[0].textContent =
-    '$' + playerInfo.balance.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   betStatusInfo[1].textContent =
-    '$' + playerInfo.totalBet.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
 }
 
 function stand() {
@@ -1173,7 +1175,7 @@ function dealerPlay() {
             const totalReturn = insBet + winnings;
             playerInfo.balance += totalReturn;
             betStatusInfo[0].textContent =
-              '$' + playerInfo.balance.toLocaleString('de-DE');
+              '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
             normalizeZone(i, 'insurance', totalReturn);
             sendChips('insurance', i, 'player');
             betZoneInfo[betName].insuranceBet = 0;
@@ -1302,13 +1304,13 @@ function checkMainBets() {
     playerInfo.totalBet = 0;
     betStatusInfo[1].textContent = '0 $Pc';
     betStatusInfo[0].textContent =
-      '$' + playerInfo.balance.toLocaleString('de-DE');
+      '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
     if (lastBalance !== null) {
       playerInfo.lastWin = playerInfo.balance - lastBalance;
       const value = playerInfo.lastWin;
       if (value > 0) { window.parent.postMessage({ type: "win", amount: value }, "*"); } else if (value < 0) { window.parent.postMessage({ type: "bet", amount: Math.abs(value) }, "*"); }
       betStatusInfo[2].textContent =
-        (value < 0 ? '- ' : '') + '$' + Math.abs(value).toLocaleString('de-DE');
+        (value < 0 ? '- ' : '') + '$Pc ' + Math.abs(value).toLocaleString('de-DE');
       lastBalance = null;
     }
     hideStandardButtons();
@@ -1331,7 +1333,7 @@ function duplicateChips(index, type) {
     const newChip = document.createElement('div');
     newChip.classList.add('tableChip');
     newChip.dataset.value = value;
-    newChip.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+    newChip.style.backgroundImage = `url(${chipImg(value)})`;
     newChip.style.top = chip.style.top;
     newChip.style.right = chip.style.right;
     newChip.style.zIndex = 2000 + i;
@@ -1390,7 +1392,7 @@ function createChip(value, index, type = 'main') {
   const chip = document.createElement('div');
   chip.classList.add('tableChip');
   chip.dataset.value = value;
-  chip.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+  chip.style.backgroundImage = `url(${chipImg(value)})`;
   const betName =
     index === 0 ? 'betZone1' : index === 1 ? 'betZone2' : 'betZone3';
   const [chipTop, chipRight] =
@@ -1486,7 +1488,7 @@ function normalizeZone(index, type = 'main', customTotal = null) {
       const chip = document.createElement('div');
       chip.classList.add('tableChip');
       chip.dataset.value = d;
-      chip.style.backgroundImage = `url(src/images/chips/chip${d}.png)`;
+      chip.style.backgroundImage = `url(${chipImg(d)})`;
       chip.style.top = chipTop + '%';
       chip.style.right = chipRight + '%';
       game.appendChild(chip);
@@ -1520,7 +1522,7 @@ function splitChips(activeZone) {
       const newChip = document.createElement('div');
       newChip.classList.add('tableChip');
       newChip.dataset.value = value;
-      newChip.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+      newChip.style.backgroundImage = `url(${chipImg(value)})`;
       newChip.style.top = chipTop + '%';
       newChip.style.right = chipRight - 2 + '%';
       newChip.style.zIndex = 2000 + i;
@@ -1588,7 +1590,7 @@ function double() {
       const chip = document.createElement('div');
       chip.classList.add('tableChip');
       chip.dataset.value = value;
-      chip.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+      chip.style.backgroundImage = `url(${chipImg(value)})`;
       chip.style.top = chipTop + '%';
       chip.style.right = chipRight + '%';
       chip.style.transform = 'scale(0)';
@@ -1607,11 +1609,11 @@ function double() {
   });
   if (betTarget.scoreZone) {
     betTarget.scoreZone.textContent =
-      '$' + betTarget.bet.toLocaleString('de-DE');
+      '$Pc ' + betTarget.bet.toLocaleString('de-DE');
     betStatusInfo[1].textContent =
-      '$' + playerInfo.totalBet.toLocaleString('de-DE');
+      '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
     betStatusInfo[0].textContent =
-      '$' + playerInfo.balance.toLocaleString('de-DE');
+      '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   }
   if (activeZone) {
     const { top, right } = betZoneInfo[activeZone];
@@ -1660,7 +1662,7 @@ function createChipWithFlight(value, index, type = 'main') {
     T =
       'top 300ms ease, right 300ms ease, transform 300ms ease, opacity 300ms ease';
   css(chip, {
-    backgroundImage: `url(src/images/chips/chip${value}.png)`,
+    backgroundImage: `url(${chipImg(value)})`,
     top: start.top + '%',
     right: start.right + '%',
     transition: T,
@@ -1908,7 +1910,7 @@ function checkBets() {
         if (payout > 0) {
           el.style.boxShadow = '0vh 0vh 1vh 0vh green inset';
           el.innerHTML =
-            '$' + toDE(stake) + ' × ' + multStr + '<br>+$' + toDE(payout);
+            '$Pc ' + toDE(stake) + ' × ' + multStr + '<br>+$' + toDE(payout);
 
           playerInfo.balance += payout + stake;
           normalizeZone(idx, normalize, stake + payout);
@@ -2088,7 +2090,7 @@ function surrender() {
       const c = document.createElement('div');
       c.classList.add('tableChip');
       c.dataset.value = value;
-      c.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+      c.style.backgroundImage = `url(${chipImg(value)})`;
       c.style.top = chipTop + '%';
       c.style.right =
         (left ? chipRight + 4 : right ? chipRight - 4 : chipRight + 2) + '%';
@@ -2103,7 +2105,7 @@ function surrender() {
       const c = document.createElement('div');
       c.classList.add('tableChip');
       c.dataset.value = value;
-      c.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+      c.style.backgroundImage = `url(${chipImg(value)})`;
       c.style.top = chipTop + '%';
       c.style.right =
         (left ? chipRight + 1.5 : right ? chipRight - 1.5 : chipRight - 2) +
@@ -2139,7 +2141,7 @@ function surrender() {
   }, totalWait);
   playerInfo.balance += surrenderAmount;
   betStatusInfo[0].textContent =
-    '$' + playerInfo.balance.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
 
   betZoneInfo[activeZone].bet = 0;
   if (betZoneInfo[activeZone].scoreZone)
@@ -2167,9 +2169,9 @@ function insurance() {
   playerInfo.totalBet += insuranceAmount;
   playerInfo.balance -= insuranceAmount;
   betStatusInfo[1].textContent =
-    '$' + playerInfo.totalBet.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
   betStatusInfo[0].textContent =
-    '$' + playerInfo.balance.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
 
   let total = insuranceAmount;
   const denoms = [1000, 100, 25, 10, 5, 1],
@@ -2186,7 +2188,7 @@ function insurance() {
       const c = document.createElement('div');
       c.classList.add('tableChip');
       c.dataset.value = value;
-      c.style.backgroundImage = `url(src/images/chips/chip${value}.png)`;
+      c.style.backgroundImage = `url(${chipImg(value)})`;
       c.style.top = chipTop + '%';
       c.style.right = chipRight + '%';
       c.style.zIndex = 2000 + i;
@@ -2298,7 +2300,7 @@ function evenMoney() {
     bet = z.bet;
   playerInfo.balance += bet * 2;
   betStatusInfo[0].textContent =
-    '$' + playerInfo.balance.toLocaleString('de-DE');
+    '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
 
   let index, chipType;
   if (activeZone.startsWith('betZone')) {
@@ -2427,15 +2429,15 @@ function replaceZoneChips(zoneId, newTotal, typeHint = null) {
   if (betZoneInfo[betZoneName] && betZoneInfo[betZoneName].scoreZone) {
     try {
       betZoneInfo[betZoneName].scoreZone.textContent =
-        '$' + (betZoneInfo[betZoneName][field] || 0).toLocaleString('de-DE');
+        '$Pc ' + (betZoneInfo[betZoneName][field] || 0).toLocaleString('de-DE');
       betZoneInfo[betZoneName].scoreZone.style.opacity = 1;
     } catch (e) {}
   }
   if (typeof betStatusInfo !== 'undefined' && betStatusInfo.length >= 2) {
     betStatusInfo[1].textContent =
-      '$' + (playerInfo.totalBet || 0).toLocaleString('de-DE');
+      '$Pc ' + (playerInfo.totalBet || 0).toLocaleString('de-DE');
     betStatusInfo[0].textContent =
-      '$' + (playerInfo.balance || 0).toLocaleString('de-DE');
+      '$Pc ' + (playerInfo.balance || 0).toLocaleString('de-DE');
   }
 }
 
@@ -2476,9 +2478,9 @@ function undoLastBet() {
   playerInfo.balance += value;
   playerInfo.totalBet = Math.max(0, (playerInfo.totalBet || 0) - value);
   betStatusInfo[0].textContent =
-    '$' + (playerInfo.balance || 0).toLocaleString('de-DE');
+    '$Pc ' + (playerInfo.balance || 0).toLocaleString('de-DE');
   betStatusInfo[1].textContent =
-    '$' + (playerInfo.totalBet || 0).toLocaleString('de-DE');
+    '$Pc ' + (playerInfo.totalBet || 0).toLocaleString('de-DE');
   checkChipAvailable();
   const sumMain = BASE_ZONES.reduce(
     (acc, z) => acc + (betZoneInfo[z].bet || 0),
@@ -2664,9 +2666,9 @@ function rebet() {
 
   if (betStatusInfo && betStatusInfo.length >= 2) {
     betStatusInfo[0].textContent =
-      '$' + playerInfo.balance.toLocaleString('de-DE');
+      '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
     betStatusInfo[1].textContent =
-      '$' + playerInfo.totalBet.toLocaleString('de-DE');
+      '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
   }
   if (dealBtn) dealBtn.classList.remove('inactiveBtn');
   if (clearAllBtn) clearAllBtn.classList.remove('inactiveBtn');
@@ -2867,7 +2869,7 @@ newGameBtn.addEventListener('click', () => {
     playerInfo.balance = (() => { const p = new URLSearchParams(window.location.search); const b = parseInt(p.get("balance"), 10); return isNaN(b) ? 1000 : b; })();
     notification('NO BALANCE | PLAYER BALANCE RESET TO 1000');
     betStatusInfo[0].textContent =
-      '$' + playerInfo.balance.toLocaleString('de-DE');
+      '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   }
   hidePostRoundButtons();
   resetForNewRoundUI();
