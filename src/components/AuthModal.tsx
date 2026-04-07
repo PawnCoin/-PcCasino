@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wallet, Twitter, MessageCircle, Send, Eye, EyeOff, Mail, Lock, User, KeyRound } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { authApi, setToken } from '@/lib/api';
@@ -9,11 +9,12 @@ interface AuthModalProps {
   onConnect: (provider: 'google' | 'twitter' | 'discord' | 'telegram') => void;
   onWalletConnect: () => void;
   onEmailLogin?: (user: any) => void;
+  initialReferralCode?: string;
 }
 
 type Tab = 'login' | 'register' | 'social';
 
-export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmailLogin }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmailLogin, initialReferralCode }: AuthModalProps) {
   const [tab, setTab] = useState<Tab>('login');
   const [connecting, setConnecting] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,9 +28,16 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
   const [email, setEmail]       = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [referral, setReferral] = useState(
-    () => sessionStorage.getItem('pcasino_ref_code') || ''
-  );
+  const [referral, setReferral] = useState('');
+
+  // Sync referral code from prop (passed from App state) each time modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const code = initialReferralCode || sessionStorage.getItem('pcasino_ref_code') || '';
+      setReferral(code);
+      if (code) setTab('register');
+    }
+  }, [isOpen, initialReferralCode]);
 
   const reset = () => {
     setError('');

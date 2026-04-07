@@ -111,6 +111,8 @@ function App() {
     welcomeBonus: number;
     code: string;
   } | null>(null);
+  // Referral code persists through overlay dismissal so it can be passed to AuthModal
+  const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>();
 
   // Card deck preference
   const { selectedDeck, selectDeck, getCardBackStyle, addCustomDeck, allDecks } = useCardDeck();
@@ -160,11 +162,15 @@ function App() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.valid && data.referrerUsername) {
+          setPendingReferralCode(refCode);
           setReferralOverlay({
             referrerUsername: data.referrerUsername,
             welcomeBonus: data.welcomeBonus ?? 50000000,
             code: refCode,
           });
+        } else if (refCode) {
+          // Code stored but not validated — keep it for the register form fallback
+          setPendingReferralCode(refCode);
         }
       })
       .catch(() => {});
@@ -387,6 +393,7 @@ function App() {
     } as any;
     setUser(userData);
     setIsAuthenticated(true);
+    setPendingReferralCode(undefined);
     localStorage.setItem('pcasino_user', JSON.stringify(userData));
     fetchNotifications();
     toast.success(`Welcome, ${userData.username}! 🎰`);
@@ -1047,6 +1054,7 @@ function App() {
           setShowAuth(false);
           setShowWalletModal(true);
         }}
+        initialReferralCode={pendingReferralCode}
       />
 
       {/* Wallet Connect Modal */}

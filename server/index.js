@@ -420,24 +420,7 @@ app.get('/api/referrals/validate/:code', async (req, res) => {
   const { code } = req.params;
   if (!code || typeof code !== 'string') return res.status(400).json({ error: 'Invalid code' });
   try {
-    // Try DB: find referrer by username prefix of the code pattern (USERNAME_XXXX)
-    const prefix = code.split('_')[0];
-    if (prefix) {
-      const found = await query(
-        'SELECT id, username FROM users WHERE username ILIKE $1',
-        [prefix]
-      );
-      if (found.rows.length) {
-        const referrer = found.rows[0];
-        return res.json({
-          valid: true,
-          referrerUsername: referrer.username,
-          referrerId: referrer.id,
-          welcomeBonus: 50000000,
-        });
-      }
-    }
-    // Try in-memory map as fallback
+    // Check in-memory referral map first (exact code match — authoritative)
     const ref = referrals.get(code);
     if (ref) {
       return res.json({
@@ -446,6 +429,31 @@ app.get('/api/referrals/validate/:code', async (req, res) => {
         referrerId: ref.referrerId,
         welcomeBonus: 50000000,
       });
+    }
+    // Fallback: match against DB using the USERNAME_XXXX pattern
+    // Code must be exactly "UUUUUU_XXXX" — require at least one underscore separator
+    // and the suffix must be 4 alphanumeric chars to prevent prefix-only guessing
+    const underscoreIdx = code.lastIndexOf('_');
+    if (underscoreIdx > 0 && underscoreIdx < code.length - 1) {
+      const prefix = code.slice(0, underscoreIdx);
+      const suffix = code.slice(underscoreIdx + 1);
+      if (prefix.length >= 2 && /^[A-Z0-9]{4}$/i.test(suffix)) {
+        const found = await query(
+          `SELECT id, username FROM users
+           WHERE UPPER(SUBSTRING(username, 1, $1)) = UPPER($2)
+           LIMIT 1`,
+          [prefix.length, prefix]
+        );
+        if (found.rows.length) {
+          const referrer = found.rows[0];
+          return res.json({
+            valid: true,
+            referrerUsername: referrer.username,
+            referrerId: referrer.id,
+            welcomeBonus: 50000000,
+          });
+        }
+      }
     }
     return res.status(404).json({ valid: false, error: 'Referral code not found' });
   } catch (err) {
