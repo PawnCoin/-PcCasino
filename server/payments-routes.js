@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, pool } from './db.js';
 import { requireAuth } from './auth-routes.js';
+import { processJackpotContribution } from './jackpot.js';
 import { sendDepositConfirmationEmail, sendWithdrawEmail } from './email.js';
 
 const router = Router();
@@ -267,6 +268,8 @@ router.post('/transaction', requireAuth, async (req, res) => {
       }
 
       await query('UPDATE users SET balance = balance - $1, total_wagered = total_wagered + $1 WHERE id = $2', [amount, user.id]);
+      // Jackpot contribution: fire-and-forget, non-blocking, server-authoritative
+      processJackpotContribution(user.id, user.username, amount).catch(() => {});
     } else if (type === 'win') {
       await query('UPDATE users SET balance = balance + $1, total_won = total_won + $1 WHERE id = $2', [amount, user.id]);
 

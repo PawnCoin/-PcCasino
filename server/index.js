@@ -11,6 +11,7 @@ import { createGameRound, revealGameRound, getGameRound, hashServerSeed, deriveG
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
 import { initDatabase, query, pool } from './db.js';
+import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -54,14 +55,9 @@ const adminLogs = [];
 const pcpaymentsConfig = { apiKey: process.env.PCPAY_API_KEY || '', webhookSecret: process.env.PCPAY_WEBHOOK_SECRET || '', endpoint: '', enabled: false };
 const lobbyChat = [];
 
-// ---- Progressive Jackpot (grows only from real bets — see /api/jackpot/contribute) ----
-let jackpot = 0;
-let jackpotLastWon = null;
-
-// Broadcast jackpot every 5 seconds (only real value)
-setInterval(() => {
-  io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
-}, 5000);
+// ---- Progressive Jackpot — managed by ./jackpot.js ----
+// Broadcast jackpot every 5 seconds via jackpot module
+setInterval(() => broadcastJackpot(), 5000);
 
 // ---- Leaderboard (DB-only — no fake fallback) ----
 
@@ -227,35 +223,29 @@ app.get('/api/stats', async (req, res) => {
     playersOnline: players.size,
     activeTables: rooms.size,
     totalWonToday,
-    jackpot,
+    jackpot: getJackpot(),
     gamesPlayed24h,
   });
 });
 
 // Jackpot current value
 app.get('/api/jackpot', (req, res) => {
-  res.json({ amount: jackpot, lastWon: jackpotLastWon });
+  res.json({ amount: getJackpot(), lastWon: getJackpotLastWon() });
 });
 
-// Jackpot contribution — called by game server when real bets are placed
-app.post('/api/jackpot/contribute', (req, res) => {
-  const { amount } = req.body;
-  if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
-  jackpot += Math.floor(amount * 0.01); // 1% of bet goes to jackpot
-  io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
-  res.json({ jackpot });
+
+// Jackpot history — public list of past winners
+app.get('/api/jackpot/history', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, username, amount, won_at FROM jackpot_history ORDER BY won_at DESC LIMIT 20`
+    );
+    res.json({ history: result.rows.map(r => ({ ...r, amount: parseInt(r.amount) })) });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch jackpot history' });
+  }
 });
 
-// Jackpot win — resets pot and records winner
-app.post('/api/jackpot/win', (req, res) => {
-  const { userId, username } = req.body;
-  const won = jackpot;
-  jackpot = 0;
-  jackpotLastWon = Date.now();
-  io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
-  io.emit('jackpot:won', { userId, username, amount: won, timestamp: Date.now() });
-  res.json({ won, jackpot });
-});
 
 // Live $Pc price — proxies DexScreener + GeckoTerminal (no CORS issues)
 app.get('/api/pc-price', async (req, res) => {
@@ -880,7 +870,7 @@ app.get('/api/admin/stats', (req, res) => {
     activeTournaments: Array.from(tournaments.values()).filter(t => t.status !== 'finished').length,
     totalReferrals: referrals.size,
     totalWon: leaderboard.reduce((s, p) => s + p.totalWon, 0),
-    jackpot,
+    jackpot: getJackpot(),
     adminLogs: adminLogs.slice(0, 20),
   });
 });
@@ -1115,7 +1105,7 @@ io.on('connection', (socket) => {
     const dbData = await getLeaderboardFromDB();
     socket.emit('leaderboard:update', { leaderboard: dbData || leaderboard, lastUpdated: Date.now() });
     socket.emit('winners:list', { winners: recentWinners.slice(0, 10) });
-    socket.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+    socket.emit('jackpot:update', { amount: getJackpot(), lastWon: getJackpotLastWon() });
     io.emit('lobby:stats', { playersOnline: players.size });
   });
 
@@ -1222,19 +1212,10 @@ io.on('connection', (socket) => {
     const lb = leaderboard.find(p => p.username === username);
     if (lb) { lb.totalWon += amount; lb.gamesPlayed++; }
     broadcastLeaderboard();
-    // Jackpot win contributes to jackpot growth burst
-    growJackpot(); growJackpot(); growJackpot();
-    io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
+    broadcastJackpot();
   });
 
-  socket.on('jackpot:win', ({ userId, username, amount }) => {
-    const won = jackpot;
-    jackpot = 500_000 + Math.floor(Math.random() * 200_000); // reset
-    jackpotLastWon = Date.now();
-    io.emit('jackpot:won', { username, amount: won, newJackpot: jackpot });
-    io.emit('jackpot:update', { amount: jackpot, lastWon: jackpotLastWon });
-    logAdmin('jackpot:won', { userId, username, amount: won });
-  });
+  // jackpot:win socket events are deprecated — jackpot is now triggered server-side
 
   socket.on('game:end', ({ winners }) => {
     const player = players.get(socket.id);
@@ -1319,5 +1300,6 @@ io.on('connection', (socket) => {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Multiplayer server running on :${PORT}`);
-  initDatabase();
+  setJackpotIO(io);
+  initDatabase().then(() => loadJackpotFromDB());
 });

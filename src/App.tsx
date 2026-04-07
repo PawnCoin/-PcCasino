@@ -45,6 +45,7 @@ import { ReferralPage } from '@/components/ReferralPage';
 import { LobbyChat } from '@/components/LobbyChat';
 import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
+import { JackpotCelebration } from '@/components/JackpotCelebration';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -104,6 +105,9 @@ function App() {
   const [showDispute, setShowDispute] = useState(false);
   const [showTournaments, setShowTournaments] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
+
+  // Jackpot celebration state (shown when the logged-in user wins the jackpot)
+  const [jackpotCelebration, setJackpotCelebration] = useState<{ amount: number; username: string } | null>(null);
 
   // Referral welcome overlay state
   const [referralOverlay, setReferralOverlay] = useState<{
@@ -421,13 +425,22 @@ function App() {
       addTransaction('deposit', amount, 'Dispute Refund');
       toast.success(`↩️ Refund of ${parseInt(amount).toLocaleString()} $Pc credited!`);
     };
+    const onJackpotWon = (payload: { userId: number | string; username: string; amount: number; newJackpot: number; timestamp: number }) => {
+      if (user && String(user.id) === String(payload.userId)) {
+        updateBalance(user.balance + payload.amount);
+        setJackpotCelebration({ amount: payload.amount, username: payload.username });
+        fetchNotifications();
+      }
+    };
     socket.on('payment:deposit:confirmed', onDepositConfirmed);
     socket.on('cashback:credited', onCashbackCredited);
     socket.on('payment:refund', onPaymentRefund);
+    socket.on('jackpot:won', onJackpotWon);
     return () => {
       socket.off('payment:deposit:confirmed', onDepositConfirmed);
       socket.off('cashback:credited', onCashbackCredited);
       socket.off('payment:refund', onPaymentRefund);
+      socket.off('jackpot:won', onJackpotWon);
     };
   }, [user?.id]);
 
@@ -901,7 +914,7 @@ function App() {
               onOpenDeposit={() => setShowDeposit(true)}
             />
             <div className="flex justify-center py-3 px-4">
-              <JackpotTicker onJackpotWin={(amount) => { toast.success(`🎰 Jackpot won: ${amount.toLocaleString()} $Pc!`, { duration: 6000 }); }} />
+              <JackpotTicker onJackpotWin={(amount) => { if (!jackpotCelebration) toast.success(`🎰 Jackpot won: ${amount.toLocaleString()} $Pc!`, { duration: 6000 }); }} />
             </div>
             <GamesGrid onSelectGame={handleSelectGame} />
             <Leaderboard />
@@ -1459,6 +1472,15 @@ function App() {
           username={user?.username}
           avatar={user?.avatar}
           isAuthenticated={isAuthenticated}
+        />
+      )}
+
+      {/* Progressive Jackpot Celebration */}
+      {jackpotCelebration && (
+        <JackpotCelebration
+          amount={jackpotCelebration.amount}
+          username={jackpotCelebration.username}
+          onClose={() => setJackpotCelebration(null)}
         />
       )}
     </div>

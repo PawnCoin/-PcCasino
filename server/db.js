@@ -234,6 +234,32 @@ export async function initDatabase() {
     // Backfill: existing revealed rounds → 'revealed'; others → 'created'
     await query(`UPDATE game_rounds SET status = 'revealed' WHERE revealed_at IS NOT NULL AND status = 'created'`);
 
+    // Progressive jackpot persistent state (single row)
+    await query(`
+      CREATE TABLE IF NOT EXISTS jackpot_state (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        amount BIGINT NOT NULL DEFAULT 10000000,
+        last_won_at TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT jackpot_state_single_row CHECK (id = 1)
+      )
+    `);
+    // Seed the row if it doesn't exist
+    await query(`INSERT INTO jackpot_state (id, amount) VALUES (1, 10000000) ON CONFLICT DO NOTHING`);
+
+    // Jackpot win history
+    await query(`
+      CREATE TABLE IF NOT EXISTS jackpot_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        username VARCHAR(30) NOT NULL,
+        amount BIGINT NOT NULL,
+        seed_value BIGINT NOT NULL,
+        won_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_jackpot_history_won_at ON jackpot_history(won_at DESC)`);
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);

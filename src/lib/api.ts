@@ -107,6 +107,12 @@ export const gameApi = {
   getSportsEvents: () => apiFetch('/game/sports'),
 };
 
+// Jackpot
+export const jackpotApi = {
+  getAmount: () => apiFetch('/jackpot'),
+  getHistory: () => apiFetch('/jackpot/history'),
+};
+
 export function setToken(token: string) {
   localStorage.setItem('pcasino_token', token);
 }
