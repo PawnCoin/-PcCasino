@@ -439,10 +439,16 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   }
 });
 
+const parseRoundId = (param) => {
+  const id = parseInt(param, 10);
+  return Number.isFinite(id) && id > 0 ? id : null;
+};
+
 // Blackjack: created → dealing, returns initial 4 cards
 app.post('/api/provably-fair/blackjack-deal/:roundId', requireAuth, async (req, res) => {
   try {
-    const roundId = parseInt(req.params.roundId);
+    const roundId = parseRoundId(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Invalid round ID' });
     const { rows } = await query(
       `UPDATE game_rounds SET status = 'dealing', draw_index = 4
        WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'created'
@@ -467,7 +473,8 @@ app.post('/api/provably-fair/blackjack-deal/:roundId', requireAuth, async (req, 
 // Blackjack: atomically advance draw_index, return next card
 app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, res) => {
   try {
-    const roundId = parseInt(req.params.roundId);
+    const roundId = parseRoundId(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Invalid round ID' });
     const { rows } = await query(
       `UPDATE game_rounds SET draw_index = draw_index + 1
        WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'dealing'
@@ -493,7 +500,8 @@ app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, 
 // Blackjack: dealing → finished (must precede resolve)
 app.post('/api/provably-fair/blackjack-finish/:roundId', requireAuth, async (req, res) => {
   try {
-    const roundId = parseInt(req.params.roundId);
+    const roundId = parseRoundId(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Invalid round ID' });
     const { rows } = await query(
       `UPDATE game_rounds SET status = 'finished'
        WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'dealing'
@@ -517,7 +525,8 @@ app.post('/api/provably-fair/blackjack-finish/:roundId', requireAuth, async (req
 // Returns minimal result only (blackjack: card count, not full deck).
 app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
   try {
-    const roundId = parseInt(req.params.roundId);
+    const roundId = parseRoundId(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Invalid round ID' });
     const { rows: checkRows } = await query(
       'SELECT game, status, user_id, result, server_seed_hash FROM game_rounds WHERE id = $1',
       [roundId]
@@ -544,9 +553,11 @@ app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) =>
 // Reveal: resolved → revealed. Returns server seed for independent verification.
 app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => {
   try {
+    const roundId = parseRoundId(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Invalid round ID' });
     const statusCheck = await query(
       'SELECT status, user_id FROM game_rounds WHERE id = $1',
-      [parseInt(req.params.roundId)]
+      [roundId]
     );
     if (!statusCheck.rows.length) return res.status(404).json({ error: 'Round not found' });
     const row = statusCheck.rows[0];
@@ -554,7 +565,7 @@ app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => 
     if (row.status !== 'resolved') {
       return res.status(409).json({ error: `Cannot reveal: round is ${row.status}` });
     }
-    const data = await revealGameRound(parseInt(req.params.roundId), req.user.id);
+    const data = await revealGameRound(roundId, req.user.id);
     if (!data) return res.status(404).json({ error: 'Round not found or already revealed' });
     res.json({
       serverSeed: data.server_seed,
@@ -575,7 +586,9 @@ app.post('/api/provably-fair/reveal/:roundId', requireAuth, async (req, res) => 
 // with third parties for independent verification without needing an account.
 app.get('/api/provably-fair/verify/:roundId', async (req, res) => {
   try {
-    const round = await getGameRound(parseInt(req.params.roundId));
+    const roundId = parseRoundId(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Invalid round ID' });
+    const round = await getGameRound(roundId);
     if (!round) return res.status(404).json({ error: 'Round not found' });
     if (!round.revealed_at) return res.status(403).json({ error: 'Round not yet revealed' });
     const { server_seed, server_seed_hash, client_seed, nonce, game, result, created_at, revealed_at } = round;

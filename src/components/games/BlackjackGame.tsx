@@ -373,7 +373,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
         if (!finished) return;
         const resolved = await pfResolveRound(roundId);
         if (!resolved) return;
-        await pfRevealRound(roundId);
+        // Retry reveal once on failure to handle transient network errors
+        const revealed = await pfRevealRound(roundId);
+        if (!revealed) await pfRevealRound(roundId);
       })();
     }
   };
