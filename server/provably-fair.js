@@ -33,7 +33,8 @@ export function deriveOutcomes(serverSeed, clientSeed, nonce, count = 1) {
   const results = [];
   for (let i = 0; i < Math.min(count, 8); i++) {
     const offset = i * 4;
-    const val = (hmac.readUInt32BE(offset) / 0xFFFFFFFF);
+    // Divide by 2**32 (not 0xFFFFFFFF) to guarantee values strictly in [0, 1)
+    const val = hmac.readUInt32BE(offset) / 2 ** 32;
     results.push(val);
   }
   return results;
@@ -41,7 +42,7 @@ export function deriveOutcomes(serverSeed, clientSeed, nonce, count = 1) {
 
 /**
  * Derive a specific game result from seeds.
- * game: 'slots' | 'roulette' | 'blackjack'
+ * game: 'slots' | 'roulette' | 'blackjack' | 'dice'
  */
 export function deriveGameResult(game, serverSeed, clientSeed, nonce) {
   const WHEEL_NUMBERS = [
@@ -102,6 +103,15 @@ export function deriveGameResult(game, serverSeed, clientSeed, nonce) {
     // cards[0..3] = initial deal: player1, dealer1, player2, dealer2
     // cards[4..] = remaining deck for hits and dealer draws
     return { cards: deck };
+  }
+
+  if (game === 'dice') {
+    // Two dice rolls (each 1-6) derived from separate HMAC nonces
+    const [f1] = deriveOutcomes(serverSeed, clientSeed, `${nonce}:die1`, 1);
+    const [f2] = deriveOutcomes(serverSeed, clientSeed, `${nonce}:die2`, 1);
+    const die1 = Math.floor(f1 * 6) + 1;
+    const die2 = Math.floor(f2 * 6) + 1;
+    return { die1, die2, total: die1 + die2 };
   }
 
   return {};

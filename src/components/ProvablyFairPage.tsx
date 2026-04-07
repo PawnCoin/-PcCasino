@@ -20,7 +20,7 @@ interface VerifyResult {
 
 export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: ProvablyFairPageProps) {
   const handleBack = onBack || onClose || (() => {});
-  const [game, setGame] = useState<'slots' | 'roulette' | 'blackjack'>('slots');
+  const [game, setGame] = useState<'slots' | 'roulette' | 'blackjack' | 'dice'>('slots');
   const [serverSeed, setServerSeed] = useState(prefill?.serverSeed || '');
   const [clientSeed, setClientSeed] = useState(prefill?.clientSeed || '');
   const [nonce, setNonce] = useState(prefill?.nonce !== undefined ? String(prefill.nonce) : '1');
@@ -28,6 +28,9 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [roundId, setRoundId] = useState('');
+  const [roundLookupError, setRoundLookupError] = useState('');
+  const [roundLookupLoading, setRoundLookupLoading] = useState(false);
 
   // Sync form state whenever the caller provides new prefill data (e.g. different round selected)
   useEffect(() => {
@@ -72,6 +75,35 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
       setError(e instanceof Error ? e.message : 'Verification failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRoundLookup = async () => {
+    setRoundLookupError('');
+    const id = parseInt(roundId);
+    if (!roundId || isNaN(id) || id < 1) {
+      setRoundLookupError('Please enter a valid round ID.');
+      return;
+    }
+    setRoundLookupLoading(true);
+    try {
+      const res = await fetch(`/api/provably-fair/verify/${id}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setRoundLookupError(data.error || 'Round not found or not yet revealed.');
+        return;
+      }
+      // Pre-fill the verification form with the round's seeds
+      setServerSeed(data.server_seed || '');
+      setClientSeed(data.client_seed || '');
+      setNonce(data.nonce !== undefined ? String(data.nonce) : '1');
+      if (data.game) setGame(data.game as 'slots' | 'roulette' | 'blackjack' | 'dice');
+      setVerifyResult(null);
+      setError('');
+    } catch {
+      setRoundLookupError('Failed to look up round. Check your connection.');
+    } finally {
+      setRoundLookupLoading(false);
     }
   };
 
@@ -139,6 +171,41 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
         </div>
       )}
 
+      {/* Round-ID lookup — pre-fills the form with seeds from any past revealed round */}
+      <div className={`${cardClass} mb-6`}>
+        <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-[#D4AF37]" />
+          Look Up a Past Round
+        </h2>
+        <p className="text-xs text-gray-400 mb-3">
+          If you have a Round ID (shown in-game after each round), paste it here to auto-fill the seeds for verification.
+          Only revealed rounds can be looked up.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={roundId}
+            onChange={e => setRoundId(e.target.value)}
+            placeholder="Round ID (e.g. 42)"
+            className="flex-1 bg-black/50 border border-[#333] rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#D4AF37]/50"
+            min="1"
+          />
+          <Button
+            onClick={handleRoundLookup}
+            disabled={roundLookupLoading}
+            className="bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/30 font-semibold"
+          >
+            {roundLookupLoading ? 'Looking up…' : 'Load Seeds'}
+          </Button>
+        </div>
+        {roundLookupError && (
+          <div className="flex items-center gap-2 mt-2 text-red-400 text-xs">
+            <XCircle className="w-3.5 h-3.5" />
+            {roundLookupError}
+          </div>
+        )}
+      </div>
+
       <div className={`${cardClass} mb-6`}>
         <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
           <RefreshCw className="w-5 h-5 text-[#D4AF37]" />
@@ -148,8 +215,8 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
         <div className="grid gap-4">
           <div>
             <label className="text-xs text-gray-400 mb-1 block">Game Type</label>
-            <div className="flex gap-2">
-              {(['slots', 'roulette', 'blackjack'] as const).map(g => (
+            <div className="flex gap-2 flex-wrap">
+              {(['slots', 'roulette', 'blackjack', 'dice'] as const).map(g => (
                 <button
                   key={g}
                   onClick={() => setGame(g)}
