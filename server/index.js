@@ -474,9 +474,13 @@ app.get('/api/referrals/validate/:code', async (req, res) => {
   }
 });
 
-app.get('/api/referrals/:userId', async (req, res) => {
+app.get('/api/referrals/:userId', requireAuth, async (req, res) => {
   const userId = parseInt(req.params.userId, 10);
   if (isNaN(userId)) return res.status(400).json({ error: 'Invalid userId' });
+  // Users may only view their own referrals (admins may view any)
+  if (req.user.id !== userId && !req.user.is_admin) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   try {
     // Fetch from DB to avoid in-memory type mismatch (referrerId stored as numeric id)
     const result = await query(

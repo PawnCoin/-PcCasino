@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, Copy, CheckCircle, Users, DollarSign, Share2 } from 'lucide-react';
+import { Star, Copy, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -14,8 +14,6 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [referrals, setReferrals] = useState<any[]>([]);
-  const [inputCode, setInputCode] = useState('');
-  const [codeApplied, setCodeApplied] = useState(false);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -54,7 +52,10 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
   const loadReferrals = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/referrals/${user.id}`);
+      const token = localStorage.getItem('pcasino_token');
+      const res = await fetch(`/api/referrals/${user.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) { const data = await res.json(); setReferrals(data.referrals || []); }
     } catch { setReferrals([]); }
   };
@@ -78,25 +79,6 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
       navigator.share({ title: '$Pc Casino', text: `Join me on $Pc Casino and get 50M $Pc welcome bonus! Use my code: ${code}`, url: link });
     } else {
       copyLink();
-    }
-  };
-
-  const applyCode = async () => {
-    if (!inputCode.trim()) return;
-    if (codeApplied) { toast.info('You have already applied a referral code'); return; }
-    try {
-      const res = await fetch('/api/referrals/use', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: inputCode.trim().toUpperCase(), newUserId: user?.id }),
-      });
-      if (res.ok) {
-        setCodeApplied(true);
-        toast.success('Referral code applied! 50M $Pc bonus added to your account!');
-      } else {
-        toast.error('Invalid referral code');
-      }
-    } catch {
-      toast.error('Unable to verify code at this time. Try again later.');
     }
   };
 
@@ -174,21 +156,9 @@ export function ReferralPage({ isOpen, onClose, user }: ReferralPageProps) {
             ))}
           </div>
 
-          {/* Apply a code */}
-          <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div className="text-sm font-bold text-white mb-2">Apply a Friend's Code</div>
-            <div className="flex gap-2">
-              <input value={inputCode} onChange={e => setInputCode(e.target.value.toUpperCase())}
-                disabled={codeApplied}
-                placeholder="Enter referral code..."
-                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none font-mono uppercase"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
-              <Button onClick={applyCode} disabled={codeApplied} size="sm"
-                style={{ background: codeApplied ? 'rgba(74,222,128,0.15)' : 'rgba(212,175,55,0.2)', color: codeApplied ? '#4ade80' : '#D4AF37', border: `1px solid ${codeApplied ? 'rgba(74,222,128,0.4)' : 'rgba(212,175,55,0.4)'}` }}>
-                {codeApplied ? <CheckCircle className="w-4 h-4" /> : 'Apply'}
-              </Button>
-            </div>
-            {codeApplied && <p className="text-xs text-green-400 mt-1">✓ Referral code applied — 50M $Pc bonus credited</p>}
+          {/* Note: referral codes are applied at registration only */}
+          <div className="p-3 rounded-xl text-sm text-gray-400 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            Referral codes can only be applied when creating a new account. Share your link to earn commissions on your friends' first deposits.
           </div>
         </div>
       </DialogContent>
