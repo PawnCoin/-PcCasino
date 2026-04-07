@@ -515,22 +515,24 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
       setCurrentSpeed(IDLE_SPEED);
 
       // Step 3: Resolve round — get server-authoritative winning number
-      let authoritativeNum = animationNum;
-      if (currentRoundIdRef.current) {
-        const resolved = await resolveRound(currentRoundIdRef.current);
-        if (resolved && typeof resolved.number === 'number') {
-          authoritativeNum = resolved.number;
-          // Update visual display to server's number if different from animation
-          setWinningNumber(authoritativeNum);
-        }
+      // If resolve fails, abort without settling (prevents unverifiable outcomes)
+      if (!currentRoundIdRef.current) return;
+      const resolved = await resolveRound(currentRoundIdRef.current);
+      if (!resolved || typeof resolved.number !== 'number') {
+        setIsSpinning(false);
+        setMessage('Round could not be verified. Bet refunded.');
+        const total = placedBetsRef.current.reduce((s, b) => s + b.amount, 0);
+        if (total > 0 && onWin) onWin(total);
+        return;
       }
+      const authoritativeNum = resolved.number;
+      // Update visual display to server's authoritative number
+      setWinningNumber(authoritativeNum);
 
       finishSpin(authoritativeNum);
 
       // Step 4: Reveal server seed after outcome
-      if (currentRoundIdRef.current) {
-        revealRound(currentRoundIdRef.current);
-      }
+      revealRound(currentRoundIdRef.current);
     }, 20300);
   }, [isSpinning, placedBets, playSound, announceNoMoreBets, safeTimeout, finishSpin, startRound, resolveRound, revealRound]);
 

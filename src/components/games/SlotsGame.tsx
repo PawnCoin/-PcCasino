@@ -236,13 +236,17 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         if (col === COLS - 1) {
           // Step 3: After animation — resolve round with server to get authoritative grid
           setTimeout(async () => {
-            let finalGrid = animationGrid;
             const resolved = await resolveRound(pfRound.roundId);
-            if (resolved?.grid) {
-              finalGrid = (resolved.grid as ReelSymbol[][]).map(row => [...row]);
-              // Update display to server's authoritative grid
-              setGrid(finalGrid);
+            if (!resolved?.grid) {
+              // Resolve failed — abort without settling (prevents unverifiable outcomes)
+              setSpinning(false);
+              onWin(currentBet); // refund bet
+              setMessage('Round could not be verified. Bet refunded.');
+              return;
             }
+            const finalGrid = (resolved.grid as ReelSymbol[][]).map(row => [...row]);
+            // Update display to server's authoritative grid
+            setGrid(finalGrid);
 
             // Evaluate wins from the server's authoritative final grid
             const { lines, totalWin } = evaluateWins(finalGrid, currentBet);

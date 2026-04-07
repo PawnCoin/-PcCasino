@@ -78,11 +78,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const [tossChips, setTossChips] = useState<{ id: number; amount: number }[]>([]);
   const tossIdRef = useRef(0);
 
-  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, resolveRound: pfResolveRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
+  const { round: pfRound, lastReveal: pfLastReveal, startRound: pfStartRound, dealBlackjack: pfDealBlackjack, drawBlackjackCard: pfDrawBlackjackCard, resolveRound: pfResolveRound, revealRound: pfRevealRound } = useProvablyFair('blackjack');
   const [showVerify, setShowVerify] = useState(false);
   const currentPfRoundIdRef = useRef<number | null>(null);
-  // deckRef mirrors the deck state but is always current inside async/timeout callbacks (avoids stale closures)
-  const deckRef = useRef<Card[]>([]);
 
   const currentHand = playerHands[currentHandIndex];
 
@@ -138,11 +136,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
     currentPfRoundIdRef.current = pfRoundData.roundId;
 
-    // Step 2: Resolve — get the server's seed-derived deck (initial 4 cards are authoritative)
-    // This is called immediately after commit; the deck was already deterministically computed
-    // server-side from (serverSeed + clientSeed + nonce) before we even asked — no manipulation possible.
-    const resolved = await pfResolveRound(pfRoundData.roundId);
-    
+    // Step 2: Deal — server returns only the initial 4 seed-derived cards (no future cards exposed).
+    // Transitions round: created → dealing. Server tracks draw_index for sequential draws.
+    const dealtCards = await pfDealBlackjack(pfRoundData.roundId);
+    if (!dealtCards || dealtCards.length < 4) {
+      onWin(currentBet); // refund — abort if deal fails (network error, not authenticated)
+      setMessage('Failed to deal hand. Please try again.');
+      return;
+    }
+
     // Convert server card format {suit, value} → typed Card
     const suitMap: Record<string, Card['suit']> = {
       '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
@@ -155,30 +157,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       return { suit, rank, isRed, value };
     };
 
-    // Use server-derived deck (full 52-card Fisher-Yates from seeds)
-    // Fall back to local deck only if resolve fails (logged out mid-session, network error)
-    const serverCards = (resolved as { cards?: { suit: string; value: string }[] } | null)?.cards;
-    let playerCards: Card[];
-    let dealerCards: Card[];
-
-    if (serverCards && serverCards.length >= 52) {
-      // Authoritative: use the seed-derived deck for the entire hand
-      // cards[0]=player1, cards[1]=dealer1, cards[2]=player2, cards[3]=dealer2, cards[4..]=draw pile
-      playerCards = [serverToCard(serverCards[0]), serverToCard(serverCards[2])];
-      dealerCards = [serverToCard(serverCards[1]), serverToCard(serverCards[3])];
-      // Use remaining seed-derived cards for hits and dealer draws — set both ref and state
-      const remaining = serverCards.slice(4).map(serverToCard);
-      deckRef.current = remaining;
-      setDeck(remaining);
-    } else {
-      // Fallback (should not occur — resolve requires auth and valid roundId)
-      const fallbackDeck = deck.length < 20 ? shuffleDeck(createDeck()) : [...deck];
-      playerCards = [fallbackDeck[0], fallbackDeck[2]];
-      dealerCards = [fallbackDeck[1], fallbackDeck[3]];
-      const remaining = fallbackDeck.slice(4);
-      deckRef.current = remaining;
-      setDeck(remaining);
-    }
+    // Initial deal: cards[0]=player1, cards[1]=dealer1, cards[2]=player2, cards[3]=dealer2
+    const playerCards: Card[] = [serverToCard(dealtCards[0]), serverToCard(dealtCards[2])];
+    const dealerCards: Card[] = [serverToCard(dealtCards[1]), serverToCard(dealtCards[3])];
+    // Subsequent draws (hits/dealer) are fetched server-side via pfDrawBlackjackCard
+    setDeck([]);
     
     setPlayerHands([playerCards]);
     setDealerHand(dealerCards);
@@ -195,18 +178,25 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
   };
 
-  // Draw next card using deckRef to avoid stale closure issues in setTimeout/recursive callbacks.
-  // Always use this function for card draws — it keeps deckRef and deck state in sync.
-  const drawNextCard = useCallback((): Card | null => {
-    if (deckRef.current.length === 0) return null;
-    const card = deckRef.current[0];
-    deckRef.current = deckRef.current.slice(1);
-    setDeck([...deckRef.current]); // sync state for rendering
-    return card;
-  }, []);
+  // Draw next card from the server's seed-derived deck (sequential, server-authoritative).
+  // Uses pfDrawBlackjackCard which atomically advances draw_index server-side.
+  const drawNextCard = useCallback(async (): Promise<Card | null> => {
+    const roundId = currentPfRoundIdRef.current;
+    if (!roundId) return null;
+    const suitMap: Record<string, Card['suit']> = {
+      '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
+    };
+    const sc = await pfDrawBlackjackCard(roundId);
+    if (!sc) return null;
+    const suit = suitMap[sc.suit] ?? 'spades';
+    const rank = sc.value as Card['rank'];
+    const isRed = suit === 'hearts' || suit === 'diamonds';
+    const value = rank === 'A' ? 11 : ['J', 'Q', 'K'].includes(rank) ? 10 : parseInt(rank);
+    return { suit, rank, isRed, value };
+  }, [pfDrawBlackjackCard]);
 
-  const handleHit = () => {
-    const newCard = drawNextCard();
+  const handleHit = async () => {
+    const newCard = await drawNextCard();
     if (!newCard) return;
     
     const newHands = [...playerHands];
@@ -235,7 +225,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }
   };
 
-  const handleDoubleDown = () => {
+  const handleDoubleDown = async () => {
     const handBet = handBets[currentHandIndex];
     if (!onBet(handBet)) return;
     
@@ -245,7 +235,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       return newBets;
     });
     
-    const newCard = drawNextCard();
+    const newCard = await drawNextCard();
     if (!newCard) return;
     
     const newHands = [...playerHands];
@@ -261,7 +251,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     }, 1000);
   };
 
-  const handleSplit = () => {
+  const handleSplit = async () => {
     if (currentHand.length !== 2 || currentHand[0].value !== currentHand[1].value) return;
     const handBet = handBets[currentHandIndex];
     if (!onBet(handBet)) return;
@@ -270,8 +260,9 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     const card1 = currentHand[0];
     const card2 = currentHand[1];
     
-    const splitCard1 = drawNextCard();
-    const splitCard2 = drawNextCard();
+    // Sequential server draws — each fetched in order so no duplicate cards
+    const splitCard1 = await drawNextCard();
+    const splitCard2 = await drawNextCard();
     if (!splitCard1 || !splitCard2) return;
     newHands[currentHandIndex] = [card1, splitCard1];
     newHands.splice(currentHandIndex + 1, 0, [card2, splitCard2]);
@@ -292,12 +283,12 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     
     let currentDealerHand = [...dealerHand];
     
-    const playDealer = () => {
+    const playDealer = async () => {
       const dealerValue = calculateBlackjackValue(currentDealerHand);
       
       if (dealerValue < 17) {
-        // Use drawNextCard() which reads from deckRef (avoids stale closure bug)
-        const nextCard = drawNextCard();
+        // Draw from server's seed-derived deck — sequential, no future card exposure
+        const nextCard = await drawNextCard();
         if (!nextCard) { finishRound(false); return; }
         currentDealerHand = [...currentDealerHand, nextCard];
         setDealerHand(currentDealerHand);
@@ -361,10 +352,10 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerBust();
     }
 
-    // Round was already resolved at deal time (authoritative deck was used for gameplay).
-    // Now just reveal the server seed so users can independently verify the shuffle.
+    // Resolve (dealing → resolved) then reveal server seed for independent verification.
     if (currentPfRoundIdRef.current) {
-      pfRevealRound(currentPfRoundIdRef.current);
+      const roundId = currentPfRoundIdRef.current;
+      pfResolveRound(roundId).then(() => pfRevealRound(roundId));
     }
   };
 

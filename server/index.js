@@ -437,23 +437,75 @@ app.post('/api/provably-fair/new-round', requireAuth, async (req, res) => {
   }
 });
 
+// Blackjack deal — returns the authoritative initial 4 cards from the seed-derived deck.
+// Transitions status: created → dealing. Rejects if called again (idempotent guard).
+// Only for blackjack game type.
+app.post('/api/provably-fair/blackjack-deal/:roundId', requireAuth, async (req, res) => {
+  try {
+    const roundId = parseInt(req.params.roundId);
+    const { rows } = await query(
+      `UPDATE game_rounds SET status = 'dealing', draw_index = 4
+       WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'created'
+       RETURNING result, server_seed_hash`,
+      [roundId, req.user.id]
+    );
+    if (!rows.length) {
+      const check = await query('SELECT status, user_id FROM game_rounds WHERE id = $1', [roundId]);
+      if (!check.rows.length) return res.status(404).json({ error: 'Round not found' });
+      if (check.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+      return res.status(409).json({ error: `Round already ${check.rows[0].status}` });
+    }
+    const cards = rows[0].result?.cards;
+    if (!cards || cards.length < 4) return res.status(500).json({ error: 'Invalid round data' });
+    // Return only initial 4 cards: [player1, dealer1, player2, dealer2]
+    res.json({ cards: cards.slice(0, 4), serverSeedHash: rows[0].server_seed_hash });
+  } catch (err) {
+    console.error('[PF] blackjack-deal error:', err.message);
+    res.status(500).json({ error: 'Failed to deal blackjack hand' });
+  }
+});
+
+// Blackjack draw — returns the next card from the seed-derived deck sequentially.
+// Requires status = 'dealing'. Advances draw_index atomically to prevent duplicate draws.
+app.post('/api/provably-fair/blackjack-draw/:roundId', requireAuth, async (req, res) => {
+  try {
+    const roundId = parseInt(req.params.roundId);
+    // Atomically increment draw_index and read the card at that position
+    const { rows } = await query(
+      `UPDATE game_rounds SET draw_index = draw_index + 1
+       WHERE id = $1 AND user_id = $2 AND game = 'blackjack' AND status = 'dealing'
+       RETURNING result, draw_index`,
+      [roundId, req.user.id]
+    );
+    if (!rows.length) {
+      const check = await query('SELECT status, user_id FROM game_rounds WHERE id = $1', [roundId]);
+      if (!check.rows.length) return res.status(404).json({ error: 'Round not found' });
+      if (check.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+      return res.status(409).json({ error: `Cannot draw: round is ${check.rows[0].status}` });
+    }
+    const cards = rows[0].result?.cards;
+    const idx = rows[0].draw_index - 1; // draw_index was incremented, so current card is at idx
+    if (!cards || idx >= cards.length) return res.status(410).json({ error: 'Deck exhausted' });
+    res.json({ card: cards[idx] });
+  } catch (err) {
+    console.error('[PF] blackjack-draw error:', err.message);
+    res.status(500).json({ error: 'Failed to draw card' });
+  }
+});
+
 // Resolve a round — client calls this after the round completes to get the authoritative outcome.
-// Enforces lifecycle: created → resolved. Rejects if already resolved or revealed.
+// Enforces lifecycle: created/dealing → resolved. Rejects if already resolved or revealed.
 // Returns the seed-derived result. Never reveals the server seed (use /reveal for that).
 app.post('/api/provably-fair/resolve/:roundId', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
       `UPDATE game_rounds SET status = 'resolved'
-       WHERE id = $1 AND user_id = $2 AND status = 'created'
+       WHERE id = $1 AND user_id = $2 AND status IN ('created', 'dealing')
        RETURNING result, server_seed_hash`,
       [parseInt(req.params.roundId), req.user.id]
     );
     if (!rows.length) {
-      // Check if the round exists but is in wrong state
-      const check = await query(
-        'SELECT status, user_id FROM game_rounds WHERE id = $1',
-        [parseInt(req.params.roundId)]
-      );
+      const check = await query('SELECT status, user_id FROM game_rounds WHERE id = $1', [parseInt(req.params.roundId)]);
       if (!check.rows.length) return res.status(404).json({ error: 'Round not found' });
       if (check.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
       return res.status(409).json({ error: `Round already ${check.rows[0].status}` });

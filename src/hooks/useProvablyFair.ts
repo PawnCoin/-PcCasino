@@ -56,6 +56,40 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
     }
   }, [game]);
 
+  // Blackjack: deal initial 4 cards. Transitions created → dealing. Returns cards[0..3].
+  const dealBlackjack = useCallback(async (roundId: number): Promise<{ suit: string; value: string }[] | null> => {
+    const token = getToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`/api/provably-fair/blackjack-deal/${roundId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.cards ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Blackjack: draw next card from seed-derived deck. Server advances draw_index atomically.
+  const drawBlackjackCard = useCallback(async (roundId: number): Promise<{ suit: string; value: string } | null> => {
+    const token = getToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`/api/provably-fair/blackjack-draw/${roundId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.card ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Step 2: Resolve — called AFTER the round completes; returns server-authoritative outcome.
   // For blackjack: returns the full seed-derived deck post-hand (no advantage since hand is over).
   const resolveRound = useCallback(async (roundId: number): Promise<Record<string, unknown> | null> => {
@@ -112,6 +146,8 @@ export function useProvablyFair(game: 'slots' | 'roulette' | 'blackjack' | 'dice
     round,
     lastReveal,
     startRound,
+    dealBlackjack,
+    drawBlackjackCard,
     resolveRound,
     revealRound,
     refreshClientSeed,
