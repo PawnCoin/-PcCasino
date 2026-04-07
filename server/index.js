@@ -144,34 +144,38 @@ const recentWinners = [];
 const VIP_CASHBACK_RATES = { bronze: 0, silver: 0.01, gold: 0.02, platinum: 0.05, diamond: 0.10 };
 
 async function runVipCashback() {
-  // Only send cashback email notifications on Monday (day 1 in JS; Sunday = 0)
-  const isMonday = new Date().getDay() === 1;
+  const weekEnd = new Date();
+  const weekStart = new Date(weekEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+  let count = 0;
+  let totalCredited = 0;
 
   try {
-    // Find users who haven't received cashback in the last 7 days
     const users = await query(
       `SELECT id, username, email, vip_tier, total_wagered, cashback_paid_at, email_unsubscribed
        FROM users
        WHERE vip_tier != 'bronze'
          AND (cashback_paid_at IS NULL OR cashback_paid_at < NOW() - INTERVAL '7 days')`
     );
-    
-    let count = 0;
+
     for (const user of users.rows) {
       const rate = VIP_CASHBACK_RATES[user.vip_tier] || 0;
       if (!rate) continue;
 
-      // Cashback on wagered amount in the last 7 days
-      const wageredResult = await query(
-        `SELECT COALESCE(SUM(amount), 0) as total
+      // Net losses = total bets - total wins in the last 7 days
+      const lossResult = await query(
+        `SELECT
+           COALESCE(SUM(CASE WHEN type = 'bet' THEN amount ELSE 0 END), 0) as total_bet,
+           COALESCE(SUM(CASE WHEN type = 'win' THEN amount ELSE 0 END), 0) as total_won
          FROM transactions
-         WHERE user_id = $1 AND type = 'bet' AND created_at > NOW() - INTERVAL '7 days'`,
+         WHERE user_id = $1 AND created_at > NOW() - INTERVAL '7 days'`,
         [user.id]
       );
-      const wagered = parseInt(wageredResult.rows[0].total);
-      if (wagered <= 0) continue;
+      const totalBet = parseInt(lossResult.rows[0].total_bet);
+      const totalWon = parseInt(lossResult.rows[0].total_won);
+      const netLosses = totalBet - totalWon;
+      if (netLosses <= 0) continue;
 
-      const cashback = Math.floor(wagered * rate);
+      const cashback = Math.floor(netLosses * rate);
       if (cashback <= 0) continue;
 
       await query('UPDATE users SET balance = balance + $1, cashback_paid_at = NOW() WHERE id = $2', [cashback, user.id]);
@@ -180,31 +184,56 @@ async function runVipCashback() {
         [user.id, 'bonus', cashback, `${user.vip_tier.toUpperCase()} VIP Weekly Cashback (${(rate * 100).toFixed(0)}%)`]
       );
       await query(
+        `INSERT INTO cashback_payments (user_id, username, vip_tier, cashback_rate, net_losses, cashback_amount, week_start, week_end)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [user.id, user.username, user.vip_tier, rate, netLosses, cashback, weekStart.toISOString(), weekEnd.toISOString()]
+      );
+      await query(
         "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'bonus', '💎 VIP Cashback Credited!', $2)",
-        [user.id, `Your ${user.vip_tier.toUpperCase()} weekly cashback of ${cashback.toLocaleString()} $Pc has been credited!`]
+        [user.id, `Your ${user.vip_tier.toUpperCase()} weekly cashback of ${cashback.toLocaleString()} $Pc has been credited to your balance!`]
       );
 
-      // Notify connected user
       io.to(`user_${user.id}`).emit('cashback:credited', { amount: cashback, tier: user.vip_tier });
 
-      // Send cashback email on Mondays (weekly payout day) if user has email and hasn't unsubscribed
-      if (isMonday && user.email && !user.email_unsubscribed) {
+      // Send cashback email notification if user has email and hasn't unsubscribed
+      if (user.email && !user.email_unsubscribed) {
         sendCashbackEmail(user.email, user.username, cashback, user.vip_tier).catch(e =>
           console.error('[Email] Cashback email failed:', e.message)
         );
       }
       count++;
+      totalCredited += cashback;
     }
-    if (count > 0) console.log(`[VIP Cashback] Credited ${count} users`);
+
+    if (count > 0) {
+      console.log(`[VIP Cashback] Credited ${count} users, total: ${totalCredited.toLocaleString()} $Pc`);
+      logAdmin('vip:cashback:run', { usersCredited: count, totalCredited, weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() });
+    }
   } catch (err) {
     console.error('[VIP Cashback] Error:', err.message);
+    logAdmin('vip:cashback:error', { error: err.message });
   }
 }
 
-// Run cashback check every 6 hours
-setInterval(runVipCashback, 6 * 60 * 60 * 1000);
-// Run once on startup (after 30s to let DB init)
-setTimeout(runVipCashback, 30000);
+// Schedule VIP cashback for every Monday at 00:00 UTC
+function scheduleWeeklyCashback() {
+  const now = new Date();
+  const nextMonday = new Date(now);
+  // Find next Monday 00:00 UTC
+  const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon
+  const daysUntilMonday = dayOfWeek === 1 ? 7 : (8 - dayOfWeek) % 7;
+  nextMonday.setUTCDate(now.getUTCDate() + daysUntilMonday);
+  nextMonday.setUTCHours(0, 0, 0, 0);
+  const msUntilMonday = nextMonday.getTime() - now.getTime();
+  console.log(`[VIP Cashback] Next run scheduled for ${nextMonday.toISOString()} (in ${Math.round(msUntilMonday / 3600000)}h)`);
+  setTimeout(() => {
+    runVipCashback();
+    setInterval(runVipCashback, 7 * 24 * 60 * 60 * 1000);
+  }, msUntilMonday);
+}
+
+// Schedule weekly Monday run (after 30s for DB init)
+setTimeout(scheduleWeeklyCashback, 30000);
 
 // ---- Default rooms ----
 const defaultGames = ['poker', 'blackjack', 'roulette', 'craps', 'spades', 'slots', 'bingo', 'dominoes'];
@@ -974,6 +1003,63 @@ app.get('/api/admin/stats', (req, res) => {
 });
 
 app.get('/api/admin/logs', (req, res) => { res.json({ logs: adminLogs }); });
+
+// VIP cashback history — per user
+app.get('/api/vip/cashback-history', requireAuth, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, vip_tier, cashback_rate, net_losses, cashback_amount, week_start, week_end, created_at
+       FROM cashback_payments
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 52`,
+      [req.user.id]
+    );
+    res.json({
+      history: result.rows.map(r => ({
+        id: r.id,
+        tier: r.vip_tier,
+        rate: parseFloat(r.cashback_rate),
+        netLosses: parseInt(r.net_losses),
+        amount: parseInt(r.cashback_amount),
+        weekStart: r.week_start,
+        weekEnd: r.week_end,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch cashback history' });
+  }
+});
+
+// Admin: all cashback payments log
+app.get('/api/admin/cashback-log', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT cp.id, cp.user_id, cp.username, cp.vip_tier, cp.cashback_rate,
+              cp.net_losses, cp.cashback_amount, cp.week_start, cp.week_end, cp.created_at
+       FROM cashback_payments cp
+       ORDER BY cp.created_at DESC
+       LIMIT 200`
+    );
+    res.json({
+      payments: result.rows.map(r => ({
+        id: r.id,
+        userId: r.user_id,
+        username: r.username,
+        tier: r.vip_tier,
+        rate: parseFloat(r.cashback_rate),
+        netLosses: parseInt(r.net_losses),
+        amount: parseInt(r.cashback_amount),
+        weekStart: r.week_start,
+        weekEnd: r.week_end,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch cashback log' });
+  }
+});
 
 app.post('/api/admin/broadcast', (req, res) => {
   const { message, type } = req.body;

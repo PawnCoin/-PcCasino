@@ -128,6 +128,11 @@ export const gameApi = {
   getPokerHandByToken: (token: string) => apiFetch(`/game/poker/hands/share/${token}`),
 };
 
+// VIP
+export const vipApi = {
+  getCashbackHistory: () => apiFetch('/vip/cashback-history'),
+};
+
 // Jackpot
 export const jackpotApi = {
   getAmount: () => apiFetch('/jackpot'),

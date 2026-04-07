@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, DollarSign, AlertTriangle, Settings, BarChart3, Trophy, Zap, X, CheckCircle, XCircle, RefreshCw, Send, Key, Globe, Database } from 'lucide-react';
+import { Shield, Users, DollarSign, AlertTriangle, Settings, BarChart3, Trophy, Zap, X, CheckCircle, XCircle, RefreshCw, Send, Key, Globe, Database, Crown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,7 @@ interface AdminDashboardProps {
   isAdmin?: boolean;
 }
 
-type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'broadcast' | 'pcpayments' | 'settings';
+type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'broadcast' | 'pcpayments' | 'vip' | 'settings';
 
 export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps) {
   const [isAuthed, setIsAuthed] = useState(() => isAdmin === true || localStorage.getItem(ADMIN_KEY) === 'true');
@@ -34,6 +34,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   const [logs, setLogs] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [cashbackLog, setCashbackLog] = useState<any[]>([]);
   const [siteSettings, setSiteSettings] = useState({
     maintenanceMode: false, maxDeposit: 0, minWithdrawal: 100, houseEdge: 2.5, welcomeBonus: 1000000000,
   });
@@ -44,18 +45,20 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
 
   const loadData = async () => {
     try {
-      const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes] = await Promise.all([
+      const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes, cashbackRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/disputes'),
         fetch('/api/admin/logs'),
         fetch('/api/admin/users'),
         fetch('/api/tournaments'),
+        fetch('/api/admin/cashback-log'),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (disputesRes.ok) { const d = await disputesRes.json(); setDisputes(d.disputes || []); }
       if (logsRes.ok) { const l = await logsRes.json(); setLogs(l.logs || []); }
       if (usersRes.ok) { const u = await usersRes.json(); setUsers(u.users || []); }
       if (tournamentsRes.ok) { const t = await tournamentsRes.json(); setTournaments(t.tournaments || []); }
+      if (cashbackRes.ok) { const c = await cashbackRes.json(); setCashbackLog(c.payments || []); }
     } catch { /* server may not be running */ }
   };
 
@@ -103,6 +106,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
     { id: 'payments', label: 'Financials', icon: DollarSign },
     { id: 'broadcast', label: 'Broadcast', icon: Send },
     { id: 'pcpayments', label: 'PcPayments', icon: Key },
+    { id: 'vip', label: 'VIP Cashback', icon: Crown },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -450,6 +454,68 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                       <Key className="w-4 h-4 mr-2" /> Save PcPayments Configuration
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* VIP CASHBACK */}
+              {activeTab === 'vip' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-purple-400" />
+                      VIP Cashback Payment Log
+                    </h3>
+                    <span className="text-xs text-gray-400">{cashbackLog.length} total payments</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 mb-2">
+                    {['silver', 'gold', 'platinum', 'diamond'].map(tier => {
+                      const tierPayments = cashbackLog.filter(p => p.tier === tier);
+                      const tierTotal = tierPayments.reduce((s: number, p: any) => s + p.amount, 0);
+                      const colors: Record<string, string> = { silver: '#C0C0C0', gold: '#FFD700', platinum: '#E5E4E2', diamond: '#B9F2FF' };
+                      return (
+                        <div key={tier} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div className="text-xs font-bold capitalize mb-0.5" style={{ color: colors[tier] }}>{tier}</div>
+                          <div className="font-bold text-sm text-white">{tierPayments.length} payments</div>
+                          <div className="text-xs text-gray-400">{formatNum(tierTotal)} $Pc</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {cashbackLog.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <Crown className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">No cashback payments processed yet.</p>
+                      <p className="text-xs mt-1">Payments run every Monday at midnight UTC.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {cashbackLog.map((payment: any) => {
+                        const tierColors: Record<string, string> = { silver: '#C0C0C0', gold: '#FFD700', platinum: '#E5E4E2', diamond: '#B9F2FF' };
+                        const tierColor = tierColors[payment.tier] || '#c084fc';
+                        return (
+                          <div key={payment.id} className="flex items-center gap-3 p-3 rounded-xl text-xs" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(160,32,240,0.2)' }}>
+                              <Crown className="w-3.5 h-3.5" style={{ color: tierColor }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="font-bold text-white">{payment.username}</span>
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-xs capitalize" style={{ background: `${tierColor}20`, color: tierColor }}>{payment.tier}</span>
+                            </div>
+                            <div className="text-gray-400 hidden md:block">
+                              {new Date(payment.weekStart).toLocaleDateString()} – {new Date(payment.weekEnd).toLocaleDateString()}
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              Losses: {formatNum(payment.netLosses)}
+                            </div>
+                            <div className="font-bold text-green-400">+{formatNum(payment.amount)} $Pc</div>
+                            <div className="text-gray-500 flex-shrink-0">{new Date(payment.createdAt).toLocaleDateString()}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -261,6 +261,24 @@ export async function initDatabase() {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_jackpot_history_won_at ON jackpot_history(won_at DESC)`);
 
+    // VIP cashback payment history
+    await query(`
+      CREATE TABLE IF NOT EXISTS cashback_payments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        username VARCHAR(30) NOT NULL,
+        vip_tier VARCHAR(20) NOT NULL,
+        cashback_rate NUMERIC(5,4) NOT NULL,
+        net_losses BIGINT NOT NULL,
+        cashback_amount BIGINT NOT NULL,
+        week_start TIMESTAMP NOT NULL,
+        week_end TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_cashback_payments_user ON cashback_payments(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_cashback_payments_created ON cashback_payments(created_at DESC)`);
+
     // Poker hand history — full hand snapshots for replay
     await query(`
       CREATE TABLE IF NOT EXISTS poker_hand_history (

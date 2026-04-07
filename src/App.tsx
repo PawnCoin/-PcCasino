@@ -47,7 +47,6 @@ import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
 import { JackpotCelebration } from '@/components/JackpotCelebration';
 import { PokerHandSharePage } from '@/components/PokerHandSharePage';
-import { JackpotCelebration } from '@/components/JackpotCelebration';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -912,6 +911,8 @@ function App() {
         return (
           <VipArea
             balance={user?.balance || 0}
+            userId={user?.id}
+            vipTier={user?.vipTier || 'bronze'}
             onBack={() => setCurrentView('lobby')}
             onSelectGame={(game) => setCurrentView(game)}
           />
