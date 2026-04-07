@@ -109,8 +109,8 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
         result = { grid };
       }
 
-      // hashMatch tells the user whether SHA-256(serverSeed) === the hash they were shown before the round
-      setVerifyResult({ serverSeedHash: computedHash, result, hashMatch: true });
+      // hashMatch: true = committed hash matches computed; false = mismatch; null = no hash supplied
+      setVerifyResult({ serverSeedHash: computedHash, result, hashMatch });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Verification failed');
     } finally {
@@ -133,8 +133,9 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
         setRoundLookupError(data.error || 'Round not found or not yet revealed.');
         return;
       }
-      // Pre-fill the verification form with the round's seeds
+      // Pre-fill the verification form with the round's seeds and committed hash
       setServerSeed(data.server_seed || '');
+      setServerSeedHash(data.server_seed_hash || ''); // pre-round commitment hash for one-click verification
       setClientSeed(data.client_seed || '');
       setNonce(data.nonce !== undefined ? String(data.nonce) : '1');
       if (data.game && ['slots','roulette','blackjack','dice'].includes(data.game)) {
