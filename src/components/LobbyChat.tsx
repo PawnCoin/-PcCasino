@@ -7,6 +7,7 @@ interface ChatMsg {
   socketId: string;
   username: string;
   avatar: string;
+  avatarUrl?: string | null;
   message: string;
   timestamp: number;
 }
@@ -14,7 +15,9 @@ interface ChatMsg {
 interface LobbyChatProps {
   username?: string;
   avatar?: string;
+  avatarUrl?: string | null;
   isAuthenticated: boolean;
+  onViewProfile?: (username: string) => void;
 }
 
 const BLOCKED_WORDS = [
@@ -31,7 +34,7 @@ function filterProfanity(text: string): string {
   return filtered;
 }
 
-export function LobbyChat({ username, avatar, isAuthenticated }: LobbyChatProps) {
+export function LobbyChat({ username, avatar, avatarUrl, isAuthenticated, onViewProfile }: LobbyChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
@@ -75,6 +78,7 @@ export function LobbyChat({ username, avatar, isAuthenticated }: LobbyChatProps)
       message: filtered,
       username: username || 'Guest',
       avatar: avatar || '👤',
+      avatarUrl: avatarUrl || null,
     });
     setInput('');
   };
@@ -130,10 +134,17 @@ export function LobbyChat({ username, avatar, isAuthenticated }: LobbyChatProps)
             ) : (
               messages.map(msg => (
                 <div key={msg.id} className="flex items-start gap-2">
-                  <span className="text-base shrink-0 mt-0.5">{msg.avatar}</span>
+                  {msg.avatarUrl ? (
+                    <img src={msg.avatarUrl} alt={msg.username} className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" />
+                  ) : (
+                    <span className="text-base shrink-0 mt-0.5">{msg.avatar}</span>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-xs font-bold text-[#D4AF37] truncate">{msg.username}</span>
+                      <button
+                    className="text-xs font-bold text-[#D4AF37] truncate hover:underline cursor-pointer"
+                    onClick={() => onViewProfile && onViewProfile(msg.username)}
+                  >{msg.username}</button>
                       <span className="text-xs text-[#505050] shrink-0">{formatTime(msg.timestamp)}</span>
                     </div>
                     <p className="text-xs text-[#C0C0C0] break-words leading-relaxed">{msg.message}</p>

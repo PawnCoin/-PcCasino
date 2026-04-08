@@ -59,6 +59,15 @@ export async function initDatabase() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS cashback_paid_at TIMESTAMP`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_avatar_url TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(60)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_twitter VARCHAR(100)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_instagram VARCHAR(100)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_telegram VARCHAR(100)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_discord VARCHAR(100)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS public_stats_visible BOOLEAN DEFAULT TRUE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS public_socials_visible BOOLEAN DEFAULT TRUE`,
     ];
     for (const sql of alterColumns) {
       await query(sql).catch(() => {});

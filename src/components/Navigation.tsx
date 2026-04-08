@@ -14,6 +14,7 @@ interface NavigationProps {
   isAuthenticated: boolean;
   balance: number;
   avatarDef?: AvatarDef;
+  avatarUrl?: string | null;
   unreadNotifications?: number;
   onConnect: () => void;
   onConnectWallet: () => void;
@@ -40,6 +41,7 @@ export function Navigation({
   isAuthenticated, 
   balance,
   avatarDef,
+  avatarUrl,
   unreadNotifications = 0,
   onConnect, 
   onConnectWallet,
@@ -61,6 +63,7 @@ export function Navigation({
   isAdmin,
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
+  const resolvedAvatarUrl = avatarUrl || user?.avatarUrl || null;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showWeparlayConfirm, setShowWeparlayConfirm] = useState(false);
@@ -298,7 +301,11 @@ export function Navigation({
                         >
                           <div className="relative rounded-full overflow-visible" style={{ width: 28, height: 28 }}>
                             <div className="rounded-full overflow-hidden" style={{ width: 28, height: 28 }}>
-                              <AvatarSprite avatar={displayAvatar} size={28} style={{ borderRadius: 0 }} />
+                              {resolvedAvatarUrl ? (
+                                <img src={resolvedAvatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <AvatarSprite avatar={displayAvatar} size={28} style={{ borderRadius: 0 }} />
+                              )}
                             </div>
                             {unreadNotifications > 0 && (
                               <div className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-black z-10"
@@ -331,7 +338,11 @@ export function Navigation({
                         <div className="p-4 border-b border-[#5D4037]/30">
                           <div className="flex items-center gap-3">
                             <div className="rounded-full overflow-hidden" style={{ width: 44, height: 44 }}>
-                              <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
+                              {resolvedAvatarUrl ? (
+                                <img src={resolvedAvatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
+                              )}
                             </div>
                             <div>
                               <div className="font-bold text-white">{user?.username}</div>
@@ -551,7 +562,11 @@ export function Navigation({
           <div className="p-4 border-b border-[#5D4037]/30">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: 44, height: 44 }}>
-                <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
+                {resolvedAvatarUrl ? (
+                  <img src={resolvedAvatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <AvatarSprite avatar={displayAvatar} size={44} style={{ borderRadius: 0 }} />
+                )}
               </div>
               <div className="min-w-0">
                 <div className="font-bold text-white truncate">{user.username}</div>

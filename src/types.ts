@@ -18,6 +18,15 @@ export interface UnifiedUser {
   socialProvider?: 'google' | 'twitter' | 'discord' | 'telegram';
   balance: number;
   avatar: string;
+  avatarUrl?: string | null;
+  displayName?: string | null;
+  bio?: string | null;
+  socialTwitter?: string | null;
+  socialInstagram?: string | null;
+  socialTelegram?: string | null;
+  socialDiscord?: string | null;
+  publicStatsVisible?: boolean;
+  publicSocialsVisible?: boolean;
   isAdmin?: boolean;
   twoFactorEnabled?: boolean;
   withdrawAddress?: string;

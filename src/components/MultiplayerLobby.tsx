@@ -21,6 +21,7 @@ interface MultiplayerLobbyProps {
   userBalance: number;
   username?: string;
   userId?: string;
+  avatarUrl?: string | null;
 }
 
 const gameIcons: Record<string, string> = {
@@ -36,7 +37,7 @@ const gameNames: Record<string, string> = {
 
 const PLAYABLE_GAMES: GameType[] = ['poker', 'blackjack', 'roulette', 'craps', 'spades', 'slots', 'bingo', 'dominoes'];
 
-export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, username = 'Player', userId }: MultiplayerLobbyProps) {
+export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, username = 'Player', userId, avatarUrl }: MultiplayerLobbyProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
   const [selectedGame, setSelectedGame] = useState<GameType | 'all'>('all');
@@ -61,7 +62,7 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
 
     const onConnect = () => {
       setConnected(true);
-      identifyPlayer(username, userBalance, '');
+      identifyPlayer(username, userBalance, '', avatarUrl);
       getLobby();
     };
 
@@ -83,7 +84,7 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
 
     if (sock.connected) {
       setConnected(true);
-      identifyPlayer(username, userBalance, '');
+      identifyPlayer(username, userBalance, '', avatarUrl);
       getLobby();
     } else {
       sock.connect();
@@ -123,8 +124,8 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
       } else {
         alert(res.error || 'Failed to join table');
       }
-    });
-  }, [userBalance, username, onJoinTable, onClose]);
+    }, avatarUrl);
+  }, [userBalance, username, avatarUrl, onJoinTable, onClose]);
 
   const handleCreateRoom = useCallback(() => {
     if (!createForm.name.trim()) {
@@ -148,9 +149,10 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
         } else {
           alert(res.error || 'Failed to create table');
         }
-      }
+      },
+      avatarUrl
     );
-  }, [createForm, username, userBalance, onJoinTable, onClose]);
+  }, [createForm, username, userBalance, avatarUrl, onJoinTable, onClose]);
 
   const getStatusStyle = (status: string) => {
     if (status === 'waiting') return { color: '#4ade80', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)' };

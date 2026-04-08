@@ -41,6 +41,7 @@ import { DisputeCenter } from '@/components/DisputeCenter';
 import { TournamentsPage } from '@/components/TournamentsPage';
 import { ReferralPage } from '@/components/ReferralPage';
 import { LobbyChat } from '@/components/LobbyChat';
+import { PublicProfileCard } from '@/components/PublicProfileCard';
 import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
 import { JackpotCelebration } from '@/components/JackpotCelebration';
@@ -115,6 +116,7 @@ function App() {
   const [showReferral, setShowReferral] = useState(false);
   const [showPcToken, setShowPcToken] = useState(false);
   const [showVIPCurrency, setShowVIPCurrency] = useState(false);
+  const [viewingProfile, setViewingProfile] = useState<string | null>(null);
 
   // Jackpot celebration state (shown when the logged-in user wins the jackpot)
   const [jackpotCelebration, setJackpotCelebration] = useState<{ amount: number; username: string } | null>(null);
@@ -947,7 +949,7 @@ function App() {
               <JackpotTicker onJackpotWin={(amount) => { if (!jackpotCelebration) toast.success(`🎰 Jackpot won: ${amount.toLocaleString()} $Pc!`, { duration: 6000 }); }} />
             </div>
             <GamesGrid onSelectGame={handleSelectGame} />
-            <Leaderboard />
+            <Leaderboard onViewProfile={username => setViewingProfile(username)} />
             <WeParlaySection userBalance={user?.balance || 0} onSelectVip={() => handleSelectGame('vip')} />
             <RecentWinners />
             
@@ -1070,6 +1072,7 @@ function App() {
           isAuthenticated={isAuthenticated}
           balance={user?.balance || 0}
           avatarDef={userAvatarDef}
+          avatarUrl={user?.avatarUrl}
           unreadNotifications={unreadCount}
           onConnect={() => setShowAuth(true)}
           onConnectWallet={() => setShowWalletModal(true)}
@@ -1414,6 +1417,7 @@ function App() {
         userBalance={user?.balance || 0}
         username={user?.username || 'Player'}
         userId={user?.id}
+        avatarUrl={user?.avatarUrl}
       />
 
       {/* Live Game Room Panel (shows when in a multiplayer room) */}
@@ -1426,6 +1430,7 @@ function App() {
             setActiveRoomId(null);
             setCurrentView('lobby');
           }}
+          onViewProfile={username => setViewingProfile(username)}
         />
       )}
 
@@ -1442,6 +1447,21 @@ function App() {
         onShowTournaments={() => { setShowProfile(false); setShowTournaments(true); }}
         onShowLegal={handleShowLegal}
         onShowDispute={() => { setShowProfile(false); setShowDispute(true); }}
+        onNavigateToGame={(game) => { setShowProfile(false); handleSelectGame(game as GameType); }}
+        onUserUpdated={(updates) => {
+          if (user) {
+            const updated = { ...user, ...updates };
+            setUser(updated as typeof user);
+            localStorage.setItem('pcasino_user', JSON.stringify(updated));
+          }
+        }}
+      />
+
+      {/* Public Casino Card */}
+      <PublicProfileCard
+        username={viewingProfile}
+        onClose={() => setViewingProfile(null)}
+        onNavigateToGame={(game) => { setViewingProfile(null); handleSelectGame(game as GameType); }}
       />
 
       {/* Admin Dashboard */}
@@ -1539,7 +1559,9 @@ function App() {
         <LobbyChat
           username={user?.username}
           avatar={user?.avatar}
+          avatarUrl={user?.avatarUrl}
           isAuthenticated={isAuthenticated}
+          onViewProfile={username => setViewingProfile(username)}
         />
       )}
 

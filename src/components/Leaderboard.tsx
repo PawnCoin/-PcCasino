@@ -25,7 +25,11 @@ function nameToAvatarIdx(name: string): number {
 type LeaderboardTab = 'balance' | 'totalWon' | 'winStreak';
 type PeriodTab = 'daily' | 'weekly' | 'alltime';
 
-export function Leaderboard() {
+interface LeaderboardProps {
+  onViewProfile?: (username: string) => void;
+}
+
+export function Leaderboard({ onViewProfile }: LeaderboardProps = {}) {
   const [activeTab, setActiveTab] = useState<LeaderboardTab>('totalWon');
   const [activePeriod, setActivePeriod] = useState<PeriodTab>('alltime');
   const [leaders, setLeaders] = useState<LeaderboardPlayer[]>([]);
@@ -234,7 +238,10 @@ export function Leaderboard() {
                 <div className="mb-2">
                   <AvatarSprite avatar={ALL_AVATARS[player.avatarIdx % ALL_AVATARS.length]} size={isFirst ? 52 : 42} />
                 </div>
-                <div className="text-xs font-bold text-center truncate w-full text-white mb-1">{player.username}</div>
+                <button
+                  className="text-xs font-bold text-center truncate w-full text-white mb-1 hover:text-[#D4AF37] transition-colors"
+                  onClick={() => onViewProfile && onViewProfile(player.username)}
+                >{player.username}</button>
                 <div className="text-xs mb-1" style={{ color: activeTab === 'totalWon' ? '#D4AF37' : activeTab === 'balance' ? '#60a5fa' : '#f97316' }}>
                   {activeTab === 'totalWon' ? formatNum(player.totalWon) : activeTab === 'balance' ? formatNum(player.balance) : `${player.winStreak} 🔥`} $Pc
                 </div>
@@ -260,7 +267,10 @@ export function Leaderboard() {
               <div className="w-8 text-center flex-shrink-0">{getRankIcon(player.rank)}</div>
               <AvatarSprite avatar={ALL_AVATARS[player.avatarIdx % ALL_AVATARS.length]} size={34} />
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-white text-sm truncate">{player.username}</div>
+                <button
+                  className="font-bold text-white text-sm truncate hover:text-[#D4AF37] transition-colors block text-left"
+                  onClick={() => onViewProfile && onViewProfile(player.username)}
+                >{player.username}</button>
                 <div className="text-xs text-gray-400">{player.favoriteGame} • {player.gamesPlayed} games</div>
               </div>
               <div className="text-right">

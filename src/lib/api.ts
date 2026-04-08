@@ -42,7 +42,35 @@ export const authApi = {
     walletAddress: string;
     dailyDepositLimit: number;
     dailyLossLimit: number;
+    displayName: string;
+    bio: string;
+    socialTwitter: string;
+    socialInstagram: string;
+    socialTelegram: string;
+    socialDiscord: string;
+    publicStatsVisible: boolean;
+    publicSocialsVisible: boolean;
   }>) => apiFetch('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }),
+
+  uploadAvatar: (file: File) => {
+    const token = localStorage.getItem('pcasino_token');
+    return fetch('/api/auth/profile/avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': file.type,
+      },
+      body: file,
+    }).then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as any).error || `Upload failed ${res.status}`);
+      return data;
+    });
+  },
+
+  getFavoriteGames: () => apiFetch('/auth/profile/favorite-games'),
+
+  getPublicProfile: (username: string) => apiFetch(`/auth/profile/public/${encodeURIComponent(username)}`),
 
   selfExclude: (days?: number) =>
     apiFetch('/auth/self-exclude', { method: 'POST', body: JSON.stringify({ days }) }),

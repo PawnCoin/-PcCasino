@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone, Upload, Phone, BadgeCheck, RefreshCw, Plus, Trash2, Star as StarIcon } from 'lucide-react';
+import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone, Upload, Phone, BadgeCheck, RefreshCw, Plus, Trash2, Star as StarIcon, Edit, Camera, Twitter, Instagram, Send, MessageCircle, Play, Save } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,6 +29,15 @@ interface UserProfileProps {
     phoneVerified?: boolean;
     phoneNumber?: string;
     realTransactionsUnlocked?: boolean;
+    displayName?: string;
+    bio?: string;
+    avatarUrl?: string;
+    socialTwitter?: string;
+    socialInstagram?: string;
+    socialTelegram?: string;
+    socialDiscord?: string;
+    publicStatsVisible?: boolean;
+    publicSocialsVisible?: boolean;
   } | null;
   transactions: Transaction[];
   avatarDef?: AvatarDef;
@@ -38,6 +47,8 @@ interface UserProfileProps {
   onShowTournaments: () => void;
   onShowLegal: (page: string) => void;
   onShowDispute: () => void;
+  onNavigateToGame?: (game: string) => void;
+  onUserUpdated?: (updates: Record<string, unknown>) => void;
 }
 
 type ProfileTab = 'overview' | 'transactions' | 'security' | 'bonuses' | 'disputes' | 'limits' | 'preferences' | 'provably';
@@ -653,7 +664,7 @@ function WalletManager({ userId }: { userId: string }) {
   );
 }
 
-export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, onShowDeposit, onShowWithdraw, onShowReferral, onShowTournaments, onShowLegal, onShowDispute }: UserProfileProps) {
+export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, onShowDeposit, onShowWithdraw, onShowReferral, onShowTournaments, onShowLegal, onShowDispute, onNavigateToGame, onUserUpdated }: UserProfileProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [copied, setCopied] = useState(false);
   const [show2FASetup, setShow2FASetup] = useState(false);
@@ -672,6 +683,25 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
   const [kycStatus, setKycStatus] = useState<string>('unverified');
   const [showKycFlow, setShowKycFlow] = useState(false);
 
+  // Edit profile state
+  const [editMode, setEditMode] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editTwitter, setEditTwitter] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
+  const [editTelegram, setEditTelegram] = useState('');
+  const [editDiscord, setEditDiscord] = useState('');
+  const [editPublicStats, setEditPublicStats] = useState(true);
+  const [editPublicSocials, setEditPublicSocials] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Favorite games state
+  const [favoriteGames, setFavoriteGames] = useState<{ game: string; gameName: string; icon: string; playCount: number; winRate: number }[]>([]);
+  const [favGamesLoading, setFavGamesLoading] = useState(false);
+
   useEffect(() => {
     if (isOpen && user) {
       const stored = localStorage.getItem(GAME_HISTORY_KEY);
@@ -680,8 +710,80 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
       setSelfExclusion(user.selfExcluded ? 'Active' : '');
       setDailyLimit(user.dailyLossLimit || 0);
       setKycStatus(user.kycStatus || 'unverified');
+      setEditDisplayName(user.displayName || '');
+      setEditBio(user.bio || '');
+      setEditTwitter(user.socialTwitter || '');
+      setEditInstagram(user.socialInstagram || '');
+      setEditTelegram(user.socialTelegram || '');
+      setEditDiscord(user.socialDiscord || '');
+      setEditPublicStats(user.publicStatsVisible !== false);
+      setEditPublicSocials(user.publicSocialsVisible !== false);
+
+      // Fetch favorite games
+      if (getToken()) {
+        setFavGamesLoading(true);
+        authApi.getFavoriteGames()
+          .then(data => { if (data.games) setFavoriteGames(data.games); })
+          .catch(() => {})
+          .finally(() => setFavGamesLoading(false));
+      }
+    }
+    if (!isOpen) {
+      setEditMode(false);
+      setAvatarPreview(null);
     }
   }, [isOpen, user]);
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+
+    const reader = new FileReader();
+    reader.onload = ev => setAvatarPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    if (getToken()) {
+      setAvatarUploading(true);
+      try {
+        const data = await authApi.uploadAvatar(file);
+        if (data.avatarUrl) {
+          setAvatarPreview(null);
+          onUserUpdated?.({ avatarUrl: data.avatarUrl });
+          toast.success('Profile photo updated!');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Upload failed');
+        setAvatarPreview(null);
+      }
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setEditSaving(true);
+    try {
+      const data = await authApi.updateProfile({
+        displayName: editDisplayName.trim(),
+        bio: editBio.trim(),
+        socialTwitter: editTwitter.trim().replace(/^@/, ''),
+        socialInstagram: editInstagram.trim().replace(/^@/, ''),
+        socialTelegram: editTelegram.trim().replace(/^@/, ''),
+        socialDiscord: editDiscord.trim(),
+        publicStatsVisible: editPublicStats,
+        publicSocialsVisible: editPublicSocials,
+      });
+      if (data.user) {
+        onUserUpdated?.(data.user as Record<string, unknown>);
+      }
+      setEditMode(false);
+      toast.success('Profile saved!');
+    } catch (err: any) {
+      toast.error(err.message || 'Save failed');
+    }
+    setEditSaving(false);
+  };
 
   const sessionStats = useMemo(() => {
     const wins = transactions.filter(t => t.type === 'win');
@@ -819,7 +921,9 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
               {/* Avatar */}
               <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0"
                 style={{ border: '2px solid rgba(212,175,55,0.5)', boxShadow: '0 0 20px rgba(212,175,55,0.3)' }}>
-                {avatarDef ? (
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                ) : avatarDef ? (
                   <AvatarSprite avatar={avatarDef} size={56} style={{ borderRadius: 0 }} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl"
@@ -830,7 +934,8 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl font-bold text-white">{user.username}</h2>
+                  <h2 className="text-xl font-bold text-white">{user.displayName || user.username}</h2>
+                  {user.displayName && <span className="text-xs text-gray-500">@{user.username}</span>}
                   {/* VIP Tier Badge */}
                   {(() => {
                     const tier = user.vipTier || 'bronze';
@@ -933,7 +1038,147 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
               {/* OVERVIEW */}
               {activeTab === 'overview' && (
                 <div className="space-y-4">
-                  <h3 className="font-bold text-white text-lg">Account Overview</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white text-lg">Account Overview</h3>
+                    {!editMode ? (
+                      <Button
+                        onClick={() => setEditMode(true)}
+                        size="sm"
+                        style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)', fontSize: 12 }}
+                      >
+                        <Edit className="w-3 h-3 mr-1" /> Edit Profile
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => { setEditMode(false); }}
+                          size="sm"
+                          style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)', fontSize: 12 }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleSaveProfile}
+                          disabled={editSaving}
+                          size="sm"
+                          style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)', fontSize: 12 }}
+                        >
+                          <Save className="w-3 h-3 mr-1" /> {editSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit Profile Panel */}
+                  {editMode && (
+                    <div className="p-4 rounded-xl space-y-4" style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                      {/* Avatar Upload */}
+                      <div className="flex items-center gap-4">
+                        <div className="relative group">
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(212,175,55,0.5)' }}>
+                            {avatarPreview ? (
+                              <img src={avatarPreview} alt="preview" className="w-full h-full object-cover" />
+                            ) : user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                            ) : avatarDef ? (
+                              <AvatarSprite avatar={avatarDef} size={64} style={{ borderRadius: 0 }} />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-3xl" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
+                                {user.avatar || '👤'}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={avatarUploading}
+                            className="absolute inset-0 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ background: 'rgba(0,0,0,0.6)' }}
+                          >
+                            {avatarUploading ? (
+                              <div className="w-5 h-5 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin" />
+                            ) : (
+                              <Camera className="w-5 h-5 text-white" />
+                            )}
+                          </button>
+                          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+                        </div>
+                        <div>
+                          <p className="text-sm text-white font-medium">Profile Photo</p>
+                          <button onClick={() => fileInputRef.current?.click()} className="text-xs text-[#D4AF37] hover:underline">
+                            {avatarUploading ? 'Uploading…' : 'Change photo'}
+                          </button>
+                          <p className="text-xs text-gray-500 mt-0.5">JPG, PNG, GIF up to 5MB</p>
+                        </div>
+                      </div>
+
+                      {/* Display Name */}
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Display Name <span className="text-gray-600">(optional)</span></label>
+                        <input
+                          type="text"
+                          value={editDisplayName}
+                          onChange={e => setEditDisplayName(e.target.value.slice(0, 60))}
+                          placeholder={user.username}
+                          className="w-full px-3 py-2 rounded-lg text-sm"
+                          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                        />
+                      </div>
+
+                      {/* Bio */}
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Bio / Tagline <span className="text-gray-600">({editBio.length}/300)</span></label>
+                        <textarea
+                          value={editBio}
+                          onChange={e => setEditBio(e.target.value.slice(0, 300))}
+                          placeholder="Tell other players about yourself…"
+                          rows={2}
+                          className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+                          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                        />
+                      </div>
+
+                      {/* Social handles */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 flex items-center gap-1"><Twitter className="w-3 h-3 text-[#1DA1F2]" /> Twitter/X</label>
+                          <input type="text" value={editTwitter} onChange={e => setEditTwitter(e.target.value.slice(0, 50))} placeholder="@handle"
+                            className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }} />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 flex items-center gap-1"><Instagram className="w-3 h-3 text-[#E1306C]" /> Instagram</label>
+                          <input type="text" value={editInstagram} onChange={e => setEditInstagram(e.target.value.slice(0, 50))} placeholder="@handle"
+                            className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }} />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 flex items-center gap-1"><Send className="w-3 h-3 text-[#0088cc]" /> Telegram</label>
+                          <input type="text" value={editTelegram} onChange={e => setEditTelegram(e.target.value.slice(0, 50))} placeholder="@handle"
+                            className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }} />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 flex items-center gap-1"><MessageCircle className="w-3 h-3 text-[#5865F2]" /> Discord</label>
+                          <input type="text" value={editDiscord} onChange={e => setEditDiscord(e.target.value.slice(0, 60))} placeholder="user#1234"
+                            className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }} />
+                        </div>
+                      </div>
+
+                      {/* Privacy toggles */}
+                      <div className="space-y-2 pt-1">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Public Card Privacy</p>
+                        {[
+                          { key: 'stats', label: 'Show stats on public card', value: editPublicStats, set: setEditPublicStats },
+                          { key: 'socials', label: 'Show social links on public card', value: editPublicSocials, set: setEditPublicSocials },
+                        ].map(item => (
+                          <div key={item.key} className="flex items-center justify-between">
+                            <span className="text-xs text-gray-300">{item.label}</span>
+                            <button onClick={() => item.set(!item.value)} className="w-9 h-5 rounded-full transition-all relative" style={{ background: item.value ? '#D4AF37' : 'rgba(255,255,255,0.1)' }}>
+                              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: item.value ? '1.1rem' : '0.1rem' }} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
                       { label: 'Total Won', value: formatAmount(totalWon), color: '#4ade80', icon: '🏆' },
@@ -991,6 +1236,42 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                         {kycStatus === 'approved' ? 'View KYC Status' : 'Complete Verification →'}
                       </button>
                     </div>
+                  </div>
+
+                  {/* Favorite Games */}
+                  <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                      <Star className="w-4 h-4 text-[#D4AF37]" /> Favorite Games
+                    </h4>
+                    {favGamesLoading ? (
+                      <div className="text-center py-3 text-gray-500 text-xs">Loading…</div>
+                    ) : favoriteGames.length === 0 ? (
+                      <div className="text-center py-3 text-gray-500 text-xs">Play some games to see your favorites here!</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {favoriteGames.map((fg, idx) => {
+                          return (
+                            <div key={fg.game} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                              <span className="text-xl w-7 text-center">{fg.icon || '🎮'}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-white">{fg.gameName || fg.game}</div>
+                                <div className="text-xs text-gray-500">{fg.playCount} plays • {fg.winRate}% wins</div>
+                              </div>
+                              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37' }}>#{idx + 1}</span>
+                              {onNavigateToGame && (
+                                <button
+                                  onClick={() => { onClose(); onNavigateToGame(fg.game); }}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+                                  style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}
+                                >
+                                  <Play className="w-3 h-3" /> Play
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Wallet Manager */}

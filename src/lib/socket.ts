@@ -5,6 +5,7 @@ export interface RoomPlayer {
   username: string;
   balance: number;
   avatar: string;
+  avatarUrl?: string | null;
   seat: number;
   isReady: boolean;
 }
@@ -72,8 +73,8 @@ export function disconnectSocket() {
   }
 }
 
-export function identifyPlayer(username: string, balance: number, avatar: string) {
-  getSocket().emit('player:identify', { username, balance, avatar });
+export function identifyPlayer(username: string, balance: number, avatar: string, avatarUrl?: string | null) {
+  getSocket().emit('player:identify', { username, balance, avatar, avatarUrl: avatarUrl || null });
 }
 
 export function getLobby() {
@@ -89,9 +90,10 @@ export function createRoom(
   username: string,
   balance: number,
   avatar: string,
-  cb: (res: { success: boolean; roomId?: string; error?: string }) => void
+  cb: (res: { success: boolean; roomId?: string; error?: string }) => void,
+  avatarUrl?: string | null
 ) {
-  getSocket().emit('room:create', { game, name, minBet, maxBet, isPrivate, username, balance, avatar }, cb);
+  getSocket().emit('room:create', { game, name, minBet, maxBet, isPrivate, username, balance, avatar, avatarUrl: avatarUrl || null }, cb);
 }
 
 export function joinRoom(
@@ -99,9 +101,10 @@ export function joinRoom(
   username: string,
   balance: number,
   avatar: string,
-  cb: (res: { success: boolean; roomId?: string; error?: string }) => void
+  cb: (res: { success: boolean; roomId?: string; error?: string }) => void,
+  avatarUrl?: string | null
 ) {
-  getSocket().emit('room:join', { roomId, username, balance, avatar }, cb);
+  getSocket().emit('room:join', { roomId, username, balance, avatar, avatarUrl: avatarUrl || null }, cb);
 }
 
 export function leaveRoom() {

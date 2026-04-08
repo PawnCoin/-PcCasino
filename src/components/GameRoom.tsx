@@ -16,9 +16,10 @@ interface GameRoomProps {
   username: string;
   userId?: string;
   onLeave: () => void;
+  onViewProfile?: (username: string) => void;
 }
 
-export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
+export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: GameRoomProps) {
   const [room, setRoom] = useState<Room | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -235,9 +236,22 @@ export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
             players.map((player) => (
               <div key={player.id} className="flex items-center gap-2 py-1 px-1 rounded-lg hover:bg-white/5 transition-colors">
                 <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
-                  <AvatarSprite avatar={nameToAvatar(player.username)} size={24} style={{ borderRadius: 0 }} />
+                  {player.avatarUrl ? (
+                    <img src={player.avatarUrl} alt={player.username} className="w-full h-full object-cover" />
+                  ) : (
+                    <AvatarSprite avatar={nameToAvatar(player.username)} size={24} style={{ borderRadius: 0 }} />
+                  )}
                 </div>
-                <span className="text-xs text-white truncate flex-1">{player.username}</span>
+                {player.id !== userId && onViewProfile ? (
+                  <button
+                    className="text-xs text-white truncate flex-1 text-left hover:text-[#D4AF37] transition-colors"
+                    onClick={() => onViewProfile(player.username)}
+                  >
+                    {player.username}
+                  </button>
+                ) : (
+                  <span className="text-xs text-white truncate flex-1">{player.username}</span>
+                )}
                 {room?.hostId === player.id && <Crown className="w-3 h-3 text-yellow-400 flex-shrink-0" />}
                 {player.isReady && <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />}
                 {player.id === userId && (
@@ -300,7 +314,17 @@ export function GameRoom({ roomId, username, userId, onLeave }: GameRoomProps) {
                   <div key={msg.id} className={`text-xs ${msg.playerId === 'system' ? 'text-center text-gray-500 italic' : ''}`}>
                     {msg.playerId !== 'system' && (
                       <span className="font-bold" style={{ color: msg.playerId === userId ? '#e879f9' : '#94a3b8' }}>
-                        {msg.username}:{' '}
+                        {msg.playerId !== userId && onViewProfile ? (
+                          <button
+                            className="hover:underline hover:opacity-80 transition-opacity"
+                            onClick={() => onViewProfile(msg.username)}
+                          >
+                            {msg.username}
+                          </button>
+                        ) : (
+                          msg.username
+                        )}
+                        {': '}
                       </span>
                     )}
                     <span className={msg.playerId === 'system' ? 'text-gray-500' : 'text-gray-300'}>

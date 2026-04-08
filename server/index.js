@@ -1555,8 +1555,8 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`[+] ${socket.id}`);
 
-  socket.on('player:identify', async ({ username, balance, avatar, userId }) => {
-    const player = { id: userId || socket.id, socketId: socket.id, username, balance, avatar, roomId: null, seat: null, isReady: false, connectedAt: Date.now() };
+  socket.on('player:identify', async ({ username, balance, avatar, userId, avatarUrl }) => {
+    const player = { id: userId || socket.id, socketId: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, roomId: null, seat: null, isReady: false, connectedAt: Date.now() };
     players.set(socket.id, player);
     if (userId) socket.join(`user_${userId}`);
     socket.emit('lobby:update', { rooms: getPublicRooms() });
@@ -1575,12 +1575,12 @@ io.on('connection', (socket) => {
     socket.emit('winners:list', { winners: recentWinners.slice(0, 10) });
   });
 
-  socket.on('room:create', ({ game, name, minBet, maxBet, isPrivate, username, balance, avatar }, cb) => {
-    const player = players.get(socket.id) || { id: socket.id, username, balance, avatar, isReady: false };
+  socket.on('room:create', ({ game, name, minBet, maxBet, isPrivate, username, balance, avatar, avatarUrl }, cb) => {
+    const player = players.get(socket.id) || { id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, isReady: false };
     players.set(socket.id, { ...player, roomId: null, seat: 0 });
     const maxPlayers = game === 'poker' ? 6 : game === 'spades' ? 4 : game === 'dominoes' ? 4 : game === 'bingo' ? 20 : 8;
     const roomId = generateRoomId();
-    const newRoom = { id: roomId, game, name: name || `${username}'s Table`, minBet: minBet || 10, maxBet: maxBet || 1000, maxPlayers, players: [{ id: socket.id, username, balance, avatar, seat: 0, isReady: false }], status: 'waiting', pot: 0, createdAt: Date.now(), isPrivate: !!isPrivate, hostId: socket.id, gameState: null, chat: [] };
+    const newRoom = { id: roomId, game, name: name || `${username}'s Table`, minBet: minBet || 10, maxBet: maxBet || 1000, maxPlayers, players: [{ id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, seat: 0, isReady: false }], status: 'waiting', pot: 0, createdAt: Date.now(), isPrivate: !!isPrivate, hostId: socket.id, gameState: null, chat: [] };
     rooms.set(roomId, newRoom);
     socket.join(roomId);
     players.get(socket.id).roomId = roomId;
@@ -1589,15 +1589,15 @@ io.on('connection', (socket) => {
     socket.emit('room:joined', { room: newRoom, playerId: socket.id });
   });
 
-  socket.on('room:join', ({ roomId, username, balance, avatar }, cb) => {
+  socket.on('room:join', ({ roomId, username, balance, avatar, avatarUrl }, cb) => {
     const room = rooms.get(roomId);
     if (!room) { if (cb) cb({ success: false, error: 'Room not found' }); return; }
     if (room.players.length >= room.maxPlayers) { if (cb) cb({ success: false, error: 'Room is full' }); return; }
     const seat = room.players.length;
-    const player = players.get(socket.id) || { id: socket.id, username, balance, avatar, isReady: false };
+    const player = players.get(socket.id) || { id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, isReady: false };
     player.roomId = roomId; player.seat = seat;
     players.set(socket.id, player);
-    room.players.push({ id: socket.id, username, balance, avatar, seat, isReady: false });
+    room.players.push({ id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, seat, isReady: false });
     socket.join(roomId);
     io.to(roomId).emit('room:update', { room });
     io.to(roomId).emit('room:playerJoined', { player: { id: socket.id, username, seat } });
@@ -1700,9 +1700,9 @@ io.on('connection', (socket) => {
     if (room) { room.chat = [...(room.chat || []).slice(-50), msg]; io.to(player.roomId).emit('chat:message', msg); }
   });
 
-  socket.on('lobby:chat', ({ message, username, avatar }) => {
+  socket.on('lobby:chat', ({ message, username, avatar, avatarUrl }) => {
     if (!message || message.trim().length === 0 || message.length > 200) return;
-    const msg = { id: Date.now(), socketId: socket.id, username: username || 'Guest', avatar: avatar || '👤', message: message.trim(), timestamp: Date.now() };
+    const msg = { id: Date.now(), socketId: socket.id, username: username || 'Guest', avatar: avatar || '👤', avatarUrl: avatarUrl || null, message: message.trim(), timestamp: Date.now() };
     lobbyChat.push(msg);
     if (lobbyChat.length > 100) lobbyChat.shift();
     io.emit('lobby:chat', msg);
@@ -1767,6 +1767,9 @@ io.on('connection', (socket) => {
     res.send(readFileSync(join(publicDir, `${page}.html`)));
   });
 });
+
+// ---- Serve uploaded avatars ----
+app.use('/uploads', express.static(join(__dirname, '..', 'public', 'uploads')));
 
 // ---- Production: serve built frontend ----
 if (process.env.NODE_ENV === 'production') {

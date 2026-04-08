@@ -5,6 +5,19 @@ A React + Vite + TypeScript casino web application featuring multiple card and c
 ## Games
 Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe), Craps, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Horse Racing (iframe), Pool Table (8-ball canvas physics), Darts 501 (canvas dartboard vs AI)
 
+## Task 42: Profile Editing, Favorite Games & Public Casino Card (Implemented)
+- **DB schema**: Added `display_name`, `bio`, `avatar_url`, `social_twitter`, `social_instagram`, `social_telegram`, `social_discord`, `public_stats_visible`, `public_socials_visible` columns to users table
+- **Avatar upload**: `POST /api/auth/profile/avatar` — accepts raw image bytes, validates type/size (max 5MB), stores to `public/uploads/avatars/`, updates `avatar_url`
+- **Expanded PATCH /api/auth/profile**: Now accepts all new profile fields + privacy toggles
+- **Favorite games**: `GET /api/auth/profile/favorite-games` — top 5 games by play count from `game_history` table
+- **Public profile**: `GET /api/auth/profile/public/:username` — returns non-sensitive public data respecting privacy toggles
+- **UserProfile.tsx**: Added "Edit Profile" mode with photo upload widget, display name/bio inputs, social handles, privacy toggles; added "Favorite Games" panel with Play Now buttons
+- **PublicProfileCard.tsx**: New modal showing avatar, display name, VIP tier, casino stats, social links — opened by clicking any username in the app
+- **LobbyChat.tsx**: Usernames are now clickable links to open the Public Casino Card
+- **Leaderboard.tsx**: Usernames in podium and table are clickable links to open the Public Casino Card
+- **App.tsx**: Wired up PublicProfileCard, passed onViewProfile to LobbyChat and Leaderboard, passed onUserUpdated and onNavigateToGame to UserProfile
+- **Static serving**: `/uploads` path served for avatar images
+
 ## High-Priority Improvements (Implemented)
 
 ### 1. Sound Design
