@@ -16,6 +16,7 @@ import { useGameVoice } from '@/hooks/useGameVoice';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { usePoolSounds } from '@/hooks/usePoolSounds';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type GameMode = 'select' | '8ball' | '9ball' | 'snooker' | 'shotbet' | 'rake' | 'tournament';
@@ -163,10 +164,9 @@ function makeSnookerRack(): Ball[] {
 }
 
 // ─── Physics Engine ────────────────────────────────────────────────────────────
-function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Pocket[]): { anyMoving: boolean; pocketed: Ball[]; collisionCount: number; totalCollisionVel: number } {
+function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Pocket[]): { anyMoving: boolean; pocketed: Ball[]; collisions: { velocity: number }[] } {
   const pocketedThisStep: Ball[] = [];
-  let collisionCount = 0;
-  let totalCollisionVel = 0;
+  const collisions: { velocity: number }[] = [];
 
   balls.forEach(ball => {
     if (ball.pocketed) return;
@@ -212,15 +212,14 @@ function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Po
         if (dot > 0) {
           a.vx -= dot * nx; a.vy -= dot * ny;
           b.vx += dot * nx; b.vy += dot * ny;
-          collisionCount++;
-          totalCollisionVel += dot;
+          collisions.push({ velocity: dot });
         }
       }
     }
   }
 
   const anyMoving = balls.some(b => !b.pocketed && (Math.abs(b.vx) > MIN_SPEED || Math.abs(b.vy) > MIN_SPEED));
-  return { anyMoving, pocketed: pocketedThisStep, collisionCount, totalCollisionVel };
+  return { anyMoving, pocketed: pocketedThisStep, collisions };
 }
 
 // ─── Drawing helpers ─────────────────────────────────────────────────────────
@@ -1256,17 +1255,13 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     const pockets = pocketsRef.current;
     const balls = ballsRef.current;
 
-    const { anyMoving, pocketed, collisionCount, totalCollisionVel } = simulateStep(balls, tw, th, pockets);
+    const { anyMoving, pocketed, collisions } = simulateStep(balls, tw, th, pockets);
     redrawCanvas();
     movingRef.current = anyMoving;
 
-    if (settings.soundEnabled) {
-      if (collisionCount > 0) {
-        poolSounds.playBallCollision(totalCollisionVel / collisionCount);
-      }
-      if (pocketed.length > 0) {
-        poolSounds.playPocketDrop();
-      }
+    poolSounds.playCollisions(collisions, settings.soundEnabled);
+    if (settings.soundEnabled && pocketed.length > 0) {
+      poolSounds.playPocketDrop();
     }
 
     if (anyMoving) {
@@ -1334,8 +1329,14 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
     setCanShoot(false);
     phaseLockRef.current = 'playing';
+    if (settings.soundEnabled) {
+      const isBreak = shotCountRef.current === 0;
+      if (isBreak) poolSounds.playBreakShot();
+      else poolSounds.playCueStrike(power * 0.85);
+    }
+    shotCountRef.current += 1;
     animRef.current = requestAnimationFrame(gameLoopStep);
-  }, [gameLoopStep]);
+  }, [gameLoopStep, settings.soundEnabled, poolSounds]);
 
   // Wire triggerAiShot into the ref so handleShotEnd can call it
   useEffect(() => {
@@ -1537,7 +1538,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         {gameMode === 'select' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, maxWidth: 680, width: '100%' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 28, fontWeight: 900, color: '#D4AF37', letterSpacing: '0.1em' }}>🎱 $Pc POOL SUITE</div>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 28, fontWeight: 900, letterSpacing: '0.1em' }}>🎱 <PcTokenLabel size={26} /> POOL SUITE</div>
               <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Choose your game mode</div>
             </div>
 
@@ -1611,7 +1612,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                 disabled={betAmount > localBalance}
                 style={{ padding: '10px 28px', borderRadius: 10, background: 'linear-gradient(135deg,#D4AF37,#B8860B)', color: '#000', fontWeight: 700, cursor: 'pointer', fontSize: 14, border: 'none', opacity: betAmount > localBalance ? 0.5 : 1 }}
               >
-                {betAmount > localBalance ? 'Insufficient Balance' : `Place ${betAmount.toLocaleString()} $Pc & Play`}
+                {betAmount > localBalance ? 'Insufficient Balance' : <><span>Place </span><PcTokenLabel amount={betAmount} size={14} /><span> &amp; Play</span></>}
               </button>
             </div>
           </div>
@@ -1635,7 +1636,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                 >
                   {opt.label}
                   <span style={{ float: 'right', color: opt.fee > localBalance ? '#ef4444' : '#86efac' }}>
-                    {opt.fee > localBalance ? 'Too expensive' : `Pot: ${(opt.fee * opt.size).toLocaleString()} $Pc`}
+                    {opt.fee > localBalance ? 'Too expensive' : <><span>Pot: </span><PcTokenLabel amount={opt.fee * opt.size} size={13} /></>}
                   </span>
                 </button>
               ))}
@@ -1730,12 +1731,15 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               {(phase === 'won' || phase === 'lost') && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', gap: 12 }}>
                   <div style={{ fontSize: 56 }}>{phase === 'won' ? '🏆' : '😔'}</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: phase === 'won' ? '#D4AF37' : '#ef4444', fontFamily: "'Cinzel', serif" }}>
-                    {phase === 'won' ? `+${(betAmount * 2).toLocaleString()} $Pc` : `Lost ${betAmount.toLocaleString()} $Pc`}
+                  <div style={{ fontSize: 24, fontFamily: "'Cinzel', serif" }}>
+                    {phase === 'won'
+                      ? <><span style={{ color: '#4CAF50', fontWeight: 800 }}>+</span><PcTokenLabel amount={betAmount * 2} size={24} /></>
+                      : <><span style={{ color: '#ef4444', fontWeight: 800 }}>Lost </span><PcTokenLabel amount={betAmount} size={24} /></>
+                    }
                   </div>
                   {gameMode === 'shotbet' && (
                     <div style={{ fontSize: 13, color: '#9ca3af' }}>
-                      Shot bet net: {shotBet.playerBalance > 0 ? '+' : ''}{shotBet.playerBalance.toLocaleString()} $Pc
+                      Shot bet net: {shotBet.playerBalance > 0 ? '+' : ''}<PcTokenLabel amount={Math.abs(shotBet.playerBalance)} size={13} />
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 10 }}>

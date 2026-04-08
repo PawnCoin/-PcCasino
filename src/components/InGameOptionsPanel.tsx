@@ -8,6 +8,7 @@ import { useTableSkin, TABLE_SKINS } from '@/hooks/useTableSkin';
 import { usePoolBallSkin, POOL_BALL_PRESETS } from '@/hooks/usePoolBallSkin';
 import { usePoolCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
 import { useDominoSkin, DOMINO_SKINS } from '@/hooks/useDominoSkin';
+import type { SkinKey as DominoSkinKey } from '@/hooks/useDominoSkin';
 
 interface InGameOptionsPanelProps {
   isOpen: boolean;
@@ -495,13 +496,13 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                     Choose domino tile appearance. Applied immediately.
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {(Object.keys(DOMINO_SKINS) as string[]).map(key => {
+                    {(Object.keys(DOMINO_SKINS) as DominoSkinKey[]).map(key => {
                       const skin = DOMINO_SKINS[key];
                       const isSelected = activeDominoKey === key;
                       return (
                         <button
                           key={key}
-                          onClick={() => selectDominoSkin(key as never)}
+                          onClick={() => selectDominoSkin(key)}
                           style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
                             padding: '8px 6px', borderRadius: 10, cursor: 'pointer',
