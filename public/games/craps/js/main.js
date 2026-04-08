@@ -220,3 +220,22 @@ new createjs.Text(c,this._iFontSize+"px "+this._szFont,this._szColor);this._oTex
 this.refreshText(c)},setHorizAlign:function(c){this._szAlign=c;this._oText.textAlign=this._szAlign},setVerticalAlign:function(c){this._bVerticalAlign=c},setX:function(c){this._x=c;this._oText.x=c},setY:function(c){this._y=c;this._oText.y=c},setOutline:function(c){null!==this._oText&&(this._oText.outline=c)},setShadow:function(c,g,d,k){null!==this._oText&&(this._oText.shadow=new createjs.Shadow(c,g,d,k))},setColor:function(c){this._oText.color=c},setAlpha:function(c){this._oText.alpha=c},removeTweens:function(){createjs.Tween.removeTweens(this._oText)},
 getText:function(){return this._oText},getY:function(){return this._y},getFontSize:function(){return this._iFontSize},getBounds:function(){return this._oText.getBounds()},refreshText:function(c){""===c&&(c=" ");null===this._oText&&this.__createText(c);this._oText.text=c;this._oText.font=this._iStartingFontSize+"px "+this._szFont;this._oText.lineHeight=Math.round(this._iStartingFontSize*this._fLineHeightFactor);this.__autofit();this.__updateY();this.__verticalAlign()}};
 function CTLText(c,g,d,k,f,a,e,h,b,t,l,y,v,B,r,E,u){this._oContainer=c;this._x=g;this._y=d;this._iWidth=k;this._iHeight=f;this._bMultiline=E;this._iFontSize=this._iStartingFontSize=a;this._szAlign=e;this._szColor=h;this._szFont=b;this._iPaddingH=l;this._iPaddingV=y;this._bVerticalAlign=r;this._bFitText=B;this._bDebug=u;this._oDebugShape=null;this._fLineHeightFactor=t;this._oText=null;v&&this.__createText(v)};
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.type !== 'music:state') return;
+  var playing = e.data.playing;
+  var parentBanner = document.getElementById('parentMusicBanner');
+  if (playing) {
+    if (!parentBanner) {
+      var banner = document.createElement('div');
+      banner.id = 'parentMusicBanner';
+      banner.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(139,92,246,0.18);border:1px solid rgba(139,92,246,0.4);border-radius:12px;padding:7px 18px;font-size:12px;color:#c4b5fd;z-index:9999;pointer-events:none;white-space:nowrap;';
+      banner.textContent = e.data.trackTitle ? ('Now playing: ' + e.data.trackTitle) : 'Music playing from main player';
+      document.body.appendChild(banner);
+    } else {
+      parentBanner.textContent = e.data.trackTitle ? ('Now playing: ' + e.data.trackTitle) : 'Music playing from main player';
+    }
+  } else {
+    var banner2 = document.getElementById('parentMusicBanner');
+    if (banner2) banner2.remove();
+  }
+});

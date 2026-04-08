@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { RefreshCw, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { InGameTopBar } from '@/components/InGameTopBar';
-import { getSoundMuted, getSoundVolume, getSoundAmbient, subscribeSoundState } from '@/hooks/soundState';
+import { getSoundMuted, getSoundVolume, getSoundAmbient, getSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -48,6 +48,7 @@ export function IframeGameWrapper({
       playing: getSoundAmbient(),
       volume: getSoundVolume(),
       muted: getSoundMuted(),
+      trackTitle: getSoundTrackTitle(),
     }, '*');
   }, []);
 

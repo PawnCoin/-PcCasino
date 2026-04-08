@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, subscribeSoundState } from '@/hooks/soundState';
+import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, setSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
 
 interface Track {
   id: string;
@@ -62,6 +62,7 @@ export function MusicPlayer() {
     audio.volume = isMuted ? 0 : volume / 100;
     setProgress(0);
     setAudioError(false);
+    setSoundTrackTitle(currentTrackData.title);
 
     const onEnded = () => setCurrentTrack(prev => (prev + 1) % tracks.length);
     const onError = () => { setAudioError(true); setIsPlaying(false); };

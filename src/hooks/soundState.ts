@@ -21,9 +21,12 @@ let _ambientEnabled: boolean = (() => {
   return true;
 })();
 
+let _trackTitle: string = '';
+
 export function getSoundMuted(): boolean { return _isMuted; }
 export function getSoundVolume(): number { return _volume; }
 export function getSoundAmbient(): boolean { return _ambientEnabled; }
+export function getSoundTrackTitle(): string { return _trackTitle; }
 
 export function setSoundMuted(val: boolean): void {
   _isMuted = val;
@@ -44,6 +47,11 @@ export function setSoundAmbient(val: boolean): void {
     const settings = s ? JSON.parse(s) : {};
     localStorage.setItem('pcasino_game_settings', JSON.stringify({ ...settings, casinoSoundEnabled: val }));
   } catch {}
+  _listeners.forEach(fn => fn());
+}
+
+export function setSoundTrackTitle(title: string): void {
+  _trackTitle = title;
   _listeners.forEach(fn => fn());
 }
 
