@@ -14,8 +14,7 @@ import { usePoolCueSkin, getDefaultCueSkin, CUE_SKINS } from '@/hooks/usePoolCue
 import type { CueSkinDef } from '@/hooks/usePoolCueSkin';
 import { useGameVoice } from '@/hooks/useGameVoice';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
-import type { AvatarDef } from '@/components/AvatarSprite';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type GameMode = 'select' | '8ball' | '9ball' | 'snooker' | 'shotbet' | 'rake' | 'tournament';
@@ -656,12 +655,10 @@ function drawPool(
   // Cushion rails
   if (isGlassSkin) {
     ctx.save();
-    ctx.globalAlpha = 0.6;
-    ctx.fillStyle = railColor;
-    ctx.fillRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
-    ctx.globalAlpha = 0.8;
+    ctx.filter = 'blur(3px)';
     ctx.strokeStyle = railColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.85;
     ctx.strokeRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
     ctx.restore();
   } else {
@@ -965,7 +962,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         const w = entry.contentRect.width;
         if (w > 0) {
           const tw = gameModeRef.current === 'snooker' ? SNOOKER_W : TABLE_W;
-          const s = Math.min(w / tw, 1.4);
+          const s = Math.min(w / tw, 1.5);
           setCanvasScale(s);
         }
       }
@@ -1628,62 +1625,23 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         {phase !== 'lobby' && phase !== 'betting' && gameMode !== 'select' && (
           <>
             {/* Avatar HUD */}
-            {(() => {
-              let playerAvatarDef: AvatarDef = ALL_AVATARS[0];
-              try { playerAvatarDef = JSON.parse(settings.avatarDef); } catch {}
-              const aiAvatarDef: AvatarDef = ALL_AVATARS[Math.min(5, ALL_AVATARS.length - 1)];
-              const playerName = settings.displayName || 'You';
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', width: '100%', maxWidth: tw }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ position: 'relative' }}>
-                      <AvatarSprite
-                        avatar={playerAvatarDef}
-                        size={36}
-                        active={turn === 'player'}
-                        style={{
-                          boxShadow: turn === 'player'
-                            ? '0 0 0 3px #D4AF37, 0 0 14px rgba(212,175,55,0.6)'
-                            : '0 0 0 2px rgba(255,255,255,0.12)',
-                          animation: turn === 'player' ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                        }}
-                      />
-                      {turn === 'player' && (
-                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#4CAF50', border: '1.5px solid #050505' }} />
-                      )}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: turn === 'player' ? '#D4AF37' : '#9ca3af' }}>{playerName}</div>
-                      <div style={{ fontSize: 9, color: '#4b5563' }}>{localBalance.toLocaleString()} $Pc</div>
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#6b7280', letterSpacing: '0.15em' }}>VS</div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: turn === 'ai' ? '#ef4444' : '#9ca3af', textAlign: 'right' }}>AI Opponent</div>
-                      <div style={{ fontSize: 9, color: '#4b5563', textAlign: 'right' }}>Computer</div>
-                    </div>
-                    <div style={{ position: 'relative' }}>
-                      <AvatarSprite
-                        avatar={aiAvatarDef}
-                        size={36}
-                        active={turn === 'ai'}
-                        style={{
-                          boxShadow: turn === 'ai'
-                            ? '0 0 0 3px #ef4444, 0 0 14px rgba(239,68,68,0.5)'
-                            : '0 0 0 2px rgba(255,255,255,0.12)',
-                        }}
-                      />
-                      {turn === 'ai' && (
-                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #050505' }} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', width: '100%', maxWidth: tw }}>
+              <PlayerAvatar
+                name={settings.displayName || 'You'}
+                balance={localBalance}
+                isActive={turn === 'player'}
+                size="sm"
+                showTalkButton={false}
+              />
+              <div style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#6b7280', letterSpacing: '0.15em' }}>VS</div>
+              <PlayerAvatar
+                name="AI Opponent"
+                balance={0}
+                isActive={turn === 'ai'}
+                size="sm"
+                showTalkButton={false}
+              />
+            </div>
 
             {/* Status bar */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: tw }}>
