@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone, Upload, Phone, BadgeCheck, RefreshCw, Plus, Trash2, Star as StarIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import type { Transaction } from '@/types';
-import { authApi, getToken } from '@/lib/api';
+import { authApi, kycApi, walletApi, getToken } from '@/lib/api';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 
@@ -25,6 +25,10 @@ interface UserProfileProps {
     dailyLossLimit?: number;
     dailyDepositLimit?: number;
     emailVerified?: boolean;
+    kycStatus?: string;
+    phoneVerified?: boolean;
+    phoneNumber?: string;
+    realTransactionsUnlocked?: boolean;
   } | null;
   transactions: Transaction[];
   avatarDef?: AvatarDef;
@@ -37,6 +41,7 @@ interface UserProfileProps {
 }
 
 type ProfileTab = 'overview' | 'transactions' | 'security' | 'bonuses' | 'disputes' | 'limits' | 'preferences' | 'provably';
+type KycStep = 'intro' | 'email' | 'phone' | 'id-upload' | 'selfie' | 'submitted';
 
 const GAME_HISTORY_KEY = 'pcasino_game_history';
 
@@ -49,9 +54,20 @@ interface GameHistoryEntry {
   timestamp: number;
 }
 
+interface LinkedWallet {
+  id: number;
+  wallet_address: string;
+  chain_label: string;
+  label: string | null;
+  is_default: boolean;
+  wallet_verified: boolean;
+  wallet_verified_at: string | null;
+  created_at: string;
+}
+
 function ProvablyFairSection() {
   const [clientSeed, setClientSeed] = useState(() => Math.random().toString(36).slice(2, 18));
-  const [serverSeedHash, setServerSeedHash] = useState('a7f3b2c9d4e1f8a5b6c3d7e2f9a4b1c8d5e2f3a9b6c4d1e7f2a8b3c9d6e4f1a2');
+  const [serverSeedHash] = useState('a7f3b2c9d4e1f8a5b6c3d7e2f9a4b1c8d5e2f3a9b6c4d1e7f2a8b3c9d6e4f1a2');
   const [verifyClientSeed, setVerifyClientSeed] = useState('');
   const [verifyServerSeed, setVerifyServerSeed] = useState('');
   const [verifyNonce, setVerifyNonce] = useState('');
@@ -84,7 +100,7 @@ function ProvablyFairSection() {
         Provably Fair Gaming
       </h3>
       <div className="p-4 rounded-xl" style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)' }}>
-        <p className="text-sm text-gray-300 mb-2">All game results are generated using a combination of a <strong className="text-[#D4AF37]">client seed</strong> (you control), a <strong className="text-[#D4AF37]">server seed</strong> (committed before the game), and a <strong className="text-[#D4AF37]">nonce</strong> (game counter). This makes every result independently verifiable.</p>
+        <p className="text-sm text-gray-300 mb-2">All game results are generated using a combination of a <strong className="text-[#D4AF37]">client seed</strong> (you control), a <strong className="text-[#D4AF37]">server seed</strong> (committed before the game), and a <strong className="text-[#D4AF37]">nonce</strong> (game counter).</p>
         <p className="text-xs text-gray-500">Formula: <code className="text-blue-400">SHA256(serverSeed + clientSeed + nonce)</code> → game outcome</p>
       </div>
 
@@ -113,37 +129,16 @@ function ProvablyFairSection() {
           <div className="px-3 py-2 rounded-lg font-mono text-xs text-green-400 break-all" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
             {serverSeedHash}
           </div>
-          <p className="text-xs text-gray-500 mt-1">The actual server seed will be revealed after you change your client seed.</p>
         </div>
-        <button
-          onClick={() => { setServerSeedHash(Math.random().toString(16).slice(2).padEnd(64, '0')); setVerifyResult(null); }}
-          className="w-full py-2 rounded-lg text-sm text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.1))', border: '1px solid rgba(212,175,55,0.4)' }}
-        >
-          Rotate Seeds & Reveal Previous
-        </button>
       </div>
 
       <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <h4 className="font-bold text-white text-sm">Verify a Past Game</h4>
         <div className="space-y-2">
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Client Seed used</label>
-            <input type="text" value={verifyClientSeed} onChange={e => setVerifyClientSeed(e.target.value)} placeholder="e.g. abc123xyz..." className="w-full px-3 py-2 rounded-lg text-sm font-mono" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Server Seed (revealed after game)</label>
-            <input type="text" value={verifyServerSeed} onChange={e => setVerifyServerSeed(e.target.value)} placeholder="e.g. f3a9b6c4d1e7..." className="w-full px-3 py-2 rounded-lg text-sm font-mono" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">Nonce (game round #)</label>
-            <input type="text" value={verifyNonce} onChange={e => setVerifyNonce(e.target.value)} placeholder="e.g. 42" className="w-full px-3 py-2 rounded-lg text-sm font-mono" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
-          </div>
-          <button
-            onClick={handleVerify}
-            className="w-full py-2 rounded-lg text-sm font-bold text-black transition-all"
-            style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}
-          >
+          <input type="text" value={verifyClientSeed} onChange={e => setVerifyClientSeed(e.target.value)} placeholder="Client seed used..." className="w-full px-3 py-2 rounded-lg text-sm font-mono" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
+          <input type="text" value={verifyServerSeed} onChange={e => setVerifyServerSeed(e.target.value)} placeholder="Server seed (revealed after game)..." className="w-full px-3 py-2 rounded-lg text-sm font-mono" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
+          <input type="text" value={verifyNonce} onChange={e => setVerifyNonce(e.target.value)} placeholder="Nonce (game round #)..." className="w-full px-3 py-2 rounded-lg text-sm font-mono" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }} />
+          <button onClick={handleVerify} className="w-full py-2 rounded-lg text-sm font-bold text-black" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
             Verify Result
           </button>
           {verifyResult && (
@@ -153,17 +148,507 @@ function ProvablyFairSection() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="p-3 rounded-xl text-xs text-gray-400" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <p className="font-bold text-gray-300 mb-1">How it works:</p>
-        <ul className="space-y-1 list-disc list-inside">
-          <li>Before each game, the server commits to a seed hash</li>
-          <li>You can choose any client seed you want</li>
-          <li>After the game, request the server seed reveal</li>
-          <li>Combine client seed + server seed + nonce to reproduce the exact result</li>
-          <li>Any third party can verify the outcome independently</li>
-        </ul>
+// ---- KYC Verification Flow ----
+function KycFlow({ user, onComplete }: { user: NonNullable<UserProfileProps['user']>; onComplete: (newStatus: string) => void }) {
+  const [step, setStep] = useState<KycStep>('intro');
+  const [phone, setPhone] = useState(user.phoneNumber || '');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [idFile, setIdFile] = useState<string | null>(null);
+  const [selfieFile, setSelfieFile] = useState<string | null>(null);
+  const [walletVerified, setWalletVerified] = useState(false);
+  const idInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    walletApi.list().then(data => {
+      const hasVerified = (data.wallets || []).some((w: any) => w.wallet_verified && w.is_default);
+      setWalletVerified(hasVerified);
+    }).catch(() => {});
+  }, []);
+
+  const phoneVerified = user.phoneVerified;
+  const emailVerified = user.emailVerified;
+
+  useEffect(() => {
+    // Start at the first incomplete step
+    if (!emailVerified) { setStep('email'); return; }
+    if (!phoneVerified) { setStep('phone'); return; }
+    setStep('id-upload');
+  }, [emailVerified, phoneVerified]);
+
+  const readFileAsBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleSendOtp = async () => {
+    if (!phone.trim()) { toast.error('Enter your phone number'); return; }
+    setLoading(true);
+    try {
+      await kycApi.sendPhoneOtp(phone.trim());
+      setOtpSent(true);
+      toast.success('OTP sent to your phone!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send OTP');
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) { toast.error('Enter the OTP code'); return; }
+    setLoading(true);
+    try {
+      await kycApi.verifyPhoneOtp(otp.trim());
+      toast.success('Phone verified!');
+      setStep('id-upload');
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid OTP');
+    }
+    setLoading(false);
+  };
+
+  const handleIdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('File too large (max 5MB)'); return; }
+    try {
+      const data = await readFileAsBase64(file);
+      setIdFile(data);
+      toast.success('ID document selected');
+    } catch { toast.error('Failed to read file'); }
+  };
+
+  const handleSelfieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('File too large (max 5MB)'); return; }
+    try {
+      const data = await readFileAsBase64(file);
+      setSelfieFile(data);
+      toast.success('Selfie selected');
+    } catch { toast.error('Failed to read file'); }
+  };
+
+  const handleSubmit = async () => {
+    if (!idFile || !selfieFile) { toast.error('Both ID document and selfie are required'); return; }
+    setLoading(true);
+    try {
+      await kycApi.submitDocuments({ idDocumentData: idFile, selfieData: selfieFile });
+      setStep('submitted');
+      onComplete('pending');
+      toast.success('KYC documents submitted for review!');
+    } catch (err: any) {
+      toast.error(err.message || 'Submission failed');
+    }
+    setLoading(false);
+  };
+
+  const stepBg = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-bold text-white text-lg flex items-center gap-2">
+        <BadgeCheck className="w-5 h-5 text-[#D4AF37]" />
+        Identity Verification (KYC)
+      </h3>
+
+      {/* Step indicators */}
+      <div className="flex items-center gap-1 mb-4">
+        {(['email', 'phone', 'id-upload', 'selfie'] as KycStep[]).map((s, i) => {
+          const labels = ['Email', 'Phone', 'ID Doc', 'Selfie'];
+          const isComplete = (s === 'email' && emailVerified) || (s === 'phone' && phoneVerified);
+          const isCurrent = step === s || (step === 'id-upload' && s === 'id-upload') || (step === 'selfie' && s === 'selfie') || (step === 'submitted' && (s === 'id-upload' || s === 'selfie'));
+          return (
+            <div key={s} className="flex items-center gap-1">
+              <div className="flex flex-col items-center">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{
+                    background: isComplete ? '#4ade80' : isCurrent ? '#D4AF37' : 'rgba(255,255,255,0.1)',
+                    color: isComplete || isCurrent ? 'black' : '#9ca3af',
+                  }}>
+                  {isComplete ? '✓' : i + 1}
+                </div>
+                <span className="text-[10px] text-gray-500 mt-0.5">{labels[i]}</span>
+              </div>
+              {i < 3 && <div className="w-6 h-px mb-4" style={{ background: isComplete ? '#4ade80' : 'rgba(255,255,255,0.1)' }} />}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Step: Email */}
+      {step === 'email' && (
+        <div className="p-4 rounded-xl space-y-3" style={stepBg}>
+          <h4 className="font-bold text-white text-sm">Step 1: Email Verification</h4>
+          <p className="text-sm text-gray-400">Your email must be verified before proceeding. Check your inbox for the verification link we sent when you registered.</p>
+          {emailVerified ? (
+            <div className="flex items-center gap-2 text-green-400 text-sm"><CheckCircle className="w-4 h-4" /> Email verified!</div>
+          ) : (
+            <div className="p-3 rounded-lg text-sm text-yellow-400" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }}>
+              Email not yet verified. Please check your inbox and click the verification link.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step: Phone OTP */}
+      {step === 'phone' && (
+        <div className="p-4 rounded-xl space-y-3" style={stepBg}>
+          <h4 className="font-bold text-white text-sm flex items-center gap-2"><Phone className="w-4 h-4 text-blue-400" /> Step 2: Phone Verification</h4>
+          <p className="text-xs text-gray-400">Enter your phone number to receive a one-time verification code.</p>
+          {!otpSent ? (
+            <>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+1 555 000 0000"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+              />
+              <Button disabled={loading} onClick={handleSendOtp} className="w-full" style={{ background: 'rgba(59,130,246,0.3)', color: 'white', border: '1px solid rgba(59,130,246,0.4)' }}>
+                {loading ? 'Sending...' : 'Send OTP'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-green-400">OTP sent to {phone}. Enter the 6-digit code below.</p>
+              <input
+                type="text"
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                maxLength={6}
+                className="w-full px-3 py-2 rounded-lg text-center text-xl font-mono tracking-widest"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(59,130,246,0.4)', color: 'white' }}
+              />
+              <div className="flex gap-2">
+                <Button disabled={loading} onClick={handleVerifyOtp} className="flex-1" style={{ background: 'rgba(74,222,128,0.3)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }}>
+                  {loading ? 'Verifying...' : 'Verify'}
+                </Button>
+                <Button onClick={() => setOtpSent(false)} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)' }}>
+                  Resend
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Step: ID Upload */}
+      {step === 'id-upload' && (
+        <div className="p-4 rounded-xl space-y-3" style={stepBg}>
+          <h4 className="font-bold text-white text-sm flex items-center gap-2"><Upload className="w-4 h-4 text-yellow-400" /> Step 3: Government ID</h4>
+          <p className="text-xs text-gray-400">Upload a clear photo of your government-issued ID (passport, driver's license, or national ID card). Max 5MB, JPG/PNG.</p>
+
+          <input ref={idInputRef} type="file" accept="image/*" className="hidden" onChange={handleIdUpload} />
+          <button
+            onClick={() => idInputRef.current?.click()}
+            className="w-full py-8 rounded-xl border-2 border-dashed flex flex-col items-center gap-2 transition-all hover:border-[#D4AF37]/60"
+            style={{ borderColor: idFile ? 'rgba(74,222,128,0.5)' : 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.02)' }}
+          >
+            {idFile ? (
+              <>
+                <img src={idFile} alt="ID preview" className="max-h-24 rounded-lg object-contain" />
+                <span className="text-xs text-green-400">ID document ready</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-8 h-8 text-gray-500" />
+                <span className="text-sm text-gray-400">Click to upload ID document</span>
+                <span className="text-xs text-gray-600">Passport, driver's license, or national ID</span>
+              </>
+            )}
+          </button>
+
+          {idFile && (
+            <Button onClick={() => setStep('selfie')} className="w-full" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.1))', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' }}>
+              Continue to Selfie
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Step: Selfie */}
+      {step === 'selfie' && (
+        <div className="p-4 rounded-xl space-y-3" style={stepBg}>
+          <h4 className="font-bold text-white text-sm flex items-center gap-2"><Upload className="w-4 h-4 text-purple-400" /> Step 4: Selfie with ID</h4>
+          <p className="text-xs text-gray-400">Take a selfie holding your ID next to your face. Both your face and the ID must be clearly visible. Max 5MB, JPG/PNG.</p>
+
+          <input ref={selfieInputRef} type="file" accept="image/*" className="hidden" onChange={handleSelfieUpload} />
+          <button
+            onClick={() => selfieInputRef.current?.click()}
+            className="w-full py-8 rounded-xl border-2 border-dashed flex flex-col items-center gap-2 transition-all hover:border-purple-400/60"
+            style={{ borderColor: selfieFile ? 'rgba(74,222,128,0.5)' : 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.02)' }}
+          >
+            {selfieFile ? (
+              <>
+                <img src={selfieFile} alt="Selfie preview" className="max-h-24 rounded-lg object-contain" />
+                <span className="text-xs text-green-400">Selfie ready</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-8 h-8 text-gray-500" />
+                <span className="text-sm text-gray-400">Click to upload selfie with ID</span>
+                <span className="text-xs text-gray-600">Hold your ID next to your face</span>
+              </>
+            )}
+          </button>
+
+          <div className="flex gap-2">
+            <Button onClick={() => setStep('id-upload')} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)' }}>
+              Back
+            </Button>
+            <Button disabled={loading || !selfieFile} onClick={handleSubmit} className="flex-1" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: 'black' }}>
+              {loading ? 'Submitting...' : 'Submit for Review'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Submitted */}
+      {step === 'submitted' && (
+        <div className="p-6 rounded-xl text-center space-y-3" style={{ background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.3)' }}>
+          <CheckCircle className="w-12 h-12 text-green-400 mx-auto" />
+          <h4 className="font-bold text-white text-lg">Submitted for Review</h4>
+          <p className="text-sm text-gray-400">Your documents have been submitted. An admin will review your submission within 24-72 hours. You'll receive a notification once reviewed.</p>
+          <div className="p-3 rounded-lg text-xs text-gray-500" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            KYC Status: <span className="text-yellow-400 font-bold">PENDING REVIEW</span>
+          </div>
+        </div>
+      )}
+
+      {/* Tiered status breakdown */}
+      <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
+        <h4 className="text-xs font-bold text-[#D4AF37] mb-2">Your Access Tiers</h4>
+        {[
+          { label: 'KYC Verified', desc: 'Email + Phone + Documents approved', done: user.kycStatus === 'approved' },
+          { label: 'Wallet Verified (100M+ $Pc)', desc: 'Default wallet holds ≥100M $Pc on-chain', done: walletVerified },
+          { label: 'Full Access Unlocked', desc: 'Real crypto deposits & withdrawals enabled', done: user.realTransactionsUnlocked || false },
+        ].map((tier, i) => (
+          <div key={i} className="flex items-center gap-3 text-sm">
+            <div className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${tier.done ? 'bg-green-500 text-black' : 'bg-white/10 text-gray-500'}`}>
+              {tier.done ? '✓' : i + 1}
+            </div>
+            <div>
+              <span className={tier.done ? 'text-green-400' : 'text-gray-300'}>{tier.label}</span>
+              <span className="text-xs text-gray-500 ml-2">— {tier.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---- Wallet Manager ----
+function WalletManager({ userId }: { userId: string }) {
+  const [wallets, setWallets] = useState<LinkedWallet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newAddr, setNewAddr] = useState('');
+  const [newChain, setNewChain] = useState('ERC-20');
+  const [newLabel, setNewLabel] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
+
+  const CHAINS = ['ERC-20', 'BEP-20', 'Polygon', 'Arbitrum', 'Optimism', 'Solana', 'Avalanche'];
+
+  const fetchWallets = async () => {
+    try {
+      const data = await walletApi.list();
+      setWallets(data.wallets || []);
+    } catch (err: any) {
+      toast.error('Failed to load wallets');
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchWallets(); }, [userId]);
+
+  const handleAdd = async () => {
+    if (!newAddr.trim()) { toast.error('Enter a wallet address'); return; }
+    setAdding(true);
+    try {
+      await walletApi.add({ walletAddress: newAddr.trim(), chainLabel: newChain, label: newLabel.trim() || undefined });
+      toast.success('Wallet added!');
+      setNewAddr(''); setNewLabel(''); setShowAdd(false);
+      await fetchWallets();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add wallet');
+    }
+    setAdding(false);
+  };
+
+  const handleRemove = async (id: number) => {
+    try {
+      await walletApi.remove(id);
+      toast.success('Wallet removed');
+      await fetchWallets();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove wallet');
+    }
+  };
+
+  const handleSetDefault = async (id: number) => {
+    try {
+      await walletApi.setDefault(id);
+      toast.success('Default wallet updated');
+      await fetchWallets();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to set default');
+    }
+  };
+
+  const handleVerifyBalance = async (id: number) => {
+    setVerifyingId(id);
+    try {
+      const result = await walletApi.verifyBalance(id);
+      if (result.meetsThreshold) {
+        toast.success(`Wallet verified! Balance: ${result.balance} $Pc — threshold met!`);
+      } else {
+        const bal = result.balance ? `${result.balance} $Pc` : 'unknown';
+        toast.error(`Balance (${bal}) below 100M $Pc threshold.${result.error ? ' ' + result.error : ''}`);
+      }
+      await fetchWallets();
+    } catch (err: any) {
+      toast.error(err.message || 'Balance check failed');
+    }
+    setVerifyingId(null);
+  };
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-400 text-sm">Loading wallets...</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-bold text-white text-sm flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-[#D4AF37]" />
+          Linked Wallets ({wallets.length}/5)
+        </h4>
+        {wallets.length < 5 && (
+          <button onClick={() => setShowAdd(!showAdd)} className="text-xs px-3 py-1 rounded-lg flex items-center gap-1"
+            style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}>
+            <Plus className="w-3 h-3" /> Add Wallet
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="p-3 rounded-xl space-y-2" style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)' }}>
+          <input
+            type="text"
+            value={newAddr}
+            onChange={e => setNewAddr(e.target.value)}
+            placeholder="Wallet address (0x...)"
+            className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+          />
+          <div className="flex gap-2">
+            <select
+              value={newChain}
+              onChange={e => setNewChain(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+            >
+              {CHAINS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input
+              type="text"
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              placeholder="Label (optional)"
+              className="flex-1 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button disabled={adding} onClick={handleAdd} size="sm" className="flex-1" style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }}>
+              {adding ? 'Adding...' : 'Add'}
+            </Button>
+            <Button onClick={() => setShowAdd(false)} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)' }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {wallets.length === 0 ? (
+        <div className="text-center py-6 text-gray-500 text-sm">
+          <Wallet className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          No wallets linked yet. Add your first wallet above.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {wallets.map(w => (
+            <div key={w.id} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: w.is_default ? '1px solid rgba(212,175,55,0.3)' : '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                      {w.chain_label}
+                    </span>
+                    {w.label && <span className="text-xs text-gray-300">{w.label}</span>}
+                    {w.is_default && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}>
+                        Default
+                      </span>
+                    )}
+                    {w.wallet_verified && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}>
+                        ✓ Verified
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs font-mono text-gray-400 mt-1 break-all">{w.wallet_address}</div>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => handleVerifyBalance(w.id)}
+                    disabled={verifyingId === w.id}
+                    title="Check on-chain balance"
+                    className="p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
+                    style={{ color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)' }}
+                  >
+                    <RefreshCw className={`w-3 h-3 ${verifyingId === w.id ? 'animate-spin' : ''}`} />
+                  </button>
+                  {!w.is_default && (
+                    <button
+                      onClick={() => handleSetDefault(w.id)}
+                      title="Set as default"
+                      className="p-1.5 rounded-lg hover:bg-yellow-500/10 transition-colors"
+                      style={{ color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}
+                    >
+                      <StarIcon className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleRemove(w.id)}
+                    title="Remove wallet"
+                    className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+                    style={{ color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs text-gray-600">Click the refresh icon on any wallet to check your on-chain $Pc balance. A balance of 100M+ $Pc is required to unlock real transactions.</p>
     </div>
   );
 }
@@ -184,7 +669,8 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
   const [selfExclusionLoading, setSelfExclusionLoading] = useState(false);
   const [notifications, setNotifications] = useState(() => JSON.parse(localStorage.getItem('pcasino_notifications') || '{"wins":true,"bonuses":true,"news":false,"tournaments":true}'));
   const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
-  const [kycStatus] = useState<'unverified' | 'pending' | 'verified'>('unverified');
+  const [kycStatus, setKycStatus] = useState<string>('unverified');
+  const [showKycFlow, setShowKycFlow] = useState(false);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -193,6 +679,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
       setTwoFAEnabled(!!user.totpEnabled);
       setSelfExclusion(user.selfExcluded ? 'Active' : '');
       setDailyLimit(user.dailyLossLimit || 0);
+      setKycStatus(user.kycStatus || 'unverified');
     }
   }, [isOpen, user]);
 
@@ -310,7 +797,15 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
     return '📋';
   };
 
+  const kycBadgeColor = kycStatus === 'approved' ? { bg: 'rgba(74,222,128,0.1)', color: '#4ade80', border: 'rgba(74,222,128,0.3)' }
+    : kycStatus === 'pending' ? { bg: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: 'rgba(251,191,36,0.3)' }
+    : kycStatus === 'rejected' ? { bg: 'rgba(248,113,113,0.1)', color: '#f87171', border: 'rgba(248,113,113,0.3)' }
+    : { bg: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: 'rgba(251,191,36,0.3)' };
+
+  const kycLabel = kycStatus === 'approved' ? 'KYC: VERIFIED' : kycStatus === 'pending' ? 'KYC: PENDING' : kycStatus === 'rejected' ? 'KYC: REJECTED' : 'KYC: UNVERIFIED';
+
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[92vh] p-0 overflow-hidden" style={{
         background: 'rgba(6,6,12,0.99)',
@@ -354,19 +849,29 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                       </span>
                     );
                   })()}
-                  {kycStatus === 'verified' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                  {kycStatus === 'approved' && <CheckCircle className="w-4 h-4 text-green-400" />}
                 </div>
                 <div className="text-sm text-gray-400 mt-0.5">
                   {user.email || 'No email linked'} • ID: {String(user.id)}
                 </div>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{
-                    background: kycStatus === 'verified' ? 'rgba(74,222,128,0.1)' : 'rgba(251,191,36,0.1)',
-                    color: kycStatus === 'verified' ? '#4ade80' : '#fbbf24',
-                    border: `1px solid ${kycStatus === 'verified' ? 'rgba(74,222,128,0.3)' : 'rgba(251,191,36,0.3)'}`,
-                  }}>
-                    KYC: {kycStatus.toUpperCase()}
-                  </span>
+                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                  {/* Clickable KYC badge */}
+                  <button
+                    onClick={() => setShowKycFlow(true)}
+                    className="text-xs px-2 py-0.5 rounded-full transition-all hover:opacity-80"
+                    style={{
+                      background: kycBadgeColor.bg,
+                      color: kycBadgeColor.color,
+                      border: `1px solid ${kycBadgeColor.border}`,
+                    }}
+                  >
+                    {kycLabel}
+                  </button>
+                  {user.realTransactionsUnlocked && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}>
+                      Full Access
+                    </span>
+                  )}
                   {user.selfExcluded && (
                     <span className="text-xs px-2 py-0.5 rounded-full"
                       style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}>
@@ -457,44 +962,41 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                       ].map(item => (
                         <div key={item.label} className="flex justify-between text-sm">
                           <span className="text-gray-400">{item.label}</span>
-                          <span className="capitalize" style={{ color: item.color }}>{item.value}</span>
+                          <span className="font-bold" style={{ color: item.color }}>{item.value}</span>
                         </div>
                       ))}
                     </div>
+
+                    {/* Access Status Panel */}
                     <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <h4 className="font-bold text-white text-sm">Quick Actions</h4>
-                      <div className="space-y-1.5">
-                        {[
-                          { label: 'Submit Dispute', action: onShowDispute, color: '#f87171' },
-                          { label: 'Referral Program', action: onShowReferral, color: '#a78bfa' },
-                          { label: 'Join Tournament', action: onShowTournaments, color: '#facc15' },
-                          { label: 'Game Rules', action: () => onShowLegal('rules'), color: '#60a5fa' },
-                        ].map(item => (
-                          <button key={item.label} onClick={item.action}
-                            className="w-full text-left text-xs px-3 py-1.5 rounded-lg flex items-center justify-between hover:bg-white/5 transition-colors"
-                            style={{ color: item.color }}>
-                            {item.label} <ChevronRight className="w-3 h-3" />
-                          </button>
-                        ))}
-                      </div>
+                      <h4 className="font-bold text-white text-sm">Access Status</h4>
+                      {[
+                        { label: 'Email', done: user.emailVerified, value: user.emailVerified ? 'Verified' : 'Unverified' },
+                        { label: 'Phone', done: user.phoneVerified, value: user.phoneVerified ? 'Verified' : 'Unverified' },
+                        { label: 'KYC', done: kycStatus === 'approved', value: kycStatus === 'approved' ? 'Approved' : kycStatus === 'pending' ? 'Under Review' : kycStatus === 'rejected' ? 'Rejected' : 'Not Submitted' },
+                        { label: 'Real Txns', done: user.realTransactionsUnlocked, value: user.realTransactionsUnlocked ? 'Unlocked' : 'Locked' },
+                      ].map(item => (
+                        <div key={item.label} className="flex justify-between text-sm items-center">
+                          <span className="text-gray-400">{item.label}</span>
+                          <span className="text-xs font-bold" style={{ color: item.done ? '#4ade80' : '#9ca3af' }}>
+                            {item.done ? '✓ ' : ''}{item.value}
+                          </span>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setShowKycFlow(true)}
+                        className="w-full mt-2 py-1.5 rounded-lg text-xs font-bold transition-all"
+                        style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}
+                      >
+                        {kycStatus === 'approved' ? 'View KYC Status' : 'Complete Verification →'}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Wallet info */}
-                  {user.walletAddress && (
-                    <div className="p-4 rounded-xl" style={{ background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)' }}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-xs text-gray-400 mb-1">Connected Wallet</div>
-                          <code className="text-xs text-green-400">{user.walletAddress}</code>
-                        </div>
-                        <button onClick={() => copyToClipboard(user.walletAddress!)}
-                          className="p-2 rounded-lg hover:bg-white/10 transition-colors">
-                          {copied ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Wallet Manager */}
+                  <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <WalletManager userId={user.id} />
+                  </div>
                 </div>
               )}
 
@@ -596,10 +1098,12 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                   <div className="flex items-center justify-between py-2">
                     <div>
                       <div className="text-sm text-white">KYC Verification</div>
-                      <div className="text-xs" style={{ color: kycStatus === 'verified' ? '#4ade80' : '#fbbf24' }}>{kycStatus}</div>
+                      <div className="text-xs" style={{ color: kycStatus === 'approved' ? '#4ade80' : '#fbbf24' }}>
+                        {kycStatus === 'approved' ? 'Approved — identity verified' : kycStatus === 'pending' ? 'Under review' : kycStatus === 'rejected' ? 'Rejected — resubmit required' : 'Not yet verified'}
+                      </div>
                     </div>
-                    <Button onClick={() => toast.info('KYC documents required. Contact support.')} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
-                      Verify
+                    <Button onClick={() => setShowKycFlow(true)} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
+                      {kycStatus === 'approved' ? 'Verified ✓' : 'Verify'}
                     </Button>
                   </div>
                   </div>
@@ -610,7 +1114,12 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                       <div className="flex justify-between"><span className="text-gray-400">User ID</span><code className="text-yellow-400 text-xs">{user.id}</code></div>
                       <div className="flex justify-between"><span className="text-gray-400">Username</span><span className="text-white">{user.username}</span></div>
                       <div className="flex justify-between"><span className="text-gray-400">Email</span><span className="text-white">{user.email || 'Not linked'}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-400">Wallet</span><span className="text-green-400 text-xs">{user.walletAddress ? `${user.walletAddress.slice(0, 10)}...` : 'Not connected'}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">Phone</span><span className="text-white">{user.phoneNumber || 'Not linked'}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">KYC Status</span>
+                        <span className="font-bold" style={{ color: kycStatus === 'approved' ? '#4ade80' : '#fbbf24' }}>
+                          {kycStatus.toUpperCase()}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -624,7 +1133,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                         </h4>
                         <button onClick={() => { setShow2FASetup(false); setTwoFACode(''); }}><X className="w-4 h-4 text-gray-400" /></button>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">Scan this QR code with Google Authenticator or Authy, then enter the 6-digit code to verify and enable.</p>
+                      <p className="text-xs text-gray-400 mb-3">Scan this QR code with Google Authenticator or Authy, then enter the 6-digit code.</p>
                       <div className="flex justify-center mb-3">
                         <div className="p-3 bg-white rounded-xl">
                           <img
@@ -744,7 +1253,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                         <div className="text-right">
                           <div className="font-bold text-sm" style={{ color: bonus.color }}>{bonus.amount}</div>
                           <span className="text-xs px-2 py-0.5 rounded-full" style={{
-                            background: bonus.status === 'available' ? 'rgba(74,222,128,0.1)' : bonus.status === 'claimed' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.05)',
+                            background: bonus.status === 'available' ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)',
                             color: bonus.status === 'available' ? '#4ade80' : '#9ca3af',
                           }}>
                             {bonus.status}
@@ -771,7 +1280,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                       <div>
                         <div className="text-sm font-bold text-yellow-400">Malfunction Refund Policy</div>
                         <div className="text-xs text-gray-400 mt-1">
-                          If you experience a technical malfunction during gameplay that results in an unfair loss, you may be eligible for a full or partial refund. You must provide your session ID, game type, approximate time, and description of what occurred. All disputes are reviewed within 48–72 hours. Approved refunds are credited instantly to your account.
+                          If you experience a technical malfunction during gameplay that results in an unfair loss, you may be eligible for a full or partial refund. All disputes are reviewed within 48–72 hours.
                         </div>
                         <button onClick={() => onShowLegal('malfunction')} className="text-xs text-yellow-400 hover:underline mt-1 flex items-center gap-1">
                           Read Full Malfunction Policy <ExternalLink className="w-3 h-3" />
@@ -782,7 +1291,6 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                   <div className="text-center py-8 text-gray-400">
                     <AlertTriangle className="w-10 h-10 mx-auto mb-2 opacity-20" />
                     <p className="text-sm">No open disputes</p>
-                    <p className="text-xs mt-1">File a dispute if you experienced a game malfunction</p>
                   </div>
                 </div>
               )}
@@ -807,7 +1315,6 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                           Save
                         </Button>
                       </div>
-                      {dailyLimit > 0 && <p className="text-xs text-gray-400 mt-1">Limit: {dailyLimit.toLocaleString()} $Pc/day</p>}
                     </div>
                   </div>
                   <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -879,5 +1386,35 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* KYC Flow Dialog */}
+    <Dialog open={showKycFlow} onOpenChange={setShowKycFlow}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden" style={{
+        background: 'rgba(6,6,12,0.99)',
+        border: '1px solid rgba(212,175,55,0.3)',
+        boxShadow: '0 0 60px rgba(0,0,0,0.9)',
+      }}>
+        <DialogHeader>
+          <DialogTitle className="text-white flex items-center gap-2">
+            <BadgeCheck className="w-5 h-5 text-[#D4AF37]" />
+            Identity Verification
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[75vh]">
+          <div className="p-4">
+            <KycFlow
+              user={{ ...user, kycStatus, phoneVerified: user.phoneVerified, phoneNumber: user.phoneNumber }}
+              onComplete={(newStatus) => {
+                setKycStatus(newStatus);
+                if (newStatus !== 'approved') {
+                  setTimeout(() => setShowKycFlow(false), 3000);
+                }
+              }}
+            />
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

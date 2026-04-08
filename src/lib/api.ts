@@ -128,6 +128,42 @@ export const gameApi = {
   getPokerHandByToken: (token: string) => apiFetch(`/game/poker/hands/share/${token}`),
 };
 
+// KYC
+export const kycApi = {
+  getStatus: () => apiFetch('/kyc/status'),
+
+  sendPhoneOtp: (phoneNumber: string) =>
+    apiFetch('/kyc/phone/send-otp', { method: 'POST', body: JSON.stringify({ phoneNumber }) }),
+
+  verifyPhoneOtp: (otp: string) =>
+    apiFetch('/kyc/phone/verify', { method: 'POST', body: JSON.stringify({ otp }) }),
+
+  submitDocuments: (body: { idDocumentData: string; selfieData: string }) =>
+    apiFetch('/kyc/submit', { method: 'POST', body: JSON.stringify(body) }),
+
+  // Admin endpoints
+  adminGetQueue: () => apiFetch('/kyc/admin/queue'),
+  adminGetAll: () => apiFetch('/kyc/admin/all'),
+  adminApprove: (id: number) => apiFetch(`/kyc/admin/${id}/approve`, { method: 'POST' }),
+  adminReject: (id: number, reason: string) =>
+    apiFetch(`/kyc/admin/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+};
+
+// Wallets
+export const walletApi = {
+  list: () => apiFetch('/wallets'),
+
+  add: (body: { walletAddress: string; chainLabel?: string; label?: string }) =>
+    apiFetch('/wallets', { method: 'POST', body: JSON.stringify(body) }),
+
+  remove: (id: number) => apiFetch(`/wallets/${id}`, { method: 'DELETE' }),
+
+  setDefault: (id: number) => apiFetch(`/wallets/${id}/default`, { method: 'PATCH' }),
+
+  verifyBalance: (id: number) =>
+    apiFetch(`/wallets/${id}/verify-balance`, { method: 'POST' }),
+};
+
 // VIP
 export const vipApi = {
   getCashbackHistory: () => apiFetch('/vip/cashback-history'),

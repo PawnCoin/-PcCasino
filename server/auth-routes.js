@@ -140,6 +140,10 @@ router.post('/register', async (req, res) => {
         vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
         withdrawAddress: user.withdraw_address,
         socialAvatarUrl: user.social_avatar_url || null,
+        kycStatus: user.kyc_status || 'unverified',
+        phoneVerified: user.phone_verified || false,
+        phoneNumber: user.phone_number || null,
+        realTransactionsUnlocked: user.real_transactions_unlocked || false,
       }
     });
   } catch (err) {
@@ -191,7 +195,11 @@ router.post('/login', async (req, res) => {
         dailyDepositLimit: parseInt(user.daily_deposit_limit),
         dailyLossLimit: parseInt(user.daily_loss_limit),
         selfExcluded: user.self_excluded,
-        walletAddress: user.wallet_address
+        walletAddress: user.wallet_address,
+        kycStatus: user.kyc_status || 'unverified',
+        phoneVerified: user.phone_verified || false,
+        phoneNumber: user.phone_number || null,
+        realTransactionsUnlocked: user.real_transactions_unlocked || false,
       }
     });
   } catch (err) {
@@ -246,6 +254,10 @@ router.post('/social', async (req, res) => {
         walletAddress: user.wallet_address,
         dailyDepositLimit: parseInt(user.daily_deposit_limit),
         dailyLossLimit: parseInt(user.daily_loss_limit),
+        kycStatus: user.kyc_status || 'unverified',
+        phoneVerified: user.phone_verified || false,
+        phoneNumber: user.phone_number || null,
+        realTransactionsUnlocked: user.real_transactions_unlocked || false,
       }
     });
   } catch (err) {
@@ -271,6 +283,10 @@ router.get('/me', requireAuth, async (req, res) => {
       totalWagered: parseInt(user.total_wagered),
       totalWon: parseInt(user.total_won),
       socialAvatarUrl: user.social_avatar_url || null,
+      kycStatus: user.kyc_status || 'unverified',
+      phoneVerified: user.phone_verified || false,
+      phoneNumber: user.phone_number || null,
+      realTransactionsUnlocked: user.real_transactions_unlocked || false,
     }
   });
 });

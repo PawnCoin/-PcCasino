@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, DollarSign, AlertTriangle, Settings, BarChart3, Trophy, Zap, X, CheckCircle, XCircle, RefreshCw, Send, Key, Globe, Database, Crown, Star } from 'lucide-react';
+import { Shield, Users, DollarSign, AlertTriangle, Settings, BarChart3, Trophy, Zap, X, CheckCircle, XCircle, RefreshCw, Send, Key, Globe, Database, Crown, Star, BadgeCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,7 @@ interface AdminDashboardProps {
   isAdmin?: boolean;
 }
 
-type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'affiliates' | 'broadcast' | 'pcpayments' | 'vip' | 'settings';
+type AdminTab = 'overview' | 'users' | 'disputes' | 'tournaments' | 'payments' | 'affiliates' | 'kyc' | 'broadcast' | 'pcpayments' | 'vip' | 'settings';
 
 export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps) {
   const [isAuthed, setIsAuthed] = useState(() => isAdmin === true || localStorage.getItem(ADMIN_KEY) === 'true');
@@ -36,6 +36,10 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [cashbackLog, setCashbackLog] = useState<any[]>([]);
   const [affiliatePayouts, setAffiliatePayouts] = useState<any[]>([]);
+  const [kycQueue, setKycQueue] = useState<any[]>([]);
+  const [kycRejectReason, setKycRejectReason] = useState<Record<number, string>>({});
+  const [kycDocPreviews, setKycDocPreviews] = useState<Record<string, string | null>>({});
+  const [kycDocLoading, setKycDocLoading] = useState<Record<string, boolean>>({});
   const [siteSettings, setSiteSettings] = useState({
     maintenanceMode: false, maxDeposit: 0, minWithdrawal: 100, houseEdge: 2.5, welcomeBonus: 1000000000,
   });
@@ -50,7 +54,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
     const token = getToken();
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     try {
-      const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes, cashbackRes, affiliateRes] = await Promise.all([
+      const [statsRes, disputesRes, logsRes, usersRes, tournamentsRes, cashbackRes, affiliateRes, kycRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/disputes'),
         fetch('/api/admin/logs'),
@@ -58,6 +62,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
         fetch('/api/tournaments'),
         fetch('/api/admin/cashback-log'),
         fetch('/api/admin/affiliate-payouts', { headers: authHeader }),
+        fetch('/api/kyc/admin/queue', { headers: authHeader }),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (disputesRes.ok) { const d = await disputesRes.json(); setDisputes(d.disputes || []); }
@@ -66,7 +71,65 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
       if (tournamentsRes.ok) { const t = await tournamentsRes.json(); setTournaments(t.tournaments || []); }
       if (cashbackRes.ok) { const c = await cashbackRes.json(); setCashbackLog(c.payments || []); }
       if (affiliateRes.ok) { const a = await affiliateRes.json(); setAffiliatePayouts(a.payouts || []); }
+      if (kycRes.ok) { const k = await kycRes.json(); setKycQueue(k.queue || []); }
     } catch { /* server may not be running */ }
+  };
+
+  const loadKycDoc = async (submissionId: number, type: 'id' | 'selfie') => {
+    const key = `${submissionId}_${type}`;
+    if (kycDocPreviews[key] !== undefined) return; // already loaded
+    const token = getToken();
+    setKycDocLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch(`/api/kyc/admin/${submissionId}/document/${type}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setKycDocPreviews(prev => ({ ...prev, [key]: d.data || null }));
+      } else {
+        setKycDocPreviews(prev => ({ ...prev, [key]: null }));
+      }
+    } catch {
+      setKycDocPreviews(prev => ({ ...prev, [key]: null }));
+    }
+    setKycDocLoading(prev => ({ ...prev, [key]: false }));
+  };
+
+  const approveKyc = async (id: number, force = false) => {
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/kyc/admin/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ force }),
+      });
+      if (res.ok) { toast.success('KYC approved!'); loadData(); }
+      else {
+        const d = await res.json();
+        if (d.code === 'IDENTITY_CONFLICT') {
+          const accounts = (d.conflictingAccounts || []).map((a: any) => a.username).join(', ');
+          toast.error(`Identity conflict: document already approved on ${accounts}. Use force approve to override.`);
+          return;
+        }
+        toast.error(d.error || 'Failed');
+      }
+    } catch { toast.error('Server not available'); }
+  };
+
+  const rejectKyc = async (id: number) => {
+    const reason = kycRejectReason[id];
+    if (!reason?.trim()) { toast.error('Enter a rejection reason'); return; }
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/kyc/admin/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) { toast.success('KYC rejected'); loadData(); }
+      else { const d = await res.json(); toast.error(d.error || 'Failed'); }
+    } catch { toast.error('Server not available'); }
   };
 
   useEffect(() => { if (isOpen && isAuthed) loadData(); }, [isOpen, isAuthed]);
@@ -135,6 +198,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
+    { id: 'kyc', label: 'KYC Queue', icon: BadgeCheck },
     { id: 'tournaments', label: 'Tournaments', icon: Trophy },
     { id: 'payments', label: 'Financials', icon: DollarSign },
     { id: 'affiliates', label: 'Affiliates', icon: Star },
@@ -218,6 +282,11 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                   {tab.id === 'affiliates' && affiliatePayouts.filter(p => p.status === 'pending').length > 0 && (
                     <span className="ml-auto text-xs bg-yellow-500 text-black rounded-full w-4 h-4 flex items-center justify-center font-bold">
                       {affiliatePayouts.filter(p => p.status === 'pending').length}
+                    </span>
+                  )}
+                  {tab.id === 'kyc' && kycQueue.length > 0 && (
+                    <span className="ml-auto text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                      {kycQueue.length}
                     </span>
                   )}
                 </button>
@@ -344,6 +413,103 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                           </Button>
                         </div>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* KYC QUEUE */}
+              {activeTab === 'kyc' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white">KYC Review Queue</h3>
+                    <Button onClick={loadData} size="sm" style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+
+                  {kycQueue.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p>No pending KYC submissions</p>
+                    </div>
+                  ) : kycQueue.map((sub: any) => (
+                    <div key={sub.id} className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(59,130,246,0.3)' }}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-white text-sm">{sub.username}</span>
+                          <span className="ml-2 text-xs text-gray-400">• ID: {sub.user_id}</span>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
+                          PENDING
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-gray-500">Email:</span> <span className="text-gray-300">{sub.email || '—'}</span> {sub.email_verified ? <span className="text-green-400">✓</span> : <span className="text-red-400">✗</span>}</div>
+                        <div><span className="text-gray-500">Phone:</span> <span className="text-gray-300">{sub.phone_number || '—'}</span> {sub.phone_verified ? <span className="text-green-400">✓</span> : <span className="text-red-400">✗</span>}</div>
+                        <div><span className="text-gray-500">Submitted:</span> <span className="text-gray-300">{new Date(sub.submitted_at).toLocaleString()}</span></div>
+                        <div><span className="text-gray-500">Doc ID:</span> <span className="text-gray-400 font-mono text-[10px]">{(sub.id_document_path || '—').slice(0, 30)}</span></div>
+                      </div>
+
+                      {sub.linked_profiles?.length > 0 && (
+                        <div className="p-2 rounded-lg text-xs" style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.4)' }}>
+                          <span className="text-red-400 font-bold">⚠️ IDENTITY MATCH DETECTED</span>
+                          <span className="text-gray-400 ml-2">Same document used by: {sub.linked_profiles.map((p: any) => `${p.username} (ID: ${p.user_id})`).join(', ')}</span>
+                        </div>
+                      )}
+
+                      <div className="p-3 rounded-lg text-xs space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p className="text-gray-500 mb-1 font-medium">Document Preview</p>
+                        <div className="flex gap-2">
+                          {(['id', 'selfie'] as const).map(docType => {
+                            const key = `${sub.id}_${docType}`;
+                            const docData = kycDocPreviews[key];
+                            const loading = kycDocLoading[key];
+                            return (
+                              <div key={docType} className="flex-1">
+                                {docData === undefined ? (
+                                  <button onClick={() => loadKycDoc(sub.id, docType)}
+                                    className="w-full py-1.5 rounded-lg text-center transition-colors"
+                                    style={{ background: docType === 'id' ? 'rgba(59,130,246,0.1)' : 'rgba(168,85,247,0.1)', border: `1px solid ${docType === 'id' ? 'rgba(59,130,246,0.3)' : 'rgba(168,85,247,0.3)'}`, color: docType === 'id' ? '#60a5fa' : '#c084fc' }}>
+                                    {loading ? '⏳ Loading...' : docType === 'id' ? '📄 Load ID Doc' : '🤳 Load Selfie'}
+                                  </button>
+                                ) : docData ? (
+                                  <img src={docData} alt={docType === 'id' ? 'ID Document' : 'Selfie'} className="w-full rounded-lg max-h-32 object-contain" style={{ border: '1px solid rgba(255,255,255,0.15)' }} />
+                                ) : (
+                                  <div className="w-full py-2 text-center text-gray-500 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>No doc</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="text-gray-600 font-mono text-[9px] break-all">{sub.id_document_path}</div>
+                      </div>
+
+                      <div className="flex gap-2 items-center flex-wrap">
+                        <Button onClick={() => approveKyc(sub.id)} size="sm"
+                          style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)', fontSize: 11 }}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        {sub.linked_profiles?.length > 0 && (
+                          <Button onClick={() => approveKyc(sub.id, true)} size="sm"
+                            style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)', fontSize: 11 }}>
+                            ⚠️ Force Approve
+                          </Button>
+                        )}
+                        <input
+                          type="text"
+                          value={kycRejectReason[sub.id] || ''}
+                          onChange={e => setKycRejectReason(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                          placeholder="Rejection reason..."
+                          className="flex-1 px-2 py-1 rounded-lg text-xs"
+                          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                        />
+                        <Button onClick={() => rejectKyc(sub.id)} size="sm"
+                          style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontSize: 11 }}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

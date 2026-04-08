@@ -3,6 +3,7 @@ import { query, pool } from './db.js';
 import { requireAuth } from './auth-routes.js';
 import { processJackpotContribution } from './jackpot.js';
 import { sendDepositConfirmationEmail, sendWithdrawEmail } from './email.js';
+import { refreshDefaultWalletVerification } from './wallet-routes.js';
 
 const router = Router();
 // TREASURY WALLET — set DEPOSIT_WALLET_ADDRESS in environment secrets before going live
@@ -26,6 +27,31 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
   if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
 
   const user = req.user;
+
+  // KYC gate: deposits require approved KYC
+  if (user.kyc_status !== 'approved') {
+    return res.status(403).json({
+      error: 'KYC verification required before deposits. Please complete identity verification in your profile.',
+      code: 'KYC_REQUIRED',
+    });
+  }
+
+  // Live on-chain wallet check: fail-closed (block if check cannot complete)
+  const walletCheck = await refreshDefaultWalletVerification(user.id, user.kyc_status).catch(err => {
+    console.error('[deposit/wallet-check]', err.message);
+    return { meetsThreshold: false, walletAddress: null, error: 'Wallet verification service unavailable. Please try again.' };
+  });
+  if (!walletCheck.meetsThreshold) {
+    return res.status(403).json({
+      error: walletCheck.error === 'No default wallet linked'
+        ? 'No verified wallet linked. Please add a wallet holding at least 100M $Pc in your profile.'
+        : walletCheck.error || 'Your linked wallet does not hold the required 100M $Pc.',
+      code: 'WALLET_THRESHOLD_NOT_MET',
+      kycStatus: user.kyc_status,
+      currentWalletBalance: walletCheck.currentBalance || null,
+      requiredBalance: '100000000',
+    });
+  }
 
   // Check daily deposit limit
   if (parseInt(user.daily_deposit_limit) > 0) {
@@ -162,6 +188,32 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
   if (!toAddress) return res.status(400).json({ error: 'Destination address required' });
 
   const user = req.user;
+
+  // KYC gate: withdrawals require approved KYC
+  if (user.kyc_status !== 'approved') {
+    return res.status(403).json({
+      error: 'KYC verification required before withdrawals. Please complete identity verification in your profile.',
+      code: 'KYC_REQUIRED',
+    });
+  }
+
+  // Live on-chain wallet check: fail-closed at withdrawal time
+  const withdrawWalletCheck = await refreshDefaultWalletVerification(user.id, user.kyc_status).catch(err => {
+    console.error('[withdraw/wallet-check]', err.message);
+    return { meetsThreshold: false, walletAddress: null, error: 'Wallet verification service unavailable. Please try again.' };
+  });
+  if (!withdrawWalletCheck.meetsThreshold) {
+    return res.status(403).json({
+      error: withdrawWalletCheck.error === 'No default wallet linked'
+        ? 'No verified wallet linked. Please add a wallet holding at least 100M $Pc.'
+        : withdrawWalletCheck.error || 'Your linked wallet does not hold the required 100M $Pc. Withdrawal requires a verified wallet.',
+      code: 'WALLET_THRESHOLD_NOT_MET',
+      kycStatus: user.kyc_status,
+      currentWalletBalance: withdrawWalletCheck.currentBalance || null,
+      requiredBalance: '100000000',
+    });
+  }
+
   const balance = parseInt(user.balance);
 
   if (amount > balance) return res.status(400).json({ error: 'Insufficient balance' });

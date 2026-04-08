@@ -318,6 +318,59 @@ export async function initDatabase() {
     // Migration: add deposit_total to referrals for caching referred user totals
     await query(`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS deposit_total BIGINT DEFAULT 0`).catch(() => {});
 
+    // KYC columns on users
+    const kycUserColumns = [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status VARCHAR(20) DEFAULT 'unverified'`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE`,
+    ];
+    for (const sql of kycUserColumns) {
+      await query(sql).catch(() => {});
+    }
+
+    // KYC submissions table
+    await query(`
+      CREATE TABLE IF NOT EXISTS kyc_submissions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(20) DEFAULT 'pending',
+        id_document_path TEXT,
+        selfie_path TEXT,
+        id_document_data TEXT,
+        selfie_data TEXT,
+        rejection_reason TEXT,
+        submitted_at TIMESTAMP DEFAULT NOW(),
+        reviewed_at TIMESTAMP,
+        reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+    await query(`ALTER TABLE kyc_submissions ADD COLUMN IF NOT EXISTS id_document_data TEXT`).catch(() => {});
+    await query(`ALTER TABLE kyc_submissions ADD COLUMN IF NOT EXISTS selfie_data TEXT`).catch(() => {});
+    await query(`ALTER TABLE kyc_submissions ADD COLUMN IF NOT EXISTS document_fingerprint VARCHAR(64)`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_kyc_submissions_user ON kyc_submissions(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_kyc_submissions_status ON kyc_submissions(status)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_kyc_submissions_fingerprint ON kyc_submissions(document_fingerprint)`).catch(() => {});
+
+    // User wallets table
+    await query(`
+      CREATE TABLE IF NOT EXISTS user_wallets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        wallet_address VARCHAR(255) NOT NULL,
+        chain_label VARCHAR(50) DEFAULT 'ERC-20',
+        label VARCHAR(100),
+        is_default BOOLEAN DEFAULT FALSE,
+        wallet_verified BOOLEAN DEFAULT FALSE,
+        wallet_verified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_user_wallets_user ON user_wallets(user_id)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS real_transactions_unlocked BOOLEAN DEFAULT FALSE`).catch(() => {});
+
+    // OTP store for phone verification (in-memory handled server side, but store for audit)
+    // Phone OTP is stored in-memory with expiry, no persistent table needed
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);

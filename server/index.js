@@ -10,6 +10,8 @@ import authRoutes, { requireAuth, verifyToken } from './auth-routes.js';
 import { createGameRound, revealGameRound, getGameRound, hashServerSeed, deriveGameResult } from './provably-fair.js';
 import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
+import kycRoutes, { adminKycRouter } from './kyc-routes.js';
+import walletRoutes from './wallet-routes.js';
 import { initDatabase, query, pool } from './db.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
 import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
@@ -31,12 +33,17 @@ app.use('/api/pcpayments/webhook', (req, _res, next) => {
   });
 });
 
-app.use(express.json());
+// Increase JSON body size limit to 10MB to support base64-encoded KYC document uploads
+app.use(express.json({ limit: '10mb' }));
 
 // ---- API Routes ----
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/kyc', kycRoutes);
+// Alias: /api/admin/kyc/... also works (spec-aligned route)
+app.use('/api/admin/kyc', adminKycRouter);
+app.use('/api/wallets', walletRoutes);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
