@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 import { InGameTopBar } from '@/components/InGameTopBar';
 
@@ -29,8 +29,10 @@ export function IframeGameWrapper({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [gameInProgress, setGameInProgress] = useState(false);
   const balanceRef = useRef(balance);
   balanceRef.current = balance;
+  const gameInProgressRef = useRef(false);
 
   const iframeSrc = `${gamePath}?balance=${balance}`;
 
@@ -61,6 +63,11 @@ export function IframeGameWrapper({
           '*'
         );
       }
+
+      if (type === 'gameState' && typeof event.data.active === 'boolean') {
+        gameInProgressRef.current = event.data.active;
+        setGameInProgress(event.data.active);
+      }
     };
 
     window.addEventListener('message', handleMessage);
@@ -75,6 +82,13 @@ export function IframeGameWrapper({
       );
     }
   }, [balance, isLoaded]);
+
+  const handleBack = useCallback(() => {
+    if (gameInProgressRef.current) {
+      if (!window.confirm('A round is in progress. Leave and forfeit your current bet?')) return;
+    }
+    onBack();
+  }, [onBack]);
 
   const handleReload = () => {
     setIsLoaded(false);
@@ -125,7 +139,7 @@ export function IframeGameWrapper({
       <InGameTopBar
         gameName={gameName}
         balance={balance}
-        onBack={onBack}
+        onBack={handleBack}
         onShowWallet={onShowWallet}
         rightSlot={rightSlot}
       />

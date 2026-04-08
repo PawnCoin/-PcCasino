@@ -24,6 +24,7 @@ let betPointerDisable = document.querySelector('#betPointerDisable');
 let betSection = document.querySelector('#betSection');
 let betSize = 0;
 let betStart = false;
+let endrollActive = false;
 let betWindow = document.querySelector('#betWindow');
 let buttonName = [];
 let chipsIndex = 0;
@@ -490,7 +491,7 @@ function chipSelect(cost, chips, chipIndex) {
   mouseChip.style.border = 'none';
   mouseChip.style.borderRadius = '50%';
   mouseChip.style.boxShadow = 'none';
-  chipsPut = `src/images/tableChips${chips}.png`;
+  // chipsPut no longer used for table chips (SVG via makeChipSVG)
   const list = btns.allChips,
     idx = chips - 1;
   list.forEach((c) => c.classList.remove('biggerBtn'));
@@ -658,6 +659,8 @@ function doubleBets() {
 }
 
 function endroll() {
+  if (endrollActive) return;
+  endrollActive = true;
   clearInterval(setSpin);
   let rollingInterval = setInterval(function () {
     if (i != haben) return spin(1);
@@ -776,6 +779,7 @@ function endroll() {
       historyList();
 
       (async () => {
+          try {
         const winnersSecond = collectWinners();
         const winningZoneSet = new Set();
         winnersSecond.forEach(
@@ -865,6 +869,19 @@ function endroll() {
           oddsInfoDisplay('block', 'blur(1vh)', 'none', 'restartGame', true);
           btns.closeBetInfo.style.display = 'none';
         }
+          } catch(e) {
+            console.error('endroll IIFE error:', e);
+          } finally {
+            endrollActive = false;
+            betStart = false;
+            window.parent.postMessage({ type: 'gameState', active: false }, '*');
+            document.querySelector('#chipsSelectorDisabled').style.display = 'none';
+            if (money >= 1000000 && !menuOpen) {
+              btns.betCompleteBtn.style.pointerEvents = 'all';
+              betSection.style.pointerEvents = 'all';
+              document.querySelector('#chipsSelector').style.filter = 'grayscale(0)';
+            }
+          }
       })();
     }, 3000);
 
@@ -889,7 +906,9 @@ function fastChips(betSize, chips) {
   setTimeout(() => {
     movable.style.display = 'none';
   }, 550);
-  btns.fastChipsBtn.style.backgroundImage = `url('src/images/chips${chips}.png')`;
+  const _fsvg = makeChipSVG(betSize, 40);
+  btns.fastChipsBtn.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent(_fsvg) + '")';
+  btns.fastChipsBtn.style.backgroundSize = 'contain';
   btns.fastChipsBtn.classList.add('fastChip');
   bet = lastBet;
   chipsPut = lastChipPut;
@@ -1541,6 +1560,7 @@ function start() {
     betPointerDisable.style.display = 'none';
   }, 10);
   betStart = true;
+  window.parent.postMessage({ type: 'gameState', active: true }, '*');
   angle3 = 2;
   const interval = setInterval(
     () => (angle3 > 0.4 ? (angle3 -= 0.1) : clearInterval(interval)),
@@ -2022,7 +2042,13 @@ window.addEventListener('message', function(e) {
   if (!e.data || typeof e.data !== 'object') return;
   if (e.data.type === 'balance:update' && typeof e.data.balance === 'number') {
     money = e.data.balance;
-    preMoney = money;
+    if (!betStart) preMoney = money;
     if (moneyInfo) moneyInfo.innerHTML = (currentLang && currentLang[0] ? currentLang[0] : '') + money.toLocaleString('en-US') + ' $Pc';
+  }
+});
+window.addEventListener('beforeunload', function(e) {
+  if (betStart) {
+    e.preventDefault();
+    e.returnValue = '';
   }
 });
