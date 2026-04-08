@@ -134,6 +134,7 @@ let movable = document.querySelector('.menu');
 let music = new Audio(`src/sfx/music/music0.mp3`);
 let musicNumber = 0;
 let musicStatus = true;
+let parentMusicActive = false;
 let musicStatusColor = 'red';
 let numberBets = initializeBets(btns.numberButtons, 'number');
 let oddsInfo = document.querySelector('#disableBackground');
@@ -1232,7 +1233,7 @@ function loadingStart() {
       }, 1000);
       setTimeout(() => {
         loadingScreen.style.display = 'none';
-        music.play();
+        if (!parentMusicActive) music.play();
       }, 2000);
       function enablePointerEvents() {
         document.querySelector('#betSection').style.pointerEvents = 'all';
@@ -1252,7 +1253,7 @@ function musicChange(prevNext) {
     music.volume = document.querySelector('#musicVolume').value;
     music.currentTime = 0;
     music.addEventListener('timeupdate', updateTimer);
-    setTimeout(() => music.play(), 1000);
+    setTimeout(() => { if (!parentMusicActive) music.play(); }, 1000);
   };
   document.querySelector('#musicPause').className = 'fa-solid fa-pause';
   document.querySelector('#vinyl').style.animationPlayState = 'running';
@@ -1268,7 +1269,7 @@ function musicPause() {
   const isPlaying = musicStatus;
   musicStatus = !isPlaying;
 
-  musicStatus ? music.play() : music.pause();
+  if (musicStatus) { if (!parentMusicActive) music.play(); } else { music.pause(); }
   document.querySelector('#vinyl').style.animationPlayState = musicStatus
     ? 'running'
     : 'paused';
@@ -2056,6 +2057,7 @@ window.addEventListener('message', function(e) {
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.type !== 'music:state') return;
   var playing = e.data.playing;
+  parentMusicActive = playing;
   var musicInfoEl = document.getElementById('musicInfo');
   var musicVolRow = document.getElementById('musicVolume') ? document.getElementById('musicVolume').closest('div') : null;
   var parentBanner = document.getElementById('parentMusicBanner');

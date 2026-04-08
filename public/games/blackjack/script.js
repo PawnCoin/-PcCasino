@@ -279,6 +279,7 @@ let __chipSendBatchCount = 0;
 let sfxVolume = 0.5;
 let musicNumber = 0;
 let musicStatus = true;
+let parentMusicActive = false;
 let startTs = null;
 let done = false;
 let musicStatusColor = 'red';
@@ -2816,7 +2817,7 @@ musicPauseBtn.onmouseleave = () => (musicPauseBtn.style.color = 'black');
 function musicPause() {
   const isPlaying = musicStatus;
   musicStatus = !isPlaying;
-  musicStatus ? music.play() : music.pause();
+  if (musicStatus) { if (!parentMusicActive) music.play(); } else { music.pause(); }
   document.querySelector('#vinyl').style.animationPlayState = musicStatus
     ? 'running'
     : 'paused';
@@ -2835,7 +2836,7 @@ function musicChange(prevNext) {
     if (musicVol) music.volume = musicVol.value;
     music.currentTime = 0;
     music.addEventListener('timeupdate', updateTimer);
-    setTimeout(() => music.play(), 1000);
+    setTimeout(() => { if (!parentMusicActive) music.play(); }, 1000);
   };
   document.querySelector('#musicPause').className = 'fa-solid fa-pause';
   document.querySelector('#vinyl').style.animationPlayState = 'running';
@@ -2950,7 +2951,7 @@ helpBtn.addEventListener('click', () => {
 playBtn.addEventListener('click', async () => {
   loadingScreen.remove();
   game.style.opacity = '1';
-  music.play();
+  if (!parentMusicActive) music.play();
 });
 
 musicChangeBtn[0].addEventListener('click', () => musicChange('prev'));
@@ -2993,6 +2994,7 @@ window.addEventListener('message', function(e) {
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.type !== 'music:state') return;
   var playing = e.data.playing;
+  parentMusicActive = playing;
   var musicInfoEl = document.getElementById('musicInfo');
   var musicVolRow = musicVol ? musicVol.closest('div') : null;
   var parentBanner = document.getElementById('parentMusicBanner');
