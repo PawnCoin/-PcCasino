@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
+import { useTableSkin } from '@/hooks/useTableSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
@@ -476,6 +477,7 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
 }
 
 export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: CrapsGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gamePhase, setGamePhase] = useState<'comeout' | 'point'>('comeout');
@@ -1003,6 +1005,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
             {/* Premium felt surface */}
             <div className="absolute inset-[12px] rounded-xl premium-felt" style={{
               boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+              background: tableSkin.felt,
             }} />
 
             {/* Gold stitching inner border */}

@@ -3,6 +3,9 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { toast } from 'sonner';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { useTableSkin } from '@/hooks/useTableSkin';
+import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
+import { usePoolBallSkin, POOL_BALL_PRESETS, getDefaultPoolBallPreset } from '@/hooks/usePoolBallSkin';
 
 interface PoolGameProps {
   balance: number;
@@ -40,7 +43,7 @@ const FRICTION = 0.985;
 const MIN_SPEED = 0.08;
 const POCKET_R = 18;
 
-const BALL_COLORS = ['#F5C518','#0044CC','#CC0000','#6600CC','#CC4400','#006600','#8B0000','#333333'];
+const BALL_COLORS = POOL_BALL_PRESETS[0].colors;
 const POCKETS: Pocket[] = [
   { x: 28, y: 28, radius: POCKET_R },
   { x: TABLE_W / 2, y: 18, radius: POCKET_R - 2 },
@@ -50,7 +53,7 @@ const POCKETS: Pocket[] = [
   { x: TABLE_W - 28, y: TABLE_H - 28, radius: POCKET_R },
 ];
 
-function makeBalls(): Ball[] {
+function makeBalls(ballColors = BALL_COLORS): Ball[] {
   const balls: Ball[] = [];
   // Cue ball
   balls.push({ id: 0, x: TABLE_W * 0.25, y: TABLE_H / 2, vx: 0, vy: 0, radius: BALL_R, color: '#FFFFFF', striped: false, pocketed: false, isCue: true, isEight: false });
@@ -67,18 +70,23 @@ function makeBalls(): Ball[] {
       const y = rackY + (ci - (row.length - 1) / 2) * (BALL_R * 2);
       const isEight = id === 8;
       const striped = id > 8;
-      const colorIdx = isEight ? 7 : (id - 1) % 7;
-      balls.push({ id, x, y, vx: 0, vy: 0, radius: BALL_R, color: isEight ? '#1a1a1a' : BALL_COLORS[colorIdx], striped, pocketed: false, isCue: false, isEight });
+      const colorIdx = (id - 1) % 7;
+      balls.push({ id, x, y, vx: 0, vy: 0, radius: BALL_R, color: isEight ? '#1a1a1a' : ballColors[colorIdx], striped, pocketed: false, isCue: false, isEight });
     });
   });
   return balls;
 }
 
 export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: PoolGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activePreset: ballPreset } = usePoolBallSkin();
+  const ballPresetRef = useRef(ballPreset);
+  useEffect(() => { ballPresetRef.current = ballPreset; }, [ballPreset]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ballsRef = useRef<Ball[]>(makeBalls());
+  const ballsRef = useRef<Ball[]>(makeBalls(getDefaultPoolBallPreset().colors));
   const animRef = useRef<number>(0);
   const shootingRef = useRef(false);
   const aimStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -97,14 +105,14 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
   useEffect(() => { setBallBalance(balance); }, [balance]);
 
+  const tableSkinRef = useRef(tableSkin);
+  useEffect(() => { tableSkinRef.current = tableSkin; }, [tableSkin]);
+
   const drawTable = useCallback((ctx: CanvasRenderingContext2D, balls: Ball[], aimStart: { x: number; y: number } | null, aimEnd: { x: number; y: number } | null) => {
     ctx.clearRect(0, 0, TABLE_W, TABLE_H);
 
     // Felt
-    const felt = ctx.createLinearGradient(0, 0, 0, TABLE_H);
-    felt.addColorStop(0, '#1a6b2a');
-    felt.addColorStop(1, '#145220');
-    ctx.fillStyle = felt;
+    ctx.fillStyle = tableSkinRef.current.felt;
     ctx.fillRect(0, 0, TABLE_W, TABLE_H);
 
     // Rail lines
@@ -389,7 +397,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
   const resetGame = () => {
     if (animRef.current) cancelAnimationFrame(animRef.current);
-    ballsRef.current = makeBalls();
+    ballsRef.current = makeBalls(ballPresetRef.current.colors);
     setBetPlaced(false);
     setPlayerGroup(null);
     setTurn('player');
@@ -469,17 +477,15 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         {/* Controls */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
           {!betPlaced ? (
-            <>
-              <select value={betAmount} onChange={e => setBetAmount(Number(e.target.value))}
-                style={{ padding: '8px 12px', borderRadius: 8, background: '#1a1a1a', border: '1px solid rgba(212,175,55,0.4)', color: '#D4AF37', fontSize: 13 }}>
-                {[1000, 5000, 10000, 50000, 100000, 500000].map(v => (
-                  <option key={v} value={v}>{v.toLocaleString()} $Pc</option>
-                ))}
-              </select>
-              <button onClick={placeBet} style={{ padding: '8px 24px', borderRadius: 8, background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: 14 }}>
-                Place Bet & Play
-              </button>
-            </>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+              <ChipSelector selectedChip={betAmount} onSelect={setBetAmount} balance={balance} compact />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: '#9ca3af' }}>Bet: <strong style={{ color: '#D4AF37' }}>{formatChipLabel(betAmount)} $Pc</strong></span>
+                <button onClick={placeBet} style={{ padding: '8px 24px', borderRadius: 8, background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: 14 }}>
+                  Place Bet & Play
+                </button>
+              </div>
+            </div>
           ) : (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span style={{ fontSize: 12, color: '#6b7280' }}>

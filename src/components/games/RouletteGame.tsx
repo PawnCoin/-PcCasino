@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { useTableSkin } from '@/hooks/useTableSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Info, Settings, Undo2, Shield } from 'lucide-react';
@@ -218,6 +219,7 @@ function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; on
 }
 
 export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOpenProvablyFair }: RouletteGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [selectedChip, setSelectedChip] = useState(1_000_000);
@@ -817,7 +819,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                 background: `
                   repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.006) 1px, transparent 2px, transparent 3px),
                   repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.004) 1px, transparent 2px, transparent 3px),
-                  linear-gradient(145deg, #1B5E20 0%, #0D3312 50%, #051a08 100%)
+                  ${tableSkin.felt}
                 `,
                 boxShadow: `
                   0 10px 40px rgba(0,0,0,0.6),

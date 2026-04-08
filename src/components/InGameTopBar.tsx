@@ -179,7 +179,7 @@ export function InGameTopBar({
         </div>
       )}
 
-      <InGameOptionsPanel isOpen={showOptions} onClose={() => setShowOptions(false)} isMember={membership.isMember} />
+      <InGameOptionsPanel isOpen={showOptions} onClose={() => setShowOptions(false)} isMember={membership.isMember} activeGame={gameName} />
 
       {onAddBalance && (
         <InGameQuickBuy

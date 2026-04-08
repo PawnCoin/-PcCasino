@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info, RotateCcw, Mic, MicOff, Camera, History } from 'lucide-react';
+import { useTableSkin } from '@/hooks/useTableSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
@@ -493,6 +494,7 @@ function UserSeat({
 }
 
 export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: PokerGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
@@ -1052,10 +1054,10 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 WebkitMask: 'radial-gradient(ellipse at center,transparent 85%,black 90%,black 100%)',
               }} />
 
-              {/* Green felt */}
+              {/* Felt */}
               <div className="absolute rounded-[50%/38%]" style={{
                 inset: 14,
-                background: 'radial-gradient(ellipse at 50% 40%,#2E7D32 0%,#1B5E20 30%,#0D3312 60%,#051a08 100%)',
+                background: tableSkin.felt,
                 boxShadow: 'inset 0 0 120px rgba(0,0,0,0.5)',
               }}>
                 <div className="absolute inset-0 opacity-50 rounded-[50%/38%]" style={{

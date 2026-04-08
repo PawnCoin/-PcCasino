@@ -143,6 +143,8 @@ export function useCardDeck() {
     CARD_DECKS = newAll;
     setAllDecks(newAll);
     setSelectedDeck(deckId);
+    localStorage.setItem('pcasino_card_deck', deckId);
+    window.dispatchEvent(new CustomEvent(DECK_CHANGE_EVENT, { detail: deckId }));
   }, []);
 
   const getCardBackStyle = useCallback(() => {

@@ -3,6 +3,7 @@ import {
   ArrowLeft, Volume2, VolumeX, RefreshCw, Info, Users, Award,
   Plus, Minus, ChevronLeft, ChevronRight, Share2, PlusCircle,
 } from 'lucide-react';
+import { useTableSkin } from '@/hooks/useTableSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useBingoVoice } from '@/hooks/useGameVoice';
 import { InGameTopBar } from '@/components/InGameTopBar';
-import { PokerChip, ALL_CHIP_DENOMS, formatChipLabel } from '@/components/PokerChip';
+import { ChipSelector } from '@/components/PokerChip';
 
 interface BingoGameProps {
   balance: number;
@@ -111,7 +112,6 @@ const BINGO_SKINS: CardSkinDef[] = [
 ];
 
 const WIN_PAYOUTS: Record<string, number> = { Line: 3, Diagonal: 5, '4 Corners': 7, BLACKOUT: 20 };
-const BET_OPTIONS = ALL_CHIP_DENOMS;
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -525,6 +525,7 @@ function ConfettiPiece({ x, y, color, delay, shape }: { x: number; y: number; co
 
 // ── MAIN GAME ────────────────────────────────────────────────────────────────
 export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: BingoGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [phase, setPhase] = useState<GamePhase>('setup');
@@ -1014,17 +1015,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 11, color: '#e5e7eb', letterSpacing: '0.2em', fontWeight: 700, marginBottom: 10 }}>COST PER CARD</div>
-              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                {BET_OPTIONS.map(v => (
-                  <PokerChip
-                    key={v}
-                    amount={v}
-                    size="sm"
-                    selected={betAmount === v}
-                    onClick={() => setBetAmount(v)}
-                  />
-                ))}
-              </div>
+              <ChipSelector selectedChip={betAmount} onSelect={setBetAmount} balance={balance} compact />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.07)', marginBottom: 20 }}>
@@ -1052,7 +1043,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           <TableBrand style={{ opacity: 0.06 }} />
 
           {/* LEFT COLUMN: Ball machine + number board */}
-          <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }} className="sm:!w-[300px] sm:!flex-shrink-0">
+          <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: tableSkin.felt, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }} className="sm:!w-[300px] sm:!flex-shrink-0">
 
             <BallMachine
               machineState={machineState}

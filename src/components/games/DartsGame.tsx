@@ -3,6 +3,8 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { toast } from 'sonner';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
+import { useTableSkin } from '@/hooks/useTableSkin';
 
 interface DartsGameProps {
   balance: number;
@@ -174,6 +176,7 @@ function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: 
 }
 
 export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DartsGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -381,7 +384,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       />
       <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
 
-      <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto' }}>
+      <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto', background: tableSkin.felt }}>
         {/* Board */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 380 }}>
           <div style={{ position: 'relative', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.9), 0 0 0 8px #3E2723', width: '100%', maxWidth: 360, aspectRatio: '1' }}>
@@ -410,16 +413,14 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           )}
 
           {gamePhase === 'betting' && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <select value={betAmount} onChange={e => setBetAmount(Number(e.target.value))}
-                style={{ padding: '8px 12px', borderRadius: 8, background: '#1a1a1a', border: '1px solid rgba(212,175,55,0.4)', color: '#D4AF37', fontSize: 13 }}>
-                {[1000, 5000, 10000, 50000, 100000].map(v => (
-                  <option key={v} value={v}>{v.toLocaleString()} $Pc</option>
-                ))}
-              </select>
-              <button onClick={placeBet} style={{ padding: '8px 24px', borderRadius: 8, background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: 14 }}>
-                Start Game ({betAmount.toLocaleString()} $Pc)
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+              <ChipSelector selectedChip={betAmount} onSelect={setBetAmount} balance={balance} compact />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: '#9ca3af' }}>Bet: <strong style={{ color: '#D4AF37' }}>{formatChipLabel(betAmount)} $Pc</strong></span>
+                <button onClick={placeBet} style={{ padding: '8px 24px', borderRadius: 8, background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: 14 }}>
+                  Start Game
+                </button>
+              </div>
             </div>
           )}
 

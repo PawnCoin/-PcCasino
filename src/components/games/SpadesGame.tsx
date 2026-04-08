@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, Flame, Zap } from 'lucide-react';
+import { useTableSkin } from '@/hooks/useTableSkin';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
@@ -85,6 +86,7 @@ const PLAYER_AVATARS = ['🎭', '⚔️', '🤝', '🛡️'];
 const PLAYER_TEXT_COLORS = ['text-[#D4AF37]', 'text-[#ef5350]', 'text-[#64b5f6]', 'text-[#81c784]'];
 
 export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: SpadesGameProps) {
+  const { activeSkin: tableSkin } = useTableSkin();
   const { playSound } = useSoundEffects();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
@@ -1073,7 +1075,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                   width: 'calc(90% - 48px)', height: 'calc(94% - 38px)', minHeight: 222, minWidth: 212,
                   borderRadius: '50%',
-                  background: 'radial-gradient(ellipse at 50% 45%, #2e7d32 0%, #1b5e20 45%, #0d3312 100%)',
+                  background: tableSkin.felt,
                   boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4)',
                   zIndex: 2,
                 }} />

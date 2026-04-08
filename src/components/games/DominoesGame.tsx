@@ -9,6 +9,8 @@ import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { AvatarSprite } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useTableSkin } from '@/hooks/useTableSkin';
+import type { TableSkinDef } from '@/hooks/useTableSkin';
 
 type CardBackStyle = { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
 type GameSpeed = 1 | 2 | 3 | 4;
@@ -20,14 +22,12 @@ interface DomPlayer { id: string; name: string; avatarDef: AvatarDef; hand: Tile
 type Phase = 'setup' | 'washing' | 'picking' | 'playing' | 'roundOver';
 type GameMode = 'real' | 'practice';
 type SkinKey = keyof typeof DOMINO_SKINS;
-type TableKey = keyof typeof TABLE_SKINS;
 type TileSize = 'sm' | 'md' | 'lg';
 
 interface DominoSkinDef {
   name: string; bg: string; pip: string; border: string; divider: string;
   faceDownBg: string; gloss?: boolean; glow?: string;
 }
-interface TableSkinDef { name: string; felt: string; border: string; line: string; }
 
 interface GS {
   phase: Phase; mode: GameMode;
@@ -131,19 +131,6 @@ const DOMINO_SKINS: Record<string, DominoSkinDef> = {
                  pip: '#FF4500', border: '#CC2200', divider: '#881100',
                  faceDownBg: 'linear-gradient(145deg,#050000 0%,#1A0800 40%,#2A0000 60%,#050000 100%)',
                  glow: 'rgba(255,69,0,0.7)' },
-};
-
-const TABLE_SKINS: Record<string, TableSkinDef> = {
-  wood:    { name: 'Mahogany',    felt: '#2B4A1A', border: '#5D3A1A', line: '#3A6025' },
-  marble:  { name: 'Marble',      felt: '#253545', border: '#7090B0', line: '#4A70A0' },
-  neon:    { name: 'Neon Grid',   felt: '#080018', border: '#3300CC', line: '#5500FF' },
-  glass:   { name: 'Glass',       felt: 'rgba(20,60,100,0.55)', border: 'rgba(80,180,255,0.45)', line: 'rgba(100,200,255,0.25)' },
-  velvet:  { name: 'Red Velvet',  felt: '#3D0A0A', border: '#8B1A1A', line: '#6B1010' },
-  ocean:   { name: 'Deep Ocean',  felt: '#0A1F3A', border: '#1A4A8A', line: '#1A3A6A' },
-  emerald: { name: 'Emerald',     felt: '#062A14', border: '#1A6A3A', line: '#0A4A2A' },
-  gold:    { name: 'Gold Luxury', felt: '#100A00', border: '#8B6914', line: '#6B4900' },
-  midnight:{ name: 'Midnight Sky',felt: '#050510', border: '#1A1A5A', line: '#0A0A3A' },
-  slate:   { name: 'Dark Slate',  felt: '#14141E', border: '#3A3A5A', line: '#222240' },
 };
 
 const CANVAS_W = 5000, CANVAS_H = 600, CANVAS_CX = 2500, CANVAS_CY = 300;
@@ -884,17 +871,6 @@ function SkinCard({ skinKey, active, onClick, dims }: { skinKey: string; active:
     </button>
   );
 }
-function TableCard({ tableKey, active, onClick }: { tableKey: string; active: boolean; onClick: () => void }) {
-  const t = TABLE_SKINS[tableKey];
-  return (
-    <button onClick={onClick} style={{ padding: '8px 6px', borderRadius: 10, cursor: 'pointer', border: `2px solid ${active ? '#D4AF37' : 'rgba(255,255,255,0.07)'}`, background: active ? 'rgba(212,175,55,0.10)' : 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'all .15s' }}>
-      <div style={{ width: 44, height: 28, borderRadius: 5, background: t.felt, border: `1.5px solid ${t.border}`, overflow: 'hidden', position: 'relative' }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.2, backgroundImage: `repeating-linear-gradient(0deg,${t.line} 0,${t.line} 1px,transparent 1px,transparent 14px),repeating-linear-gradient(90deg,${t.line} 0,${t.line} 1px,transparent 1px,transparent 14px)` }} />
-      </div>
-      <span style={{ fontSize: 8.5, color: active ? '#D4AF37' : '#666', fontWeight: 700, whiteSpace: 'nowrap' }}>{t.name}</span>
-    </button>
-  );
-}
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <button onClick={onToggle} style={{ width: 46, height: 25, borderRadius: 13, border: 'none', cursor: 'pointer', background: on ? '#D4AF37' : '#333', position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
@@ -1086,13 +1062,13 @@ const PICK_TIME_LIMIT = 20;
 
 // ─── Picking Screen (full table visible, simultaneous picking) ────────────────
 function PickingScreen({
-  players, pickingPool, pickingClaims, tableSkin, skinKey, onClaim, onStart, gameSpeed,
+  players, pickingPool, pickingClaims, tableSkinDef, skinKey, onClaim, onStart, gameSpeed,
 }: {
   players: DomPlayer[]; pickingPool: Tile[]; pickingClaims: Record<string, string>;
-  tableSkin: TableKey; skinKey: SkinKey; onClaim: (tileId: string, playerId: string) => void;
+  tableSkinDef: TableSkinDef; skinKey: SkinKey; onClaim: (tileId: string, playerId: string) => void;
   onStart: () => void; gameSpeed: GameSpeed;
 }) {
-  const table = TABLE_SKINS[tableSkin];
+  const table = tableSkinDef;
   const skin = DOMINO_SKINS[skinKey] ?? DOMINO_SKINS.ivory;
 
   const humanClaims = Object.entries(pickingClaims).filter(([, pid]) => pid === 'human').length;
@@ -1327,7 +1303,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const [slamOn, setSlamOn] = useState(true);
   const [selectedTargetScore, setSelectedTargetScore] = useState<number>(150);
   const [dominoSkin, setDominoSkin] = useState<SkinKey>('ivory');
-  const [tableSkin, setTableSkin] = useState<TableKey>('wood');
+  const { activeSkin: tableSkinDef } = useTableSkin();
   const [tileSize, setTileSize] = useState<TileSize>('md');
   const [boardZoom, setBoardZoom] = useState(1.0);
   const [showSettings, setShowSettings] = useState(false);
@@ -1584,7 +1560,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const handleClaim = useCallback((tileId: string, playerId: string) => { dispatch({ type: 'CLAIM_TILE', tileId, playerId }); }, []);
   const handleStartPlaying = useCallback(() => { dispatch({ type: 'START_PLAYING' }); }, []);
 
-  const table = TABLE_SKINS[tableSkin];
+  const table = tableSkinDef;
   const speedLabels: Record<GameSpeed, string> = { 1: '🐢 Slow', 2: '🚶 Normal', 3: '🏃 Fast', 4: '⚡ Turbo' };
   const isGameWon = gs.phase === 'roundOver' && gs.players.some(p => p.score >= gs.targetScore);
 
@@ -1659,12 +1635,6 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Domino Skin</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
               {(Object.keys(DOMINO_SKINS) as SkinKey[]).map(k => <SkinCard key={k} skinKey={k} active={dominoSkin === k} onClick={() => setDominoSkin(k)} dims={BASE_DIMS.sm} />)}
-            </div>
-          </div>
-          <div>
-            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Table Theme</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {(Object.keys(TABLE_SKINS) as TableKey[]).map(k => <TableCard key={k} tableKey={k} active={tableSkin === k} onClick={() => setTableSkin(k)} />)}
             </div>
           </div>
           <div>
@@ -1779,7 +1749,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       {gs.phase === 'picking' && (
         <PickingScreen
           players={gs.players} pickingPool={gs.pickingPool} pickingClaims={gs.pickingClaims}
-          tableSkin={tableSkin} skinKey={dominoSkin}
+          tableSkinDef={tableSkinDef} skinKey={dominoSkin}
           onClaim={handleClaim} onStart={handleStartPlaying} gameSpeed={gameSpeed}
         />
       )}
