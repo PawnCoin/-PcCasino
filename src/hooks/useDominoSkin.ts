@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { DOMINO_SKINS } from '@/data/dominoSkins';
 import type { DominoSkinDef, SkinKey } from '@/data/dominoSkins';
 
+export const DOMINO_SKIN_CHANGE_EVENT = 'pcasino_domino_skin_change' as const;
+const STORAGE_KEY = 'pcasino_domino_skin';
+
 export { DOMINO_SKINS };
 export type { DominoSkinDef, SkinKey };
-
-const DOMINO_SKIN_CHANGE_EVENT = 'pcasino_domino_skin_change';
-const STORAGE_KEY = 'pcasino_domino_skin';
 
 export function getDefaultDominoSkin(): DominoSkinDef {
   const stored = localStorage.getItem(STORAGE_KEY) as SkinKey | null;
