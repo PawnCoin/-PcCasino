@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PokerChip, ChipFace, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRouletteVoice } from '@/hooks/useGameVoice';
 import RouletteWheel3D from '@/components/games/RouletteWheel3D';
@@ -788,7 +789,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                   {winningNumber === 0 ? 'GREEN' : isRed(winningNumber) ? 'RED' : 'BLACK'}
                 </div>
                 {lastWin > 0 && (
-                  <div className="text-sm font-bold text-[#43A047]">+{lastWin} $Pc</div>
+                  <div className="text-sm font-bold"><span style={{ color: '#43A047' }}>+</span><PcTokenLabel amount={lastWin} size={14} /></div>
                 )}
               </div>
             </div>
@@ -985,7 +986,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
             {/* Total */}
             <div className="text-center flex-shrink-0 px-2">
               <div className="text-[8px] text-gray-500 uppercase tracking-wider">Bet</div>
-              <div className="text-base font-bold text-[#D4AF37]">{totalBet.toLocaleString()} $Pc</div>
+              <div className="text-base font-bold"><PcTokenLabel amount={totalBet} size={16} /></div>
             </div>
 
             {/* Buttons */}

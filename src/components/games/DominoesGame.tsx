@@ -13,6 +13,7 @@ import { useTableSkin } from '@/hooks/useTableSkin';
 import type { TableSkinDef } from '@/hooks/useTableSkin';
 import { useDominoSkin } from '@/hooks/useDominoSkin';
 import { DOMINO_SKINS } from '@/data/dominoSkins';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 import type { SkinKey as DominoSkinKey } from '@/data/dominoSkins';
 
 type CardBackStyle = { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
@@ -1654,8 +1655,8 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(212,175,55,0.15)' }}>
-              <div><div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', fontWeight: 700 }}>YOUR BALANCE</div><div style={{ fontSize: 18, fontWeight: 900, color: '#D4AF37' }}>{formatChipLabel(balance)} $Pc</div></div>
-              {onAddBalance && <button onClick={() => onAddBalance(10_000)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)', color: '#66BB6A', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}><PlusCircle size={13} /> Get $Pc</button>}
+              <div><div style={{ fontSize: 9, color: '#555', letterSpacing: '0.15em', fontWeight: 700 }}>YOUR BALANCE</div><div style={{ fontSize: 18 }}><PcTokenLabel amount={formatChipLabel(balance)} size={18} /></div></div>
+              {onAddBalance && <button onClick={() => onAddBalance(10_000)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)', color: '#66BB6A', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}><PlusCircle size={13} /> Get <PcTokenLabel size={11} /></button>}
             </div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 12, marginBottom: 8, letterSpacing: '0.1em' }}>WIN GOAL</div>
@@ -1669,7 +1670,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             <div style={{ marginBottom: 12 }}><ChipSelector selectedChip={gs.bet} onSelect={(amt) => { dispatch({ type: 'SET_BET', bet: amt }); setBetConfirmed(false); }} balance={balance} compact /></div>
             <div style={{ color: '#444', fontSize: 11, textAlign: 'center', marginBottom: 12 }}>Win 3× your bet on domino-out!</div>
             {!betConfirmed
-              ? <button onClick={confirmBet} disabled={balance < gs.bet} style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: balance >= gs.bet ? 'pointer' : 'not-allowed', background: balance >= gs.bet ? 'linear-gradient(135deg,#D4AF37,#9A7A20)' : '#2a2a2a', color: balance >= gs.bet ? '#000' : '#555', fontWeight: 700, fontSize: 15 }}>Lock Bet ({formatChipLabel(gs.bet)} $Pc)</button>
+              ? <button onClick={confirmBet} disabled={balance < gs.bet} style={{ width: '100%', height: 46, borderRadius: 10, border: 'none', cursor: balance >= gs.bet ? 'pointer' : 'not-allowed', background: balance >= gs.bet ? 'linear-gradient(135deg,#D4AF37,#9A7A20)' : '#2a2a2a', color: balance >= gs.bet ? '#000' : '#555', fontWeight: 700, fontSize: 15 }}>Lock Bet (<PcTokenLabel amount={formatChipLabel(gs.bet)} size={15} />)</button>
               : (
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => startWash('real', true)} style={{ flex: 1, height: 46, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#43A047,#1B5E20)', color: '#fff', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Zap size={16} /> New Game</button>
@@ -1706,7 +1707,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             </div>
             {gs.roundScore > 0 && <div style={{ color: '#888', fontSize: 13, marginBottom: 4 }}>+{gs.roundScore} pts to {gs.roundWinner}</div>}
             {gs.roundLoser && !isGameWon && <div style={{ color: '#EF5350', fontSize: 12, marginBottom: 6, fontWeight: 600 }}>😅 {gs.roundLoser === 'You' ? 'You lost' : gs.roundLoser + ' lost'} — must wash next round!</div>}
-            {gs.roundWinner === 'You' && gs.mode === 'real' && <div style={{ color: '#43A047', fontWeight: 800, fontSize: 20, marginBottom: 8 }}>+{gs.bet * 3} $Pc</div>}
+            {gs.roundWinner === 'You' && gs.mode === 'real' && <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}><span style={{ color: '#43A047' }}>+</span><PcTokenLabel amount={gs.bet * 3} size={20} /></div>}
             {gs.mode === 'practice' && <div style={{ color: '#42A5F5', fontSize: 12, marginBottom: 6 }}>Practice round — no payout</div>}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px', margin: '12px 0', textAlign: 'left' }}>
               <div style={{ color: '#D4AF37', fontSize: 10, fontWeight: 700, marginBottom: 6 }}>STANDINGS · FIRST TO {TARGET_SCORE}</div>

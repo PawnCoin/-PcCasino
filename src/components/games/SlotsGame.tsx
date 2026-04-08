@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { PokerChip, ChipSelector, formatChipLabel } from '@/components/PokerChip';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -728,7 +729,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
               <div>
                 <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
-                <div className="text-base font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
+                <div className="text-base font-bold"><PcTokenLabel amount={formatChipLabel(balance)} size={16} /></div>
               </div>
               {onAddBalance && (
                 <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold text-green-400 min-h-[40px]" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
@@ -749,7 +750,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div className="flex items-center justify-center gap-3 sm:gap-6 mb-3">
               <div className="text-center">
                 <div className="text-[#C0C0C0] text-xs mb-1">CURRENT BET</div>
-                <div className="text-xl sm:text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
+                <div className="text-xl sm:text-3xl font-bold"><PcTokenLabel amount={currentBet} size={24} /></div>
               </div>
 
               <button
@@ -806,7 +807,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           {lastWin > 0 && !spinning && (
             <div className="text-center">
               <span className="text-[#D4AF37] text-sm">
-                Last win: <strong>+{lastWin.toFixed(2)} $Pc</strong>
+                Last win: <strong>+<PcTokenLabel amount={lastWin.toFixed(2)} size={14} /></strong>
                 {winLines.length > 0 && ` (${winLines.length} payline${winLines.length > 1 ? 's' : ''})`}
               </span>
             </div>

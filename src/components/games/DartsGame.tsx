@@ -5,6 +5,7 @@ import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 
 interface DartsGameProps {
   balance: number;
@@ -416,7 +417,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
               <ChipSelector selectedChip={betAmount} onSelect={setBetAmount} balance={balance} compact />
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 12, color: '#9ca3af' }}>Bet: <strong style={{ color: '#D4AF37' }}>{formatChipLabel(betAmount)} $Pc</strong></span>
+                <span style={{ fontSize: 12, color: '#9ca3af' }}>Bet: <PcTokenLabel amount={formatChipLabel(betAmount)} size={12} /></span>
                 <button onClick={placeBet} style={{ padding: '8px 24px', borderRadius: 8, background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: 14 }}>
                   Start Game
                 </button>
@@ -427,8 +428,11 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           {(gamePhase === 'won' || gamePhase === 'lost') && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 40 }}>{gamePhase === 'won' ? '🎯' : '😔'}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: gamePhase === 'won' ? '#D4AF37' : '#ef4444' }}>
-                {gamePhase === 'won' ? `+${(betAmount * 2).toLocaleString()} $Pc` : `Lost ${betAmount.toLocaleString()} $Pc`}
+              <div style={{ fontSize: 20, fontWeight: 700 }}>
+                {gamePhase === 'won'
+                  ? <><span style={{ color: '#43A047' }}>+</span><PcTokenLabel amount={betAmount * 2} size={20} /></>
+                  : <><span style={{ color: '#ef4444' }}>Lost </span><PcTokenLabel amount={betAmount} size={20} /></>
+                }
               </div>
               <button onClick={resetGame} style={{ padding: '8px 24px', borderRadius: 8, background: '#D4AF37', color: '#000', fontWeight: 700, cursor: 'pointer', border: 'none', fontSize: 14 }}>
                 Play Again
@@ -460,8 +464,8 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div>• 3 throws per turn</div>
             <div>• Reach exactly 0 to win</div>
             <div>• Going below 0 = bust</div>
-            <div style={{ marginTop: 6, color: '#D4AF37' }}>Bet: {betAmount.toLocaleString()} $Pc</div>
-            <div style={{ color: '#22c55e' }}>Win: {(betAmount * 2).toLocaleString()} $Pc</div>
+            <div style={{ marginTop: 6 }}>Bet: <PcTokenLabel amount={betAmount} size={11} /></div>
+            <div>Win: <PcTokenLabel amount={betAmount * 2} size={11} /></div>
           </div>
 
           {/* History */}

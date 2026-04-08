@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PokerChip, ChipStack, ChipSelector, DealerVegasProps, formatChipLabel } from '@/components/PokerChip';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -1140,7 +1141,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
           <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
             <div>
               <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
-              <div className="text-base font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
+              <div className="text-base font-bold"><PcTokenLabel amount={formatChipLabel(balance)} size={16} /></div>
             </div>
             {onAddBalance && (
               <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
@@ -1162,7 +1163,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
           {/* Total Bet */}
           <div className="text-center mb-4">
             <span className="text-[#C0C0C0]">Total Bet: </span>
-            <span className="text-[#D4AF37] font-bold text-xl">{totalBet} $Pc</span>
+            <PcTokenLabel amount={totalBet} size={20} />
           </div>
 
           {/* Roll Button */}
@@ -1207,7 +1208,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                   </div>
                 )}
                 {getBetAmount('pass') > 0 && (
-                  <div className="mt-1 text-[#D4AF37] font-bold">{getBetAmount('pass')} $Pc</div>
+                  <div className="mt-1 font-bold"><PcTokenLabel amount={getBetAmount('pass')} size={13} /></div>
                 )}
               </button>
               <button
@@ -1223,7 +1224,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                   </div>
                 )}
                 {getBetAmount('dontpass') > 0 && (
-                  <div className="mt-1 text-[#D4AF37] font-bold">{getBetAmount('dontpass')} $Pc</div>
+                  <div className="mt-1 font-bold"><PcTokenLabel amount={getBetAmount('dontpass')} size={13} /></div>
                 )}
               </button>
             </div>
@@ -1241,7 +1242,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                 </div>
               )}
               {getBetAmount('field') > 0 && (
-                <div className="mt-1 text-[#D4AF37] font-bold">{getBetAmount('field')} $Pc</div>
+                <div className="mt-1 font-bold"><PcTokenLabel amount={getBetAmount('field')} size={13} /></div>
               )}
             </button>
 
@@ -1318,7 +1319,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                   </div>
                 )}
                 {getBetAmount('any7') > 0 && (
-                  <div className="text-[#D4AF37] font-bold">{getBetAmount('any7')} $Pc</div>
+                  <div className="font-bold"><PcTokenLabel amount={getBetAmount('any7')} size={12} /></div>
                 )}
               </button>
               <button
@@ -1333,7 +1334,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                   </div>
                 )}
                 {getBetAmount('anycraps') > 0 && (
-                  <div className="text-[#D4AF37] font-bold">{getBetAmount('anycraps')} $Pc</div>
+                  <div className="font-bold"><PcTokenLabel amount={getBetAmount('anycraps')} size={12} /></div>
                 )}
               </button>
             </div>

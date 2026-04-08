@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { createDeck, shuffleDeck, calculateBlackjackValue, isBlackjack } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack, ChipSelector, CasinoChipTray, formatChipLabel } from '@/components/PokerChip';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
@@ -551,7 +552,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                     </div>
                     {handBets[idx] > 0 && (
                       <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[#D4AF37] text-xs font-bold">
-                        {handBets[idx]} $Pc
+                        <PcTokenLabel amount={handBets[idx]} size={12} />
                       </div>
                     )}
                   </div>
@@ -719,7 +720,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                 <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
                   <div>
                     <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
-                    <div className="text-base font-bold text-[#D4AF37]">{formatChipLabel(balance)} $Pc</div>
+                    <div className="text-base font-bold"><PcTokenLabel amount={formatChipLabel(balance)} size={16} /></div>
                   </div>
                   {onAddBalance && (
                     <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
@@ -740,7 +741,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                 <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4">
                   <div className="text-center">
                     <div className="text-[#C0C0C0] text-xs mb-1">CURRENT BET</div>
-                    <div className="text-xl sm:text-3xl font-bold text-[#D4AF37]">{currentBet} $Pc</div>
+                    <div className="text-xl sm:text-3xl font-bold"><PcTokenLabel amount={currentBet} size={24} /></div>
                   </div>
 
                   <div className="flex flex-col items-center gap-1">
@@ -815,7 +816,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                 <div className="text-center mb-3">
                   <span className="text-[#C0C0C0] text-sm">Hand {currentHandIndex + 1} of {playerHands.length}</span>
                   <span className="mx-2 text-[#D4AF37]">|</span>
-                  <span className="text-[#D4AF37] font-bold text-sm">Bet: {handBets[currentHandIndex]} $Pc</span>
+                  <span className="font-bold text-sm"><PcTokenLabel amount={handBets[currentHandIndex]} size={14} /></span>
                 </div>
                 
                 <div className="flex justify-end mb-1">

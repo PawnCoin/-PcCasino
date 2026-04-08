@@ -12,6 +12,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useBingoVoice } from '@/hooks/useGameVoice';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { ChipSelector } from '@/components/PokerChip';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 
 interface BingoGameProps {
   balance: number;
@@ -830,7 +831,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 {winnerDisplayName} wins!
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: '#e5e7eb' }}>{winPattern}</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: '#D4AF37', marginTop: 4 }}>{fmtPc(wonPrize)} $Pc</div>
+              <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}><PcTokenLabel amount={fmtPc(wonPrize)} size={28} /></div>
             </div>
 
             {/* Winning card */}
@@ -1001,7 +1002,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(212,175,55,0.15)' }}>
               <div>
                 <div style={{ fontSize: 9, color: '#d1d5db', letterSpacing: '0.15em', fontWeight: 700 }}>YOUR BALANCE</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#D4AF37' }}>{fmtPc(balance)} $Pc</div>
+                <div style={{ fontSize: 18, fontWeight: 900 }}><PcTokenLabel amount={fmtPc(balance)} size={18} /></div>
               </div>
               {onAddBalance && (
                 <button
@@ -1019,8 +1020,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.07)', marginBottom: 20 }}>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#d1d5db' }}>TOTAL COST</div><div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{fmtPc(betAmount * numCards)} $Pc</div></div>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#d1d5db' }}>BLACKOUT WIN</div><div style={{ fontSize: 18, fontWeight: 800, color: '#D4AF37' }}>{fmtPc(betAmount * numCards * WIN_PAYOUTS.BLACKOUT)} $Pc</div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#d1d5db' }}>TOTAL COST</div><div style={{ fontSize: 18, fontWeight: 800 }}><PcTokenLabel amount={fmtPc(betAmount * numCards)} size={18} /></div></div>
+              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 10, color: '#d1d5db' }}>BLACKOUT WIN</div><div style={{ fontSize: 18, fontWeight: 800 }}><PcTokenLabel amount={fmtPc(betAmount * numCards * WIN_PAYOUTS.BLACKOUT)} size={18} /></div></div>
             </div>
 
             <button onClick={startGame} style={{

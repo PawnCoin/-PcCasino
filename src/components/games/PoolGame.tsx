@@ -1739,7 +1739,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                   </div>
                   {gameMode === 'shotbet' && (
                     <div style={{ fontSize: 13, color: '#9ca3af' }}>
-                      Shot bet net: {shotBet.playerBalance > 0 ? '+' : ''}<PcTokenLabel amount={Math.abs(shotBet.playerBalance)} size={13} />
+                      Shot bet net: <span style={{ color: shotBet.playerBalance >= 0 ? '#86efac' : '#ef4444' }}>{shotBet.playerBalance > 0 ? '+' : shotBet.playerBalance < 0 ? '-' : ''}</span><PcTokenLabel amount={Math.abs(shotBet.playerBalance)} size={13} />
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 10 }}>
