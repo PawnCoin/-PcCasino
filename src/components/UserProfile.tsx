@@ -1883,8 +1883,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
         onClose={() => setDmTarget(null)}
         recipientId={dmTarget.id}
         recipientUsername={dmTarget.username}
-        currentUserId={user.id}
-        currentUsername={user.username}
+        myId={Number(user.id)}
       />
     )}
 

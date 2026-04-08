@@ -64,6 +64,7 @@ interface UnifiedUser {
   socialProvider?: 'google' | 'twitter' | 'discord' | 'telegram';
   balance: number;
   avatar: string;
+  avatarUrl?: string | null;
   socialAvatarUrl?: string;
   isAdmin?: boolean;
   vipTier?: string;
