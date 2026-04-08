@@ -10,7 +10,7 @@ import { useTableSkin } from '@/hooks/useTableSkin';
 import type { TableSkinDef } from '@/hooks/useTableSkin';
 import { usePoolBallSkin, getDefaultPoolBallPreset } from '@/hooks/usePoolBallSkin';
 import type { BallMaterial } from '@/hooks/usePoolBallSkin';
-import { usePoolCueSkin, getDefaultCueSkin } from '@/hooks/usePoolCueSkin';
+import { usePoolCueSkin, getDefaultCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
 import type { CueSkinDef } from '@/hooks/usePoolCueSkin';
 import { useGameVoice } from '@/hooks/useGameVoice';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
