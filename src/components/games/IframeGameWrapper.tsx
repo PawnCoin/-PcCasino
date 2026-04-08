@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { RefreshCw, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { getSoundMuted, getSoundVolume, getSoundAmbient, subscribeSoundState } from '@/hooks/soundState';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -37,6 +38,18 @@ export function IframeGameWrapper({
   const gameInProgressRef = useRef(false);
 
   const iframeSrc = `${gamePath}?balance=${balance}`;
+
+  // Send current music state to the iframe
+  const sendMusicState = useCallback(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage({
+      type: 'music:state',
+      playing: getSoundAmbient(),
+      volume: getSoundVolume(),
+      muted: getSoundMuted(),
+    }, '*');
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -84,6 +97,15 @@ export function IframeGameWrapper({
       );
     }
   }, [balance, isLoaded]);
+
+  // Send initial music state when iframe loads; subscribe to future changes
+  useEffect(() => {
+    if (!isLoaded) return;
+    sendMusicState();
+    return subscribeSoundState(() => {
+      sendMusicState();
+    });
+  }, [isLoaded, sendMusicState]);
 
   const requestBack = useCallback(() => {
     if (gameInProgressRef.current) {

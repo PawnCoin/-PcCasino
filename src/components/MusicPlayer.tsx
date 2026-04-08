@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown } from 'lucide-react';
+import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, subscribeSoundState } from '@/hooks/soundState';
@@ -21,8 +21,11 @@ const tracks: Track[] = [
   { id: '5', title: 'Vegas Lights', artist: 'Neon Collective', duration: 225, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3' },
 ];
 
+type MusicTab = 'casino' | 'liveone';
+
 export function MusicPlayer() {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<MusicTab>('casino');
   const [isPlaying, setIsPlaying] = useState(getSoundAmbient);
   const [currentTrack, setCurrentTrack] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -183,6 +186,7 @@ export function MusicPlayer() {
 
       {isOpen && (
         <div className="fixed bottom-20 left-4 z-40 w-80 glass-panel-strong rounded-2xl border border-purple-500/30 overflow-hidden shadow-2xl">
+          {/* Header */}
           <div className="flex items-center justify-between p-3 border-b border-white/10">
             <div className="flex items-center gap-2">
               <Music className="w-4 h-4 text-purple-400" />
@@ -197,85 +201,150 @@ export function MusicPlayer() {
             <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-sm">✕</button>
           </div>
 
-          <div className="p-4">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}>
-                <Music className="w-8 h-8 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold truncate text-white">{currentTrackData.title}</div>
-                <div className="text-sm text-gray-400">{currentTrackData.artist}</div>
-                <div className="text-xs text-purple-400">{currentTrackData.genre}</div>
-                {audioError && <div className="text-xs text-red-400 mt-0.5">Stream error — try next track</div>}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <Slider
-                value={[progress]}
-                max={currentTrackData.duration}
-                step={1}
-                onValueChange={handleSeek}
-                className="mb-2"
-              />
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>{formatTime(progress)}</span>
-                <span>{formatTime(currentTrackData.duration)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <Button variant="ghost" size="icon" onClick={handlePrevious} className="hover:bg-white/10">
-                <SkipBack className="w-5 h-5" />
-              </Button>
-              <Button
-                onClick={handlePlayPause}
-                className="w-12 h-12 rounded-full btn-primary flex items-center justify-center"
-              >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleNext} className="hover:bg-white/10">
-                <SkipForward className="w-5 h-5" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setSoundMuted(!getSoundMuted())} className="h-8 w-8 flex-shrink-0">
-                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </Button>
-              <Slider
-                value={[isMuted ? 0 : volume]}
-                max={100}
-                step={1}
-                onValueChange={(value) => {
-                  setSoundVolume(value[0] / 100);
-                  if (value[0] === 0) setSoundMuted(true);
-                  else if (isMuted) setSoundMuted(false);
-                }}
-                className="flex-1"
-              />
-            </div>
+          {/* Tab bar */}
+          <div className="flex border-b border-white/10">
+            <button
+              onClick={() => setActiveTab('casino')}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors ${
+                activeTab === 'casino'
+                  ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/10'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Casino Tracks
+            </button>
+            <button
+              onClick={() => setActiveTab('liveone')}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors ${
+                activeTab === 'liveone'
+                  ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/10'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              LiveOne
+            </button>
           </div>
 
-          <div className="border-t border-white/10 max-h-40 overflow-y-auto">
-            <div className="p-2 text-xs text-gray-400 flex items-center gap-2">
-              <ListMusic className="w-3 h-3" />
-              Playlist ({tracks.length} tracks)
-            </div>
-            {tracks.map((track, index) => (
-              <button
-                key={track.id}
-                onClick={() => selectTrack(index)}
-                className={`w-full px-4 py-2 text-left text-sm hover:bg-white/5 transition-colors flex items-center justify-between ${
-                  currentTrack === index ? 'bg-purple-500/20 text-purple-400' : 'text-gray-300'
-                }`}
+          {activeTab === 'casino' && (
+            <>
+              <div className="p-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}>
+                    <Music className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold truncate text-white">{currentTrackData.title}</div>
+                    <div className="text-sm text-gray-400">{currentTrackData.artist}</div>
+                    <div className="text-xs text-purple-400">{currentTrackData.genre}</div>
+                    {audioError && <div className="text-xs text-red-400 mt-0.5">Stream error — try next track</div>}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <Slider
+                    value={[progress]}
+                    max={currentTrackData.duration}
+                    step={1}
+                    onValueChange={handleSeek}
+                    className="mb-2"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{formatTime(progress)}</span>
+                    <span>{formatTime(currentTrackData.duration)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <Button variant="ghost" size="icon" onClick={handlePrevious} className="hover:bg-white/10">
+                    <SkipBack className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    onClick={handlePlayPause}
+                    className="w-12 h-12 rounded-full btn-primary flex items-center justify-center"
+                  >
+                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={handleNext} className="hover:bg-white/10">
+                    <SkipForward className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" onClick={() => setSoundMuted(!getSoundMuted())} className="h-8 w-8 flex-shrink-0">
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </Button>
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    max={100}
+                    step={1}
+                    onValueChange={(value) => {
+                      setSoundVolume(value[0] / 100);
+                      if (value[0] === 0) setSoundMuted(true);
+                      else if (isMuted) setSoundMuted(false);
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 max-h-40 overflow-y-auto">
+                <div className="p-2 text-xs text-gray-400 flex items-center gap-2">
+                  <ListMusic className="w-3 h-3" />
+                  Playlist ({tracks.length} tracks)
+                </div>
+                {tracks.map((track, index) => (
+                  <button
+                    key={track.id}
+                    onClick={() => selectTrack(index)}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-white/5 transition-colors flex items-center justify-between ${
+                      currentTrack === index ? 'bg-purple-500/20 text-purple-400' : 'text-gray-300'
+                    }`}
+                  >
+                    <span className="truncate">{track.title}</span>
+                    <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{formatTime(track.duration)}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'liveone' && (
+            <div className="p-5 flex flex-col items-center gap-4">
+              {/* LiveOne logo / branding */}
+              <div
+                className="w-full rounded-xl p-4 flex flex-col items-center gap-3"
+                style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #0d0620 100%)', border: '1px solid rgba(139,92,246,0.3)' }}
               >
-                <span className="truncate">{track.title}</span>
-                <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{formatTime(track.duration)}</span>
-              </button>
-            ))}
-          </div>
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-black"
+                  style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff', letterSpacing: '-1px' }}
+                >
+                  L1
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-white text-base">LiveOne</div>
+                  <div className="text-xs text-gray-400 mt-0.5">Stream millions of songs free</div>
+                </div>
+                <p className="text-xs text-gray-500 text-center leading-relaxed">
+                  Open LiveOne in a new tab to stream any music you like while you play — your casino tracks will keep playing here unless you pause them.
+                </p>
+                <a
+                  href="https://play.liveone.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all"
+                  style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff' }}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open LiveOne
+                </a>
+              </div>
+              <p className="text-xs text-gray-600 text-center">
+                LiveOne is a separate service. Use the Casino Tracks tab to control music from within the app.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </>

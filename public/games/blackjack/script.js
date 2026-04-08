@@ -2989,6 +2989,43 @@ window.addEventListener('message', function(e) {
     if (betStatusInfo && betStatusInfo[0]) betStatusInfo[0].textContent = playerInfo.balance.toLocaleString('de-DE') + ' $Pc';
   }
 });
+
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.type !== 'music:state') return;
+  var playing = e.data.playing;
+  var musicInfoEl = document.getElementById('musicInfo');
+  var musicVolRow = musicVol ? musicVol.closest('div') : null;
+  var parentBanner = document.getElementById('parentMusicBanner');
+  if (playing) {
+    // Pause in-game music and hide music controls
+    if (musicStatus) {
+      music.pause();
+      musicStatus = false;
+      if (musicPauseBtn) {
+        musicPauseBtn.className = 'fa-solid fa-play';
+        musicPauseBtn.style.color = '#08ff21';
+      }
+      var vinyl = document.querySelector('#vinyl');
+      if (vinyl) vinyl.style.animationPlayState = 'paused';
+    }
+    if (musicInfoEl) musicInfoEl.style.display = 'none';
+    if (musicVolRow) musicVolRow.style.display = 'none';
+    if (!parentBanner) {
+      var banner = document.createElement('div');
+      banner.id = 'parentMusicBanner';
+      banner.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(139,92,246,0.18);border:1px solid rgba(139,92,246,0.4);border-radius:12px;padding:7px 18px;font-size:12px;color:#c4b5fd;z-index:9999;pointer-events:none;white-space:nowrap;';
+      banner.textContent = 'Music playing from main player';
+      document.body.appendChild(banner);
+    }
+  } else {
+    // Restore in-game music controls
+    if (musicInfoEl) musicInfoEl.style.display = '';
+    if (musicVolRow) musicVolRow.style.display = '';
+    var banner2 = document.getElementById('parentMusicBanner');
+    if (banner2) banner2.remove();
+  }
+});
+
 window.addEventListener('beforeunload', function(e) {
   if (gameStart || playerInfo.totalBet > 0) {
     e.preventDefault();
