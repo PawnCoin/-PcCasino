@@ -398,6 +398,7 @@ function cancelLastBet() {
       sixainBets,
     ].forEach((obj) => Object.keys(obj).forEach((k) => (obj[k] = 0)));
   }
+  syncGameState();
   refreshAllZonesWithPositiveBets();
   checkMoney();
 }

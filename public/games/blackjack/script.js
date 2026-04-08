@@ -996,6 +996,7 @@ function split() {
   splitChips(activeZone);
   playerInfo.balance -= betZoneInfo[activeZone].bet;
   playerInfo.totalBet += betZoneInfo[activeZone].bet;
+  syncBJGameState();
   betZoneInfo[activeZone].bet = 0;
   betStatusInfo[0].textContent =
     '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
@@ -1583,6 +1584,7 @@ function double() {
   const betTarget = betZoneInfo[activeZone] ?? betZoneInfo[betZone];
   playerInfo.balance -= betTarget.bet;
   playerInfo.totalBet += betTarget.bet;
+  syncBJGameState();
   betTarget.bet *= 2;
   let total = betTarget.bet;
   const denoms = [1000, 100, 25, 10, 5, 1];
@@ -2175,6 +2177,7 @@ function insurance() {
 
   betTarget.insuranceBet += insuranceAmount;
   playerInfo.totalBet += insuranceAmount;
+  syncBJGameState();
   playerInfo.balance -= insuranceAmount;
   betStatusInfo[1].textContent =
     '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
@@ -2485,6 +2488,7 @@ function undoLastBet() {
   playSound('undoChip');
   playerInfo.balance += value;
   playerInfo.totalBet = Math.max(0, (playerInfo.totalBet || 0) - value);
+  syncBJGameState();
   betStatusInfo[0].textContent =
     '$Pc ' + (playerInfo.balance || 0).toLocaleString('de-DE');
   betStatusInfo[1].textContent =
@@ -2609,6 +2613,7 @@ function rebet() {
       0,
       (playerInfo.totalBet || 0) - currentTotal
     );
+    syncBJGameState();
   }
 
   for (let i = 0; i < 3; i++) {
@@ -2671,6 +2676,7 @@ function rebet() {
   if (lastBalance === null) lastBalance = playerInfo.balance;
   playerInfo.balance -= toCharge;
   playerInfo.totalBet += toCharge;
+  syncBJGameState();
 
   if (betStatusInfo && betStatusInfo.length >= 2) {
     betStatusInfo[0].textContent =
