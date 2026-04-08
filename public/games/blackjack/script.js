@@ -1305,12 +1305,12 @@ function checkMainBets() {
   });
   setTimeout(() => {
     gameStart = false;
-    syncBJGameState();
     dealerStatus = false;
     afterInsurance = false;
     splitActive = false;
     insuranceActive = false;
     playerInfo.totalBet = 0;
+    syncBJGameState();
     betStatusInfo[1].textContent = '0 $Pc';
     betStatusInfo[0].textContent =
       '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
