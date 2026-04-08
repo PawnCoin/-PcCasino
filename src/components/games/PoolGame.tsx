@@ -15,6 +15,7 @@ import type { CueSkinDef } from '@/hooks/usePoolCueSkin';
 import { useGameVoice } from '@/hooks/useGameVoice';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { usePoolSounds } from '@/hooks/usePoolSounds';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type GameMode = 'select' | '8ball' | '9ball' | 'snooker' | 'shotbet' | 'rake' | 'tournament';
@@ -162,8 +163,10 @@ function makeSnookerRack(): Ball[] {
 }
 
 // ─── Physics Engine ────────────────────────────────────────────────────────────
-function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Pocket[]): { anyMoving: boolean; pocketed: Ball[] } {
+function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Pocket[]): { anyMoving: boolean; pocketed: Ball[]; collisionCount: number; totalCollisionVel: number } {
   const pocketedThisStep: Ball[] = [];
+  let collisionCount = 0;
+  let totalCollisionVel = 0;
 
   balls.forEach(ball => {
     if (ball.pocketed) return;
@@ -209,13 +212,15 @@ function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Po
         if (dot > 0) {
           a.vx -= dot * nx; a.vy -= dot * ny;
           b.vx += dot * nx; b.vy += dot * ny;
+          collisionCount++;
+          totalCollisionVel += dot;
         }
       }
     }
   }
 
   const anyMoving = balls.some(b => !b.pocketed && (Math.abs(b.vx) > MIN_SPEED || Math.abs(b.vy) > MIN_SPEED));
-  return { anyMoving, pocketed: pocketedThisStep };
+  return { anyMoving, pocketed: pocketedThisStep, collisionCount, totalCollisionVel };
 }
 
 // ─── Drawing helpers ─────────────────────────────────────────────────────────
@@ -871,6 +876,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const poolVoice = usePoolVoice();
   const { playSound } = useSoundEffects();
+  const poolSounds = usePoolSounds();
+  const shotCountRef = useRef(0);
 
   // ── Skin refs (kept in sync for draw callbacks) ──────────────────────────
   const ballPresetRef = useRef(ballPreset);
@@ -1249,9 +1256,18 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     const pockets = pocketsRef.current;
     const balls = ballsRef.current;
 
-    const { anyMoving, pocketed } = simulateStep(balls, tw, th, pockets);
+    const { anyMoving, pocketed, collisionCount, totalCollisionVel } = simulateStep(balls, tw, th, pockets);
     redrawCanvas();
     movingRef.current = anyMoving;
+
+    if (settings.soundEnabled) {
+      if (collisionCount > 0) {
+        poolSounds.playBallCollision(totalCollisionVel / collisionCount);
+      }
+      if (pocketed.length > 0) {
+        poolSounds.playPocketDrop();
+      }
+    }
 
     if (anyMoving) {
       animRef.current = requestAnimationFrame(gameLoopStep);
@@ -1260,7 +1276,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
       const pocketedThisTurn = pocketed;
       handleShotEnd(pocketedThisTurn);
     }
-  }, [redrawCanvas, handleShotEnd]);
+  }, [redrawCanvas, handleShotEnd, settings.soundEnabled, poolSounds]);
 
   const handleGameWin = useCallback(() => {
     const winAmt = betAmountRef.current * 2;
@@ -1344,9 +1360,15 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     aimStartRef.current = null;
     aimEndRef.current = null;
     playSound('chip');
+    if (settings.soundEnabled) {
+      const isBreak = shotCountRef.current === 0;
+      if (isBreak) poolSounds.playBreakShot();
+      else poolSounds.playCueStrike(power);
+    }
+    shotCountRef.current += 1;
     phaseLockRef.current = 'playing';
     animRef.current = requestAnimationFrame(gameLoopStep);
-  }, [gameLoopStep, playSound]);
+  }, [gameLoopStep, playSound, settings.soundEnabled, poolSounds]);
 
   // ── Canvas interaction ─────────────────────────────────────────────────────
   const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1410,6 +1432,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     ballsRef.current = balls;
     aimStartRef.current = null; aimEndRef.current = null;
     highlightPocketRef.current = null; highlightBallRef.current = null;
+    shotCountRef.current = 0;
 
     setPlayerGroup(null); playerGroupRef.current = null;
     setTurn('player'); turnRef.current = 'player';

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 
 // ─── Denomination tiers ────────────────────────────────────────────────────
 export const STANDARD_CHIPS   = [1, 5, 10, 25, 50, 100, 500];
@@ -581,7 +582,7 @@ export function BetArea({ label, chips, onClick, isActive, totalAmount }: BetAre
         )}
       </div>
       {totalAmount > 0 && (
-        <div className="mt-2 text-[#D4AF37] font-bold text-sm">{formatChipLabel(totalAmount)} $Pc</div>
+        <div className="mt-2 font-bold text-sm"><PcTokenLabel amount={formatChipLabel(totalAmount)} /></div>
       )}
     </button>
   );

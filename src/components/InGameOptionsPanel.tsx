@@ -7,6 +7,7 @@ import { useCardDeck } from '@/hooks/useCardDeck';
 import { useTableSkin, TABLE_SKINS } from '@/hooks/useTableSkin';
 import { usePoolBallSkin, POOL_BALL_PRESETS } from '@/hooks/usePoolBallSkin';
 import { usePoolCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
+import { useDominoSkin, DOMINO_SKINS } from '@/hooks/useDominoSkin';
 
 interface InGameOptionsPanelProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
   const { activeSkin, selectSkin } = useTableSkin();
   const { activePreset: activeBallPreset, selectPreset: selectBallPreset } = usePoolBallSkin();
   const { activeCueSkin, selectCueSkin } = usePoolCueSkin();
+  const { activeSkinKey: activeDominoKey, selectSkin: selectDominoSkin } = useDominoSkin();
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [nameInput, setNameInput] = useState(settings.displayName);
   const [showUpload, setShowUpload] = useState(false);
@@ -484,6 +486,58 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                     </div>
                   </div>
                 </>
+              )}
+
+              {activeGame === 'Dominoes' && (
+                <div>
+                  <SectionLabel icon={<Palette size={12} />} label="DOMINO TILE SKINS" />
+                  <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
+                    Choose domino tile appearance. Applied immediately.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {(Object.keys(DOMINO_SKINS) as string[]).map(key => {
+                      const skin = DOMINO_SKINS[key];
+                      const isSelected = activeDominoKey === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => selectDominoSkin(key as never)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                            padding: '8px 6px', borderRadius: 10, cursor: 'pointer',
+                            border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                            background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                            boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : skin.glow ? `0 0 6px ${skin.glow}` : 'none',
+                            transition: 'all 0.15s', position: 'relative',
+                          }}
+                        >
+                          {/* Mini tile preview */}
+                          <div style={{
+                            width: 42, height: 22, borderRadius: 4, overflow: 'hidden',
+                            background: skin.bg, border: `1.5px solid ${skin.border}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: skin.glow ? `0 0 8px ${skin.glow}` : '0 1px 4px rgba(0,0,0,0.4)',
+                          }}>
+                            <div style={{ width: 1, height: '70%', background: skin.divider }} />
+                            {[0, 1].map(side => (
+                              <div key={side} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ width: 4, height: 4, borderRadius: '50%', background: skin.pip }} />
+                              </div>
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 9, fontWeight: 600, color: isSelected ? '#D4AF37' : '#9ca3af', textAlign: 'center', lineHeight: 1.2 }}>
+                            {skin.name}
+                          </span>
+                          {isSelected && (
+                            <div style={{ position: 'absolute', top: 4, right: 4 }}>
+                              <Check size={10} color="#D4AF37" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -5,6 +5,7 @@ import { InGameOptionsPanel } from './InGameOptionsPanel';
 import { InGameQuickBuy } from './InGameQuickBuy';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
+import { PcTokenLabel } from '@/components/PcTokenLabel';
 
 interface InGameTopBarProps {
   gameName: string;
@@ -90,8 +91,7 @@ export function InGameTopBar({
           {/* Balance pill */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 10, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', flexShrink: 0 }}>
             <img src="/logos/pc-logo.png" alt="" style={{ width: 14, height: 14 }} />
-            <span style={{ fontWeight: 700, color: '#D4AF37', fontSize: 12 }}>{formatPc(balance)}</span>
-            <span style={{ fontSize: 9, color: '#9ca3af', display: 'none' }} className="sm-inline">$Pc</span>
+            <PcTokenLabel amount={formatPc(balance)} size={12} />
           </div>
 
           {/* Wallet quick-access */}
