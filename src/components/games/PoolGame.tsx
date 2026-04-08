@@ -7,9 +7,15 @@ import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { LobbyChat } from '@/components/LobbyChat';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import type { TableSkinDef } from '@/hooks/useTableSkin';
 import { usePoolBallSkin, getDefaultPoolBallPreset } from '@/hooks/usePoolBallSkin';
+import type { BallMaterial } from '@/hooks/usePoolBallSkin';
+import { usePoolCueSkin, getDefaultCueSkin } from '@/hooks/usePoolCueSkin';
+import type { CueSkinDef } from '@/hooks/usePoolCueSkin';
 import { useGameVoice } from '@/hooks/useGameVoice';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type GameMode = 'select' | '8ball' | '9ball' | 'snooker' | 'shotbet' | 'rake' | 'tournament';
@@ -213,6 +219,406 @@ function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Po
   return { anyMoving, pocketed: pocketedThisStep };
 }
 
+// ─── Drawing helpers ─────────────────────────────────────────────────────────
+function drawTrapezoid(
+  ctx: CanvasRenderingContext2D,
+  ax: number, ay: number,
+  bx: number, by: number,
+  perpX: number, perpY: number,
+  w1: number, w2: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(ax + perpX * w1, ay + perpY * w1);
+  ctx.lineTo(bx + perpX * w2, by + perpY * w2);
+  ctx.lineTo(bx - perpX * w2, by - perpY * w2);
+  ctx.lineTo(ax - perpX * w1, ay - perpY * w1);
+  ctx.closePath();
+}
+
+function drawRealisticCue(
+  ctx: CanvasRenderingContext2D,
+  cueX1: number, cueY1: number,
+  cueX2: number, cueY2: number,
+  nx: number, ny: number,
+  cueSkin: CueSkinDef,
+) {
+  const perpX = -ny;
+  const perpY = nx;
+  const cueLen = Math.hypot(cueX2 - cueX1, cueY2 - cueY1);
+
+  const seg = (t: number) => ({
+    x: cueX1 + (cueX2 - cueX1) * t,
+    y: cueY1 + (cueY2 - cueY1) * t,
+  });
+
+  // Positions along axis (0 = tip end, 1 = butt end)
+  const pTip      = seg(0);
+  const pFerrule  = seg(0.04);
+  const pShaft    = seg(0.07);
+  const pShaftEnd = seg(0.60);
+  const pJoint    = seg(0.63);
+  const pWrap     = seg(0.63);
+  const pWrapEnd  = seg(0.74);
+  const pButt     = seg(0.74);
+  const pButtEnd  = seg(0.96);
+  const pBumper   = seg(1.00);
+
+  ctx.save();
+
+  // 1. Chalk tip
+  const tipGrad = ctx.createLinearGradient(pTip.x, pTip.y, pFerrule.x, pFerrule.y);
+  tipGrad.addColorStop(0, cueSkin.tipColor);
+  tipGrad.addColorStop(1, '#0a5050');
+  drawTrapezoid(ctx, pTip.x, pTip.y, pFerrule.x, pFerrule.y, perpX, perpY, 1.5, 2.0);
+  ctx.fillStyle = tipGrad;
+  ctx.fill();
+
+  // 2. Ferrule (white ring)
+  drawTrapezoid(ctx, pFerrule.x, pFerrule.y, pShaft.x, pShaft.y, perpX, perpY, 2.0, 2.4);
+  ctx.fillStyle = '#F0F0F0';
+  ctx.fill();
+  ctx.strokeStyle = '#AAAAAA';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // 3. Shaft — base wood gradient
+  const shaftGrad = ctx.createLinearGradient(pShaft.x, pShaft.y, pShaftEnd.x, pShaftEnd.y);
+  shaftGrad.addColorStop(0, cueSkin.shaftLight);
+  shaftGrad.addColorStop(0.5, cueSkin.shaftDark);
+  shaftGrad.addColorStop(1, cueSkin.shaftLight);
+  drawTrapezoid(ctx, pShaft.x, pShaft.y, pShaftEnd.x, pShaftEnd.y, perpX, perpY, 2.4, 3.8);
+  ctx.fillStyle = shaftGrad;
+  ctx.fill();
+
+  // 3b. Wood grain lines on shaft
+  if (cueLen > 40) {
+    ctx.save();
+    drawTrapezoid(ctx, pShaft.x, pShaft.y, pShaftEnd.x, pShaftEnd.y, perpX, perpY, 2.4, 3.8);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(80,50,10,0.18)';
+    ctx.lineWidth = 0.7;
+    for (let i = 0; i < 5; i++) {
+      const t = 0.15 + i * 0.16;
+      const gx = pShaft.x + (pShaftEnd.x - pShaft.x) * t;
+      const gy = pShaft.y + (pShaftEnd.y - pShaft.y) * t;
+      ctx.beginPath();
+      ctx.moveTo(gx - perpX * 6, gy - perpY * 6);
+      ctx.lineTo(gx + nx * cueLen * 0.04 + perpX * 6, gy + ny * cueLen * 0.04 + perpY * 6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 3c. Shaft highlight (specular)
+  const shaftSpec = ctx.createLinearGradient(
+    pShaft.x + perpX * 3.8, pShaft.y + perpY * 3.8,
+    pShaft.x - perpX * 3.8, pShaft.y - perpY * 3.8,
+  );
+  shaftSpec.addColorStop(0, 'rgba(255,255,255,0.0)');
+  shaftSpec.addColorStop(0.35, 'rgba(255,255,255,0.25)');
+  shaftSpec.addColorStop(0.55, 'rgba(255,255,255,0.0)');
+  shaftSpec.addColorStop(1, 'rgba(0,0,0,0.12)');
+  drawTrapezoid(ctx, pShaft.x, pShaft.y, pShaftEnd.x, pShaftEnd.y, perpX, perpY, 2.4, 3.8);
+  ctx.fillStyle = shaftSpec;
+  ctx.fill();
+
+  // 4. Joint ring
+  const jointGrad = ctx.createLinearGradient(pShaftEnd.x, pShaftEnd.y, pJoint.x, pJoint.y);
+  jointGrad.addColorStop(0, cueSkin.accentColor);
+  jointGrad.addColorStop(0.5, '#FFF8E0');
+  jointGrad.addColorStop(1, cueSkin.accentColor);
+  drawTrapezoid(ctx, pShaftEnd.x, pShaftEnd.y, pJoint.x, pJoint.y, perpX, perpY, 3.8, 4.2);
+  ctx.fillStyle = jointGrad;
+  ctx.fill();
+
+  // 5. Wrap/linen section
+  drawTrapezoid(ctx, pWrap.x, pWrap.y, pWrapEnd.x, pWrapEnd.y, perpX, perpY, 4.2, 4.8);
+  ctx.fillStyle = cueSkin.wrapColor.replace('rgba(', 'rgba(').replace(/0\.\d+\)/, '1)');
+  ctx.fill();
+  // Linen bands
+  ctx.save();
+  drawTrapezoid(ctx, pWrap.x, pWrap.y, pWrapEnd.x, pWrapEnd.y, perpX, perpY, 4.2, 4.8);
+  ctx.clip();
+  const wrapSteps = 10;
+  for (let i = 0; i < wrapSteps; i++) {
+    const t = i / wrapSteps;
+    const wx = pWrap.x + (pWrapEnd.x - pWrap.x) * t;
+    const wy = pWrap.y + (pWrapEnd.y - pWrap.y) * t;
+    ctx.strokeStyle = i % 2 === 0 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wx - perpX * 6, wy - perpY * 6);
+    ctx.lineTo(wx + perpX * 6, wy + perpY * 6);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 6. Butt — darker wood
+  const buttGrad = ctx.createLinearGradient(pButt.x, pButt.y, pButtEnd.x, pButtEnd.y);
+  buttGrad.addColorStop(0, cueSkin.buttLight);
+  buttGrad.addColorStop(0.5, cueSkin.buttDark);
+  buttGrad.addColorStop(1, cueSkin.buttLight);
+  drawTrapezoid(ctx, pButt.x, pButt.y, pButtEnd.x, pButtEnd.y, perpX, perpY, 4.8, 5.8);
+  ctx.fillStyle = buttGrad;
+  ctx.fill();
+
+  // Butt specular
+  const buttSpec = ctx.createLinearGradient(
+    pButt.x + perpX * 5.8, pButt.y + perpY * 5.8,
+    pButt.x - perpX * 5.8, pButt.y - perpY * 5.8,
+  );
+  buttSpec.addColorStop(0, 'rgba(255,255,255,0.0)');
+  buttSpec.addColorStop(0.3, 'rgba(255,255,255,0.2)');
+  buttSpec.addColorStop(0.55, 'rgba(255,255,255,0.0)');
+  buttSpec.addColorStop(1, 'rgba(0,0,0,0.15)');
+  drawTrapezoid(ctx, pButt.x, pButt.y, pButtEnd.x, pButtEnd.y, perpX, perpY, 4.8, 5.8);
+  ctx.fillStyle = buttSpec;
+  ctx.fill();
+
+  // Gold accent ring near butt end
+  const ringT = seg(0.90);
+  const ring2T = seg(0.92);
+  drawTrapezoid(ctx, ringT.x, ringT.y, ring2T.x, ring2T.y, perpX, perpY, 5.6, 5.7);
+  ctx.fillStyle = cueSkin.accentColor;
+  ctx.fill();
+
+  // 7. Rubber bumper cap
+  drawTrapezoid(ctx, pButtEnd.x, pButtEnd.y, pBumper.x, pBumper.y, perpX, perpY, 5.8, 5.8);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+
+  // Neon glow for neon skin
+  if (cueSkin.id === 'neon') {
+    ctx.save();
+    ctx.shadowColor = cueSkin.accentColor;
+    ctx.shadowBlur = 12;
+    drawTrapezoid(ctx, pShaft.x, pShaft.y, pBumper.x, pBumper.y, perpX, perpY, 2.4, 5.8);
+    ctx.strokeStyle = `${cueSkin.accentColor}44`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawBallMaterial(
+  ctx: CanvasRenderingContext2D,
+  ball: Ball,
+  material: BallMaterial,
+) {
+  const { x, y, radius, color, striped, isCue, isEight } = ball;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 7;
+  ctx.shadowOffsetX = 2.5;
+  ctx.shadowOffsetY = 3;
+
+  if (material === 'glass') {
+    // Semi-transparent base
+    ctx.globalAlpha = 0.45;
+    if (striped) {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#F8F8F8'; ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.clip();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = color;
+      ctx.fillRect(x - radius, y - radius * 0.45, radius * 2, radius * 0.9);
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+    // Refraction ring
+    ctx.strokeStyle = `${color}88`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, radius - 1, 0, Math.PI * 2); ctx.stroke();
+
+    // Large gloss (glass-like)
+    const gloss = ctx.createRadialGradient(x - radius * 0.2, y - radius * 0.25, 0, x, y, radius);
+    gloss.addColorStop(0, 'rgba(255,255,255,0.85)');
+    gloss.addColorStop(0.45, 'rgba(255,255,255,0.2)');
+    gloss.addColorStop(0.75, 'rgba(200,240,255,0.05)');
+    gloss.addColorStop(1, 'rgba(0,0,0,0.05)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gloss; ctx.fill();
+
+    // Blue inner reflection
+    const inner = ctx.createRadialGradient(x + radius * 0.3, y + radius * 0.3, 0, x, y, radius);
+    inner.addColorStop(0, 'rgba(150,210,255,0.22)');
+    inner.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = inner; ctx.fill();
+
+  } else if (material === 'metallic') {
+    // Chrome-like base
+    if (striped) {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#E0E0E0'; ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = color;
+      ctx.fillRect(x - radius, y - radius * 0.45, radius * 2, radius * 0.9);
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+    // Specular gradient (near white → mid → dark)
+    const spec = ctx.createLinearGradient(x - radius, y - radius * 0.8, x + radius, y + radius * 0.8);
+    spec.addColorStop(0, 'rgba(255,255,255,0.75)');
+    spec.addColorStop(0.25, 'rgba(255,255,255,0.15)');
+    spec.addColorStop(0.6, 'rgba(0,0,0,0.0)');
+    spec.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = spec; ctx.fill();
+
+    // Chrome edge ring
+    const edgeGrad = ctx.createLinearGradient(x - radius, y, x + radius, y);
+    edgeGrad.addColorStop(0, 'rgba(180,180,180,0.9)');
+    edgeGrad.addColorStop(0.5, 'rgba(255,255,255,0.6)');
+    edgeGrad.addColorStop(1, 'rgba(100,100,100,0.8)');
+    ctx.strokeStyle = edgeGrad;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(x, y, radius - 0.6, 0, Math.PI * 2); ctx.stroke();
+
+  } else if (material === 'crystal') {
+    // Semi-transparent gem base
+    ctx.globalAlpha = 0.65;
+    if (striped) {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#EEEEFF'; ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.clip();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = color;
+      ctx.fillRect(x - radius, y - radius * 0.45, radius * 2, radius * 0.9);
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+    // Facet lines (gem-like internal structure)
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.8;
+    for (let a = 0; a < 6; a++) {
+      const angle = (a * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Strong central highlight
+    const crystalGloss = ctx.createRadialGradient(x - radius * 0.25, y - radius * 0.3, 0, x, y, radius);
+    crystalGloss.addColorStop(0, 'rgba(255,255,255,0.9)');
+    crystalGloss.addColorStop(0.3, 'rgba(255,255,255,0.2)');
+    crystalGloss.addColorStop(0.7, 'rgba(200,230,255,0.08)');
+    crystalGloss.addColorStop(1, 'rgba(0,0,0,0.1)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = crystalGloss; ctx.fill();
+
+    // Caustic bottom-right reflection
+    const caustic = ctx.createRadialGradient(x + radius * 0.35, y + radius * 0.35, 0, x, y, radius * 0.7);
+    caustic.addColorStop(0, `${color}55`);
+    caustic.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = caustic; ctx.fill();
+
+  } else if (material === 'frosted') {
+    // Full opacity matte base
+    if (striped) {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#F0F0F0'; ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = color;
+      ctx.fillRect(x - radius, y - radius * 0.45, radius * 2, radius * 0.9);
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+    ctx.shadowBlur = 3; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+    // Matte white overlay
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Soft small gloss
+    const frostedGloss = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.35, 0, x, y, radius);
+    frostedGloss.addColorStop(0, 'rgba(255,255,255,0.32)');
+    frostedGloss.addColorStop(0.4, 'rgba(255,255,255,0.04)');
+    frostedGloss.addColorStop(1, 'rgba(0,0,0,0.1)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = frostedGloss; ctx.fill();
+
+  } else {
+    // Classic (default)
+    if (striped) {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#F5F5F5'; ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = color;
+      ctx.fillRect(x - radius, y - radius * 0.45, radius * 2, radius * 0.9);
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+    // 3D gloss
+    const gloss = ctx.createRadialGradient(
+      x - radius * 0.32, y - radius * 0.36, 0,
+      x, y, radius,
+    );
+    gloss.addColorStop(0, 'rgba(255,255,255,0.65)');
+    gloss.addColorStop(0.35, 'rgba(255,255,255,0.12)');
+    gloss.addColorStop(1, 'rgba(0,0,0,0.28)');
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gloss; ctx.fill();
+  }
+
+  // Number label (white disk for striped balls)
+  if (!isCue && !ball.snookerType) {
+    if (striped) {
+      ctx.beginPath(); ctx.arc(x, y, radius * 0.52, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(245,245,245,0.92)'; ctx.fill();
+    }
+    const numColor = isEight ? '#fff' : (striped ? '#1a1a1a' : '#fff');
+    ctx.fillStyle = numColor;
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+    ctx.font = `bold ${radius * 0.82}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(ball.id), x, y + 0.5);
+  }
+
+  // Snooker color dot
+  if (ball.snookerType && ball.snookerType !== 'red' && !isCue) {
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 // ─── Drawing ─────────────────────────────────────────────────────────────────
 function drawPool(
   ctx: CanvasRenderingContext2D,
@@ -224,30 +630,45 @@ function drawPool(
   aimEnd: { x: number; y: number } | null,
   highlightPocket: number | null,
   highlightBall: number | null,
-  feltColor?: string,
+  skin?: TableSkinDef | null,
+  ballMaterial?: BallMaterial,
+  cueSkin?: CueSkinDef | null,
 ) {
   ctx.save();
 
-  // Dark ambient background
+  const feltColor  = skin?.felt   ?? null;
+  const frameColor = skin?.border ?? '#5D3A1A';
+  const railColor  = skin?.line   ?? '#2A5C2A';
+  const isGlassSkin = feltColor?.startsWith('rgba');
+
+  // Background fill
   ctx.fillStyle = '#050505';
   ctx.fillRect(0, 0, tableW, tableH);
 
-  // Outer wood frame
+  // Outer wood / frame
   const frameGrad = ctx.createLinearGradient(0, 0, 0, tableH);
-  frameGrad.addColorStop(0, '#5D3A1A');
-  frameGrad.addColorStop(0.5, '#3E2000');
-  frameGrad.addColorStop(1, '#5D3A1A');
+  frameGrad.addColorStop(0, frameColor);
+  frameGrad.addColorStop(0.5, adjustColorBrightness(frameColor, -30));
+  frameGrad.addColorStop(1, frameColor);
   ctx.fillStyle = frameGrad;
   ctx.fillRect(0, 0, tableW, tableH);
 
-  // Leather cushion rails
-  const railGrad = ctx.createLinearGradient(0, 0, 0, tableH);
-  railGrad.addColorStop(0, '#2A5C2A');
-  railGrad.addColorStop(1, '#1A4A1A');
-  ctx.fillStyle = railGrad;
-  ctx.fillRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
+  // Cushion rails
+  if (isGlassSkin) {
+    ctx.fillStyle = `${railColor}99`;
+    ctx.fillRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
+    ctx.strokeStyle = `${railColor}cc`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
+  } else {
+    const railGrad = ctx.createLinearGradient(0, 0, 0, tableH);
+    railGrad.addColorStop(0, railColor);
+    railGrad.addColorStop(1, adjustColorBrightness(railColor, -20));
+    ctx.fillStyle = railGrad;
+    ctx.fillRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
+  }
 
-  // Felt surface — use skin color if provided, else default radial gradient
+  // Felt surface
   if (feltColor) {
     ctx.fillStyle = feltColor;
     ctx.fillRect(RAIL, RAIL, tableW - RAIL * 2, tableH - RAIL * 2);
@@ -260,7 +681,7 @@ function drawPool(
     ctx.fillRect(RAIL, RAIL, tableW - RAIL * 2, tableH - RAIL * 2);
   }
 
-  // Felt texture - subtle grid
+  // Felt texture
   ctx.strokeStyle = 'rgba(255,255,255,0.025)';
   ctx.lineWidth = 1;
   for (let x = RAIL; x < tableW - RAIL; x += 40) {
@@ -270,7 +691,7 @@ function drawPool(
     ctx.beginPath(); ctx.moveTo(RAIL, y); ctx.lineTo(tableW - RAIL, y); ctx.stroke();
   }
 
-  // Head/foot string markings
+  // Head string
   ctx.setLineDash([6, 6]);
   ctx.strokeStyle = 'rgba(255,255,255,0.07)';
   ctx.lineWidth = 1.5;
@@ -281,32 +702,19 @@ function drawPool(
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
   ctx.beginPath(); ctx.arc(tableW * 0.75, tableH / 2, 3, 0, Math.PI * 2); ctx.fill();
 
-  // Logo watermark on felt center
-  try {
-    const img = new Image();
-    img.src = '/logos/pc-logo.png';
-    if (img.complete && img.naturalWidth > 0) {
-      ctx.globalAlpha = 0.07;
-      const logoSize = Math.min(tableW, tableH) * 0.22;
-      ctx.drawImage(img, tableW / 2 - logoSize / 2, tableH / 2 - logoSize / 2, logoSize, logoSize);
-      ctx.globalAlpha = 1;
-    }
-  } catch { }
-
   // Pockets
   pockets.forEach((p, i) => {
     const isHighlighted = highlightPocket === i;
-    // Outer shadow
     const shadowGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius + 6);
     shadowGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
     shadowGrad.addColorStop(0.7, 'rgba(0,0,0,0.4)');
     shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = shadowGrad;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.radius + 6, 0, Math.PI * 2); ctx.fill();
-    // Pocket hole
+
     ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#080808'; ctx.fill();
-    // Chrome/brass trim ring
+    ctx.fillStyle = '#060606'; ctx.fill();
+
     const trimGrad = ctx.createLinearGradient(p.x - p.radius, p.y - p.radius, p.x + p.radius, p.y + p.radius);
     trimGrad.addColorStop(0, isHighlighted ? '#FFD700' : '#C0A030');
     trimGrad.addColorStop(0.5, isHighlighted ? '#FFF0A0' : '#E8C84A');
@@ -316,7 +724,7 @@ function drawPool(
     ctx.stroke();
   });
 
-  // Aiming guide
+  // Aiming guide + cue
   if (aimStart && aimEnd) {
     const cue = balls.find(b => b.isCue && !b.pocketed);
     if (cue) {
@@ -324,12 +732,13 @@ function drawPool(
       const dy = aimStart.y - aimEnd.y;
       const len = Math.hypot(dx, dy);
       if (len > 5) {
-        const nx = dx / len; const ny = dy / len;
+        const nx = dx / len;
+        const ny = dy / len;
         const power = Math.min(len / 150, 1);
 
         // Dotted aiming line
         ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(cue.x, cue.y);
@@ -337,35 +746,20 @@ function drawPool(
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Cue stick visual
-        const cueLen = 140 + power * 30;
-        const cueX1 = cue.x - nx * (cue.radius + 2);
-        const cueY1 = cue.y - ny * (cue.radius + 2);
-        const cueX2 = cue.x - nx * (cue.radius + 2 + cueLen);
-        const cueY2 = cue.y - ny * (cue.radius + 2 + cueLen);
-        const perpX = -ny; const perpY = nx;
-        const tipW = 2; const buttW = 8;
+        // Realistic cue stick
+        const cueLen = 160 + power * 30;
+        const gap = cue.radius + 3 + power * 8; // pulls back with power
+        const cueX1 = cue.x - nx * gap;
+        const cueY1 = cue.y - ny * gap;
+        const cueX2 = cue.x - nx * (gap + cueLen);
+        const cueY2 = cue.y - ny * (gap + cueLen);
 
-        const cueGrad = ctx.createLinearGradient(cueX1, cueY1, cueX2, cueY2);
-        cueGrad.addColorStop(0, '#F5E6C0');
-        cueGrad.addColorStop(0.2, '#C9A84C');
-        cueGrad.addColorStop(0.5, '#8B6914');
-        cueGrad.addColorStop(0.8, '#6B4F10');
-        cueGrad.addColorStop(1, '#3E2800');
-        ctx.beginPath();
-        ctx.moveTo(cueX1 + perpX * tipW, cueY1 + perpY * tipW);
-        ctx.lineTo(cueX2 + perpX * buttW, cueY2 + perpY * buttW);
-        ctx.lineTo(cueX2 - perpX * buttW, cueY2 - perpY * buttW);
-        ctx.lineTo(cueX1 - perpX * tipW, cueY1 - perpY * tipW);
-        ctx.closePath();
-        ctx.fillStyle = cueGrad;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 0.5; ctx.stroke();
+        drawRealisticCue(ctx, cueX1, cueY1, cueX2, cueY2, nx, ny, cueSkin ?? CUE_SKINS[0]);
 
-        // Power meter bar
+        // Power meter
         const barX = 12; const barY = tableH - 30;
         const barW = 120; const barH = 12;
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
         const powerGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
         powerGrad.addColorStop(0, '#4CAF50');
@@ -382,80 +776,40 @@ function drawPool(
   }
 
   // Balls
+  const mat = ballMaterial ?? 'classic';
   balls.forEach(ball => {
     if (ball.pocketed) return;
-    ctx.save();
+    drawBallMaterial(ctx, ball, mat);
 
-    // Drop shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 3;
-
-    const isHighlightedBall = highlightBall === ball.id;
-
-    if (ball.striped) {
-      // Striped ball base
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-      ctx.fillStyle = '#F5F5F5'; ctx.fill();
-      // Stripe band
-      ctx.save();
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.clip();
-      ctx.fillStyle = ball.color;
-      ctx.fillRect(ball.x - ball.radius, ball.y - ball.radius * 0.45, ball.radius * 2, ball.radius * 0.9);
-      ctx.restore();
-    } else {
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-      ctx.fillStyle = ball.color; ctx.fill();
-    }
-
-    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-
-    // 3D gloss
-    const gloss = ctx.createRadialGradient(
-      ball.x - ball.radius * 0.32, ball.y - ball.radius * 0.36, 0,
-      ball.x, ball.y, ball.radius
-    );
-    gloss.addColorStop(0, 'rgba(255,255,255,0.6)');
-    gloss.addColorStop(0.35, 'rgba(255,255,255,0.12)');
-    gloss.addColorStop(1, 'rgba(0,0,0,0.25)');
-    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-    ctx.fillStyle = gloss; ctx.fill();
-
-    // Number label
-    if (!ball.isCue) {
-      const numColor = ball.isEight ? '#fff' : (ball.striped ? '#222' : '#fff');
-      ctx.fillStyle = numColor;
-      ctx.font = `bold ${ball.radius * 0.85}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(ball.id), ball.x, ball.y + 0.5);
-    }
-
-    // Snooker colored balls - no numbers, just dots
-    if (ball.snookerType && ball.snookerType !== 'red' && !ball.isCue) {
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, 2, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // Highlight ring for selected ball/pocket
-    if (isHighlightedBall) {
+    // Highlight ring
+    if (highlightBall === ball.id) {
       ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius + 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius + 3.5, 0, Math.PI * 2); ctx.stroke();
     }
-
-    ctx.restore();
   });
 
-  // Vignette overlay
+  // Vignette
   const vig = ctx.createRadialGradient(tableW / 2, tableH / 2, tableH * 0.3, tableW / 2, tableH / 2, tableW * 0.75);
   vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.35)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.38)');
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, tableW, tableH);
 
   ctx.restore();
+}
+
+// Simple brightness adjustment for hex/css colors
+function adjustColorBrightness(color: string, amount: number): string {
+  if (color.startsWith('rgba') || color.startsWith('rgb')) return color;
+  try {
+    const hex = color.replace('#', '');
+    const num = parseInt(hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex, 16);
+    const r = Math.max(0, Math.min(255, ((num >> 16) & 0xff) + amount));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amount));
+    const b = Math.max(0, Math.min(255, (num & 0xff) + amount));
+    return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+  } catch { return color; }
 }
 
 // ─── Pool Voice Hook ─────────────────────────────────────────────────────────
@@ -511,6 +865,7 @@ function aiPickShot(balls: Ball[], pockets: Pocket[], group: Group, mode: GameMo
 export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: PoolGameProps) {
   const { activeSkin: tableSkin } = useTableSkin();
   const { activePreset: ballPreset } = usePoolBallSkin();
+  const { activeCueSkin: cueSkin } = usePoolCueSkin();
   const { settings, membership } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const poolVoice = usePoolVoice();
@@ -519,6 +874,9 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   // ── Skin refs (kept in sync for draw callbacks) ──────────────────────────
   const ballPresetRef = useRef(ballPreset);
   useEffect(() => { ballPresetRef.current = ballPreset; }, [ballPreset]);
+
+  const cueSkinRef = useRef(cueSkin);
+  useEffect(() => { cueSkinRef.current = cueSkin; }, [cueSkin]);
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [gameMode, setGameMode] = useState<GameMode>('select');
@@ -591,7 +949,26 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   useEffect(() => { setLocalBalance(balance); }, [balance]);
 
   const tableSkinRef = useRef(tableSkin);
-  useEffect(() => { tableSkinRef.current = tableSkin; }, [tableSkin]);
+
+  // ── Canvas scaling via ResizeObserver ─────────────────────────────────────
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasScale, setCanvasScale] = useState(1);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        if (w > 0) {
+          const tw = gameModeRef.current === 'snooker' ? SNOOKER_W : TABLE_W;
+          const s = Math.min(w / tw, 1.4);
+          setCanvasScale(s);
+        }
+      }
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // ── Canvas drawing ─────────────────────────────────────────────────────────
   const redrawCanvas = useCallback(() => {
@@ -599,8 +976,27 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    drawPool(ctx, ballsRef.current, pocketsRef.current, tableWRef.current, tableHRef.current, aimStartRef.current, aimEndRef.current, highlightPocketRef.current, highlightBallRef.current, tableSkinRef.current?.felt);
+    drawPool(
+      ctx,
+      ballsRef.current,
+      pocketsRef.current,
+      tableWRef.current,
+      tableHRef.current,
+      aimStartRef.current,
+      aimEndRef.current,
+      highlightPocketRef.current,
+      highlightBallRef.current,
+      tableSkinRef.current,
+      ballPresetRef.current?.material,
+      cueSkinRef.current,
+    );
   }, []);
+
+  // Sync tableSkinRef and trigger immediate canvas redraw when skin changes
+  useEffect(() => {
+    tableSkinRef.current = tableSkin;
+    redrawCanvas();
+  }, [tableSkin, redrawCanvas]);
 
   // ── Game loop ─────────────────────────────────────────────────────────────
   const handleShotEnd = useCallback((pocketedThisTurn: Ball[]) => {
@@ -1109,7 +1505,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         winAmount={phase === 'won' ? betAmount * 2 : undefined}
       />
 
-      <InGameOptionsPanel isOpen={showOptions} onClose={() => setShowOptions(false)} isMember={membership.isMember} />
+      <InGameOptionsPanel isOpen={showOptions} onClose={() => setShowOptions(false)} isMember={membership.isMember} activeGame="Pool Table" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'auto', padding: '8px 12px 12px', gap: 8 }}>
 
@@ -1227,6 +1623,64 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         {/* ── Playing screen ────────────────────────────────────────────────── */}
         {phase !== 'lobby' && phase !== 'betting' && gameMode !== 'select' && (
           <>
+            {/* Avatar HUD */}
+            {(() => {
+              let playerAvatarDef: AvatarDef = ALL_AVATARS[0];
+              try { playerAvatarDef = JSON.parse(settings.avatarDef); } catch {}
+              const aiAvatarDef: AvatarDef = ALL_AVATARS[Math.min(5, ALL_AVATARS.length - 1)];
+              const playerName = settings.displayName || 'You';
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', width: '100%', maxWidth: tw }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ position: 'relative' }}>
+                      <AvatarSprite
+                        avatar={playerAvatarDef}
+                        size={36}
+                        active={turn === 'player'}
+                        style={{
+                          boxShadow: turn === 'player'
+                            ? '0 0 0 3px #D4AF37, 0 0 14px rgba(212,175,55,0.6)'
+                            : '0 0 0 2px rgba(255,255,255,0.12)',
+                          animation: turn === 'player' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                        }}
+                      />
+                      {turn === 'player' && (
+                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#4CAF50', border: '1.5px solid #050505' }} />
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: turn === 'player' ? '#D4AF37' : '#9ca3af' }}>{playerName}</div>
+                      <div style={{ fontSize: 9, color: '#4b5563' }}>{localBalance.toLocaleString()} $Pc</div>
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#6b7280', letterSpacing: '0.15em' }}>VS</div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: turn === 'ai' ? '#ef4444' : '#9ca3af', textAlign: 'right' }}>AI Opponent</div>
+                      <div style={{ fontSize: 9, color: '#4b5563', textAlign: 'right' }}>Computer</div>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <AvatarSprite
+                        avatar={aiAvatarDef}
+                        size={36}
+                        active={turn === 'ai'}
+                        style={{
+                          boxShadow: turn === 'ai'
+                            ? '0 0 0 3px #ef4444, 0 0 14px rgba(239,68,68,0.5)'
+                            : '0 0 0 2px rgba(255,255,255,0.12)',
+                        }}
+                      />
+                      {turn === 'ai' && (
+                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #050505' }} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Status bar */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: tw }}>
               <div style={{ padding: '5px 14px', borderRadius: 8, background: 'rgba(22,101,52,0.3)', border: '1px solid rgba(34,197,94,0.3)', fontSize: 12, color: '#86efac', flex: 1, textAlign: 'center' }}>
@@ -1260,13 +1714,24 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               )}
             </div>
 
-            {/* Canvas container */}
-            <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', boxShadow: '0 0 60px rgba(0,0,0,0.9), 0 0 0 6px #5D3A1A, 0 0 0 10px #3E2000', flexShrink: 0, background: '#0a0a0a' }}>
+            {/* Canvas container — scaled to fill width */}
+            <div
+              ref={containerRef}
+              style={{ width: '100%', maxWidth: tw * 1.4 }}
+            >
+              <div style={{
+                position: 'relative', borderRadius: 14, overflow: 'hidden',
+                boxShadow: '0 0 60px rgba(0,0,0,0.9), 0 0 0 6px #5D3A1A, 0 0 0 10px #3E2000',
+                flexShrink: 0, background: '#0a0a0a',
+                width: tw, height: th,
+                transform: `scale(${canvasScale})`,
+                transformOrigin: 'top left',
+              }}>
               <canvas
                 ref={canvasRef}
                 width={tw}
                 height={th}
-                style={{ display: 'block', cursor: canShoot && !movingRef.current ? 'crosshair' : 'default', maxWidth: '100%', height: 'auto', touchAction: 'none' }}
+                style={{ display: 'block', cursor: canShoot && !movingRef.current ? 'crosshair' : 'default', touchAction: 'none' }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -1298,6 +1763,9 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                   </div>
                 </div>
               )}
+              </div>
+              {/* height shim so scaled canvas occupies the right space */}
+              <div style={{ height: th * canvasScale - th, display: 'block' }} />
             </div>
 
             {/* Controls row */}

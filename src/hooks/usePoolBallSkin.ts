@@ -1,17 +1,45 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type BallMaterial = 'classic' | 'glass' | 'metallic' | 'crystal' | 'frosted';
+
 export interface PoolBallPreset {
   id: string;
   name: string;
+  material: BallMaterial;
   colors: string[];
 }
 
 export const POOL_BALL_PRESETS: PoolBallPreset[] = [
-  { id: 'classic',  name: 'Classic',  colors: ['#F5C518','#0044CC','#CC0000','#6600CC','#CC4400','#006600','#8B0000'] },
-  { id: 'pastel',   name: 'Pastel',   colors: ['#FFD1DC','#AECBFA','#B5EAD7','#DCD3FF','#FFDDB0','#C5E8C5','#FFB3B3'] },
-  { id: 'neon',     name: 'Neon',     colors: ['#FF3E00','#00BFFF','#39FF14','#FF00FF','#FF9F00','#00FFCC','#FF0066'] },
-  { id: 'gold',     name: 'Gold',     colors: ['#D4AF37','#B8860B','#FFD700','#C5A028','#DAA520','#B8860B','#8B6914'] },
-  { id: 'crystal',  name: 'Crystal',  colors: ['#7EC8E3','#89CFF0','#A2D2FF','#BDE0FE','#CDB4DB','#FFC8DD','#FFAFCC'] },
+  {
+    id: 'classic',
+    name: 'Classic',
+    material: 'classic',
+    colors: ['#F5C518','#0044CC','#CC0000','#6600CC','#CC4400','#006600','#8B0000'],
+  },
+  {
+    id: 'glass',
+    name: 'Glass',
+    material: 'glass',
+    colors: ['#F5C518','#0044CC','#CC0000','#6600CC','#CC4400','#006600','#8B0000'],
+  },
+  {
+    id: 'metallic',
+    name: 'Metallic',
+    material: 'metallic',
+    colors: ['#D4AF37','#336699','#993333','#663399','#994422','#336633','#662200'],
+  },
+  {
+    id: 'crystal',
+    name: 'Crystal Gem',
+    material: 'crystal',
+    colors: ['#FFD700','#4488FF','#FF3333','#9944FF','#FF6622','#22AA44','#AA1111'],
+  },
+  {
+    id: 'frosted',
+    name: 'Frosted Matte',
+    material: 'frosted',
+    colors: ['#D4A020','#2255AA','#AA2020','#5522AA','#AA3318','#1A7733','#7A1A1A'],
+  },
 ];
 
 export const POOL_BALL_STORAGE_KEY = 'pcasino_pool_ball_skin';

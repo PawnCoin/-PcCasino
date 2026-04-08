@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
-import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music, Sparkles, Star, Crown, Gem, Upload, Check } from 'lucide-react';
+import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music, Sparkles, Star, Crown, Gem, Upload, Check, Zap } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { useCardDeck } from '@/hooks/useCardDeck';
 import { useTableSkin, TABLE_SKINS } from '@/hooks/useTableSkin';
 import { usePoolBallSkin, POOL_BALL_PRESETS } from '@/hooks/usePoolBallSkin';
+import { usePoolCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
 
 interface InGameOptionsPanelProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
   const { selectedDeck, selectDeck, allDecks, addCustomDeck } = useCardDeck();
   const { activeSkin, selectSkin } = useTableSkin();
   const { activePreset: activeBallPreset, selectPreset: selectBallPreset } = usePoolBallSkin();
+  const { activeCueSkin, selectCueSkin } = usePoolCueSkin();
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [nameInput, setNameInput] = useState(settings.displayName);
   const [showUpload, setShowUpload] = useState(false);
@@ -393,43 +395,95 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
               </div>
 
               {activeGame === 'Pool Table' && (
-                <div>
-                  <SectionLabel icon={<Star size={12} />} label="POOL BALL THEMES" />
-                  <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
-                    Choose pool ball color scheme. Applied when you start a new game.
+                <>
+                  {/* Ball Material */}
+                  <div>
+                    <SectionLabel icon={<Star size={12} />} label="POOL BALL MATERIAL" />
+                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
+                      Choose how the balls look on the table. Applied when you start a new game.
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {POOL_BALL_PRESETS.map(preset => {
+                        const isSelected = activeBallPreset.id === preset.id;
+                        const matEmoji = { classic: '🎱', glass: '🔮', metallic: '⚙️', crystal: '💎', frosted: '❄️' }[preset.material] ?? '🎱';
+                        return (
+                          <button
+                            key={preset.id}
+                            onClick={() => selectBallPreset(preset.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
+                              border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                              background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                              boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            <span style={{ fontSize: 20 }}>{matEmoji}</span>
+                            <div style={{ flex: 1, textAlign: 'left' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{preset.name}</div>
+                              <div style={{ fontSize: 9, color: '#4b5563', textTransform: 'capitalize' }}>{preset.material} finish</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              {preset.colors.slice(0, 4).map((color, i) => (
+                                <div key={i} style={{
+                                  width: 10, height: 10, borderRadius: '50%',
+                                  background: color, border: '1px solid rgba(255,255,255,0.1)',
+                                }} />
+                              ))}
+                            </div>
+                            {isSelected && <Check size={12} color="#D4AF37" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {POOL_BALL_PRESETS.map(preset => {
-                      const isSelected = activeBallPreset.id === preset.id;
-                      return (
-                        <button
-                          key={preset.id}
-                          onClick={() => selectBallPreset(preset.id)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
-                            border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
-                            background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
-                            boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            {preset.colors.slice(0, 5).map((color, i) => (
-                              <div key={i} style={{
-                                width: 14, height: 14, borderRadius: '50%',
-                                background: color, border: '1px solid rgba(255,255,255,0.15)',
-                                boxShadow: `0 0 4px ${color}88`,
-                              }} />
-                            ))}
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', flex: 1, textAlign: 'left' }}>{preset.name}</span>
-                          {isSelected && <Check size={12} color="#D4AF37" />}
-                        </button>
-                      );
-                    })}
+
+                  {/* Cue Skins */}
+                  <div style={{ marginTop: 16 }}>
+                    <SectionLabel icon={<Zap size={12} />} label="CUE STICK SKINS" />
+                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
+                      Choose your cue stick style. Applied immediately.
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {CUE_SKINS.map(cue => {
+                        const isSelected = activeCueSkin.id === cue.id;
+                        const RarityIcon = RARITY_CONFIG[cue.rarity].icon;
+                        return (
+                          <button
+                            key={cue.id}
+                            onClick={() => selectCueSkin(cue.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
+                              border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                              background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                              boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {/* Mini cue preview */}
+                            <div style={{ width: 56, height: 10, borderRadius: 2, overflow: 'hidden', flexShrink: 0, display: 'flex' }}>
+                              <div style={{ width: '5%', background: cue.tipColor }} />
+                              <div style={{ width: '3%', background: '#F0F0F0' }} />
+                              <div style={{ width: '54%', background: `linear-gradient(90deg,${cue.shaftLight},${cue.shaftDark},${cue.shaftLight})` }} />
+                              <div style={{ width: '10%', background: cue.wrapColor }} />
+                              <div style={{ width: '28%', background: `linear-gradient(90deg,${cue.buttLight},${cue.buttDark})` }} />
+                            </div>
+                            <div style={{ flex: 1, textAlign: 'left' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{cue.name}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                                <RarityIcon size={9} color={RARITY_CONFIG[cue.rarity].color} />
+                                <span style={{ fontSize: 9, color: RARITY_CONFIG[cue.rarity].color, textTransform: 'capitalize' }}>{cue.rarity}</span>
+                              </div>
+                            </div>
+                            {isSelected && <Check size={12} color="#D4AF37" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           )}
