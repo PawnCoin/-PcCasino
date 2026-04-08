@@ -1259,8 +1259,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     redrawCanvas();
     movingRef.current = anyMoving;
 
-    poolSounds.playCollisions(collisions, settings.soundEnabled);
-    if (settings.soundEnabled && pocketed.length > 0) {
+    poolSounds.playCollisions(collisions, settings.casinoSoundEnabled);
+    if (settings.casinoSoundEnabled && pocketed.length > 0) {
       poolSounds.playPocketDrop();
     }
 
@@ -1271,7 +1271,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
       const pocketedThisTurn = pocketed;
       handleShotEnd(pocketedThisTurn);
     }
-  }, [redrawCanvas, handleShotEnd, settings.soundEnabled, poolSounds]);
+  }, [redrawCanvas, handleShotEnd, settings.casinoSoundEnabled, poolSounds]);
 
   const handleGameWin = useCallback(() => {
     const winAmt = betAmountRef.current * 2;
@@ -1329,14 +1329,14 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
     setCanShoot(false);
     phaseLockRef.current = 'playing';
-    if (settings.soundEnabled) {
+    if (settings.casinoSoundEnabled) {
       const isBreak = shotCountRef.current === 0;
       if (isBreak) poolSounds.playBreakShot();
       else poolSounds.playCueStrike(power * 0.85);
     }
     shotCountRef.current += 1;
     animRef.current = requestAnimationFrame(gameLoopStep);
-  }, [gameLoopStep, settings.soundEnabled, poolSounds]);
+  }, [gameLoopStep, settings.casinoSoundEnabled, poolSounds]);
 
   // Wire triggerAiShot into the ref so handleShotEnd can call it
   useEffect(() => {
@@ -1361,7 +1361,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     aimStartRef.current = null;
     aimEndRef.current = null;
     playSound('chip');
-    if (settings.soundEnabled) {
+    if (settings.casinoSoundEnabled) {
       const isBreak = shotCountRef.current === 0;
       if (isBreak) poolSounds.playBreakShot();
       else poolSounds.playCueStrike(power);
@@ -1369,7 +1369,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     shotCountRef.current += 1;
     phaseLockRef.current = 'playing';
     animRef.current = requestAnimationFrame(gameLoopStep);
-  }, [gameLoopStep, playSound, settings.soundEnabled, poolSounds]);
+  }, [gameLoopStep, playSound, settings.casinoSoundEnabled, poolSounds]);
 
   // ── Canvas interaction ─────────────────────────────────────────────────────
   const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
