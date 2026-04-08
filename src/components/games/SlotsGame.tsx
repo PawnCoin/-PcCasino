@@ -8,6 +8,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { PokerChip, ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useSlotsSkin } from '@/hooks/useSlotsSkin';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { useProvablyFair } from '@/hooks/useProvablyFair';
@@ -128,6 +129,7 @@ const LED_COUNT = 24;
 
 export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, onOpenProvablyFair }: SlotsGameProps) {
   const { settings } = useGlobalGame();
+  const { activeSkin: slotsSkin } = useSlotsSkin();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
@@ -354,16 +356,15 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div
               className="relative rounded-t-2xl overflow-hidden"
               style={{
-                background: 'linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%)',
-                border: '3px solid transparent',
-                borderImage: 'linear-gradient(180deg, #D4AF37, #B8860B, #D4AF37) 1',
-                boxShadow: '0 0 40px rgba(212,175,55,0.15), inset 0 0 60px rgba(0,0,0,0.8)',
+                background: slotsSkin.cabinetGradient,
+                border: `3px solid ${slotsSkin.accentColor}`,
+                boxShadow: `0 0 40px ${slotsSkin.accentColor}26, inset 0 0 60px rgba(0,0,0,0.8)`,
               }}
             >
               <div
                 className="relative overflow-hidden py-3 px-4"
                 style={{
-                  background: 'linear-gradient(180deg, #D4AF37 0%, #B8860B 40%, #8B6914 100%)',
+                  background: slotsSkin.headerGradient,
                 }}
               >
                 <div className="flex items-center justify-center relative z-10">
@@ -376,8 +377,8 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                         height: '6px',
                         borderRadius: '50%',
                         margin: '0 4px',
-                        background: '#FFD700',
-                        boxShadow: '0 0 4px #FFD700, 0 0 8px rgba(255,215,0,0.5)',
+                        background: slotsSkin.ledColor1,
+                        boxShadow: `0 0 4px ${slotsSkin.ledColor1}, 0 0 8px ${slotsSkin.ledColor1}80`,
                         animationDelay: `${i * 0.08}s`,
                       }}
                     />
@@ -389,7 +390,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                     <h1
                       className="text-3xl font-bold tracking-wider"
                       style={{
-                        color: '#1a1a1a',
+                        color: slotsSkin.headerText,
                         textShadow: '0 1px 2px rgba(255,255,255,0.3)',
                       }}
                     >
@@ -408,8 +409,8 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                         height: '5px',
                         borderRadius: '50%',
                         margin: '0 4px',
-                        background: '#FF4444',
-                        boxShadow: '0 0 3px #FF4444, 0 0 6px rgba(255,68,68,0.5)',
+                        background: slotsSkin.ledColor2,
+                        boxShadow: `0 0 3px ${slotsSkin.ledColor2}, 0 0 6px ${slotsSkin.ledColor2}80`,
                         animationDelay: `${(LED_COUNT - i) * 0.08}s`,
                       }}
                     />
@@ -422,13 +423,13 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 className="text-center py-2"
                 style={{
                   background: 'linear-gradient(180deg, #1a1a1a 0%, #111 100%)',
-                  borderBottom: '2px solid rgba(212,175,55,0.3)',
+                  borderBottom: `2px solid ${slotsSkin.accentColor}4d`,
                 }}
               >
                 <span
                   className="text-lg tracking-[0.3em] font-bold"
                   style={{
-                    background: 'linear-gradient(90deg, #D4AF37, #FFD700, #D4AF37)',
+                    background: `linear-gradient(90deg, ${slotsSkin.accentColor}, ${slotsSkin.ledColor1}, ${slotsSkin.accentColor})`,
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     animation: isJackpot ? 'slots-jackpot-flash 0.3s ease-in-out infinite alternate' : 'none',
@@ -472,9 +473,9 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 <div
                   className="rounded-2xl p-4 relative overflow-hidden"
                   style={{
-                    background: 'linear-gradient(180deg, #0d1117 0%, #161b22 100%)',
-                    border: '3px solid #D4AF37',
-                    boxShadow: 'inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(212,175,55,0.1)',
+                    background: slotsSkin.reelBg,
+                    border: `3px solid ${slotsSkin.reelBorder}`,
+                    boxShadow: `inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px ${slotsSkin.reelBorder}1a`,
                   }}
                 >
                   <TableBrand style={{ opacity: 0.06 }} />

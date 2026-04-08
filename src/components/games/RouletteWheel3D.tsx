@@ -30,7 +30,7 @@ function WheelBase() {
   );
 }
 
-function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
+function WheelPockets({ winningNumber, skinColors }: { winningNumber: number | null; skinColors?: { redColor: string; blackColor: string; greenColor: string; accentColor: string } }) {
   const pocketGeom = useMemo(() => {
     const shape = new THREE.Shape();
     const innerR = 1.55;
@@ -56,7 +56,9 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
     <group position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       {WHEEL_NUMBERS.map((num, i) => {
         const angle = i * SEGMENT_ANGLE;
-        const color = getPocketColor(num);
+        const color = skinColors
+          ? (num === 0 ? skinColors.greenColor : isRed(num) ? skinColors.redColor : skinColors.blackColor)
+          : getPocketColor(num);
         const emissiveColor = getPocketEmissive(num);
         const isWinner = winningNumber === num;
 
@@ -66,7 +68,7 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
               color={color}
               roughness={0.6}
               metalness={0}
-              emissive={isWinner ? '#D4AF37' : emissiveColor}
+              emissive={isWinner ? (skinColors?.accentColor || '#D4AF37') : emissiveColor}
               emissiveIntensity={isWinner ? 1.2 : 0.3}
             />
           </mesh>
@@ -76,7 +78,7 @@ function WheelPockets({ winningNumber }: { winningNumber: number | null }) {
   );
 }
 
-function WheelNumbers() {
+function WheelNumbers({ numberColor }: { numberColor?: string }) {
   return (
     <group position={[0, 0.28, 0]}>
       {WHEEL_NUMBERS.map((num, i) => {
@@ -91,7 +93,7 @@ function WheelNumbers() {
             position={[x, 0, z]}
             rotation={[-Math.PI / 2, 0, -angle + Math.PI]}
             fontSize={0.18}
-            color="#ffffff"
+            color={numberColor || "#ffffff"}
             anchorX="center"
             anchorY="middle"
             font={undefined}
@@ -107,13 +109,13 @@ function WheelNumbers() {
   );
 }
 
-function OuterRim() {
+function OuterRim({ rimColor }: { rimColor?: string }) {
   return (
     <group>
       <mesh position={[0, 0.15, 0]}>
         <cylinderGeometry args={[2.72, 2.78, 0.4, 64, 1, true]} />
         <meshStandardMaterial
-          color="#8D6E63"
+          color={rimColor || "#8D6E63"}
           roughness={0.5}
           metalness={0.2}
           side={THREE.DoubleSide}
@@ -121,7 +123,7 @@ function OuterRim() {
       </mesh>
       <mesh position={[0, 0.12, 0]} receiveShadow>
         <cylinderGeometry args={[2.65, 2.65, 0.35, 64]} />
-        <meshStandardMaterial color="#5D4037" roughness={0.5} metalness={0.1} />
+        <meshStandardMaterial color={rimColor || "#5D4037"} roughness={0.5} metalness={0.1} />
       </mesh>
     </group>
   );
@@ -170,12 +172,21 @@ interface RouletteWheel3DProps {
   targetSpeed: number;
   ballDropped: boolean;
   winningNumber: number | null;
+  skinColors?: {
+    redColor: string;
+    blackColor: string;
+    greenColor: string;
+    numberColor: string;
+    rimColor: string;
+    accentColor: string;
+  };
 }
 
 export default function RouletteWheel3D({
   targetSpeed,
   ballDropped,
   winningNumber,
+  skinColors,
 }: RouletteWheel3DProps) {
   const wheelGroupRef = useRef<THREE.Group>(null);
   const ballRef = useRef<THREE.Mesh>(null);
@@ -288,12 +299,12 @@ export default function RouletteWheel3D({
       <pointLight position={[0, 3, 5]} intensity={2} color="#ffffff" distance={10} decay={2} />
 
       <WheelBase />
-      <OuterRim />
+      <OuterRim rimColor={skinColors?.rimColor} />
       <BallTrack />
 
       <group ref={wheelGroupRef}>
-        <WheelPockets winningNumber={winningNumber} />
-        <WheelNumbers />
+        <WheelPockets winningNumber={winningNumber} skinColors={skinColors} />
+        <WheelNumbers numberColor={skinColors?.numberColor} />
         <CenterHub />
       </group>
 

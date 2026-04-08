@@ -4,6 +4,7 @@ import {
   Plus, Minus, ChevronLeft, ChevronRight, Share2, PlusCircle,
 } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { useBingoSkin, type BingoSkinId } from '@/hooks/useBingoSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,7 @@ const HOPPER_BALLS = [
 ];
 
 // ── BINGO CARD SKINS ─────────────────────────────────────────────────────────
-type BingoCardSkin = 'classic' | 'royal' | 'neon' | 'vintage' | 'space';
+type BingoCardSkin = 'classic' | 'royal' | 'neon' | 'vintage' | 'space' | 'gold';
 interface CardSkinDef {
   id: BingoCardSkin; name: string; emoji: string;
   cardBg: string; cardBorder: string; winBorder: string; winGlow: string;
@@ -109,6 +110,14 @@ const BINGO_SKINS: CardSkinDef[] = [
     cellBg: 'rgba(8,8,30,0.9)', cellHinted: 'rgba(18,18,65,0.95)', cellDaubed: 'rgba(4,4,18,0.98)', cellWin: 'rgba(100,149,237,0.16)',
     borderNormal: 'rgba(100,149,237,0.1)', borderHinted: 'rgba(130,175,255,0.88)', borderDaubed: 'rgba(100,149,237,0.22)', borderWin: 'rgba(130,175,255,0.9)',
     daubBg: 'linear-gradient(135deg,rgba(25,25,112,0.9),rgba(100,149,237,0.88))', textColor: '#bfdbfe', hintedText: '#93c5fd', daubedText: 'rgba(147,197,253,0.38)',
+  },
+  {
+    id: 'gold', name: 'Gold VIP', emoji: '💎',
+    cardBg: 'linear-gradient(160deg,rgba(16,10,0,0.99),rgba(8,5,0,0.99))',
+    cardBorder: 'rgba(255,215,0,0.5)', winBorder: 'rgba(255,215,0,0.95)', winGlow: '#FFD700',
+    cellBg: 'rgba(16,10,0,0.9)', cellHinted: 'rgba(40,28,0,0.95)', cellDaubed: 'rgba(8,5,0,0.98)', cellWin: 'rgba(255,215,0,0.18)',
+    borderNormal: 'rgba(212,175,55,0.15)', borderHinted: 'rgba(255,215,0,0.9)', borderDaubed: 'rgba(212,175,55,0.3)', borderWin: 'rgba(255,215,0,0.95)',
+    daubBg: 'linear-gradient(135deg,rgba(180,140,20,0.9),rgba(255,215,0,0.88))', textColor: '#FFD700', hintedText: '#FFC107', daubedText: 'rgba(255,215,0,0.4)',
   },
 ];
 
@@ -553,7 +562,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const [message, setMessage] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
-  const [cardSkin, setCardSkin] = useState<BingoCardSkin>(() => (localStorage.getItem('pcasino_bingo_skin') as BingoCardSkin) || 'classic');
+  const { activeSkinId: cardSkin, selectSkin: setCardSkinHook } = useBingoSkin();
+  const setCardSkin = (id: BingoCardSkin) => setCardSkinHook(id as BingoSkinId);
   const [showWinOverlay, setShowWinOverlay] = useState(false);
   const [winnerDisplayName, setWinnerDisplayName] = useState('');
   const confId = useRef(0);
@@ -968,7 +978,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 {BINGO_SKINS.map(sk => (
                   <button
                     key={sk.id}
-                    onClick={() => { setCardSkin(sk.id); localStorage.setItem('pcasino_bingo_skin', sk.id); }}
+                    onClick={() => setCardSkin(sk.id)}
                     style={{
                       padding: '10px 16px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.2s',
                       background: cardSkin === sk.id ? sk.cardBg : 'rgba(255,255,255,0.07)',
@@ -1093,7 +1103,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 {BINGO_SKINS.map(sk => (
                   <button
                     key={sk.id}
-                    onClick={() => { setCardSkin(sk.id); localStorage.setItem('pcasino_bingo_skin', sk.id); }}
+                    onClick={() => setCardSkin(sk.id)}
                     title={sk.name}
                     style={{
                       padding: '4px 6px', borderRadius: 7, cursor: 'pointer', transition: 'all 0.15s',

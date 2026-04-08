@@ -18,6 +18,21 @@ Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe), Craps, 
 - **App.tsx**: Wired up PublicProfileCard, passed onViewProfile to LobbyChat and Leaderboard, passed onUserUpdated and onNavigateToGame to UserProfile
 - **Static serving**: `/uploads` path served for avatar images
 
+## Task 45: Game-Specific Skins (Implemented)
+- **5 new skin hooks** following existing pattern (localStorage + CustomEvent + 6 presets with rarity tiers):
+  - `src/hooks/useRouletteSkin.ts` — wheel pocket colors, rim, accent, number color
+  - `src/hooks/useCrapsDiceSkin.ts` — dice face gradient, pip style, border color
+  - `src/hooks/useSlotsSkin.ts` — cabinet gradient, header, LEDs, reel background/border
+  - `src/hooks/useBingoSkin.ts` — syncs with BingoGame's internal CardSkinDef system + added 'gold' skin
+  - `src/hooks/useDartsSkin.ts` — board segment colors, wire, bull, number color
+- **InGameOptionsPanel.tsx**: All 8 game skin sections (Card Back, Poker Table, Domino, Roulette, Craps, Slots, Bingo, Darts) always visible in "Card & Game Skins" tab with collapsible `GameSkinSection` components; active game highlighted with "PLAYING NOW" badge
+- **Visual application**: Each game component imports its skin hook and applies colors:
+  - RouletteWheel3D: pocket colors, rim color, number color, winner emissive
+  - CrapsGame: RealisticDice3D face/pip/border styles
+  - SlotsGame: cabinet, header, LED, reel area, jackpot bar
+  - BingoGame: internal skin state synced via useBingoSkin hook
+  - DartsGame: drawBoard() accepts skin colors for segments, wire, bull, numbers
+
 ## High-Priority Improvements (Implemented)
 
 ### 1. Sound Design

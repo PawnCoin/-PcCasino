@@ -5,6 +5,7 @@ import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { useDartsSkin } from '@/hooks/useDartsSkin';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { AvatarSprite, parseAvatarDef } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -63,20 +64,35 @@ function getScore(x: number, y: number): { score: number; label: string } {
   return { score: num, label: String(num) };
 }
 
-function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: number; y: number } | null) {
+interface BoardSkinColors {
+  color1: string;
+  color2: string;
+  wireColor: string;
+  bullColor: string;
+  bullOuterColor: string;
+  numberColor: string;
+  rimColor: string;
+}
+
+function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: number; y: number } | null, skin?: BoardSkinColors) {
+  const c1 = skin?.color1 || '#cc0000';
+  const c2 = skin?.color2 || '#00aa00';
+  const wireCol = skin?.wireColor || 'rgba(85,85,85,1)';
+  const bullCol = skin?.bullColor || '#cc0000';
+  const bullOuterCol = skin?.bullOuterColor || '#00aa00';
+  const numCol = skin?.numberColor || '#fff';
+  const rimCol = skin?.rimColor || '#333';
+
   ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
 
-  // Background
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, BOARD_SIZE, BOARD_SIZE);
 
-  // Draw segments
   for (let i = 0; i < 20; i++) {
     const startAngle = ((i * 18) - 99) * Math.PI / 180;
     const endAngle = startAngle + 18 * Math.PI / 180;
     const isEven = i % 2 === 0;
 
-    // Singles
     ctx.beginPath();
     ctx.moveTo(CX, CY);
     ctx.arc(CX, CY, DOUBLE_INNER, startAngle, endAngle);
@@ -84,60 +100,53 @@ function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: 
     ctx.fillStyle = isEven ? '#1a0a00' : '#f5e6c8';
     ctx.fill();
 
-    // Double ring
     ctx.beginPath();
     ctx.arc(CX, CY, DOUBLE_OUTER, startAngle, endAngle);
     ctx.arc(CX, CY, DOUBLE_INNER, endAngle, startAngle, true);
     ctx.closePath();
-    ctx.fillStyle = isEven ? '#cc0000' : '#00aa00';
+    ctx.fillStyle = isEven ? c1 : c2;
     ctx.fill();
 
-    // Triple ring
     ctx.beginPath();
     ctx.arc(CX, CY, TRIPLE_OUTER, startAngle, endAngle);
     ctx.arc(CX, CY, TRIPLE_INNER, endAngle, startAngle, true);
     ctx.closePath();
-    ctx.fillStyle = isEven ? '#cc0000' : '#00aa00';
+    ctx.fillStyle = isEven ? c1 : c2;
     ctx.fill();
 
-    // Segment dividers
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = rimCol;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(CX + Math.cos(startAngle) * BULL_OUTER_R, CY + Math.sin(startAngle) * BULL_OUTER_R);
     ctx.lineTo(CX + Math.cos(startAngle) * DOUBLE_OUTER, CY + Math.sin(startAngle) * DOUBLE_OUTER);
     ctx.stroke();
 
-    // Numbers
     const numAngle = startAngle + 9 * Math.PI / 180;
     const nr = DOUBLE_OUTER + 12;
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = numCol;
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(NUMBERS[i]), CX + Math.cos(numAngle) * nr, CY + Math.sin(numAngle) * nr);
   }
 
-  // Outer bull
   ctx.beginPath();
   ctx.arc(CX, CY, BULL_OUTER_R, 0, Math.PI * 2);
-  ctx.fillStyle = '#00aa00';
+  ctx.fillStyle = bullOuterCol;
   ctx.fill();
-  ctx.strokeStyle = '#333';
+  ctx.strokeStyle = rimCol;
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Inner bull
   ctx.beginPath();
   ctx.arc(CX, CY, BULL_R, 0, Math.PI * 2);
-  ctx.fillStyle = '#cc0000';
+  ctx.fillStyle = bullCol;
   ctx.fill();
 
-  // Wire rings
   [TRIPLE_INNER, TRIPLE_OUTER, DOUBLE_INNER, DOUBLE_OUTER].forEach(r => {
     ctx.beginPath();
     ctx.arc(CX, CY, r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#555';
+    ctx.strokeStyle = wireCol;
     ctx.lineWidth = 2;
     ctx.stroke();
   });
@@ -182,6 +191,7 @@ function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: 
 
 export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DartsGameProps) {
   const { activeSkin: tableSkin } = useTableSkin();
+  const { activeSkin: dartsSkin } = useDartsSkin();
   const { settings } = useGlobalGame();
   const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
@@ -209,13 +219,23 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     return { x: (e.clientX - rect.left) * scale, y: (e.clientY - rect.top) * scale };
   };
 
+  const boardSkinColors: BoardSkinColors = {
+    color1: dartsSkin.boardColor1,
+    color2: dartsSkin.boardColor2,
+    wireColor: dartsSkin.wireColor,
+    bullColor: dartsSkin.bullColor,
+    bullOuterColor: dartsSkin.bullOuterColor,
+    numberColor: dartsSkin.numberColor,
+    rimColor: dartsSkin.boardRimColor,
+  };
+
   const redraw = useCallback((currentDarts: DartThrow[], currentAim: { x: number; y: number } | null) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    drawBoard(ctx, currentDarts, currentAim);
-  }, []);
+    drawBoard(ctx, currentDarts, currentAim, boardSkinColors);
+  }, [dartsSkin]);
 
   useEffect(() => {
     redraw(darts, aim);

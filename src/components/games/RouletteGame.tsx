@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { useRouletteSkin } from '@/hooks/useRouletteSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Info, Settings, Undo2, Shield } from 'lucide-react';
@@ -221,6 +222,7 @@ function ResultOverlayDisplay({ result, onDismiss }: { result: ResultOverlay; on
 
 export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOpenProvablyFair }: RouletteGameProps) {
   const { activeSkin: tableSkin } = useTableSkin();
+  const { activeSkin: rouletteSkin } = useRouletteSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [selectedChip, setSelectedChip] = useState(1_000_000);
@@ -758,6 +760,14 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                   targetSpeed={currentSpeed}
                   ballDropped={ballDropped}
                   winningNumber={winningNumber}
+                  skinColors={{
+                    redColor: rouletteSkin.redColor,
+                    blackColor: rouletteSkin.blackColor,
+                    greenColor: rouletteSkin.greenColor,
+                    numberColor: rouletteSkin.numberColor,
+                    rimColor: rouletteSkin.rimColor,
+                    accentColor: rouletteSkin.accentColor,
+                  }}
                 />
               </Suspense>
             </Canvas>

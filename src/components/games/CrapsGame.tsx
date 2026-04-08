@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { useCrapsDiceSkin } from '@/hooks/useCrapsDiceSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
@@ -85,9 +86,16 @@ interface RealisticDice3DProps {
   isRolling: boolean;
   diceId: number;
   glowColor?: string;
+  skinFaceBg?: string;
+  skinPipBg?: string;
+  skinBorder?: string;
 }
 
-function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: RealisticDice3DProps) {
+function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skinFaceBg, skinPipBg, skinBorder }: RealisticDice3DProps) {
+  const faceBg = skinFaceBg || `linear-gradient(145deg, #ffffff 0%, #f0f0f0 40%, #e0e0e0 100%)`;
+  const pipBg = skinPipBg || `radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)`;
+  const borderStyle = `1px solid ${skinBorder || 'rgba(0,0,0,0.08)'}`;
+
   const getFaceRotation = (faceValue: number): { x: number; y: number } => {
     const faceRotations: Record<number, { x: number; y: number }> = {
       1: { x: 0, y: 0 },
@@ -136,19 +144,13 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
         <div
           className="absolute w-full h-full rounded-xl flex items-center justify-center"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #ffffff 0%, 
-                #f0f0f0 40%, 
-                #e0e0e0 100%
-              )
-            `,
+            background: faceBg,
             boxShadow: `
               inset 0 0 20px rgba(0,0,0,0.1), 
               inset 0 3px 8px rgba(255,255,255,0.9),
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
-            border: '1px solid rgba(0,0,0,0.08)',
+            border: borderStyle,
             transform: `translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
@@ -156,7 +158,7 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
           <div 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
@@ -166,19 +168,13 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
         <div
           className="absolute w-full h-full rounded-xl flex items-center justify-center"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #ffffff 0%, 
-                #f0f0f0 40%, 
-                #e0e0e0 100%
-              )
-            `,
+            background: faceBg,
             boxShadow: `
               inset 0 0 20px rgba(0,0,0,0.1), 
               inset 0 3px 8px rgba(255,255,255,0.9),
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
-            border: '1px solid rgba(0,0,0,0.08)',
+            border: borderStyle,
             transform: `rotateY(180deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
@@ -191,7 +187,7 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
                 top: `${top * 100}%`, 
                 left: `${left * 100}%`, 
                 transform: 'translate(-50%, -50%)',
-                background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+                background: pipBg,
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
               }}
             />
@@ -202,19 +198,13 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
         <div
           className="absolute w-full h-full rounded-xl flex items-center justify-center"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #ffffff 0%, 
-                #f0f0f0 40%, 
-                #e0e0e0 100%
-              )
-            `,
+            background: faceBg,
             boxShadow: `
               inset 0 0 20px rgba(0,0,0,0.1), 
               inset 0 3px 8px rgba(255,255,255,0.9),
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
-            border: '1px solid rgba(0,0,0,0.08)',
+            border: borderStyle,
             transform: `rotateY(90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
@@ -222,14 +212,14 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
           <div 
             className="absolute top-3 left-3 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute bottom-3 right-3 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
@@ -239,19 +229,13 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
         <div
           className="absolute w-full h-full rounded-xl flex items-center justify-center"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #ffffff 0%, 
-                #f0f0f0 40%, 
-                #e0e0e0 100%
-              )
-            `,
+            background: faceBg,
             boxShadow: `
               inset 0 0 20px rgba(0,0,0,0.1), 
               inset 0 3px 8px rgba(255,255,255,0.9),
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
-            border: '1px solid rgba(0,0,0,0.08)',
+            border: borderStyle,
             transform: `rotateY(-90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
@@ -259,35 +243,35 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
           <div 
             className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute bottom-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute bottom-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
@@ -297,19 +281,13 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
         <div
           className="absolute w-full h-full rounded-xl flex items-center justify-center"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #ffffff 0%, 
-                #f0f0f0 40%, 
-                #e0e0e0 100%
-              )
-            `,
+            background: faceBg,
             boxShadow: `
               inset 0 0 20px rgba(0,0,0,0.1), 
               inset 0 3px 8px rgba(255,255,255,0.9),
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
-            border: '1px solid rgba(0,0,0,0.08)',
+            border: borderStyle,
             transform: `rotateX(90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
@@ -317,21 +295,21 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
           <div 
             className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute bottom-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
@@ -341,19 +319,13 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
         <div
           className="absolute w-full h-full rounded-xl flex items-center justify-center"
           style={{
-            background: `
-              linear-gradient(145deg, 
-                #ffffff 0%, 
-                #f0f0f0 40%, 
-                #e0e0e0 100%
-              )
-            `,
+            background: faceBg,
             boxShadow: `
               inset 0 0 20px rgba(0,0,0,0.1), 
               inset 0 3px 8px rgba(255,255,255,0.9),
               inset 0 -2px 6px rgba(0,0,0,0.15)
             `,
-            border: '1px solid rgba(0,0,0,0.08)',
+            border: borderStyle,
             transform: `rotateX(-90deg) translateZ(${HALF}px)`,
             backfaceVisibility: 'hidden',
           }}
@@ -361,28 +333,28 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
           <div 
             className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute bottom-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
           <div 
             className="absolute bottom-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
+              background: pipBg,
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
             }}
           />
@@ -477,8 +449,9 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor }: Re
   );
 }
 
-export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: CrapsGameProps) {
+export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: CrapsGameProps & { onShowWallet?: () => void }) {
   const { activeSkin: tableSkin } = useTableSkin();
+  const { activeSkin: diceSkin } = useCrapsDiceSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gamePhase, setGamePhase] = useState<'comeout' | 'point'>('comeout');
@@ -1092,6 +1065,9 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               isRolling={isRolling}
               diceId={1}
               glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? 'rgba(183,28,28,0.5)' : undefined}
+              skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
+              skinPipBg={diceSkin.pipGradient}
+              skinBorder={diceSkin.borderColor}
             />
             <RealisticDice3D
               value={dice[1]}
@@ -1100,6 +1076,9 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               isRolling={isRolling}
               diceId={2}
               glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? 'rgba(183,28,28,0.5)' : undefined}
+              skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
+              skinPipBg={diceSkin.pipGradient}
+              skinBorder={diceSkin.borderColor}
             />
 
             {/* Dice total display */}

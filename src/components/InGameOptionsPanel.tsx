@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music, Sparkles, Star, Crown, Gem, Upload, Check, Zap } from 'lucide-react';
+import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music, Sparkles, Star, Crown, Gem, Upload, Check, Zap, ChevronDown } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -9,6 +9,11 @@ import { usePoolBallSkin, POOL_BALL_PRESETS } from '@/hooks/usePoolBallSkin';
 import { usePoolCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
 import { useDominoSkin, DOMINO_SKINS } from '@/hooks/useDominoSkin';
 import type { SkinKey as DominoSkinKey } from '@/hooks/useDominoSkin';
+import { useRouletteSkin, ROULETTE_SKINS } from '@/hooks/useRouletteSkin';
+import { useCrapsDiceSkin, DICE_SKINS } from '@/hooks/useCrapsDiceSkin';
+import { useSlotsSkin, SLOTS_SKINS } from '@/hooks/useSlotsSkin';
+import { useBingoSkin, BINGO_SKIN_PREVIEWS } from '@/hooks/useBingoSkin';
+import { useDartsSkin, DARTS_SKINS } from '@/hooks/useDartsSkin';
 import {
   getDefaultPhysicsMode,
   PHYSICS_MODE_KEY,
@@ -39,6 +44,11 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
   const { activePreset: activeBallPreset, selectPreset: selectBallPreset } = usePoolBallSkin();
   const { activeCueSkin, selectCueSkin } = usePoolCueSkin();
   const { activeSkinKey: activeDominoKey, selectSkin: selectDominoSkin } = useDominoSkin();
+  const { activeSkin: activeRouletteSkin, selectSkin: selectRouletteSkin } = useRouletteSkin();
+  const { activeSkin: activeDiceSkin, selectSkin: selectDiceSkin } = useCrapsDiceSkin();
+  const { activeSkin: activeSlotsSkin, selectSkin: selectSlotsSkin } = useSlotsSkin();
+  const { activeSkinId: activeBingoSkinId, selectSkin: selectBingoSkin } = useBingoSkin();
+  const { activeSkin: activeDartsSkin, selectSkin: selectDartsSkin } = useDartsSkin();
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [nameInput, setNameInput] = useState(settings.displayName);
   const [showUpload, setShowUpload] = useState(false);
@@ -304,295 +314,566 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
             <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <SectionLabel icon={<Sparkles size={12} />} label="CARD & GAME SKINS" />
-                <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
-                  Choose your card back design. Applied globally to all card games — Poker, Blackjack, Spades.
+                <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 4, lineHeight: 1.5 }}>
+                  Browse and customize skins for every game. Selections are saved across sessions.
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                {allDecks.map(deck => {
-                  const isSelected = selectedDeck === deck.id;
-                  const rarity = RARITY_CONFIG[deck.rarity];
-                  const RarityIcon = rarity.icon;
-                  return (
-                    <button
-                      key={deck.id}
-                      onClick={() => selectDeck(deck.id)}
-                      style={{
-                        border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
-                        borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
-                        background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
-                        boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
-                        transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
-                        position: 'relative',
-                      }}
-                    >
-                      <div style={{
-                        height: 70, position: 'relative', overflow: 'hidden',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: '#0a0a0a',
-                      }}>
-                        {deck.image ? (
-                          <img src={deck.image} alt={deck.name} style={{ width: 44, height: 62, objectFit: 'cover', borderRadius: 4, boxShadow: '0 2px 10px rgba(0,0,0,0.6)' }} />
-                        ) : (
-                          <div style={{
-                            width: 44, height: 62, borderRadius: 4,
-                            background: 'repeating-linear-gradient(45deg,#1a237e,#1a237e 6px,#283593 6px,#283593 12px)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            boxShadow: '0 2px 10px rgba(0,0,0,0.6)',
-                          }} />
-                        )}
-                        {isSelected && (
-                          <div style={{
-                            position: 'absolute', top: 4, right: 4,
-                            width: 18, height: 18, borderRadius: '50%',
-                            background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            <Check size={10} color="#000" />
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ padding: '6px 8px', textAlign: 'left' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{deck.name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <RarityIcon size={8} color={rarity.color} />
-                          <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color, letterSpacing: '0.05em' }}>{deck.isCustom ? 'Custom' : rarity.label}</span>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#D4AF37', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Upload size={12} />
-                  Upload Custom Card Back
-                </div>
-                {!showUpload ? (
-                  <>
-                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 8, lineHeight: 1.5 }}>
-                      Upload your own card back image. Up to 3 custom designs.
-                    </div>
-                    <button
-                      onClick={() => setShowUpload(true)}
-                      style={{ fontSize: 10, fontWeight: 700, color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
-                    >
-                      <Upload size={10} /> Upload Image
-                    </button>
-                  </>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <input
-                      type="text"
-                      placeholder="Deck name (optional)"
-                      value={uploadName}
-                      onChange={e => setUploadName(e.target.value)}
-                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '6px 10px', color: '#fff', fontSize: 11, outline: 'none', width: '100%' }}
-                    />
-                    <div style={{ display: 'flex', gap: 6 }}>
+              <GameSkinSection title="Card Backs" emoji="🃏" subtitle="Poker, Blackjack, Spades" activeGame={activeGame} gameKeys={['Poker', 'Blackjack', 'Spades', "Hold'em"]} defaultOpen>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  {allDecks.map(deck => {
+                    const isSelected = selectedDeck === deck.id;
+                    const rarity = RARITY_CONFIG[deck.rarity];
+                    const RarityIcon = rarity.icon;
+                    return (
                       <button
-                        onClick={() => fileRef.current?.click()}
-                        style={{ flex: 1, fontSize: 10, fontWeight: 700, color: '#000', background: '#D4AF37', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}
+                        key={deck.id}
+                        onClick={() => selectDeck(deck.id)}
+                        style={{
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                          transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                          position: 'relative',
+                        }}
                       >
-                        Choose File
-                      </button>
-                      <button
-                        onClick={() => { setShowUpload(false); setUploadName(''); }}
-                        style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
-                    <div style={{ fontSize: 9, color: '#374151' }}>PNG, JPG, WebP — recommended 300×420px</div>
-                  </div>
-                )}
-              </div>
-
-              {activeGame === 'Pool Table' && (
-                <>
-                  {/* Ball Material */}
-                  <div>
-                    <SectionLabel icon={<Star size={12} />} label="POOL BALL MATERIAL" />
-                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
-                      Choose how the balls look on the table. Applied when you start a new game.
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {POOL_BALL_PRESETS.map(preset => {
-                        const isSelected = activeBallPreset.id === preset.id;
-                        const matEmoji = { classic: '🎱', glass: '🔮', metallic: '⚙️', crystal: '💎', frosted: '❄️' }[preset.material] ?? '🎱';
-                        return (
-                          <button
-                            key={preset.id}
-                            onClick={() => selectBallPreset(preset.id)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 10,
-                              padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
-                              border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
-                              background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
-                              boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            <span style={{ fontSize: 20 }}>{matEmoji}</span>
-                            <div style={{ flex: 1, textAlign: 'left' }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{preset.name}</div>
-                              <div style={{ fontSize: 9, color: '#4b5563', textTransform: 'capitalize' }}>{preset.material} finish</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 2 }}>
-                              {preset.colors.slice(0, 4).map((color, i) => (
-                                <div key={i} style={{
-                                  width: 10, height: 10, borderRadius: '50%',
-                                  background: color, border: '1px solid rgba(255,255,255,0.1)',
-                                }} />
-                              ))}
-                            </div>
-                            {isSelected && <Check size={12} color="#D4AF37" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Physics Engine Toggle */}
-                  <div style={{ marginTop: 16 }}>
-                    <SectionLabel icon={<Zap size={12} />} label="PHYSICS ENGINE" />
-                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 10, lineHeight: 1.5 }}>
-                      Switch between physics modes. Takes effect immediately, no restart needed.
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {(['classic', 'realistic'] as PhysicsMode[]).map(mode => {
-                        const isSelected = physicsMode === mode;
-                        return (
-                          <button
-                            key={mode}
-                            onClick={() => selectPhysicsMode(mode)}
-                            style={{
-                              flex: 1,
-                              padding: '8px 4px',
-                              borderRadius: 10,
-                              cursor: 'pointer',
-                              border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
-                              background: isSelected ? 'rgba(212,175,55,0.10)' : 'rgba(255,255,255,0.02)',
-                              boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.25)' : 'none',
-                              transition: 'all 0.15s',
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                            }}
-                          >
-                            <span style={{ fontSize: 18 }}>{mode === 'classic' ? '🎱' : '⚛️'}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                              {mode}
-                            </span>
-                            {isSelected && <Check size={10} color="#D4AF37" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Cue Skins */}
-                  <div style={{ marginTop: 16 }}>
-                    <SectionLabel icon={<Zap size={12} />} label="CUE STICK SKINS" />
-                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
-                      Choose your cue stick style. Applied immediately.
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {CUE_SKINS.map(cue => {
-                        const isSelected = activeCueSkin.id === cue.id;
-                        const RarityIcon = RARITY_CONFIG[cue.rarity].icon;
-                        return (
-                          <button
-                            key={cue.id}
-                            onClick={() => selectCueSkin(cue.id)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 10,
-                              padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
-                              border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
-                              background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
-                              boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            {/* Mini cue preview */}
-                            <div style={{ width: 56, height: 10, borderRadius: 2, overflow: 'hidden', flexShrink: 0, display: 'flex' }}>
-                              <div style={{ width: '5%', background: cue.tipColor }} />
-                              <div style={{ width: '3%', background: '#F0F0F0' }} />
-                              <div style={{ width: '54%', background: `linear-gradient(90deg,${cue.shaftLight},${cue.shaftDark},${cue.shaftLight})` }} />
-                              <div style={{ width: '10%', background: cue.wrapColor }} />
-                              <div style={{ width: '28%', background: `linear-gradient(90deg,${cue.buttLight},${cue.buttDark})` }} />
-                            </div>
-                            <div style={{ flex: 1, textAlign: 'left' }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{cue.name}</div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                                <RarityIcon size={9} color={RARITY_CONFIG[cue.rarity].color} />
-                                <span style={{ fontSize: 9, color: RARITY_CONFIG[cue.rarity].color, textTransform: 'capitalize' }}>{cue.rarity}</span>
-                              </div>
-                            </div>
-                            {isSelected && <Check size={12} color="#D4AF37" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {activeGame === 'Dominoes' && (
-                <div>
-                  <SectionLabel icon={<Palette size={12} />} label="DOMINO TILE SKINS" />
-                  <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
-                    Choose domino tile appearance. Applied immediately.
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {(Object.keys(DOMINO_SKINS) as DominoSkinKey[]).map(key => {
-                      const skin = DOMINO_SKINS[key];
-                      const isSelected = activeDominoKey === key;
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => selectDominoSkin(key)}
-                          style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                            padding: '8px 6px', borderRadius: 10, cursor: 'pointer',
-                            border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
-                            background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
-                            boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : skin.glow ? `0 0 6px ${skin.glow}` : 'none',
-                            transition: 'all 0.15s', position: 'relative',
-                          }}
-                        >
-                          {/* Mini tile preview */}
-                          <div style={{
-                            width: 42, height: 22, borderRadius: 4, overflow: 'hidden',
-                            background: skin.bg, border: `1.5px solid ${skin.border}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: skin.glow ? `0 0 8px ${skin.glow}` : '0 1px 4px rgba(0,0,0,0.4)',
-                          }}>
-                            <div style={{ width: 1, height: '70%', background: skin.divider }} />
-                            {[0, 1].map(side => (
-                              <div key={side} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <div style={{ width: 4, height: 4, borderRadius: '50%', background: skin.pip }} />
-                              </div>
-                            ))}
-                          </div>
-                          <span style={{ fontSize: 9, fontWeight: 600, color: isSelected ? '#D4AF37' : '#9ca3af', textAlign: 'center', lineHeight: 1.2 }}>
-                            {skin.name}
-                          </span>
+                        <div style={{
+                          height: 70, position: 'relative', overflow: 'hidden',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: '#0a0a0a',
+                        }}>
+                          {deck.image ? (
+                            <img src={deck.image} alt={deck.name} style={{ width: 44, height: 62, objectFit: 'cover', borderRadius: 4, boxShadow: '0 2px 10px rgba(0,0,0,0.6)' }} />
+                          ) : (
+                            <div style={{
+                              width: 44, height: 62, borderRadius: 4,
+                              background: 'repeating-linear-gradient(45deg,#1a237e,#1a237e 6px,#283593 6px,#283593 12px)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              boxShadow: '0 2px 10px rgba(0,0,0,0.6)',
+                            }} />
+                          )}
                           {isSelected && (
-                            <div style={{ position: 'absolute', top: 4, right: 4 }}>
-                              <Check size={10} color="#D4AF37" />
+                            <div style={{
+                              position: 'absolute', top: 4, right: 4,
+                              width: 18, height: 18, borderRadius: '50%',
+                              background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <Check size={10} color="#000" />
                             </div>
                           )}
+                        </div>
+                        <div style={{ padding: '6px 8px', textAlign: 'left' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{deck.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <RarityIcon size={8} color={rarity.color} />
+                            <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color, letterSpacing: '0.05em' }}>{deck.isCustom ? 'Custom' : rarity.label}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#D4AF37', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Upload size={12} />
+                    Upload Custom Card Back
+                  </div>
+                  {!showUpload ? (
+                    <>
+                      <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 8, lineHeight: 1.5 }}>
+                        Upload your own card back image. Up to 3 custom designs.
+                      </div>
+                      <button
+                        onClick={() => setShowUpload(true)}
+                        style={{ fontSize: 10, fontWeight: 700, color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                      >
+                        <Upload size={10} /> Upload Image
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Deck name (optional)"
+                        value={uploadName}
+                        onChange={e => setUploadName(e.target.value)}
+                        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '6px 10px', color: '#fff', fontSize: 11, outline: 'none', width: '100%' }}
+                      />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={() => fileRef.current?.click()}
+                          style={{ flex: 1, fontSize: 10, fontWeight: 700, color: '#000', background: '#D4AF37', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}
+                        >
+                          Choose File
+                        </button>
+                        <button
+                          onClick={() => { setShowUpload(false); setUploadName(''); }}
+                          style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+                      <div style={{ fontSize: 9, color: '#374151' }}>PNG, JPG, WebP — recommended 300x420px</div>
+                    </div>
+                  )}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Pool — Ball Material" emoji="🎱" subtitle="Ball finish & physics" activeGame={activeGame} gameKeys={['Pool Table']}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {POOL_BALL_PRESETS.map(preset => {
+                    const isSelected = activeBallPreset.id === preset.id;
+                    const matEmoji = { classic: '🎱', glass: '🔮', metallic: '⚙️', crystal: '💎', frosted: '❄️' }[preset.material] ?? '🎱';
+                    return (
+                      <button
+                        key={preset.id}
+                        onClick={() => selectBallPreset(preset.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{matEmoji}</span>
+                        <div style={{ flex: 1, textAlign: 'left' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{preset.name}</div>
+                          <div style={{ fontSize: 9, color: '#4b5563', textTransform: 'capitalize' }}>{preset.material} finish</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          {preset.colors.slice(0, 4).map((color, i) => (
+                            <div key={i} style={{
+                              width: 10, height: 10, borderRadius: '50%',
+                              background: color, border: '1px solid rgba(255,255,255,0.1)',
+                            }} />
+                          ))}
+                        </div>
+                        {isSelected && <Check size={12} color="#D4AF37" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#4b5563', letterSpacing: '0.15em', marginBottom: 8 }}>PHYSICS ENGINE</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['classic', 'realistic'] as PhysicsMode[]).map(mode => {
+                      const isSelected = physicsMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => selectPhysicsMode(mode)}
+                          style={{
+                            flex: 1, padding: '8px 4px', borderRadius: 10, cursor: 'pointer',
+                            border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                            background: isSelected ? 'rgba(212,175,55,0.10)' : 'rgba(255,255,255,0.02)',
+                            boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.25)' : 'none',
+                            transition: 'all 0.15s',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 18 }}>{mode === 'classic' ? '🎱' : '⚛️'}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                            {mode}
+                          </span>
+                          {isSelected && <Check size={10} color="#D4AF37" />}
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              )}
+              </GameSkinSection>
+
+              <GameSkinSection title="Pool — Cue Sticks" emoji="🏑" subtitle="Cue stick styles" activeGame={activeGame} gameKeys={['Pool Table']}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {CUE_SKINS.map(cue => {
+                    const isSelected = activeCueSkin.id === cue.id;
+                    const RarityIcon = RARITY_CONFIG[cue.rarity].icon;
+                    return (
+                      <button
+                        key={cue.id}
+                        onClick={() => selectCueSkin(cue.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : 'none',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{ width: 56, height: 10, borderRadius: 2, overflow: 'hidden', flexShrink: 0, display: 'flex' }}>
+                          <div style={{ width: '5%', background: cue.tipColor }} />
+                          <div style={{ width: '3%', background: '#F0F0F0' }} />
+                          <div style={{ width: '54%', background: `linear-gradient(90deg,${cue.shaftLight},${cue.shaftDark},${cue.shaftLight})` }} />
+                          <div style={{ width: '10%', background: cue.wrapColor }} />
+                          <div style={{ width: '28%', background: `linear-gradient(90deg,${cue.buttLight},${cue.buttDark})` }} />
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'left' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{cue.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                            <RarityIcon size={9} color={RARITY_CONFIG[cue.rarity].color} />
+                            <span style={{ fontSize: 9, color: RARITY_CONFIG[cue.rarity].color, textTransform: 'capitalize' }}>{cue.rarity}</span>
+                          </div>
+                        </div>
+                        {isSelected && <Check size={12} color="#D4AF37" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Dominoes — Tile Skins" emoji="🁣" subtitle="Domino tile appearance" activeGame={activeGame} gameKeys={['Dominoes']}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {(Object.keys(DOMINO_SKINS) as DominoSkinKey[]).map(key => {
+                    const skin = DOMINO_SKINS[key];
+                    const isSelected = activeDominoKey === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => selectDominoSkin(key)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                          padding: '8px 6px', borderRadius: 10, cursor: 'pointer',
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          background: isSelected ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.2)' : skin.glow ? `0 0 6px ${skin.glow}` : 'none',
+                          transition: 'all 0.15s', position: 'relative',
+                        }}
+                      >
+                        <div style={{
+                          width: 42, height: 22, borderRadius: 4, overflow: 'hidden',
+                          background: skin.bg, border: `1.5px solid ${skin.border}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: skin.glow ? `0 0 8px ${skin.glow}` : '0 1px 4px rgba(0,0,0,0.4)',
+                        }}>
+                          <div style={{ width: 1, height: '70%', background: skin.divider }} />
+                          {[0, 1].map(side => (
+                            <div key={side} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ width: 4, height: 4, borderRadius: '50%', background: skin.pip }} />
+                            </div>
+                          ))}
+                        </div>
+                        <span style={{ fontSize: 9, fontWeight: 600, color: isSelected ? '#D4AF37' : '#9ca3af', textAlign: 'center', lineHeight: 1.2 }}>
+                          {skin.name}
+                        </span>
+                        {isSelected && (
+                          <div style={{ position: 'absolute', top: 4, right: 4 }}>
+                            <Check size={10} color="#D4AF37" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Roulette — Wheel Skins" emoji="🎡" subtitle="Wheel color scheme" activeGame={activeGame} gameKeys={['Roulette']}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {ROULETTE_SKINS.map(skin => {
+                    const isSelected = activeRouletteSkin.id === skin.id;
+                    const rarity = RARITY_CONFIG[skin.rarity];
+                    const RarityIcon = rarity.icon;
+                    return (
+                      <button
+                        key={skin.id}
+                        onClick={() => selectRouletteSkin(skin.id)}
+                        style={{
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                          transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{
+                          height: 48, position: 'relative', overflow: 'hidden',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+                          background: skin.wheelBg, borderBottom: `2px solid ${skin.rimColor}`,
+                        }}>
+                          {[skin.redColor, skin.blackColor, skin.greenColor, skin.redColor, skin.blackColor].map((c, i) => (
+                            <div key={i} style={{ width: 14, height: 28, borderRadius: 3, background: c, border: `1px solid ${skin.rimColor}40` }} />
+                          ))}
+                          {isSelected && (
+                            <div style={{ position: 'absolute', top: 3, right: 3, width: 16, height: 16, borderRadius: '50%', background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Check size={8} color="#000" />
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ padding: '5px 8px', textAlign: 'left' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 2 }}>{skin.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <RarityIcon size={8} color={rarity.color} />
+                            <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color }}>{rarity.label}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Craps — Dice Skins" emoji="🎲" subtitle="Dice material & color" activeGame={activeGame} gameKeys={['Craps']}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {DICE_SKINS.map(skin => {
+                    const isSelected = activeDiceSkin.id === skin.id;
+                    const rarity = RARITY_CONFIG[skin.rarity];
+                    const RarityIcon = rarity.icon;
+                    return (
+                      <button
+                        key={skin.id}
+                        onClick={() => selectDiceSkin(skin.id)}
+                        style={{
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                          transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{
+                          height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: '#0a0a0a',
+                        }}>
+                          <div style={{
+                            width: 32, height: 32, borderRadius: 6,
+                            background: `linear-gradient(145deg, ${skin.faceGradientStart}, ${skin.faceGradientMid}, ${skin.faceGradientEnd})`,
+                            border: `1px solid ${skin.borderColor}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: `0 0 8px ${skin.glowColor}`,
+                          }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: skin.pipGradient }} />
+                          </div>
+                          {isSelected && (
+                            <div style={{ position: 'absolute', top: 3, right: 3, width: 16, height: 16, borderRadius: '50%', background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Check size={8} color="#000" />
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ padding: '5px 8px', textAlign: 'left' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 2 }}>{skin.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <RarityIcon size={8} color={rarity.color} />
+                            <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color }}>{rarity.label}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Slots — Reel Themes" emoji="🎰" subtitle="Slot machine theme" activeGame={activeGame} gameKeys={['Slots']}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {SLOTS_SKINS.map(skin => {
+                    const isSelected = activeSlotsSkin.id === skin.id;
+                    const rarity = RARITY_CONFIG[skin.rarity];
+                    const RarityIcon = rarity.icon;
+                    return (
+                      <button
+                        key={skin.id}
+                        onClick={() => selectSlotsSkin(skin.id)}
+                        style={{
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                          transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{
+                          height: 48, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                        }}>
+                          <div style={{ flex: 1, background: skin.headerGradient, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: 8, fontWeight: 900, color: skin.headerText, letterSpacing: '0.1em' }}>SLOTS</span>
+                          </div>
+                          <div style={{ flex: 1, background: skin.reelBg, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, borderTop: `1px solid ${skin.reelBorder}` }}>
+                            {['🍒', '⭐', '💎'].map((s, i) => (
+                              <span key={i} style={{ fontSize: 10 }}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div style={{ position: 'absolute', top: 3, right: 3, width: 16, height: 16, borderRadius: '50%', background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Check size={8} color="#000" />
+                          </div>
+                        )}
+                        <div style={{ padding: '5px 8px', textAlign: 'left' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 2 }}>{skin.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <RarityIcon size={8} color={rarity.color} />
+                            <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color }}>{rarity.label}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Bingo — Card Skins" emoji="📋" subtitle="Bingo card & dauber style" activeGame={activeGame} gameKeys={['Bingo']}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {BINGO_SKIN_PREVIEWS.map(skin => {
+                    const isSelected = activeBingoSkinId === skin.id;
+                    const rarity = RARITY_CONFIG[skin.rarity];
+                    const RarityIcon = rarity.icon;
+                    return (
+                      <button
+                        key={skin.id}
+                        onClick={() => selectBingoSkin(skin.id)}
+                        style={{
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                          transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{
+                          height: 48, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                          background: skin.cardBg, borderBottom: `2px solid ${skin.cellBorder}`,
+                        }}>
+                          <div style={{ height: 16, background: skin.headerBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: 7, fontWeight: 900, color: skin.headerText, letterSpacing: '0.2em' }}>BINGO</span>
+                          </div>
+                          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, padding: 3 }}>
+                            {Array.from({ length: 10 }).map((_, i) => (
+                              <div key={i} style={{
+                                background: i === 4 || i === 7 ? skin.dauberColor : skin.cellBg,
+                                borderRadius: i === 4 || i === 7 ? '50%' : 1,
+                                border: `0.5px solid ${skin.cellBorder}`,
+                              }} />
+                            ))}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div style={{ position: 'absolute', top: 3, right: 3, width: 16, height: 16, borderRadius: '50%', background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Check size={8} color="#000" />
+                          </div>
+                        )}
+                        <div style={{ padding: '5px 8px', textAlign: 'left' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 2 }}>{skin.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <RarityIcon size={8} color={rarity.color} />
+                            <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color }}>{rarity.label}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
+
+              <GameSkinSection title="Darts — Board Skins" emoji="🎯" subtitle="Dartboard style" activeGame={activeGame} gameKeys={['Darts']}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {DARTS_SKINS.map(skin => {
+                    const isSelected = activeDartsSkin.id === skin.id;
+                    const rarity = RARITY_CONFIG[skin.rarity];
+                    const RarityIcon = rarity.icon;
+                    return (
+                      <button
+                        key={skin.id}
+                        onClick={() => selectDartsSkin(skin.id)}
+                        style={{
+                          border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          background: isSelected ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                          transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{
+                          height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: '#0a0a0a',
+                        }}>
+                          <div style={{
+                            width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',
+                            border: `2px solid ${skin.boardRimColor}`,
+                            background: `conic-gradient(${skin.boardColor1} 0deg, ${skin.boardColor2} 18deg, ${skin.boardColor1} 36deg, ${skin.boardColor2} 54deg, ${skin.boardColor1} 72deg, ${skin.boardColor2} 90deg, ${skin.boardColor1} 108deg, ${skin.boardColor2} 126deg, ${skin.boardColor1} 144deg, ${skin.boardColor2} 162deg, ${skin.boardColor1} 180deg, ${skin.boardColor2} 198deg, ${skin.boardColor1} 216deg, ${skin.boardColor2} 234deg, ${skin.boardColor1} 252deg, ${skin.boardColor2} 270deg, ${skin.boardColor1} 288deg, ${skin.boardColor2} 306deg, ${skin.boardColor1} 324deg, ${skin.boardColor2} 342deg, ${skin.boardColor1} 360deg)`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: `0 0 8px ${skin.bgGlow}`,
+                          }}>
+                            <div style={{ width: 10, height: 10, borderRadius: '50%', background: skin.bullColor, border: `1px solid ${skin.wireColor}` }} />
+                          </div>
+                          {isSelected && (
+                            <div style={{ position: 'absolute', top: 3, right: 3, width: 16, height: 16, borderRadius: '50%', background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Check size={8} color="#000" />
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ padding: '5px 8px', textAlign: 'left' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb', marginBottom: 2 }}>{skin.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <RarityIcon size={8} color={rarity.color} />
+                            <span style={{ fontSize: 8, fontWeight: 700, color: rarity.color }}>{rarity.label}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </GameSkinSection>
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function GameSkinSection({ title, emoji, subtitle, activeGame, gameKeys, defaultOpen, children }: {
+  title: string;
+  emoji: string;
+  subtitle: string;
+  activeGame?: string;
+  gameKeys: string[];
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const isCurrentGame = activeGame ? gameKeys.some(k => activeGame.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(activeGame.toLowerCase())) : false;
+  const [isOpen, setIsOpen] = useState(defaultOpen || isCurrentGame);
+
+  return (
+    <div style={{
+      border: `1px solid ${isCurrentGame ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.06)'}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+      background: isCurrentGame ? 'rgba(212,175,55,0.03)' : 'transparent',
+    }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '10px 12px', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.02)', border: 'none',
+          borderBottom: isOpen ? '1px solid rgba(255,255,255,0.06)' : 'none',
+        }}
+      >
+        <span style={{ fontSize: 16 }}>{emoji}</span>
+        <div style={{ flex: 1, textAlign: 'left' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: isCurrentGame ? '#D4AF37' : '#e5e7eb', letterSpacing: '0.05em' }}>
+            {title}
+            {isCurrentGame && <span style={{ fontSize: 8, color: '#D4AF37', marginLeft: 6, fontWeight: 600, opacity: 0.8 }}>PLAYING NOW</span>}
+          </div>
+          <div style={{ fontSize: 9, color: '#4b5563' }}>{subtitle}</div>
+        </div>
+        <span style={{ color: '#4b5563', transition: 'transform 0.2s', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
+          <ChevronDown size={14} />
+        </span>
+      </button>
+      {isOpen && (
+        <div style={{ padding: '10px 12px' }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
