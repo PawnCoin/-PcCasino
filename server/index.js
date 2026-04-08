@@ -378,74 +378,92 @@ app.get('/api/jackpot/history', async (req, res) => {
 });
 
 
-// Live $Pc price — proxies DexScreener + GeckoTerminal (no CORS issues)
-app.get('/api/pc-price', async (req, res) => {
+// Live $Pc price — proxies GeckoTerminal + DexScreener (no CORS issues for browser)
+// Server-side 60s cache to avoid GeckoTerminal free-tier rate limits
+const _pcPriceCache = { data: null, ts: 0 };
+const PC_PRICE_CACHE_TTL = 60_000;
+
+async function _fetchLivePcPriceFromSources() {
   const contractAddress = process.env.PC_TOKEN_CONTRACT;
+  const pairAddress = process.env.PC_TOKEN_PAIR;
+  const network = process.env.PC_TOKEN_NETWORK === 'Etherscan.io' ? 'eth' : (process.env.PC_TOKEN_NETWORK || 'eth');
 
   if (!contractAddress) {
-    return res.json({
-      price: null, priceChange24h: null, volume24h: null,
-      liquidity: null, marketCap: null, dex: null, chain: null, url: null,
-      source: null, error: 'PC_TOKEN_CONTRACT not configured',
-    });
+    return { price: null, priceChange24h: null, volume24h: null, liquidity: null, marketCap: null, dex: null, chain: null, url: null, source: null, error: 'PC_TOKEN_CONTRACT not configured' };
   }
 
-  // Try DexScreener first (free, no API key needed)
+  // Source 1: GeckoTerminal pool endpoint (most reliable for Uniswap V3 pools)
+  if (pairAddress) {
+    try {
+      const r = await fetch(
+        `https://api.geckoterminal.com/api/v2/networks/${network}/pools/${pairAddress}`,
+        { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) }
+      );
+      if (r.ok) {
+        const data = await r.json();
+        const attrs = data.data?.attributes;
+        const price = attrs?.base_token_price_usd ? parseFloat(attrs.base_token_price_usd) : null;
+        if (price) {
+          return {
+            price,
+            priceChange24h: attrs.price_change_percentage?.h24 ? parseFloat(attrs.price_change_percentage.h24) : null,
+            volume24h: attrs.volume_usd?.h24 ? parseFloat(attrs.volume_usd.h24) : null,
+            liquidity: attrs.reserve_in_usd ? parseFloat(attrs.reserve_in_usd) : null,
+            marketCap: null, dex: 'uniswap', chain: network,
+            url: `https://www.geckoterminal.com/${network}/pools/${pairAddress}`,
+            source: 'geckoterminal',
+          };
+        }
+      }
+    } catch (e) { console.error('[PcPrice] GeckoTerminal pool error:', e.message); }
+  }
+
+  // Source 2: DexScreener by token address
   try {
     const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5000),
+      headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000),
     });
     if (r.ok) {
       const data = await r.json();
       if (data.pairs?.length) {
-        const pair = [...data.pairs].sort((a, b) =>
-          (parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0))
-        )[0];
-        return res.json({
+        const pair = [...data.pairs].sort((a, b) => (parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0)))[0];
+        return {
           price: parseFloat(pair.priceUsd || 0),
           priceChange24h: parseFloat(pair.priceChange?.h24 || 0),
           volume24h: parseFloat(pair.volume?.h24 || 0),
           liquidity: parseFloat(pair.liquidity?.usd || 0),
           marketCap: pair.fdv ? parseFloat(pair.fdv) : null,
-          pairAddress: pair.pairAddress,
-          dex: pair.dexId,
-          chain: pair.chainId,
-          url: pair.url,
-          source: 'dexscreener',
-        });
+          dex: pair.dexId, chain: pair.chainId, url: pair.url, source: 'dexscreener',
+        };
       }
     }
-  } catch (e) {
-    console.error('[PcPrice] DexScreener error:', e.message);
-  }
+  } catch (e) { console.error('[PcPrice] DexScreener error:', e.message); }
 
-  // Fallback: GeckoTerminal (free, no API key needed)
-  try {
-    const network = process.env.PC_TOKEN_NETWORK || 'eth';
-    const r = await fetch(
-      `https://api.geckoterminal.com/api/v2/simple/networks/${network}/token_price/${contractAddress}`,
-      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
-    );
-    if (r.ok) {
-      const data = await r.json();
-      const priceRaw = data.data?.attributes?.token_prices?.[contractAddress.toLowerCase()];
-      if (priceRaw) {
-        return res.json({
-          price: parseFloat(priceRaw),
-          priceChange24h: null, volume24h: null, liquidity: null,
-          marketCap: null, dex: null, chain: network, url: null,
-          source: 'geckoterminal',
-        });
+  // Source 3: DexScreener by pair address
+  if (pairAddress) {
+    try {
+      const r = await fetch(`https://api.dexscreener.com/latest/dex/pairs/${network}/${pairAddress}`, {
+        headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const pair = data.pair || data.pairs?.[0];
+        if (pair?.priceUsd) {
+          return {
+            price: parseFloat(pair.priceUsd),
+            priceChange24h: parseFloat(pair.priceChange?.h24 || 0),
+            volume24h: parseFloat(pair.volume?.h24 || 0),
+            liquidity: parseFloat(pair.liquidity?.usd || 0),
+            marketCap: pair.fdv ? parseFloat(pair.fdv) : null,
+            dex: pair.dexId, chain: pair.chainId, url: pair.url, source: 'dexscreener',
+          };
+        }
       }
-    }
-  } catch (e) {
-    console.error('[PcPrice] GeckoTerminal error:', e.message);
+    } catch (e) { console.error('[PcPrice] DexScreener pair error:', e.message); }
   }
 
-  // Fallback: CoinGecko Terminal search by network + address
+  // Source 4: GeckoTerminal token endpoint
   try {
-    const network = process.env.PC_TOKEN_NETWORK || 'eth';
     const r = await fetch(
       `https://api.geckoterminal.com/api/v2/networks/${network}/tokens/${contractAddress}`,
       { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
@@ -454,21 +472,28 @@ app.get('/api/pc-price', async (req, res) => {
       const data = await r.json();
       const attrs = data.data?.attributes;
       if (attrs?.price_usd) {
-        return res.json({
+        return {
           price: parseFloat(attrs.price_usd),
           priceChange24h: attrs.price_change_percentage?.h24 ? parseFloat(attrs.price_change_percentage.h24) : null,
           volume24h: attrs.volume_usd?.h24 ? parseFloat(attrs.volume_usd.h24) : null,
-          liquidity: null, marketCap: null,
-          dex: null, chain: network, url: null,
+          liquidity: null, marketCap: null, dex: null, chain: network,
+          url: pairAddress ? `https://www.geckoterminal.com/${network}/pools/${pairAddress}` : null,
           source: 'geckoterminal',
-        });
+        };
       }
     }
-  } catch (e) {
-    console.error('[PcPrice] GeckoTerminal tokens error:', e.message);
-  }
+  } catch (e) { console.error('[PcPrice] GeckoTerminal token error:', e.message); }
 
-  return res.json({ price: null, source: null, error: 'Price data unavailable from all sources' });
+  return { price: null, source: null, error: 'Price data unavailable from all sources' };
+}
+
+app.get('/api/pc-price', async (req, res) => {
+  if (_pcPriceCache.data && Date.now() - _pcPriceCache.ts < PC_PRICE_CACHE_TTL) {
+    return res.json(_pcPriceCache.data);
+  }
+  const result = await _fetchLivePcPriceFromSources();
+  if (result.price) { _pcPriceCache.data = result; _pcPriceCache.ts = Date.now(); }
+  res.json(result);
 });
 
 // Disputes
