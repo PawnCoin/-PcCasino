@@ -25,6 +25,10 @@ let betSection = document.querySelector('#betSection');
 let betSize = 0;
 let betStart = false;
 let endrollActive = false;
+
+function syncGameState() {
+  window.parent.postMessage({ type: 'gameState', active: betStart || betSize > 0 }, '*');
+}
 let betWindow = document.querySelector('#betWindow');
 let buttonName = [];
 let chipsIndex = 0;
@@ -264,9 +268,8 @@ function betClick(splitNumbers, splitBets, split) {
   }
   splitBets[split] = (oldValue || 0) + allowedToAdd;
   money -= allowedToAdd;
-  const _wasBetEmpty = (betSize === 0);
   betSize += allowedToAdd;
-  if (_wasBetEmpty && betSize > 0) window.parent.postMessage({ type: 'gameState', active: true }, '*');
+  syncGameState();
   const fmt = (n) => n.toLocaleString('en-US');
   moneyInfo.innerHTML = `${currentLang[0]} ${fmt(money)} $Pc`;
   totalBet.innerHTML = `${currentLang[1]} ${fmt(betSize)} $Pc`;
@@ -627,6 +630,7 @@ function doubleBets() {
       return sum + Object.keys(obj).reduce((s, k) => s + (obj[k] || 0), 0);
     }, 0);
   betSize = recomputeTotalBet();
+  syncGameState();
   money -= betSize;
   window.parent.postMessage({ type: "bet", amount: betSize }, "*");
   moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
@@ -875,7 +879,7 @@ function endroll() {
           } finally {
             endrollActive = false;
             betStart = false;
-            window.parent.postMessage({ type: 'gameState', active: false }, '*');
+            syncGameState();
             document.querySelector('#chipsSelectorDisabled').style.display = 'none';
             checkMoney();
             if (money >= 1000000 && !menuOpen) {
@@ -1399,6 +1403,7 @@ function repeatLastBet() {
   money -= lastBetSize;
 
   betSize = lastBetSize;
+  syncGameState();
   try {
     savedChip2 = savedChip3 ? JSON.parse(JSON.stringify(savedChip3)) : {};
   } catch (e) {
@@ -1450,7 +1455,7 @@ function reset(checker, ...objects) {
     money += betSize;
     moneyInfo.textContent = `Cash: ${money.toLocaleString('en-US')} $Pc`;
     betSize = 0;
-    window.parent.postMessage({ type: 'gameState', active: false }, '*');
+    syncGameState();
     totalBet.textContent = `Bet: ${betSize.toLocaleString('en-US')} $Pc`;
     savedChip2 = {};
     if (money >= lastBetSize && lastBetSize > 0) {
@@ -1560,7 +1565,7 @@ function start() {
     betPointerDisable.style.display = 'none';
   }, 10);
   betStart = true;
-  window.parent.postMessage({ type: 'gameState', active: true }, '*');
+  syncGameState();
   angle3 = 2;
   const interval = setInterval(
     () => (angle3 > 0.4 ? (angle3 -= 0.1) : clearInterval(interval)),

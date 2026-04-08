@@ -255,6 +255,10 @@ const playerInfo = {
 
 let hideTimer;
 let gameStart = false;
+
+function syncBJGameState() {
+  window.parent.postMessage({ type: 'gameState', active: gameStart || playerInfo.totalBet > 0 }, '*');
+}
 let afterInsurance = false;
 let chipIndex = 0;
 let rebetSnapshot = null;
@@ -497,7 +501,7 @@ function deal() {
           )
             createBetNotif('betZone3', 'BLACKJACK');
           gameStart = true;
-          window.parent.postMessage({ type: 'gameState', active: true }, '*');
+          syncBJGameState();
           checkButtons();
         }, 800);
       }
@@ -577,9 +581,8 @@ function placeBet(betName, type = 'main') {
   const scoreElement = document.querySelectorAll(scoreBet);
   createChipWithFlight(playerInfo.bet, index, type);
   playerInfo.balance -= playerInfo.bet;
-  const _bjWasEmpty = (playerInfo.totalBet === 0);
   playerInfo.totalBet += playerInfo.bet;
-  if (_bjWasEmpty && playerInfo.totalBet > 0) window.parent.postMessage({ type: 'gameState', active: true }, '*');
+  syncBJGameState();
   betStatusInfo[1].textContent =
     '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
   betStatusInfo[0].textContent =
@@ -627,7 +630,7 @@ function clearBets() {
     playerInfo.balance += refund;
   }
   playerInfo.totalBet = 0;
-  window.parent.postMessage({ type: 'gameState', active: false }, '*');
+  syncBJGameState();
   betStatusInfo[0].textContent =
     '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   betStatusInfo[1].textContent = '0 $Pc';
@@ -1301,7 +1304,7 @@ function checkMainBets() {
   });
   setTimeout(() => {
     gameStart = false;
-    window.parent.postMessage({ type: 'gameState', active: false }, '*');
+    syncBJGameState();
     dealerStatus = false;
     afterInsurance = false;
     splitActive = false;
