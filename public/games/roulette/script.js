@@ -29,7 +29,6 @@ let betWindow = document.querySelector('#betWindow');
 let buttonName = [];
 let chipsIndex = 0;
 let chipsMenuOpen = document.querySelector('.menu-open');
-let chipsPut = 'src/images/tableChips1.png';
 const CHIP_COLOR_BY_VALUE = {
   1000000:   '#ef4444',
   2000000:   '#3b82f6',

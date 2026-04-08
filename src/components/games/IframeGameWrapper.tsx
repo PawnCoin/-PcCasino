@@ -35,7 +35,6 @@ export function IframeGameWrapper({
   const balanceRef = useRef(balance);
   balanceRef.current = balance;
   const gameInProgressRef = useRef(false);
-  const pendingBackRef = useRef(false);
 
   const iframeSrc = `${gamePath}?balance=${balance}`;
 
@@ -89,7 +88,6 @@ export function IframeGameWrapper({
   const requestBack = useCallback(() => {
     if (gameInProgressRef.current) {
       setShowLeaveModal(true);
-      pendingBackRef.current = true;
     } else {
       onBack();
     }
@@ -97,13 +95,11 @@ export function IframeGameWrapper({
 
   const confirmLeave = useCallback(() => {
     setShowLeaveModal(false);
-    pendingBackRef.current = false;
     onBack();
   }, [onBack]);
 
   const cancelLeave = useCallback(() => {
     setShowLeaveModal(false);
-    pendingBackRef.current = false;
   }, []);
 
   const handleReload = () => {
