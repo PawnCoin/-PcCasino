@@ -954,16 +954,21 @@ function getZoneStack(btn) {
 function handleScroll(e) {
   if (money <= 0 || betStart || menuOpen) return;
   const delta = e.deltaY ?? e.detail ?? e.wheelDelta ?? 0;
-  const chips = btns.allChips;
-  if (delta > 0 && bet !== 1000000 && chips[chipsIndex - 1]) {
-    chips[chipsIndex - 1].click();
-  } else if (
-    delta < 1 &&
-    bet !== 500000000 &&
-    chips[chipsIndex + 1] &&
-    chips[chipsIndex + 1].style.pointerEvents !== 'none'
-  ) {
-    chips[chipsIndex + 1].click();
+  const chips = Array.from(btns.allChips);
+  if (delta > 0 && bet !== 1000000) {
+    for (let i = chipsIndex - 1; i >= 0; i--) {
+      if (chips[i] && chips[i].style.display !== 'none') {
+        chips[i].click();
+        break;
+      }
+    }
+  } else if (delta < 1 && bet !== 500000000) {
+    for (let i = chipsIndex + 1; i < chips.length; i++) {
+      if (chips[i] && chips[i].style.display !== 'none' && chips[i].style.pointerEvents !== 'none') {
+        chips[i].click();
+        break;
+      }
+    }
   }
 }
 
