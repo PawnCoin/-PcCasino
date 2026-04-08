@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { getSocket } from '@/lib/socket';
-import { authApi, paymentsApi, gameApi, setToken, clearToken, getToken } from '@/lib/api';
+import { authApi, paymentsApi, gameApi, friendsApi, setToken, clearToken, getToken } from '@/lib/api';
 import { Navigation } from '@/components/Navigation';
 import { ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -136,6 +136,7 @@ function App() {
   // Notifications state
   const [notifications, setNotifications] = useState<Array<{ id: string; type: string; title: string; message: string; is_read: boolean; created_at: string }>>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadDmCount, setUnreadDmCount] = useState(0);
 
   // Deposit address fetched from backend
   const [depositAddress, setDepositAddress] = useState('');
@@ -161,6 +162,15 @@ function App() {
       const data = await gameApi.getNotifications();
       setNotifications(data.notifications || []);
       setUnreadCount(data.unread || 0);
+    } catch { }
+  }, []);
+
+  // Fetch unread DM count
+  const fetchUnreadDms = useCallback(async () => {
+    if (!getToken()) return;
+    try {
+      const data = await friendsApi.getUnreadCount();
+      setUnreadDmCount(data.count || 0);
     } catch { }
   }, []);
 
@@ -317,6 +327,20 @@ function App() {
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchNotifications]);
+
+  // Fetch + poll unread DM count; listen for real-time updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchUnreadDms();
+    const interval = setInterval(fetchUnreadDms, 30000);
+    const socket = getSocket();
+    const handler = (data: { count: number }) => setUnreadDmCount(data.count);
+    socket.on('dm:unread_count_changed', handler);
+    return () => {
+      clearInterval(interval);
+      socket.off('dm:unread_count_changed', handler);
+    };
+  }, [isAuthenticated, fetchUnreadDms]);
 
   // Unified login - all methods go to same profile
   const handleUnifiedLogin = async (
@@ -1074,6 +1098,7 @@ function App() {
           avatarDef={userAvatarDef}
           avatarUrl={user?.avatarUrl}
           unreadNotifications={unreadCount}
+          unreadDmCount={unreadDmCount}
           onConnect={() => setShowAuth(true)}
           onConnectWallet={() => setShowWalletModal(true)}
           onDisconnect={logout}

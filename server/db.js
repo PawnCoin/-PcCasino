@@ -380,6 +380,53 @@ export async function initDatabase() {
     // OTP store for phone verification (in-memory handled server side, but store for audit)
     // Phone OTP is stored in-memory with expiry, no persistent table needed
 
+    // ---- Friends / Social system ----
+    await query(`
+      CREATE TABLE IF NOT EXISTS friendships (
+        id SERIAL PRIMARY KEY,
+        requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        addressee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(requester_id, addressee_id),
+        CHECK (requester_id <> addressee_id),
+        CHECK (status IN ('pending','accepted','blocked'))
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id)`);
+
+    // Direct messages between friends
+    await query(`
+      CREATE TABLE IF NOT EXISTS direct_messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        recipient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_flagged BOOLEAN DEFAULT FALSE,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_dm_sender ON direct_messages(sender_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_dm_recipient ON direct_messages(recipient_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_dm_created ON direct_messages(created_at DESC)`);
+
+    // Game encounters — who you've shared a room with
+    await query(`
+      CREATE TABLE IF NOT EXISTS game_encounters (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        other_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        game_type VARCHAR(50),
+        room_id VARCHAR(100),
+        encountered_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, other_user_id, room_id)
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_encounters_user ON game_encounters(user_id, encountered_at DESC)`);
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);

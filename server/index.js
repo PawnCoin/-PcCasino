@@ -12,6 +12,7 @@ import paymentsRoutes from './payments-routes.js';
 import gameRoutes from './game-routes.js';
 import kycRoutes, { adminKycRouter } from './kyc-routes.js';
 import walletRoutes from './wallet-routes.js';
+import friendsRoutes, { setFriendsIO } from './friends-routes.js';
 import { initDatabase, query, pool } from './db.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
 import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
@@ -44,6 +45,7 @@ app.use('/api/kyc', kycRoutes);
 // Alias: /api/admin/kyc/... also works (spec-aligned route)
 app.use('/api/admin/kyc', adminKycRouter);
 app.use('/api/wallets', walletRoutes);
+app.use('/api/friends', friendsRoutes);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -1604,6 +1606,24 @@ io.on('connection', (socket) => {
     broadcastLobby();
     if (cb) cb({ success: true, roomId });
     socket.emit('room:joined', { room, playerId: socket.id });
+
+    // Record game encounters for all players already in room (if numeric userId)
+    const joiningPlayer = players.get(socket.id);
+    const joiningUserId = joiningPlayer?.id;
+    if (joiningUserId && typeof joiningUserId === 'number') {
+      for (const rp of room.players) {
+        const rpUserId = rp.id;
+        if (rpUserId && typeof rpUserId === 'number' && rpUserId !== joiningUserId) {
+          const gameType = room.game || null;
+          query(
+            `INSERT INTO game_encounters (user_id, other_user_id, game_type, room_id)
+             VALUES ($1, $2, $3, $4), ($2, $1, $3, $4)
+             ON CONFLICT (user_id, other_user_id, room_id) DO NOTHING`,
+            [joiningUserId, rpUserId, gameType, roomId]
+          ).catch(e => console.error('[encounter]', e.message));
+        }
+      }
+    }
   });
 
   socket.on('room:leave', () => {
@@ -1783,5 +1803,6 @@ if (process.env.NODE_ENV === 'production') {
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Multiplayer server running on :${PORT}`);
   setJackpotIO(io);
+  setFriendsIO(io);
   initDatabase().then(() => loadJackpotFromDB());
 });

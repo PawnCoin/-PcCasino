@@ -197,6 +197,37 @@ export const vipApi = {
   getCashbackHistory: () => apiFetch('/vip/cashback-history'),
 };
 
+// Friends & Messaging
+export const friendsApi = {
+  sendRequest: (userId: number) =>
+    apiFetch('/friends/request', { method: 'POST', body: JSON.stringify({ userId }) }),
+
+  acceptRequest: (friendshipId: number) =>
+    apiFetch(`/friends/${friendshipId}/accept`, { method: 'POST' }),
+
+  removeOrDecline: (friendshipId: number) =>
+    apiFetch(`/friends/${friendshipId}`, { method: 'DELETE' }),
+
+  blockUser: (userId: number) =>
+    apiFetch(`/friends/${userId}/block`, { method: 'POST' }),
+
+  getFriends: () => apiFetch('/friends'),
+
+  getPendingRequests: () => apiFetch('/friends/requests'),
+
+  getEncountered: () => apiFetch('/friends/encountered'),
+
+  sendMessage: (userId: number, content: string) =>
+    apiFetch(`/friends/messages/${userId}`, { method: 'POST', body: JSON.stringify({ content }) }),
+
+  getConversation: (userId: number, params?: { limit?: number; offset?: number }) => {
+    const qs = params ? new URLSearchParams(params as any).toString() : '';
+    return apiFetch(`/friends/messages/${userId}${qs ? `?${qs}` : ''}`);
+  },
+
+  getUnreadCount: () => apiFetch('/friends/messages/unread-count'),
+};
+
 // Jackpot
 export const jackpotApi = {
   getAmount: () => apiFetch('/jackpot'),

@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone, Upload, Phone, BadgeCheck, RefreshCw, Plus, Trash2, Star as StarIcon, Edit, Camera, Twitter, Instagram, Send, MessageCircle, Play, Save } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone, Upload, Phone, BadgeCheck, RefreshCw, Plus, Trash2, Star as StarIcon, Edit, Camera, Twitter, Instagram, Send, MessageCircle, Play, Save, Users, MessageSquare, UserPlus, UserX, Swords } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import type { Transaction } from '@/types';
-import { authApi, kycApi, walletApi, getToken } from '@/lib/api';
+import { authApi, kycApi, walletApi, friendsApi, getToken } from '@/lib/api';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
+import { DirectMessageModal } from '@/components/DirectMessageModal';
 
 interface UserProfileProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ interface UserProfileProps {
   onUserUpdated?: (updates: Record<string, unknown>) => void;
 }
 
-type ProfileTab = 'overview' | 'transactions' | 'security' | 'bonuses' | 'disputes' | 'limits' | 'preferences' | 'provably';
+type ProfileTab = 'overview' | 'transactions' | 'security' | 'bonuses' | 'disputes' | 'limits' | 'preferences' | 'provably' | 'friends';
 type KycStep = 'intro' | 'email' | 'phone' | 'id-upload' | 'selfie' | 'submitted';
 
 const GAME_HISTORY_KEY = 'pcasino_game_history';
@@ -702,6 +703,13 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
   const [favoriteGames, setFavoriteGames] = useState<{ game: string; gameName: string; icon: string; playCount: number; winRate: number }[]>([]);
   const [favGamesLoading, setFavGamesLoading] = useState(false);
 
+  // Friends state
+  const [friends, setFriends] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [encountered, setEncountered] = useState<any[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [dmTarget, setDmTarget] = useState<{ id: number; username: string; avatar?: string } | null>(null);
+
   useEffect(() => {
     if (isOpen && user) {
       const stored = localStorage.getItem(GAME_HISTORY_KEY);
@@ -785,6 +793,30 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
     setEditSaving(false);
   };
 
+  const fetchFriends = useCallback(async () => {
+    if (!getToken()) return;
+    setFriendsLoading(true);
+    try {
+      const [friendsData, requestsData, encounteredData] = await Promise.all([
+        friendsApi.getFriends(),
+        friendsApi.getPendingRequests(),
+        friendsApi.getEncountered(),
+      ]);
+      setFriends(friendsData.friends || []);
+      setPendingRequests(requestsData.requests || []);
+      setEncountered(encounteredData.encountered || []);
+    } catch (err: any) {
+      console.error('Failed to load friends:', err.message);
+    }
+    setFriendsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'friends') {
+      fetchFriends();
+    }
+  }, [isOpen, activeTab, fetchFriends]);
+
   const sessionStats = useMemo(() => {
     const wins = transactions.filter(t => t.type === 'win');
     const bets = transactions.filter(t => t.type === 'bet');
@@ -867,6 +899,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
   const tabs: { id: ProfileTab; label: string; icon: typeof User }[] = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'transactions', label: 'Transactions', icon: History },
+    { id: 'friends', label: 'Friends', icon: Users },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'bonuses', label: 'Bonuses', icon: Gift },
     { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
@@ -1321,6 +1354,181 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                 </div>
               )}
 
+              {/* FRIENDS */}
+              {activeTab === 'friends' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                      <Users className="w-5 h-5 text-[#D4AF37]" />
+                      Friends & Contacts
+                    </h3>
+                    <button
+                      onClick={fetchFriends}
+                      className="text-xs px-2 py-1 rounded-lg"
+                      style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+
+                  {friendsLoading ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
+                  ) : (
+                    <>
+                      {/* Pending Requests */}
+                      {pendingRequests.length > 0 && (
+                        <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                          <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                            <UserPlus className="w-4 h-4 text-yellow-400" />
+                            Incoming Requests ({pendingRequests.length})
+                          </h4>
+                          {pendingRequests.map((req) => (
+                            <div key={req.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+                                style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                                🎰
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold text-white">{req.username}</div>
+                                <div className="text-xs text-gray-500">{req.vipTier?.toUpperCase()} VIP</div>
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await friendsApi.acceptRequest(req.id);
+                                      toast.success(`${req.username} is now your friend!`);
+                                      fetchFriends();
+                                    } catch (err: any) { toast.error(err.message); }
+                                  }}
+                                  className="px-2 py-1 rounded-lg text-xs font-bold"
+                                  style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }}
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await friendsApi.removeOrDecline(req.id);
+                                      toast.success('Request declined');
+                                      fetchFriends();
+                                    } catch (err: any) { toast.error(err.message); }
+                                  }}
+                                  className="px-2 py-1 rounded-lg text-xs"
+                                  style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Friends List */}
+                      <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <h4 className="font-bold text-white text-sm">Friends ({friends.length})</h4>
+                        {friends.length === 0 ? (
+                          <div className="text-center py-6 text-gray-500 text-sm">
+                            <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            <p>No friends yet. Join multiplayer rooms to meet players!</p>
+                          </div>
+                        ) : (
+                          friends.map((f) => (
+                            <div key={f.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                              <div className="relative flex-shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg"
+                                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                  🎰
+                                </div>
+                                <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-black ${f.isOnline ? 'bg-green-400' : 'bg-gray-600'}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold text-white">{f.username}</div>
+                                <div className="text-xs text-gray-500">{f.vipTier?.toUpperCase()} VIP • {f.favoriteGame}</div>
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => setDmTarget({ id: f.friendId, username: f.username, avatar: f.avatar })}
+                                  className="p-1.5 rounded-lg transition-colors"
+                                  style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}
+                                  title="Send message"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await friendsApi.removeOrDecline(f.id);
+                                      toast.success(`${f.username} removed`);
+                                      fetchFriends();
+                                    } catch (err: any) { toast.error(err.message); }
+                                  }}
+                                  className="p-1.5 rounded-lg transition-colors"
+                                  style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
+                                  title="Remove friend"
+                                >
+                                  <UserX className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await friendsApi.blockUser(f.friendId);
+                                      toast.success(`${f.username} blocked`);
+                                      fetchFriends();
+                                    } catch (err: any) { toast.error(err.message); }
+                                  }}
+                                  className="p-1.5 rounded-lg transition-colors"
+                                  style={{ background: 'rgba(107,114,128,0.1)', color: '#9ca3af', border: '1px solid rgba(107,114,128,0.2)' }}
+                                  title="Block user"
+                                >
+                                  <Swords className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Met In Games */}
+                      {encountered.length > 0 && (
+                        <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                            <Swords className="w-4 h-4 text-purple-400" />
+                            Met In Games (recent)
+                          </h4>
+                          {encountered.map((p) => (
+                            <div key={p.userId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+                                style={{ background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.2)' }}>
+                                🎮
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold text-white">{p.username}</div>
+                                <div className="text-xs text-gray-500">{p.gameType} • {new Date(p.encounteredAt).toLocaleDateString()}</div>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await friendsApi.sendRequest(p.userId);
+                                    toast.success(`Friend request sent to ${p.username}!`);
+                                    fetchFriends();
+                                  } catch (err: any) { toast.error(err.message); }
+                                }}
+                                className="px-2 py-1 rounded-lg text-xs flex items-center gap-1"
+                                style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}
+                              >
+                                <UserPlus className="w-3 h-3" /> Add
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* SECURITY */}
               {activeTab === 'security' && (
                 <div className="space-y-4">
@@ -1668,7 +1876,18 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
       </DialogContent>
     </Dialog>
 
-    {/* KYC Flow Dialog */}
+    {/* DM Modal */}
+    {dmTarget && (
+      <DirectMessageModal
+        isOpen={!!dmTarget}
+        onClose={() => setDmTarget(null)}
+        recipientId={dmTarget.id}
+        recipientUsername={dmTarget.username}
+        currentUserId={user.id}
+        currentUsername={user.username}
+      />
+    )}
+
     <Dialog open={showKycFlow} onOpenChange={setShowKycFlow}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden" style={{
         background: 'rgba(6,6,12,0.99)',

@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, MessageSquare, Send, Crown, CheckCircle, X, Smile, Wifi, WifiOff, LogOut } from 'lucide-react';
+import { Users, MessageSquare, Send, Crown, CheckCircle, X, Smile, Wifi, WifiOff, LogOut, UserPlus } from 'lucide-react';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket, leaveRoom, setReady, sendChatMessage, sendReaction, type Room, type ChatMessage } from '@/lib/socket';
+import { friendsApi, getToken } from '@/lib/api';
+import { toast } from 'sonner';
 
 function nameToAvatar(name: string) {
   let h = 0;
@@ -28,6 +30,7 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
   const [connected, setConnected] = useState(false);
   const [floatingReactions, setFloatingReactions] = useState<Array<{ id: number; emoji: string; x: number }>>([]);
   const [collapsed, setCollapsed] = useState(false);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const reactionCounter = useRef(0);
 
@@ -254,8 +257,30 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
                 )}
                 {room?.hostId === player.id && <Crown className="w-3 h-3 text-yellow-400 flex-shrink-0" />}
                 {player.isReady && <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />}
-                {player.id === userId && (
+                {player.id === userId ? (
                   <span className="text-xs text-purple-400 flex-shrink-0">you</span>
+                ) : getToken() && (
+                  <button
+                    onClick={async () => {
+                      const pid = String(player.id);
+                      if (sentRequests.has(pid)) return;
+                      try {
+                        await friendsApi.sendRequest(Number(player.id));
+                        setSentRequests(prev => new Set(prev).add(pid));
+                        toast.success(`Friend request sent to ${player.username}!`);
+                      } catch (err: any) {
+                        toast.error(err.message || 'Could not send friend request');
+                      }
+                    }}
+                    title={sentRequests.has(String(player.id)) ? 'Request sent' : 'Add friend'}
+                    className="flex-shrink-0 p-0.5 rounded transition-colors"
+                    style={{
+                      color: sentRequests.has(String(player.id)) ? '#4ade80' : '#D4AF37',
+                      opacity: sentRequests.has(String(player.id)) ? 0.6 : 1,
+                    }}
+                  >
+                    <UserPlus className="w-3 h-3" />
+                  </button>
                 )}
               </div>
             ))

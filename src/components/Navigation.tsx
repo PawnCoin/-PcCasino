@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star, Home, Trophy, BookOpen, Crown } from 'lucide-react';
+import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star, Home, Trophy, BookOpen, Crown, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,6 +16,7 @@ interface NavigationProps {
   avatarDef?: AvatarDef;
   avatarUrl?: string | null;
   unreadNotifications?: number;
+  unreadDmCount?: number;
   onConnect: () => void;
   onConnectWallet: () => void;
   onDisconnect: () => void;
@@ -43,6 +44,7 @@ export function Navigation({
   avatarDef,
   avatarUrl,
   unreadNotifications = 0,
+  unreadDmCount = 0,
   onConnect, 
   onConnectWallet,
   onDisconnect, 
@@ -314,6 +316,15 @@ export function Navigation({
                               </div>
                             )}
                           </div>
+                          {unreadDmCount > 0 && (
+                            <div className="relative flex-shrink-0">
+                              <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
+                              <div className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-black"
+                                style={{ background: '#ef4444', padding: '0 2px' }}>
+                                {unreadDmCount > 9 ? '9+' : unreadDmCount}
+                              </div>
+                            </div>
+                          )}
                           <span className="hidden sm:block font-medium text-white">{user?.username}</span>
                           {user?.walletAddress && (
                             <span className="hidden md:block text-xs text-[#43A047]">
