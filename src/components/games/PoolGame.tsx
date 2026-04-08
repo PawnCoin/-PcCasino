@@ -15,6 +15,8 @@ import type { CueSkinDef } from '@/hooks/usePoolCueSkin';
 import { useGameVoice } from '@/hooks/useGameVoice';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { parseAvatarDef } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 import { usePoolSounds } from '@/hooks/usePoolSounds';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
 import {
@@ -821,6 +823,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const { activePreset: ballPreset } = usePoolBallSkin();
   const { activeCueSkin: cueSkin } = usePoolCueSkin();
   const { settings, membership } = useGlobalGame();
+  const playerAvatarDef = parseAvatarDef(settings.avatarDef);
+  const aiAvatarDef: AvatarDef = { sheet: 2, row: 1, col: 2, name: 'AI Opponent' };
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const poolVoice = usePoolVoice();
   const { playSound } = useSoundEffects();
@@ -1625,6 +1629,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               <PlayerAvatar
                 name={settings.displayName || 'You'}
                 balance={localBalance}
+                avatarDef={playerAvatarDef}
                 isActive={turn === 'player'}
                 size="sm"
                 showTalkButton={false}
@@ -1633,6 +1638,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               <PlayerAvatar
                 name="AI Opponent"
                 balance={0}
+                avatarDef={aiAvatarDef}
                 isActive={turn === 'ai'}
                 size="sm"
                 showTalkButton={false}

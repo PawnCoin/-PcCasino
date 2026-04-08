@@ -15,6 +15,23 @@ const SHEET_URLS: Record<1 | 2, string> = {
 const COLS = 4;
 const ROWS = 6;
 
+const DEFAULT_AVATAR: AvatarDef = { sheet: 1, row: 0, col: 0, name: 'Player' };
+
+export function parseAvatarDef(json: string | undefined | null, fallback: AvatarDef = DEFAULT_AVATAR): AvatarDef {
+  if (!json) return fallback;
+  try {
+    const parsed = JSON.parse(json);
+    if (parsed && (parsed.sheet === 1 || parsed.sheet === 2) &&
+        typeof parsed.row === 'number' && parsed.row >= 0 && parsed.row < ROWS &&
+        typeof parsed.col === 'number' && parsed.col >= 0 && parsed.col < COLS) {
+      return parsed as AvatarDef;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function getAvatarStyle(avatar: AvatarDef, sizePx: number): React.CSSProperties {
   const colPct = avatar.col === 0 ? 0 : (avatar.col / (COLS - 1)) * 100;
   const rowPct = avatar.row === 0 ? 0 : (avatar.row / (ROWS - 1)) * 100;

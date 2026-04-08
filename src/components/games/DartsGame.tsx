@@ -6,6 +6,10 @@ import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { useTableSkin } from '@/hooks/useTableSkin';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
+import { AvatarSprite, parseAvatarDef } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
+
+const DARTS_AI_AVATAR: AvatarDef = { sheet: 2, row: 2, col: 0, name: 'AI' };
 
 interface DartsGameProps {
   balance: number;
@@ -179,6 +183,7 @@ function drawBoard(ctx: CanvasRenderingContext2D, darts: DartThrow[], aim: { x: 
 export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet }: DartsGameProps) {
   const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
+  const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerScore, setPlayerScore] = useState(501);
@@ -445,7 +450,10 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 180 }}>
           {/* Player */}
           <div style={{ padding: '16px', borderRadius: 12, background: turn === 'player' ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${turn === 'player' ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
-            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>YOU {turn === 'player' && gamePhase === 'playing' ? '🎯' : ''}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <AvatarSprite avatar={playerAvatarDef} size={28} active={turn === 'player'} />
+              <div style={{ fontSize: 11, color: '#6b7280' }}>YOU {turn === 'player' && gamePhase === 'playing' ? '🎯' : ''}</div>
+            </div>
             <div style={{ fontSize: 48, fontWeight: 700, color: '#D4AF37', lineHeight: 1 }}>{playerScore}</div>
             <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Throw {throwCount + 1}/3</div>
           </div>
@@ -454,7 +462,10 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
           {/* AI */}
           <div style={{ padding: '16px', borderRadius: 12, background: turn === 'ai' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${turn === 'ai' ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
-            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>AI {turn === 'ai' ? '🤖' : ''}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <AvatarSprite avatar={DARTS_AI_AVATAR} size={28} active={turn === 'ai'} />
+              <div style={{ fontSize: 11, color: '#6b7280' }}>AI {turn === 'ai' ? '🤖' : ''}</div>
+            </div>
             <div style={{ fontSize: 48, fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>{aiScore}</div>
           </div>
 

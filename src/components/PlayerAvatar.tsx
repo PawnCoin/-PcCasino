@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
+import { AvatarSprite } from '@/components/AvatarSprite';
+import type { AvatarDef } from '@/components/AvatarSprite';
 
 interface PlayerAvatarProps {
   name: string;
   balance: number;
   avatar?: string;
+  avatarDef?: AvatarDef;
   isActive?: boolean;
   isTalking?: boolean;
   onTalkStart?: () => void;
@@ -23,6 +26,7 @@ export function PlayerAvatar({
   name,
   balance,
   avatar,
+  avatarDef,
   isActive = false,
   isTalking = false,
   onTalkStart,
@@ -59,26 +63,35 @@ export function PlayerAvatar({
     <div className="flex flex-col items-center gap-1">
       {/* Avatar with talk button */}
       <div className="relative">
-        {/* Avatar image or placeholder */}
-        <div
-          className={`rounded-full overflow-hidden flex items-center justify-center font-bold transition-all ${
-            isTalking ? 'ring-2 ring-[#43A047] ring-offset-2 ring-offset-black' : ''
-          } ${isActive ? 'ring-2 ring-[#D4AF37]' : ''}`}
-          style={{
-            width: config.avatar,
-            height: config.avatar,
-            background: avatar
-              ? `url(${avatar}) center/cover`
-              : 'linear-gradient(135deg, #5D4037, #3E2723)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-          }}
-        >
-          {!avatar && (
-            <span className="text-white/80" style={{ fontSize: config.avatar * 0.4 }}>
-              {name.charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
+        {/* Avatar image, sprite, or placeholder */}
+        {avatarDef ? (
+          <AvatarSprite
+            avatar={avatarDef}
+            size={config.avatar}
+            active={isActive}
+            className={`${isTalking ? 'ring-2 ring-[#43A047] ring-offset-2 ring-offset-black' : ''}`}
+          />
+        ) : (
+          <div
+            className={`rounded-full overflow-hidden flex items-center justify-center font-bold transition-all ${
+              isTalking ? 'ring-2 ring-[#43A047] ring-offset-2 ring-offset-black' : ''
+            } ${isActive ? 'ring-2 ring-[#D4AF37]' : ''}`}
+            style={{
+              width: config.avatar,
+              height: config.avatar,
+              background: avatar
+                ? `url(${avatar}) center/cover`
+                : 'linear-gradient(135deg, #5D4037, #3E2723)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            }}
+          >
+            {!avatar && (
+              <span className="text-white/80" style={{ fontSize: config.avatar * 0.4 }}>
+                {name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Press to talk button */}
         {showTalkButton && (
