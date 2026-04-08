@@ -655,11 +655,15 @@ function drawPool(
 
   // Cushion rails
   if (isGlassSkin) {
-    ctx.fillStyle = `${railColor}99`;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = railColor;
     ctx.fillRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
-    ctx.strokeStyle = `${railColor}cc`;
+    ctx.globalAlpha = 0.8;
+    ctx.strokeStyle = railColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
+    ctx.restore();
   } else {
     const railGrad = ctx.createLinearGradient(0, 0, 0, tableH);
     railGrad.addColorStop(0, railColor);
@@ -968,7 +972,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [phase, gameMode]);
 
   // ── Canvas drawing ─────────────────────────────────────────────────────────
   const redrawCanvas = useCallback(() => {
