@@ -42,6 +42,70 @@ const CHIP_COLOR_BY_VALUE = {
 };
 let chipsPutSfx = new Audio(`src/sfx/sfx/chipPut.mp3`);
 let chipsPutSfx2 = new Audio(`src/sfx/sfx/chipPut2.mp3`);
+
+function formatChipLabel(n) {
+  if (n >= 1000000000) return '1B';
+  if (n >= 1000000) {
+    const v = n / 1000000;
+    return (v % 1 === 0) ? v + 'M' : v.toFixed(1) + 'M';
+  }
+  if (n >= 1000) {
+    const v = n / 1000;
+    return (v % 1 === 0) ? v + 'K' : v.toFixed(1) + 'K';
+  }
+  return String(n);
+}
+
+const ROULETTE_CHIP_STYLES = {
+  1000000:   { body:'#7a0030', bodyL:'#d03055', bodyD:'#3a0010', notch:'#ff6080', notch2:'#900020', ring:'#ef4444', tierRing:'#00E5FF' },
+  2000000:   { body:'#1040a0', bodyL:'#3878f8', bodyD:'#002080', notch:'#6090ff', notch2:'#0030a0', ring:'#3b82f6', tierRing:'#00E5FF' },
+  5000000:   { body:'#0a6028', bodyL:'#20b050', bodyD:'#003810', notch:'#60e080', notch2:'#105020', ring:'#22c55e', tierRing:'#00E5FF' },
+  10000000:  { body:'#a04000', bodyL:'#f97040', bodyD:'#602000', notch:'#ffb060', notch2:'#a04000', ring:'#f97316', tierRing:'#00E5FF' },
+  25000000:  { body:'#2a3040', bodyL:'#485a70', bodyD:'#0a1020', notch:'#D4AF37', notch2:'#8a7020', ring:'#D4AF37', tierRing:'#FFD700' },
+  50000000:  { body:'#906000', bodyL:'#D4AF37', bodyD:'#503800', notch:'#ffe060', notch2:'#a07800', ring:'#D4AF37', tierRing:'#FFD700' },
+  100000000: { body:'#5020a0', bodyL:'#8b5cf6', bodyD:'#280060', notch:'#d0a0ff', notch2:'#6020a0', ring:'#8b5cf6', tierRing:'#E040FB' },
+  250000000: { body:'#a01060', bodyL:'#ec4899', bodyD:'#600030', notch:'#ffb0d8', notch2:'#901050', ring:'#ec4899', tierRing:'#E040FB' },
+  500000000: { body:'#007090', bodyL:'#06b6d4', bodyD:'#004060', notch:'#80f0ff', notch2:'#007090', ring:'#06b6d4', tierRing:'#00BCD4' },
+};
+
+function makeChipSVG(value, sizePx) {
+  const s = ROULETTE_CHIP_STYLES[value] || ROULETTE_CHIP_STYLES[1000000];
+  const size = sizePx || 60;
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 1.5;
+  const rMed = r * 0.60;
+  const lbl = formatChipLabel(value);
+  const uid = 'rc-' + value + '-' + size;
+  const numFS = size * (lbl.length >= 4 ? 0.155 : lbl.length === 3 ? 0.175 : 0.20);
+  const NOTCH_COUNT = 16;
+  const notchW = size * 0.10;
+  const notchH = r * 0.22;
+  let notches = '';
+  for (let i = 0; i < NOTCH_COUNT; i++) {
+    const fill = i % 2 === 0 ? s.notch : s.notch2;
+    const rot = (i * 360) / NOTCH_COUNT;
+    notches += '<rect x="' + (cx - notchW/2) + '" y="1.5" width="' + notchW + '" height="' + notchH + '" fill="' + fill + '" rx="1.5" transform="rotate(' + rot + ', ' + cx + ', ' + cy + ')" clip-path="url(#' + uid + '-clip)" />';
+  }
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" style="display:block;overflow:visible">'
+    + '<defs>'
+    + '<radialGradient id="' + uid + '-body" cx="38%" cy="28%" r="72%"><stop offset="0%" stop-color="' + s.bodyL + '"/><stop offset="55%" stop-color="' + s.body + '"/><stop offset="100%" stop-color="' + s.bodyD + '"/></radialGradient>'
+    + '<radialGradient id="' + uid + '-med" cx="35%" cy="28%" r="70%"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#e8e8e8"/><stop offset="100%" stop-color="#cacaca"/></radialGradient>'
+    + '<clipPath id="' + uid + '-clip"><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '"/></clipPath>'
+    + '</defs>'
+    + '<circle cx="' + (cx+1.5) + '" cy="' + (cy+2.5) + '" r="' + r + '" fill="rgba(0,0,0,0.45)"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="url(#' + uid + '-body)"/>'
+    + notches
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r-0.5) + '" fill="none" stroke="rgba(0,0,0,0.5)" stroke-width="1.5"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (rMed+3.5) + '" fill="none" stroke="' + s.tierRing + '" stroke-width="2.5" opacity="0.85"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (rMed+6.5) + '" fill="none" stroke="' + s.ring + '" stroke-width="0.8" stroke-dasharray="' + (size*0.038) + ' ' + (size*0.032) + '" opacity="0.5"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + rMed + '" fill="url(#' + uid + '-med)"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + rMed + '" fill="none" stroke="' + s.ring + '" stroke-width="1.0" opacity="0.4"/>'
+    + '<text x="' + cx + '" y="' + (cy - rMed*0.44) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.10) + '" font-weight="900" fill="#111" font-family="'Arial Black',Arial,sans-serif" letter-spacing="0.2">$Pc</text>'
+    + '<text x="' + cx + '" y="' + (cy + rMed*0.12) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + numFS + '" font-weight="900" fill="#111" font-family="'Arial Black',Arial,sans-serif" letter-spacing="-0.5">' + lbl + '</text>'
+    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">— M —</text>'
+    + '<ellipse cx="' + (cx - r*0.08) + '" cy="' + (cy - r*0.38) + '" rx="' + (r*0.36) + '" ry="' + (r*0.15) + '" fill="rgba(255,255,255,0.20)"/>'
+    + '</svg>';
+}
 let cornerBets = initializeBets(btns.cornerBtns, 'corner');
 let currentLang = enLang;
 let endrollTimer;
@@ -158,12 +222,8 @@ function appendChip(btn, denom, animate = true) {
     chip.style.setProperty('animation', 'none', 'important');
     chip.style.setProperty('transition', 'none', 'important');
   }
-  const chipColor = CHIP_COLOR_BY_VALUE[denom] || '#888888';
-  chip.style.background = `radial-gradient(circle at 35% 35%, ${chipColor}ff, ${chipColor}88)`;
-  chip.style.backgroundImage = 'none';
-  chip.style.border = '2px solid rgba(255,255,255,0.35)';
-  chip.style.borderRadius = '50%';
-  chip.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.25)';
+  const tableChipPx = Math.round(window.innerHeight * 0.03);
+  chip.innerHTML = makeChipSVG(denom, tableChipPx);
   chip.setAttribute('data-denom', denom);
   chip.setAttribute('data-zone', btn.id);
   const coords = getCoordsForButton(btn);
@@ -424,12 +484,12 @@ function chipHandler(e) {
 
 function chipSelect(cost, chips, chipIndex) {
   bet = cost;
-  const mColor = CHIP_COLOR_BY_VALUE[cost] || '#888888';
-  mouseChip.style.background = `radial-gradient(circle at 35% 35%, ${mColor}ff, ${mColor}88)`;
-  mouseChip.style.backgroundImage = 'none';
-  mouseChip.style.border = '2px solid rgba(255,255,255,0.35)';
+  const cursorPx = Math.round(window.innerHeight * 0.03);
+  mouseChip.innerHTML = makeChipSVG(cost, cursorPx);
+  mouseChip.style.background = 'transparent';
+  mouseChip.style.border = 'none';
   mouseChip.style.borderRadius = '50%';
-  mouseChip.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.25)';
+  mouseChip.style.boxShadow = 'none';
   chipsPut = `src/images/tableChips${chips}.png`;
   const list = btns.allChips,
     idx = chips - 1;
@@ -1827,6 +1887,57 @@ btns.allChips.forEach((chip, index) => {
     chipSelect([1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], index + 1, index)
   );
 });
+
+// ── Casino chip SVG initialization ──────────────────────────────────────────
+(function initChipSVGs() {
+  const chipValues = [1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000];
+  const selectorPx = Math.round(window.innerHeight * 0.0745);
+  btns.allChips.forEach((btn, i) => {
+    btn.innerHTML = makeChipSVG(chipValues[i], selectorPx);
+    btn.style.background = 'transparent';
+    btn.style.border = 'none';
+    btn.style.boxShadow = 'none';
+  });
+
+  // Init cursor chip
+  const cursorPx = Math.round(window.innerHeight * 0.03);
+  mouseChip.innerHTML = makeChipSVG(chipValues[0], cursorPx);
+  mouseChip.style.background = 'transparent';
+  mouseChip.style.border = 'none';
+  mouseChip.style.boxShadow = 'none';
+
+  // Tier filter tabs
+  const TIER_MAP = {
+    low:  [0, 1, 2, 3],
+    mid:  [4, 5, 6],
+    high: [7, 8],
+    all:  [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  };
+
+  function applyTierFilter(tier) {
+    btns.allChips.forEach((btn, i) => {
+      const show = TIER_MAP[tier].includes(i);
+      btn.style.display = show ? 'inline-flex' : 'none';
+    });
+    // If currently selected chip is hidden, auto-select first visible chip in tier
+    const currentIdx = Array.from(btns.allChips).indexOf(lastSelectedChip);
+    if (!TIER_MAP[tier].includes(currentIdx)) {
+      const firstVisible = TIER_MAP[tier][0];
+      btns.allChips[firstVisible].click();
+    }
+  }
+
+  document.querySelectorAll('.chipTierTab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.chipTierTab').forEach(t => t.classList.remove('active-tier'));
+      tab.classList.add('active-tier');
+      applyTierFilter(tab.dataset.tier);
+    });
+  });
+
+  // Start on low tier (1M-10M)
+  applyTierFilter('low');
+})();
 
 btns.betCompleteBtn.addEventListener('click', () => {
   if (betStart) {
