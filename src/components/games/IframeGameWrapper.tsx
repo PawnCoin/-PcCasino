@@ -12,6 +12,7 @@ interface IframeGameWrapperProps {
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
   onShowWallet?: () => void;
+  onGameStateChange?: (active: boolean) => void;
 }
 
 export function IframeGameWrapper({
@@ -24,6 +25,7 @@ export function IframeGameWrapper({
   onBet,
   onWin,
   onShowWallet,
+  onGameStateChange,
 }: IframeGameWrapperProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -67,6 +69,7 @@ export function IframeGameWrapper({
 
       if (type === 'gameState' && typeof event.data.active === 'boolean') {
         gameInProgressRef.current = event.data.active;
+        onGameStateChange?.(event.data.active);
       }
     };
 
@@ -213,7 +216,7 @@ export function IframeGameWrapper({
             </div>
             <h3 className="font-casino text-xl font-bold metallic-gold-text text-center">Leave Game?</h3>
             <p className="text-[#A0A0A0] text-sm text-center leading-relaxed">
-              A round is currently in progress. Leaving now will forfeit your active bet.
+              Nothing will be saved — your bets and any active round will be lost. Are you sure you want to exit?
             </p>
             <div className="flex gap-3 w-full mt-1">
               <button

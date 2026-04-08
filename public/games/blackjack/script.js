@@ -577,7 +577,9 @@ function placeBet(betName, type = 'main') {
   const scoreElement = document.querySelectorAll(scoreBet);
   createChipWithFlight(playerInfo.bet, index, type);
   playerInfo.balance -= playerInfo.bet;
+  const _bjWasEmpty = (playerInfo.totalBet === 0);
   playerInfo.totalBet += playerInfo.bet;
+  if (_bjWasEmpty && playerInfo.totalBet > 0) window.parent.postMessage({ type: 'gameState', active: true }, '*');
   betStatusInfo[1].textContent =
     '$Pc ' + playerInfo.totalBet.toLocaleString('de-DE');
   betStatusInfo[0].textContent =
@@ -625,6 +627,7 @@ function clearBets() {
     playerInfo.balance += refund;
   }
   playerInfo.totalBet = 0;
+  window.parent.postMessage({ type: 'gameState', active: false }, '*');
   betStatusInfo[0].textContent =
     '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
   betStatusInfo[1].textContent = '0 $Pc';

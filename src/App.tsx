@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { getSocket } from '@/lib/socket';
 import { authApi, paymentsApi, gameApi, setToken, clearToken, getToken } from '@/lib/api';
@@ -83,6 +83,9 @@ function App() {
   });
   
   const [currentView, setCurrentView] = useState<'lobby' | GameType>('lobby');
+  const iframeGameActiveRef = useRef(false);
+  const [showNavLeaveModal, setShowNavLeaveModal] = useState(false);
+  const pendingNavGameRef = useRef<GameType | null>(null);
   const [pokerShareToken, setPokerShareToken] = useState<string | null>(() => {
     const match = window.location.pathname.match(/^\/poker\/hand\/([a-f0-9]{32})$/);
     return match ? match[1] : null;
@@ -711,6 +714,12 @@ function App() {
       setShowAuth(true);
       return;
     }
+    if (iframeGameActiveRef.current) {
+      pendingNavGameRef.current = game;
+      setShowNavLeaveModal(true);
+      return;
+    }
+    iframeGameActiveRef.current = false;
     setCurrentView(game);
   };
 
@@ -771,9 +780,10 @@ function App() {
             gameEmoji="🃏"
             gamePath="/games/blackjack/index.html"
             balance={user?.balance || 0}
-            onBack={() => setCurrentView('lobby')}
+            onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
             onBet={handleBet}
             onWin={handleWin}
+            onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
           />
         );
       case 'roulette':
@@ -784,9 +794,10 @@ function App() {
             gameEmoji="🎡"
             gamePath="/games/roulette/index.html"
             balance={user?.balance || 0}
-            onBack={() => setCurrentView('lobby')}
+            onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
             onBet={handleBet}
             onWin={handleWin}
+            onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
           />
         );
       case 'craps':
@@ -797,10 +808,11 @@ function App() {
             gameEmoji="🎲"
             gamePath="/games/craps/index.html"
             balance={user?.balance || 0}
-            onBack={() => setCurrentView('lobby')}
+            onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
             onBet={handleBet}
             onWin={handleWin}
             onShowWallet={() => setShowDeposit(true)}
+            onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
           />
         );
       case 'spades':
@@ -858,10 +870,11 @@ function App() {
             gameEmoji="🏇"
             gamePath="/games/horse-racing/index.html"
             balance={user?.balance || 0}
-            onBack={() => setCurrentView('lobby')}
+            onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
             onBet={handleBet}
             onWin={handleWin}
             onShowWallet={() => setShowDeposit(true)}
+            onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
           />
         );
       case 'pool':
@@ -1537,6 +1550,50 @@ function App() {
           username={jackpotCelebration.username}
           onClose={() => setJackpotCelebration(null)}
         />
+      )}
+
+      {/* Nav-level leave game confirmation modal */}
+      {showNavLeaveModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="rounded-2xl p-7 flex flex-col items-center gap-4 shadow-2xl"
+            style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #111 100%)', border: '1px solid rgba(212,175,55,0.3)', maxWidth: 360, width: '90%' }}
+          >
+            <div className="flex items-center justify-center w-14 h-14 rounded-full"
+              style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <span style={{ fontSize: 26, color: '#ef4444' }}>⚠</span>
+            </div>
+            <h3 className="font-casino text-xl font-bold metallic-gold-text text-center">Leave Game?</h3>
+            <p className="text-[#A0A0A0] text-sm text-center leading-relaxed">
+              Nothing will be saved — your bets and any active round will be lost. Are you sure you want to exit?
+            </p>
+            <div className="flex gap-3 w-full mt-1">
+              <button
+                onClick={() => { setShowNavLeaveModal(false); pendingNavGameRef.current = null; }}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e7eb' }}
+              >
+                Stay
+              </button>
+              <button
+                onClick={() => {
+                  const dest = pendingNavGameRef.current;
+                  pendingNavGameRef.current = null;
+                  iframeGameActiveRef.current = false;
+                  setShowNavLeaveModal(false);
+                  if (dest) setCurrentView(dest);
+                }}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm"
+                style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none' }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
     </GlobalGameProvider>

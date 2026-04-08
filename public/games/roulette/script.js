@@ -265,7 +265,9 @@ function betClick(splitNumbers, splitBets, split) {
   }
   splitBets[split] = (oldValue || 0) + allowedToAdd;
   money -= allowedToAdd;
+  const _wasBetEmpty = (betSize === 0);
   betSize += allowedToAdd;
+  if (_wasBetEmpty && betSize > 0) window.parent.postMessage({ type: 'gameState', active: true }, '*');
   const fmt = (n) => n.toLocaleString('en-US');
   moneyInfo.innerHTML = `${currentLang[0]} ${fmt(money)} $Pc`;
   totalBet.innerHTML = `${currentLang[1]} ${fmt(betSize)} $Pc`;
@@ -1449,6 +1451,7 @@ function reset(checker, ...objects) {
     money += betSize;
     moneyInfo.textContent = `Cash: ${money.toLocaleString('en-US')} $Pc`;
     betSize = 0;
+    window.parent.postMessage({ type: 'gameState', active: false }, '*');
     totalBet.textContent = `Bet: ${betSize.toLocaleString('en-US')} $Pc`;
     savedChip2 = {};
     if (money >= lastBetSize && lastBetSize > 0) {
