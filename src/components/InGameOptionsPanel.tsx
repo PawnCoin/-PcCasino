@@ -9,6 +9,12 @@ import { usePoolBallSkin, POOL_BALL_PRESETS } from '@/hooks/usePoolBallSkin';
 import { usePoolCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
 import { useDominoSkin, DOMINO_SKINS } from '@/hooks/useDominoSkin';
 import type { SkinKey as DominoSkinKey } from '@/hooks/useDominoSkin';
+import {
+  getDefaultPhysicsMode,
+  PHYSICS_MODE_KEY,
+  PHYSICS_MODE_EVENT,
+} from '@/hooks/usePoolPhysicsEngine';
+import type { PhysicsMode } from '@/hooks/usePoolPhysicsEngine';
 
 interface InGameOptionsPanelProps {
   isOpen: boolean;
@@ -38,6 +44,13 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
   const [showUpload, setShowUpload] = useState(false);
   const [uploadName, setUploadName] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const [physicsMode, setPhysicsMode] = useState<PhysicsMode>(getDefaultPhysicsMode);
+
+  const selectPhysicsMode = (mode: PhysicsMode) => {
+    setPhysicsMode(mode);
+    try { localStorage.setItem(PHYSICS_MODE_KEY, mode); } catch {}
+    window.dispatchEvent(new CustomEvent(PHYSICS_MODE_EVENT, { detail: mode }));
+  };
 
   let currentAvatarDef: AvatarDef = ALL_AVATARS[0];
   try { currentAvatarDef = JSON.parse(settings.avatarDef); } catch {}
@@ -436,6 +449,42 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                               ))}
                             </div>
                             {isSelected && <Check size={12} color="#D4AF37" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Physics Engine Toggle */}
+                  <div style={{ marginTop: 16 }}>
+                    <SectionLabel icon={<Zap size={12} />} label="PHYSICS ENGINE" />
+                    <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 10, lineHeight: 1.5 }}>
+                      Switch between physics modes. Takes effect immediately, no restart needed.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {(['classic', 'realistic'] as PhysicsMode[]).map(mode => {
+                        const isSelected = physicsMode === mode;
+                        return (
+                          <button
+                            key={mode}
+                            onClick={() => selectPhysicsMode(mode)}
+                            style={{
+                              flex: 1,
+                              padding: '8px 4px',
+                              borderRadius: 10,
+                              cursor: 'pointer',
+                              border: `2px solid ${isSelected ? '#D4AF37' : 'rgba(255,255,255,0.08)'}`,
+                              background: isSelected ? 'rgba(212,175,55,0.10)' : 'rgba(255,255,255,0.02)',
+                              boxShadow: isSelected ? '0 0 10px rgba(212,175,55,0.25)' : 'none',
+                              transition: 'all 0.15s',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                            }}
+                          >
+                            <span style={{ fontSize: 18 }}>{mode === 'classic' ? '🎱' : '⚛️'}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                              {mode}
+                            </span>
+                            {isSelected && <Check size={10} color="#D4AF37" />}
                           </button>
                         );
                       })}

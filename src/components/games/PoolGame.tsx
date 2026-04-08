@@ -17,6 +17,14 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { usePoolSounds } from '@/hooks/usePoolSounds';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
+import {
+  ClassicBackend,
+  RealisticBackend,
+  getDefaultPhysicsMode,
+  PHYSICS_MODE_KEY,
+  PHYSICS_MODE_EVENT,
+} from '@/hooks/usePoolPhysicsEngine';
+import type { PhysicsMode } from '@/hooks/usePoolPhysicsEngine';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type GameMode = 'select' | '8ball' | '9ball' | 'snooker' | 'shotbet' | 'rake' | 'tournament';
@@ -161,65 +169,6 @@ function makeSnookerRack(): Ball[] {
     });
   });
   return balls;
-}
-
-// ─── Physics Engine ────────────────────────────────────────────────────────────
-function simulateStep(balls: Ball[], tableW: number, tableH: number, pockets: Pocket[]): { anyMoving: boolean; pocketed: Ball[]; collisions: { velocity: number }[] } {
-  const pocketedThisStep: Ball[] = [];
-  const collisions: { velocity: number }[] = [];
-
-  balls.forEach(ball => {
-    if (ball.pocketed) return;
-    ball.vx *= FRICTION;
-    ball.vy *= FRICTION;
-    const speed = Math.hypot(ball.vx, ball.vy);
-    if (speed < MIN_SPEED) { ball.vx = 0; ball.vy = 0; }
-    ball.x += ball.vx;
-    ball.y += ball.vy;
-
-    // Wall bounces
-    if (ball.x - ball.radius < RAIL) { ball.x = RAIL + ball.radius; ball.vx = Math.abs(ball.vx) * 0.78; }
-    if (ball.x + ball.radius > tableW - RAIL) { ball.x = tableW - RAIL - ball.radius; ball.vx = -Math.abs(ball.vx) * 0.78; }
-    if (ball.y - ball.radius < RAIL) { ball.y = RAIL + ball.radius; ball.vy = Math.abs(ball.vy) * 0.78; }
-    if (ball.y + ball.radius > tableH - RAIL) { ball.y = tableH - RAIL - ball.radius; ball.vy = -Math.abs(ball.vy) * 0.78; }
-
-    // Pocket check
-    for (const p of pockets) {
-      if (Math.hypot(ball.x - p.x, ball.y - p.y) < p.radius) {
-        ball.pocketed = true;
-        ball.vx = 0; ball.vy = 0;
-        pocketedThisStep.push(ball);
-        break;
-      }
-    }
-  });
-
-  // Ball-ball collisions
-  for (let i = 0; i < balls.length; i++) {
-    for (let j = i + 1; j < balls.length; j++) {
-      const a = balls[i]; const b = balls[j];
-      if (a.pocketed || b.pocketed) continue;
-      const dx = b.x - a.x; const dy = b.y - a.y;
-      const dist = Math.hypot(dx, dy);
-      const minD = a.radius + b.radius;
-      if (dist < minD && dist > 0) {
-        const nx = dx / dist; const ny = dy / dist;
-        const overlap = minD - dist;
-        a.x -= nx * overlap * 0.51; a.y -= ny * overlap * 0.51;
-        b.x += nx * overlap * 0.51; b.y += ny * overlap * 0.51;
-        const dvx = a.vx - b.vx; const dvy = a.vy - b.vy;
-        const dot = dvx * nx + dvy * ny;
-        if (dot > 0) {
-          a.vx -= dot * nx; a.vy -= dot * ny;
-          b.vx += dot * nx; b.vy += dot * ny;
-          collisions.push({ velocity: dot });
-        }
-      }
-    }
-  }
-
-  const anyMoving = balls.some(b => !b.pocketed && (Math.abs(b.vx) > MIN_SPEED || Math.abs(b.vy) > MIN_SPEED));
-  return { anyMoving, pocketed: pocketedThisStep, collisions };
 }
 
 // ─── Drawing helpers ─────────────────────────────────────────────────────────
@@ -914,6 +863,10 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const [tournament, setTournament] = useState<TournamentBracket | null>(null);
   const [tournamentMatchup, setTournamentMatchup] = useState<{ player: string; opponent: string; entryFee: number } | null>(null);
 
+  // Physics mode
+  const [physicsMode, setPhysicsMode] = useState<PhysicsMode>(getDefaultPhysicsMode);
+  const physicsModeRef = useRef<PhysicsMode>(getDefaultPhysicsMode());
+
   // UI
   const [showCallPanel, setShowCallPanel] = useState(false);
   const [selectedCallBall, setSelectedCallBall] = useState<number | null>(null);
@@ -954,6 +907,21 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   useEffect(() => { rakeRef.current = rake; }, [rake]);
   useEffect(() => { turnRef.current = turn; }, [turn]);
   useEffect(() => { setLocalBalance(balance); }, [balance]);
+  useEffect(() => { physicsModeRef.current = physicsMode; }, [physicsMode]);
+
+  // Listen for physics mode change events (from InGameOptionsPanel)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const mode = (e as CustomEvent).detail as PhysicsMode;
+      if (mode === 'classic' || mode === 'realistic') {
+        setPhysicsMode(mode);
+        physicsModeRef.current = mode;
+        try { localStorage.setItem(PHYSICS_MODE_KEY, mode); } catch {}
+      }
+    };
+    window.addEventListener(PHYSICS_MODE_EVENT, handler);
+    return () => window.removeEventListener(PHYSICS_MODE_EVENT, handler);
+  }, []);
 
   const tableSkinRef = useRef(tableSkin);
 
@@ -1255,7 +1223,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     const pockets = pocketsRef.current;
     const balls = ballsRef.current;
 
-    const { anyMoving, pocketed, collisions } = simulateStep(balls, tw, th, pockets);
+    const backend = physicsModeRef.current === 'realistic' ? RealisticBackend : ClassicBackend;
+    const { anyMoving, pocketed, collisions } = backend.step(balls, tw, th, pockets, RAIL);
     redrawCanvas();
     movingRef.current = anyMoving;
 
@@ -1267,9 +1236,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     if (anyMoving) {
       animRef.current = requestAnimationFrame(gameLoopStep);
     } else {
-      // All balls stopped
-      const pocketedThisTurn = pocketed;
-      handleShotEnd(pocketedThisTurn);
+      // All balls stopped — pocketed items are Ball objects at runtime (cast is safe)
+      handleShotEnd(pocketed as Ball[]);
     }
   }, [redrawCanvas, handleShotEnd, settings.casinoSoundEnabled, poolSounds]);
 
@@ -1335,6 +1303,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
       else poolSounds.playCueStrike(power * 0.85);
     }
     shotCountRef.current += 1;
+    const aiBackend = physicsModeRef.current === 'realistic' ? RealisticBackend : ClassicBackend;
+    aiBackend.initShot(ballsRef.current);
     animRef.current = requestAnimationFrame(gameLoopStep);
   }, [gameLoopStep, settings.casinoSoundEnabled, poolSounds]);
 
@@ -1368,6 +1338,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     }
     shotCountRef.current += 1;
     phaseLockRef.current = 'playing';
+    const playerBackend = physicsModeRef.current === 'realistic' ? RealisticBackend : ClassicBackend;
+    playerBackend.initShot(ballsRef.current);
     animRef.current = requestAnimationFrame(gameLoopStep);
   }, [gameLoopStep, playSound, settings.casinoSoundEnabled, poolSounds]);
 
