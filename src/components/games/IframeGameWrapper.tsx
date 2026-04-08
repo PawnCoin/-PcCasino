@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { InGameTopBar } from '@/components/InGameTopBar';
 
 interface IframeGameWrapperProps {
@@ -29,10 +29,11 @@ export function IframeGameWrapper({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [gameInProgress, setGameInProgress] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const balanceRef = useRef(balance);
   balanceRef.current = balance;
   const gameInProgressRef = useRef(false);
+  const pendingBackRef = useRef(false);
 
   const iframeSrc = `${gamePath}?balance=${balance}`;
 
@@ -66,7 +67,6 @@ export function IframeGameWrapper({
 
       if (type === 'gameState' && typeof event.data.active === 'boolean') {
         gameInProgressRef.current = event.data.active;
-        setGameInProgress(event.data.active);
       }
     };
 
@@ -83,12 +83,25 @@ export function IframeGameWrapper({
     }
   }, [balance, isLoaded]);
 
-  const handleBack = useCallback(() => {
+  const requestBack = useCallback(() => {
     if (gameInProgressRef.current) {
-      if (!window.confirm('A round is in progress. Leave and forfeit your current bet?')) return;
+      setShowLeaveModal(true);
+      pendingBackRef.current = true;
+    } else {
+      onBack();
     }
+  }, [onBack]);
+
+  const confirmLeave = useCallback(() => {
+    setShowLeaveModal(false);
+    pendingBackRef.current = false;
     onBack();
   }, [onBack]);
+
+  const cancelLeave = useCallback(() => {
+    setShowLeaveModal(false);
+    pendingBackRef.current = false;
+  }, []);
 
   const handleReload = () => {
     setIsLoaded(false);
@@ -139,7 +152,7 @@ export function IframeGameWrapper({
       <InGameTopBar
         gameName={gameName}
         balance={balance}
-        onBack={handleBack}
+        onBack={requestBack}
         onShowWallet={onShowWallet}
         rightSlot={rightSlot}
       />
@@ -184,6 +197,47 @@ export function IframeGameWrapper({
           title={gameName}
         />
       </div>
+
+      {showLeaveModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="rounded-2xl p-7 flex flex-col items-center gap-4 shadow-2xl"
+            style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #111 100%)', border: '1px solid rgba(212,175,55,0.3)', maxWidth: 360, width: '90%' }}
+          >
+            <div className="flex items-center justify-center w-14 h-14 rounded-full"
+              style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <AlertTriangle size={28} style={{ color: '#ef4444' }} />
+            </div>
+            <h3 className="font-casino text-xl font-bold metallic-gold-text text-center">Leave Game?</h3>
+            <p className="text-[#A0A0A0] text-sm text-center leading-relaxed">
+              A round is currently in progress. Leaving now will forfeit your active bet.
+            </p>
+            <div className="flex gap-3 w-full mt-1">
+              <button
+                onClick={cancelLeave}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e7eb' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+              >
+                Stay
+              </button>
+              <button
+                onClick={confirmLeave}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all"
+                style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none' }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -497,6 +497,7 @@ function deal() {
           )
             createBetNotif('betZone3', 'BLACKJACK');
           gameStart = true;
+          window.parent.postMessage({ type: 'gameState', active: true }, '*');
           checkButtons();
         }, 800);
       }
@@ -1297,6 +1298,7 @@ function checkMainBets() {
   });
   setTimeout(() => {
     gameStart = false;
+    window.parent.postMessage({ type: 'gameState', active: false }, '*');
     dealerStatus = false;
     afterInsurance = false;
     splitActive = false;
@@ -2973,5 +2975,11 @@ window.addEventListener('message', function(e) {
     const balEl = document.querySelector('.balanceInfo');
     if (balEl) balEl.textContent = playerInfo.balance.toLocaleString('de-DE') + ' $Pc';
     if (betStatusInfo && betStatusInfo[0]) betStatusInfo[0].textContent = playerInfo.balance.toLocaleString('de-DE') + ' $Pc';
+  }
+});
+window.addEventListener('beforeunload', function(e) {
+  if (gameStart || playerInfo.totalBet > 0) {
+    e.preventDefault();
+    e.returnValue = '';
   }
 });

@@ -876,6 +876,7 @@ function endroll() {
             betStart = false;
             window.parent.postMessage({ type: 'gameState', active: false }, '*');
             document.querySelector('#chipsSelectorDisabled').style.display = 'none';
+            checkMoney();
             if (money >= 1000000 && !menuOpen) {
               btns.betCompleteBtn.style.pointerEvents = 'all';
               betSection.style.pointerEvents = 'all';
@@ -899,9 +900,7 @@ function endroll() {
 function fastChips(betSize, chips) {
   chipsMenuOpen.checked = false;
   const lastBet = bet;
-  const lastChipPut = chipsPut;
   bet = betSize;
-  chipsPut = `src/images/tableChips${chips}.png`;
   buttonName.click();
   setTimeout(() => {
     movable.style.display = 'none';
@@ -911,7 +910,6 @@ function fastChips(betSize, chips) {
   btns.fastChipsBtn.style.backgroundSize = 'contain';
   btns.fastChipsBtn.classList.add('fastChip');
   bet = lastBet;
-  chipsPut = lastChipPut;
   checkMoney();
 }
 
@@ -2047,7 +2045,7 @@ window.addEventListener('message', function(e) {
   }
 });
 window.addEventListener('beforeunload', function(e) {
-  if (betStart) {
+  if (betStart || betSize > 0) {
     e.preventDefault();
     e.returnValue = '';
   }
