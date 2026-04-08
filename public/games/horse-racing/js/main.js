@@ -9,19 +9,27 @@ function buildIOSMeta(){for(var n,i,r=[{name:"viewport",content:"width=device-wi
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.type !== 'music:state') return;
   var playing = e.data.playing;
+  var label = e.data.trackTitle ? ('Now playing: ' + e.data.trackTitle) : 'Music playing from main player';
+  // Pause or resume the in-game background soundtrack (s_aSounds is a global Howler map)
+  try {
+    var snd = window.s_aSounds && window.s_aSounds['soundtrack'];
+    if (snd) {
+      playing ? snd.pause() : snd.play();
+    }
+  } catch(ex) {}
+  // Banner showing currently playing track
   var parentBanner = document.getElementById('parentMusicBanner');
   if (playing) {
     if (!parentBanner) {
       var banner = document.createElement('div');
       banner.id = 'parentMusicBanner';
       banner.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(139,92,246,0.18);border:1px solid rgba(139,92,246,0.4);border-radius:12px;padding:7px 18px;font-size:12px;color:#c4b5fd;z-index:9999;pointer-events:none;white-space:nowrap;';
-      banner.textContent = e.data.trackTitle ? ('Now playing: ' + e.data.trackTitle) : 'Music playing from main player';
+      banner.textContent = label;
       document.body.appendChild(banner);
     } else {
-      parentBanner.textContent = e.data.trackTitle ? ('Now playing: ' + e.data.trackTitle) : 'Music playing from main player';
+      parentBanner.textContent = label;
     }
   } else {
-    var banner2 = document.getElementById('parentMusicBanner');
-    if (banner2) banner2.remove();
+    if (parentBanner) parentBanner.remove();
   }
 });
