@@ -189,7 +189,7 @@ export function IframeGameWrapper({
       }, '*');
     };
 
-    const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[]; payout?: number }) => {
+    const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[]; payout?: number; betTotal?: number }) => {
       setRoulettePhase('spinning');
       rouletteRoundIdRef.current = data.roundId;
       if (data.players) setRoulettePlayers(data.players);
@@ -198,6 +198,9 @@ export function IframeGameWrapper({
         result: data.result,
         roundId: data.roundId,
       }, '*');
+      if (typeof data.betTotal === 'number' && data.betTotal > 0) {
+        onBet(data.betTotal);
+      }
       if (typeof data.payout === 'number' && data.payout > 0) {
         onWin(data.payout);
       }

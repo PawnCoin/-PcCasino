@@ -1626,7 +1626,7 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
           p.lastWin = payout;
           io.to(sid).emit('roulette:spin', {
             result: rouletteRoom.result, roundId: rouletteRoom.roundId,
-            players: rouletteGetPlayers(), payout: payout,
+            players: rouletteGetPlayers(), payout: payout, betTotal: p.betTotal || 0,
           });
         }
         console.log('[Roulette] Round ' + rouletteRoom.roundId + ' result: ' + rouletteRoom.result + ' (' + rouletteRoom.players.size + ' players)');
