@@ -87,7 +87,8 @@ export function IframeGameWrapper({
           '*'
         );
         if (isRoulette && success) {
-          getSocket().emit('roulette:bet', { amount });
+          const numbers = Array.isArray(event.data.numbers) ? event.data.numbers : [];
+          getSocket().emit('roulette:bet', { amount, numbers });
         }
       }
 
@@ -97,9 +98,6 @@ export function IframeGameWrapper({
           { type: 'win:confirmed', amount, balance: balanceRef.current },
           '*'
         );
-        if (isRoulette) {
-          getSocket().emit('roulette:winReport', { winAmount: amount, roundId: rouletteRoundIdRef.current });
-        }
       }
 
       if (type === 'getBalance') {
@@ -182,7 +180,7 @@ export function IframeGameWrapper({
       }, '*');
     };
 
-    const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[] }) => {
+    const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[]; payout?: number }) => {
       setRoulettePhase('spinning');
       rouletteRoundIdRef.current = data.roundId;
       if (data.players) setRoulettePlayers(data.players);
@@ -191,6 +189,12 @@ export function IframeGameWrapper({
         result: data.result,
         roundId: data.roundId,
       }, '*');
+      if (typeof data.payout === 'number' && data.payout > 0) {
+        iframeRef.current?.contentWindow?.postMessage({
+          type: 'roulette:settlement',
+          payout: data.payout,
+        }, '*');
+      }
     };
 
     const onPlayers = (data: { players: RoulettePlayer[] }) => {

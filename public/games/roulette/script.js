@@ -1637,7 +1637,7 @@ function start() {
   void ball.offsetWidth;
   ball.style.animation = null;
   rollSound.play();
-  random = (typeof mp_serverResult === "number" && mp_serverResult >= 0 && mp_serverResult <= 36) ? mp_serverResult : Math.floor(Math.random() * 37);
+  random = Math.floor(Math.random() * 37);
   haben = infoConstants.rollerInfo[random];
   setIntSpin();
   setTimeout(() => dealerAnnounce("No more bets"), 7500);
@@ -2265,6 +2265,135 @@ window.addEventListener('beforeunload', function(e) {
     if (e.data.type === 'roulette:players') {
       mp_players = e.data.players || [];
       mp_createPlayerOverlay();
+    }
+  });
+  
+
+  // ---- Multiplayer Roulette Bridge (appended) ----
+  var mp_serverResult = null;
+  var mp_phase = 'waiting';
+  var mp_timer = 0;
+  var mp_players = [];
+  var mp_roundId = 0;
+  var mp_timerOverlay = null;
+  var mp_spinBlocked = false;
+
+  // Wrap start() to use server result and enforce server-timed rounds
+  var _mp_origStart = start;
+  start = function() {
+    if (mp_spinBlocked) return;
+    if (typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
+      _mp_origStart.apply(this, arguments);
+      random = mp_serverResult;
+      haben = infoConstants.rollerInfo[random];
+    } else {
+      _mp_origStart.apply(this, arguments);
+    }
+  };
+
+  // Wrap endroll to clear server result after round completes
+  var _mp_origEndroll = endroll;
+  endroll = function() {
+    _mp_origEndroll.apply(this, arguments);
+    mp_serverResult = null;
+    mp_spinBlocked = false;
+  };
+
+  function mp_createTimerOverlay() {
+    if (mp_timerOverlay) return;
+    mp_timerOverlay = document.createElement('div');
+    mp_timerOverlay.id = 'mpTimerOverlay';
+    mp_timerOverlay.style.cssText = 'position:fixed;top:60px;right:12px;z-index:9999;padding:6px 16px;border-radius:10px;background:rgba(0,0,0,0.85);border:2px solid #D4AF37;font-family:monospace;font-size:18px;font-weight:700;color:#D4AF37;pointer-events:none;transition:opacity 0.3s;';
+    document.body.appendChild(mp_timerOverlay);
+  }
+
+  function mp_updateTimerOverlay() {
+    mp_createTimerOverlay();
+    if (mp_phase === 'betting' && mp_timer > 0) {
+      mp_timerOverlay.style.opacity = '1';
+      mp_timerOverlay.textContent = 'Place Bets: ' + mp_timer + 's';
+      mp_timerOverlay.style.borderColor = mp_timer <= 5 ? '#ef4444' : '#D4AF37';
+      mp_timerOverlay.style.color = mp_timer <= 5 ? '#ef4444' : '#D4AF37';
+    } else if (mp_phase === 'spinning') {
+      mp_timerOverlay.style.opacity = '1';
+      mp_timerOverlay.textContent = 'Spinning...';
+      mp_timerOverlay.style.borderColor = '#22c55e';
+      mp_timerOverlay.style.color = '#22c55e';
+    } else {
+      mp_timerOverlay.style.opacity = '0';
+    }
+  }
+
+  function mp_createPlayerOverlay() {
+    var existing = document.getElementById('mpPlayersOverlay');
+    if (existing) existing.remove();
+    if (!mp_players || mp_players.length <= 1) return;
+    var cont = document.createElement('div');
+    cont.id = 'mpPlayersOverlay';
+    cont.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:9998;display:flex;gap:4px;pointer-events:none;';
+    mp_players.forEach(function(p) {
+      var card = document.createElement('div');
+      card.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(0,0,0,0.8);border-radius:8px;padding:3px 6px;border:1px solid rgba(212,175,55,0.3);min-width:44px;';
+      var av = document.createElement('div');
+      av.style.cssText = 'width:24px;height:24px;border-radius:50%;border:2px solid #D4AF37;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;';
+      if (p.avatarUrl) { av.style.background = 'url(' + p.avatarUrl + ') center/cover'; }
+      else { av.style.background = 'linear-gradient(135deg,#D4AF37,#8B6914)'; av.textContent = (p.username || '?')[0]; }
+      card.appendChild(av);
+      var nm = document.createElement('span');
+      nm.style.cssText = 'font-size:8px;color:#D4AF37;font-weight:600;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      nm.textContent = p.username || 'Guest';
+      card.appendChild(nm);
+      if (p.betTotal > 0) {
+        var bt = document.createElement('span');
+        bt.style.cssText = 'font-size:7px;color:#22c55e;font-weight:700;';
+        bt.textContent = p.betTotal.toLocaleString() + ' $Pc';
+        card.appendChild(bt);
+      }
+      cont.appendChild(card);
+    });
+    document.body.appendChild(cont);
+  }
+
+  function mp_autoSpin() {
+    if (betStart) return;
+    start();
+  }
+
+  window.addEventListener('message', function(e) {
+    if (!e.data || typeof e.data !== 'object') return;
+
+    if (e.data.type === 'roulette:state') {
+      mp_phase = e.data.phase;
+      mp_timer = e.data.timer;
+      mp_roundId = e.data.roundId || 0;
+      mp_players = e.data.players || [];
+      if (mp_phase === 'betting') {
+        mp_spinBlocked = true;
+      }
+      mp_updateTimerOverlay();
+      mp_createPlayerOverlay();
+    }
+
+    if (e.data.type === 'roulette:spin') {
+      mp_serverResult = e.data.result;
+      mp_roundId = e.data.roundId || 0;
+      mp_phase = 'spinning';
+      mp_spinBlocked = false;
+      mp_updateTimerOverlay();
+      setTimeout(function() {
+        mp_autoSpin();
+      }, 200);
+    }
+
+    if (e.data.type === 'roulette:players') {
+      mp_players = e.data.players || [];
+      mp_createPlayerOverlay();
+    }
+
+    if (e.data.type === 'roulette:settlement') {
+      if (typeof e.data.payout === 'number' && e.data.payout > 0) {
+        window.parent.postMessage({ type: 'win', amount: e.data.payout }, '*');
+      }
     }
   });
   
