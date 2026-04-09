@@ -14,11 +14,14 @@ interface Track {
 }
 
 const tracks: Track[] = [
-  { id: '1', title: 'Casino Royale Lounge', artist: 'Vegas Beats', duration: 180, genre: 'Jazz Lounge', url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c3cc48ac48.mp3' },
-  { id: '2', title: 'High Stakes Night', artist: 'Lounge Masters', duration: 195, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/01/27/audio_d0c6ff1bde.mp3' },
-  { id: '3', title: 'Royal Flush', artist: 'Poker Jazz', duration: 200, genre: 'Jazz', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3' },
-  { id: '4', title: 'Jackpot Dreams', artist: 'Slot Symphony', duration: 210, genre: 'Ambient', url: 'https://cdn.pixabay.com/download/audio/2021/11/25/audio_a1d62a14e7.mp3' },
-  { id: '5', title: 'Vegas Lights', artist: 'Neon Collective', duration: 225, genre: 'Electronic', url: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3' },
+  { id: '1', title: 'Night Skies', artist: 'PCasino', duration: 180, genre: 'Ambient', url: '/games/roulette/src/sfx/music/music0.mp3' },
+  { id: '2', title: 'Lucky 8', artist: 'PCasino', duration: 195, genre: 'Jazz Lounge', url: '/games/roulette/src/sfx/music/music1.mp3' },
+  { id: '3', title: 'Velvet Groove', artist: 'PCasino', duration: 200, genre: 'Jazz', url: '/games/roulette/src/sfx/music/music2.mp3' },
+  { id: '4', title: 'Elegance in Blue', artist: 'PCasino', duration: 210, genre: 'Jazz Lounge', url: '/games/roulette/src/sfx/music/music3.mp3' },
+  { id: '5', title: 'Forgiveness', artist: 'PCasino', duration: 200, genre: 'Ambient', url: '/games/roulette/src/sfx/music/music4.mp3' },
+  { id: '6', title: 'Your Beauty', artist: 'PCasino', duration: 195, genre: 'Ambient', url: '/games/roulette/src/sfx/music/music5.mp3' },
+  { id: '7', title: 'Moonlight', artist: 'PCasino', duration: 210, genre: 'Jazz', url: '/games/roulette/src/sfx/music/music6.mp3' },
+  { id: '8', title: 'Midnight Mirage', artist: 'PCasino', duration: 225, genre: 'Electronic', url: '/games/roulette/src/sfx/music/music7.mp3' },
 ];
 
 type MusicTab = 'casino' | 'liveone';

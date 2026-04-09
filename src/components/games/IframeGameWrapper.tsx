@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { RefreshCw, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, getSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
+import { getDefaultRouletteSkin, ROULETTE_SKINS } from '@/hooks/useRouletteSkin';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -99,14 +100,33 @@ export function IframeGameWrapper({
     }
   }, [balance, isLoaded]);
 
-  // Send initial music state when iframe loads; subscribe to future changes
+  const sendSkinState = useCallback(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    const skin = getDefaultRouletteSkin();
+    win.postMessage({ type: 'skin:update', skin }, '*');
+  }, []);
+
   useEffect(() => {
     if (!isLoaded) return;
     sendMusicState();
-    return subscribeSoundState(() => {
+    sendSkinState();
+    const unsubMusic = subscribeSoundState(() => {
       sendMusicState();
     });
-  }, [isLoaded, sendMusicState]);
+    const handleSkinChange = (e: Event) => {
+      const id = (e as CustomEvent).detail as string;
+      const found = ROULETTE_SKINS.find(s => s.id === id);
+      if (found) {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'skin:update', skin: found }, '*');
+      }
+    };
+    window.addEventListener('pcasino_roulette_skin_change', handleSkinChange);
+    return () => {
+      unsubMusic();
+      window.removeEventListener('pcasino_roulette_skin_change', handleSkinChange);
+    };
+  }, [isLoaded, sendMusicState, sendSkinState]);
 
   const requestBack = useCallback(() => {
     if (gameInProgressRef.current) {
