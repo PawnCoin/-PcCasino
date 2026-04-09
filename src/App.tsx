@@ -71,6 +71,38 @@ interface UnifiedUser {
   vipTier?: string;
   totpEnabled?: boolean;
   emailVerified?: boolean;
+  displayName?: string | null;
+  bio?: string | null;
+  socialTwitter?: string | null;
+  socialInstagram?: string | null;
+  socialTelegram?: string | null;
+  socialDiscord?: string | null;
+  publicStatsVisible?: boolean;
+  publicSocialsVisible?: boolean;
+  dailyDepositLimit?: number;
+  dailyLossLimit?: number;
+}
+
+function buildUserFromApi(u: any): UnifiedUser {
+  return {
+    id: u.id, username: u.username, email: u.email,
+    walletAddress: u.walletAddress, socialProvider: u.socialProvider,
+    balance: u.balance ?? 0, avatar: u.avatar || 'wizard',
+    avatarUrl: u.avatarUrl || null,
+    socialAvatarUrl: u.socialAvatarUrl || undefined,
+    isAdmin: u.isAdmin, vipTier: u.vipTier,
+    totpEnabled: u.totpEnabled, withdrawAddress: u.withdrawAddress,
+    emailVerified: u.emailVerified,
+    dailyDepositLimit: u.dailyDepositLimit, dailyLossLimit: u.dailyLossLimit,
+    displayName: u.displayName || null,
+    bio: u.bio || null,
+    socialTwitter: u.socialTwitter || null,
+    socialInstagram: u.socialInstagram || null,
+    socialTelegram: u.socialTelegram || null,
+    socialDiscord: u.socialDiscord || null,
+    publicStatsVisible: u.publicStatsVisible !== false,
+    publicSocialsVisible: u.publicSocialsVisible !== false,
+  };
 }
 
 function App() {
@@ -248,15 +280,7 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
       authApi.me().then(data => {
         if (data.user) {
-          const userData: UnifiedUser = {
-            id: data.user.id, username: data.user.username, email: data.user.email,
-            walletAddress: data.user.walletAddress, socialProvider: data.user.socialProvider,
-            balance: data.user.balance, avatar: data.user.avatar || 'wizard',
-            socialAvatarUrl: data.user.socialAvatarUrl || undefined,
-            isAdmin: data.user.isAdmin, vipTier: data.user.vipTier,
-            totpEnabled: data.user.totpEnabled, withdrawAddress: data.user.withdrawAddress,
-            emailVerified: data.user.emailVerified,
-          };
+          const userData = buildUserFromApi(data.user);
           setUser(userData);
           setIsAuthenticated(true);
           localStorage.setItem('pcasino_user', JSON.stringify(userData));
@@ -292,22 +316,7 @@ function App() {
 
       attemptMe(1).then(data => {
         if (data.user) {
-          setUser({
-            id: data.user.id,
-            username: data.user.username,
-            email: data.user.email,
-            walletAddress: data.user.walletAddress,
-            socialProvider: data.user.socialProvider,
-            balance: data.user.balance,
-            avatar: data.user.avatar || 'wizard',
-            isAdmin: data.user.isAdmin,
-            vipTier: data.user.vipTier,
-            totpEnabled: data.user.totpEnabled,
-            withdrawAddress: data.user.withdrawAddress,
-            dailyDepositLimit: data.user.dailyDepositLimit,
-            dailyLossLimit: data.user.dailyLossLimit,
-            emailVerified: data.user.emailVerified,
-          } as any);
+          setUser(buildUserFromApi(data.user));
           setIsAuthenticated(true);
           paymentsApi.getTransactions({ limit: 100 }).then(txData => {
             if (txData.transactions) {
@@ -385,16 +394,7 @@ function App() {
       });
       if (apiData.token) {
         setToken(apiData.token);
-        const u = apiData.user;
-        const userData = {
-          id: u.id, username: u.username, email: u.email,
-          walletAddress: u.walletAddress, socialProvider: u.socialProvider,
-          balance: u.balance, avatar: u.avatar || 'wizard',
-          isAdmin: u.isAdmin, vipTier: u.vipTier,
-          totpEnabled: u.totpEnabled, withdrawAddress: u.withdrawAddress,
-          dailyDepositLimit: u.dailyDepositLimit, dailyLossLimit: u.dailyLossLimit,
-          emailVerified: u.emailVerified,
-        } as any;
+        const userData = buildUserFromApi(apiData.user);
         setUser(userData);
         setIsAuthenticated(true);
         localStorage.setItem('pcasino_user', JSON.stringify(userData));
@@ -436,16 +436,7 @@ function App() {
   };
 
   const handleEmailLogin = (u: any) => {
-    const userData = {
-      id: u.id, username: u.username, email: u.email,
-      walletAddress: u.walletAddress, socialProvider: u.socialProvider,
-      balance: u.balance ?? 1_000_000_000,
-      avatar: u.avatar || 'wizard',
-      isAdmin: u.isAdmin, vipTier: u.vipTier,
-      totpEnabled: u.totpEnabled, withdrawAddress: u.withdrawAddress,
-      dailyDepositLimit: u.dailyDepositLimit, dailyLossLimit: u.dailyLossLimit,
-      emailVerified: u.emailVerified,
-    } as any;
+    const userData = buildUserFromApi(u);
     setUser(userData);
     setIsAuthenticated(true);
     setPendingReferralCode(undefined);

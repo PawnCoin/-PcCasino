@@ -15,6 +15,36 @@ function hashPassword(password) {
   return createHash('sha256').update(password + 'pcasino_salt_2024').digest('hex');
 }
 
+function buildUserResponse(u) {
+  return {
+    id: u.id, username: u.username, email: u.email,
+    balance: parseInt(u.balance), avatar: u.avatar,
+    isAdmin: u.is_admin, emailVerified: u.email_verified,
+    vipTier: u.vip_tier, totpEnabled: u.totp_enabled,
+    withdrawAddress: u.withdraw_address, socialProvider: u.social_provider,
+    walletAddress: u.wallet_address,
+    dailyDepositLimit: parseInt(u.daily_deposit_limit),
+    dailyLossLimit: parseInt(u.daily_loss_limit),
+    selfExcluded: u.self_excluded,
+    totalWagered: parseInt(u.total_wagered),
+    totalWon: parseInt(u.total_won),
+    socialAvatarUrl: u.social_avatar_url || null,
+    kycStatus: u.kyc_status || 'unverified',
+    phoneVerified: u.phone_verified || false,
+    phoneNumber: u.phone_number || null,
+    realTransactionsUnlocked: u.real_transactions_unlocked || false,
+    displayName: u.display_name || null,
+    bio: u.bio || null,
+    avatarUrl: u.avatar_url || null,
+    socialTwitter: u.social_twitter || null,
+    socialInstagram: u.social_instagram || null,
+    socialTelegram: u.social_telegram || null,
+    socialDiscord: u.social_discord || null,
+    publicStatsVisible: u.public_stats_visible !== false,
+    publicSocialsVisible: u.public_socials_visible !== false,
+  };
+}
+
 function generateToken(userId) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 }
@@ -152,21 +182,12 @@ router.post('/register', async (req, res) => {
       [user.id, `Welcome ${username}! You've received 1,000,000,000 $Pc to start playing. Check your email to verify your account.`]
     );
 
+    const userResp = buildUserResponse(user);
+    userResp.balance = finalBalance;
     res.json({
       success: true,
       token,
-      user: {
-        id: user.id, username: user.username, email: user.email,
-        balance: finalBalance, avatar: user.avatar,
-        isAdmin: user.is_admin, emailVerified: user.email_verified,
-        vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
-        withdrawAddress: user.withdraw_address,
-        socialAvatarUrl: user.social_avatar_url || null,
-        kycStatus: user.kyc_status || 'unverified',
-        phoneVerified: user.phone_verified || false,
-        phoneNumber: user.phone_number || null,
-        realTransactionsUnlocked: user.real_transactions_unlocked || false,
-      }
+      user: userResp,
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -208,21 +229,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       success: true, token,
-      user: {
-        id: user.id, username: user.username, email: user.email,
-        balance: parseInt(user.balance), avatar: user.avatar,
-        isAdmin: user.is_admin, emailVerified: user.email_verified,
-        vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
-        withdrawAddress: user.withdraw_address,
-        dailyDepositLimit: parseInt(user.daily_deposit_limit),
-        dailyLossLimit: parseInt(user.daily_loss_limit),
-        selfExcluded: user.self_excluded,
-        walletAddress: user.wallet_address,
-        kycStatus: user.kyc_status || 'unverified',
-        phoneVerified: user.phone_verified || false,
-        phoneNumber: user.phone_number || null,
-        realTransactionsUnlocked: user.real_transactions_unlocked || false,
-      }
+      user: buildUserResponse(user),
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -267,20 +274,7 @@ router.post('/social', async (req, res) => {
 
     res.json({
       success: true, token,
-      user: {
-        id: user.id, username: user.username, email: user.email,
-        balance: parseInt(user.balance), avatar: user.avatar,
-        isAdmin: user.is_admin, emailVerified: user.email_verified,
-        vipTier: user.vip_tier, totpEnabled: user.totp_enabled,
-        withdrawAddress: user.withdraw_address, socialProvider: provider,
-        walletAddress: user.wallet_address,
-        dailyDepositLimit: parseInt(user.daily_deposit_limit),
-        dailyLossLimit: parseInt(user.daily_loss_limit),
-        kycStatus: user.kyc_status || 'unverified',
-        phoneVerified: user.phone_verified || false,
-        phoneNumber: user.phone_number || null,
-        realTransactionsUnlocked: user.real_transactions_unlocked || false,
-      }
+      user: buildUserResponse(user),
     });
   } catch (err) {
     console.error('Social auth error:', err);
@@ -291,35 +285,9 @@ router.post('/social', async (req, res) => {
 // Get current user
 router.get('/me', requireAuth, async (req, res) => {
   const user = req.user;
-  res.json({
-    user: {
-      id: user.id, username: user.username, email: user.email,
-      balance: parseInt(user.balance), avatar: user.avatar,
-      isAdmin: user.is_admin, emailVerified: user.email_verified,
-      vipTier: getVipTier(parseInt(user.total_wagered)), totpEnabled: user.totp_enabled,
-      withdrawAddress: user.withdraw_address, socialProvider: user.social_provider,
-      walletAddress: user.wallet_address,
-      dailyDepositLimit: parseInt(user.daily_deposit_limit),
-      dailyLossLimit: parseInt(user.daily_loss_limit),
-      selfExcluded: user.self_excluded,
-      totalWagered: parseInt(user.total_wagered),
-      totalWon: parseInt(user.total_won),
-      socialAvatarUrl: user.social_avatar_url || null,
-      kycStatus: user.kyc_status || 'unverified',
-      phoneVerified: user.phone_verified || false,
-      phoneNumber: user.phone_number || null,
-      realTransactionsUnlocked: user.real_transactions_unlocked || false,
-      displayName: user.display_name || null,
-      bio: user.bio || null,
-      avatarUrl: user.avatar_url || null,
-      socialTwitter: user.social_twitter || null,
-      socialInstagram: user.social_instagram || null,
-      socialTelegram: user.social_telegram || null,
-      socialDiscord: user.social_discord || null,
-      publicStatsVisible: user.public_stats_visible !== false,
-      publicSocialsVisible: user.public_socials_visible !== false,
-    }
-  });
+  const resp = buildUserResponse(user);
+  resp.vipTier = getVipTier(parseInt(user.total_wagered));
+  res.json({ user: resp });
 });
 
 // Logout — invalidates all sessions for this user (logs out everywhere)
