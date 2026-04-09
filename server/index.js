@@ -1657,6 +1657,18 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
   const ROULETTE_RED = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
   const ROULETTE_BLACK = [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35];
 
+  const VALID_ROULETTE_BET_LENGTHS = new Set([1, 2, 3, 4, 6, 12, 18]);
+
+  function rouletteValidateBet(bet) {
+    if (!bet || typeof bet.amount !== 'number' || bet.amount <= 0 || bet.amount > 500000000) return null;
+    if (!Array.isArray(bet.numbers)) return null;
+    const nums = bet.numbers.filter(n => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 36);
+    if (nums.length === 0 || !VALID_ROULETTE_BET_LENGTHS.has(nums.length)) return null;
+    const unique = [...new Set(nums)];
+    if (unique.length !== nums.length) return null;
+    return { amount: bet.amount, numbers: unique };
+  }
+
   function rouletteResolveBets(playerBets, result) {
     let totalPayout = 0;
     for (const bet of playerBets) {
@@ -1904,7 +1916,9 @@ io.on('connection', (socket) => {
   
     // ---- Multiplayer Roulette Handlers ----
     socket.on('roulette:join', ({ username, avatarUrl, avatar, userId }) => {
-      const rp = { id: userId || socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false };
+      const mainPlayer = players.get(socket.id);
+      const playerBalance = (mainPlayer && typeof mainPlayer.balance === 'number') ? mainPlayer.balance : 0;
+      const rp = { id: userId || socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
       rouletteRoom.players.set(socket.id, rp);
       socket.join('roulette-main');
       rouletteEnsureTimer();
@@ -1928,27 +1942,26 @@ io.on('connection', (socket) => {
 
     socket.on('roulette:bet', ({ amount, numbers }) => {
       const rp = rouletteRoom.players.get(socket.id);
-      if (rp && rouletteRoom.phase === 'betting' && !rp.betsLocked && typeof amount === 'number' && amount > 0 && amount <= 500000000) {
-        if (!rp.bets) rp.bets = [];
-        const validNums = (Array.isArray(numbers) ? numbers : []).filter(n => typeof n === 'number' && n >= 0 && n <= 36);
-        if (validNums.length > 0) {
-          rp.bets.push({ amount, numbers: validNums });
-          rp.betTotal = rp.bets.reduce((s, b) => s + b.amount, 0);
-          rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
-        }
-      }
+      if (!rp || rouletteRoom.phase !== 'betting' || rp.betsLocked) return;
+      const validated = rouletteValidateBet({ amount, numbers });
+      if (!validated) return;
+      if (!rp.bets) rp.bets = [];
+      const newTotal = rp.bets.reduce((s, b) => s + b.amount, 0) + validated.amount;
+      if (newTotal > rp.balance) return;
+      rp.bets.push(validated);
+      rp.betTotal = newTotal;
+      rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
     });
 
-    socket.on('roulette:betsSnapshot', ({ bets, betTotal }) => {
+    socket.on('roulette:betsSnapshot', ({ bets }) => {
       const rp = rouletteRoom.players.get(socket.id);
-      if (rp && rouletteRoom.phase === 'betting' && !rp.betsLocked && Array.isArray(bets)) {
-        rp.bets = bets.filter(b => b && typeof b.amount === 'number' && b.amount > 0 && Array.isArray(b.numbers)).map(b => ({
-          amount: Math.min(Math.max(0, b.amount), 500000000),
-          numbers: b.numbers.filter(n => typeof n === 'number' && n >= 0 && n <= 36),
-        }));
-        rp.betTotal = rp.bets.reduce((s, b) => s + b.amount, 0);
-        rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
-      }
+      if (!rp || rouletteRoom.phase !== 'betting' || rp.betsLocked || !Array.isArray(bets)) return;
+      const validated = bets.map(rouletteValidateBet).filter(Boolean);
+      const total = validated.reduce((s, b) => s + b.amount, 0);
+      if (total > rp.balance) return;
+      rp.bets = validated;
+      rp.betTotal = total;
+      rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
     });
 
   socket.on('disconnect', () => {
