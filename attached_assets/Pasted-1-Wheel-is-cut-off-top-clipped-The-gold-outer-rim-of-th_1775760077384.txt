@@ -1,0 +1,29 @@
+1. Wheel is cut off (top clipped)
+The gold outer rim of the wheel is chopped at the top. A real player needs to see the entire wheel — all 37 pockets, the full ball track, and the outer rim. Right now the #rouletteTable sits at top: 28% with the #game container set to overflow: hidden, which clips the top of the wheel. You lose sight of the ball during parts of its orbit.
+
+2. Ball is nearly invisible
+The ball is only 2vh (tiny) with a dull gray gradient, and it starts with display: none. During spins, it's orbiting inside a dark section of the wheel — it blends right in. A real casino ball is bright white/silver and always trackable. Players track the ball's deceleration to anticipate where it lands — you can't do that here.
+
+3. "MAX: $1000" baked into the felt image
+Bottom-left of the table says "MAX: $1000" — but your actual max bet per zone is 500M $Pc (set in code). This is leftover from the original CodeCanyon template and is completely wrong for a $Pc casino. It confuses players about actual limits.
+
+4. Balance: 0 $Pc but Bet: 13,025,000 $Pc
+The screenshot shows zero balance but over 13 million in active bets. A real casino would never let you bet more than your bankroll. The bet validation appears to be bypassed or the balance sync is broken.
+
+5. No player presence at the table
+There's no avatar, username, seat position, or visual indicator showing where "you" sit at this table. In any real online casino (Stake, BC.Game, Rollbit), your avatar and name are visible at your position. There's no visual connection between the player and the table.
+
+6. French labels on an English table
+The felt shows MANQUE (1-18), PASSE (19-36), IMPAIR (Odd), PAIR (Even). These are French roulette terms, but the rest of the UI is in English ("Balance," "Bet," "Last Win"). A pro notices this immediately — either commit to European French-style or use English labels (Low/High, Odd/Even). Mixing them screams "template."
+
+7. No recent numbers / spin history scoreboard
+Every real casino table — physical or online — shows the last 10-20 winning numbers. Players use this to spot patterns, track hot/cold numbers, and make decisions. There's no visible history panel.
+
+8. No chip values shown on placed chips
+The chips sitting on the numbers don't show their denomination. A pro needs to instantly see what's riding on each spot. The chips all look the same once placed.
+
+9. No winning number highlight / landing animation
+When the ball lands, there's no clear visual on the table showing which number won. Real games flash/highlight the winning number on the felt, show a marker, and animate the payout.
+
+10. No dealer / croupier presence
+Even automated online roulette shows a dealer area or at least a "dealer" indicator. There's no sense that someone is running this table.
