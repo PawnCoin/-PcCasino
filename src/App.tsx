@@ -129,7 +129,7 @@ function App() {
     return match ? match[1] : null;
   });
   const [showAuth, setShowAuth] = useState(false);
-  const [, setShowWalletModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -1183,6 +1183,8 @@ function App() {
         walletAddress={user?.walletAddress || null}
         balance={user?.balance || 0}
         onConnect={handleWalletConnect}
+        externalOpen={showWalletModal}
+        onExternalOpenChange={setShowWalletModal}
         onDisconnect={() => {
           if (user) {
             const updated = { ...user, walletAddress: undefined };

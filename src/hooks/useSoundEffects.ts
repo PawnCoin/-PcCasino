@@ -550,68 +550,39 @@ function playSmackSound(ctx: AudioContext, master: GainNode, now: number, vol: n
   const smackVol = vol * 3;
   const layer = ctx.createGain();
   layer.connect(master);
-  addReverb(ctx, master, layer, 0.15, 0.2);
 
-  const crackBuf = createNoiseBuffer(ctx, 0.015);
+  const crackBuf = createNoiseBuffer(ctx, 0.01);
   const crackSrc = ctx.createBufferSource();
   crackSrc.buffer = crackBuf;
   const crackHP = ctx.createBiquadFilter();
   crackHP.type = 'highpass';
-  crackHP.frequency.value = 4000;
+  crackHP.frequency.value = 6000;
   const crackBP = ctx.createBiquadFilter();
   crackBP.type = 'peaking';
-  crackBP.frequency.value = 6000;
-  crackBP.gain.value = 12;
-  crackBP.Q.value = 2;
+  crackBP.frequency.value = 8000;
+  crackBP.gain.value = 18;
+  crackBP.Q.value = 3;
   const crackGain = ctx.createGain();
-  crackGain.gain.setValueAtTime(0.9 * smackVol, now);
-  crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+  crackGain.gain.setValueAtTime(1.0 * smackVol, now);
+  crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
   crackSrc.connect(crackHP);
   crackHP.connect(crackBP);
   crackBP.connect(crackGain);
   crackGain.connect(layer);
   crackSrc.start(now);
-  crackSrc.stop(now + 0.025);
+  crackSrc.stop(now + 0.015);
 
   const snapOsc = ctx.createOscillator();
   snapOsc.type = 'square';
-  snapOsc.frequency.setValueAtTime(3200, now);
-  snapOsc.frequency.exponentialRampToValueAtTime(800, now + 0.03);
+  snapOsc.frequency.setValueAtTime(5000, now);
+  snapOsc.frequency.exponentialRampToValueAtTime(1500, now + 0.015);
   const snapGain = ctx.createGain();
-  snapGain.gain.setValueAtTime(0.6 * smackVol, now);
-  snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+  snapGain.gain.setValueAtTime(0.4 * smackVol, now);
+  snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
   snapOsc.connect(snapGain);
   snapGain.connect(layer);
   snapOsc.start(now);
-  snapOsc.stop(now + 0.04);
-
-  const bodyOsc = ctx.createOscillator();
-  bodyOsc.type = 'sine';
-  bodyOsc.frequency.setValueAtTime(400, now + 0.005);
-  bodyOsc.frequency.exponentialRampToValueAtTime(120, now + 0.08);
-  const bodyGain = ctx.createGain();
-  bodyGain.gain.setValueAtTime(0.5 * smackVol, now + 0.005);
-  bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-  bodyOsc.connect(bodyGain);
-  bodyGain.connect(layer);
-  bodyOsc.start(now + 0.005);
-  bodyOsc.stop(now + 0.12);
-
-  const tableBuf = createNoiseBuffer(ctx, 0.06);
-  const tableSrc = ctx.createBufferSource();
-  tableSrc.buffer = tableBuf;
-  const tableBP = ctx.createBiquadFilter();
-  tableBP.type = 'bandpass';
-  tableBP.frequency.value = 800;
-  tableBP.Q.value = 1.5;
-  const tableGain = ctx.createGain();
-  tableGain.gain.setValueAtTime(0.4 * smackVol, now + 0.008);
-  tableGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-  tableSrc.connect(tableBP);
-  tableBP.connect(tableGain);
-  tableGain.connect(layer);
-  tableSrc.start(now + 0.008);
-  tableSrc.stop(now + 0.08);
+  snapOsc.stop(now + 0.02);
 }
 
 function playSynthSound(type: SoundType, volume: number) {

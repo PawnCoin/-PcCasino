@@ -1678,8 +1678,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
               {/* YOUR BADGE — below table, above hand */}
               {(gamePhase === 'bidding' || gamePhase === 'playing') && (
-                <div className="flex items-center justify-center gap-2 py-1.5" style={{ background: 'rgba(5,5,10,0.95)' }}>
-                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/85 border border-[#D4AF37]/40 backdrop-blur-sm">
+                <div className="flex items-center justify-center gap-2 py-1" style={{ background: 'transparent' }}>
+                  <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-black/60 border border-[#D4AF37]/30 backdrop-blur-sm">
                     <div className="relative">
                       <AvatarSprite avatar={SPADES_AVATARS[0]} size={36} active={currentPlayer === 0 && gamePhase === 'playing'} />
                       {currentPlayer === 0 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
@@ -1706,7 +1706,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
               {/* ── YOUR HAND ── shown during bidding AND playing */}
               {(gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
-                <div style={{ background: 'linear-gradient(180deg, rgba(8,8,14,0.95) 0%, rgba(5,5,10,1) 100%)', borderTop: '2px solid rgba(93,64,55,0.5)', padding: '10px 8px 12px', position: 'relative', zIndex: 20 }}>
+                <div style={{ background: 'transparent', padding: '0 8px 4px', position: 'relative', zIndex: 20, marginTop: '-18px' }}>
                   {/* Reaction buttons + SMACK */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
                     <div className="flex gap-1 items-center">

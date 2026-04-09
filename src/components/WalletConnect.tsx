@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wallet, ChevronDown, LogOut, User, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { CasinoIcon } from '@/components/CasinoIcons';
@@ -11,6 +11,8 @@ interface WalletConnectProps {
   balance: number;
   onConnect: (walletType: string, address: string) => void;
   onDisconnect: () => void;
+  externalOpen?: boolean;
+  onExternalOpenChange?: (open: boolean) => void;
 }
 
 const WALLETS = [
@@ -42,10 +44,19 @@ export function WalletConnect({
   balance,
   onConnect,
   onDisconnect,
+  externalOpen,
+  onExternalOpenChange,
 }: WalletConnectProps) {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (externalOpen) {
+      setShowWalletModal(true);
+      onExternalOpenChange?.(false);
+    }
+  }, [externalOpen, onExternalOpenChange]);
 
   const handleConnect = async (walletId: string) => {
     setConnecting(walletId);
@@ -208,14 +219,6 @@ export function WalletConnect({
 
   return (
     <>
-      <Button
-        onClick={() => setShowWalletModal(true)}
-        className="btn-primary flex items-center gap-2"
-      >
-        <Wallet className="w-4 h-4" />
-        CONNECT WALLET
-      </Button>
-
       <Dialog open={showWalletModal} onOpenChange={setShowWalletModal}>
         <DialogContent
           className="max-w-md"

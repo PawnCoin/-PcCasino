@@ -154,6 +154,10 @@ export function chooseAICard(ctx: AIContext): Card {
       const pool = nonSpades.length > 0 ? nonSpades : legal;
       return pool.reduce((h, c) => c.value > h.value ? c : h);
     }
+    const partnerWinningMed = partnerPlayed ? isWinning(partnerPlayed.card, currentTrick) : false;
+    if (partnerWinningMed) {
+      return legal.reduce((l, c) => c.value < l.value ? c : l);
+    }
     const following = leadSuit ? legal.filter(c => c.suit === leadSuit) : [];
     if (following.length > 0) {
       return following.reduce((h, c) => c.value > h.value ? c : h);
@@ -184,9 +188,8 @@ export function chooseAICard(ctx: AIContext): Card {
     }
 
     const partnerWinning = partnerPlayed ? isWinning(partnerPlayed.card, currentTrick) : false;
-    const isLastToPlay = currentTrick.length === (playerIndex < allPlayers.findIndex(p => p.id === allPlayers[partnerIndex]?.id) ? 2 : 3);
 
-    if (partnerWinning && isLastToPlay && tricksNeeded <= 1) {
+    if (partnerWinning) {
       return legal.reduce((l, c) => c.value < l.value ? c : l);
     }
 
