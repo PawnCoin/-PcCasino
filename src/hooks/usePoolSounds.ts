@@ -1,109 +1,70 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 
-let sharedCtx: AudioContext | null = null;
+const SOUND_URLS = {
+  cue: '/sounds/cue.ogg',
+  ballcollision: '/sounds/ballcollision.ogg',
+  cushion: '/sounds/cushion.ogg',
+  pot: '/sounds/pot.ogg',
+};
 
-function getAudioCtx(): AudioContext {
-  if (!sharedCtx) sharedCtx = new AudioContext();
-  if (sharedCtx.state === 'suspended') sharedCtx.resume();
-  return sharedCtx;
+const audioCache: Record<string, HTMLAudioElement[]> = {};
+const POOL_SIZE = 4;
+
+function getPooledAudio(key: string): HTMLAudioElement | null {
+  if (!audioCache[key]) {
+    audioCache[key] = [];
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const a = new Audio(SOUND_URLS[key as keyof typeof SOUND_URLS]);
+      a.preload = 'auto';
+      audioCache[key].push(a);
+    }
+  }
+  const pool = audioCache[key];
+  for (const a of pool) {
+    if (a.paused || a.ended) {
+      return a;
+    }
+  }
+  const a = pool[0];
+  a.currentTime = 0;
+  return a;
+}
+
+function playSound(key: string, volume: number) {
+  const audio = getPooledAudio(key);
+  if (!audio) return;
+  audio.volume = Math.max(0, Math.min(1, volume));
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
 }
 
 export function usePoolSounds() {
   const lastCollisionTime = useRef(0);
+  const lastCushionTime = useRef(0);
 
-  function playCueStrike(power: number) {
-    const ac = getAudioCtx();
-    const dur = 0.08;
-    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ac.sampleRate * 0.018));
-    }
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    const gain = ac.createGain();
-    gain.gain.setValueAtTime(Math.max(0.2, power) * 0.9, ac.currentTime);
-    const filter = ac.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 1100;
-    filter.Q.value = 0.6;
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(ac.destination);
-    src.start();
-  }
+  const playCueStrike = useCallback((power: number) => {
+    playSound('cue', Math.max(0.3, power) * 0.9);
+  }, []);
 
-  function playBallCollision(velocity: number) {
-    const ac = getAudioCtx();
-    const dur = 0.05;
-    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ac.sampleRate * 0.012));
-    }
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    const gain = ac.createGain();
-    const vol = Math.min(1, Math.max(0.05, velocity * 0.05)) * 0.55;
-    gain.gain.setValueAtTime(vol, ac.currentTime);
-    const filter = ac.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 2200;
-    filter.Q.value = 1.2;
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(ac.destination);
-    src.start();
-  }
+  const playBallCollision = useCallback((velocity: number) => {
+    const vol = Math.min(1, Math.max(0.08, velocity * 0.06)) * 0.6;
+    playSound('ballcollision', vol);
+  }, []);
 
-  function playPocketDrop() {
-    const ac = getAudioCtx();
-    const dur = 0.22;
-    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
-    const data = buf.getChannelData(0);
-    const decayRate = ac.sampleRate * 0.07;
-    for (let i = 0; i < data.length; i++) {
-      const t = i / ac.sampleRate;
-      data[i] =
-        (Math.random() * 2 - 1) * 0.5 * Math.exp(-i / decayRate) +
-        Math.sin(2 * Math.PI * 80 * t) * 0.5 * Math.exp(-i / (ac.sampleRate * 0.04));
-    }
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    const gain = ac.createGain();
-    gain.gain.setValueAtTime(0.7, ac.currentTime);
-    const filter = ac.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 600;
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(ac.destination);
-    src.start();
-  }
+  const playPocketDrop = useCallback(() => {
+    playSound('pot', 0.7);
+  }, []);
 
-  function playBreakShot() {
-    const ac = getAudioCtx();
-    const dur = 0.18;
-    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ac.sampleRate * 0.03));
-    }
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    const gain = ac.createGain();
-    gain.gain.setValueAtTime(1.0, ac.currentTime);
-    const filter = ac.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 900;
-    filter.Q.value = 0.4;
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(ac.destination);
-    src.start();
-  }
+  const playBreakShot = useCallback(() => {
+    playSound('cue', 1.0);
+  }, []);
 
-  function playCollisions(collisions: { velocity: number }[], soundEnabled: boolean) {
+  const playCushionBounce = useCallback((velocity: number) => {
+    const vol = Math.min(1, Math.max(0.05, velocity * 0.08)) * 0.5;
+    playSound('cushion', vol);
+  }, []);
+
+  const playCollisions = useCallback((collisions: { velocity: number }[], soundEnabled: boolean) => {
     if (!soundEnabled || collisions.length === 0) return;
     const now = performance.now();
     if (now - lastCollisionTime.current < 16) return;
@@ -112,7 +73,16 @@ export function usePoolSounds() {
     for (let i = 0; i < count; i++) {
       playBallCollision(collisions[i].velocity);
     }
-  }
+  }, [playBallCollision]);
 
-  return { playCueStrike, playBallCollision, playPocketDrop, playBreakShot, playCollisions };
+  const playCushionBounces = useCallback((bounces: { velocity: number }[], soundEnabled: boolean) => {
+    if (!soundEnabled || bounces.length === 0) return;
+    const now = performance.now();
+    if (now - lastCushionTime.current < 30) return;
+    lastCushionTime.current = now;
+    const strongest = bounces.reduce((a, b) => a.velocity > b.velocity ? a : b);
+    playCushionBounce(strongest.velocity);
+  }, [playCushionBounce]);
+
+  return { playCueStrike, playBallCollision, playPocketDrop, playBreakShot, playCollisions, playCushionBounces };
 }

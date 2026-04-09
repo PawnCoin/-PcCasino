@@ -70,8 +70,8 @@ const SNOOKER_W = 780;
 const SNOOKER_H = 420;
 const BALL_R = 10;
 const SNOOKER_R = 9;
-const FRICTION = 0.984;
-const MIN_SPEED = 0.07;
+const FRICTION = 0.976;
+const MIN_SPEED = 0.12;
 const POCKET_R = 18;
 const RAIL = 28;
 
@@ -599,13 +599,47 @@ function drawPool(
   ctx.fillStyle = '#050505';
   ctx.fillRect(0, 0, tableW, tableH);
 
-  // Outer wood / frame
+  // Outer drop shadow for table depth
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetX = 4;
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = frameColor;
+  ctx.fillRect(2, 2, tableW - 4, tableH - 4);
+  ctx.restore();
+
+  // Outer wood / frame with dimensional wood-grain look
   const frameGrad = ctx.createLinearGradient(0, 0, 0, tableH);
-  frameGrad.addColorStop(0, frameColor);
-  frameGrad.addColorStop(0.5, adjustColorBrightness(frameColor, -30));
-  frameGrad.addColorStop(1, frameColor);
+  frameGrad.addColorStop(0, adjustColorBrightness(frameColor, 25));
+  frameGrad.addColorStop(0.15, frameColor);
+  frameGrad.addColorStop(0.5, adjustColorBrightness(frameColor, -35));
+  frameGrad.addColorStop(0.85, frameColor);
+  frameGrad.addColorStop(1, adjustColorBrightness(frameColor, 15));
   ctx.fillStyle = frameGrad;
   ctx.fillRect(0, 0, tableW, tableH);
+
+  // Frame inner bevel highlight (top + left light edge)
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(1, tableH - 1); ctx.lineTo(1, 1); ctx.lineTo(tableW - 1, 1);
+  ctx.stroke();
+
+  // Frame inner bevel shadow (bottom + right dark edge)
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(tableW - 1, 1); ctx.lineTo(tableW - 1, tableH - 1); ctx.lineTo(1, tableH - 1);
+  ctx.stroke();
+
+  // Wood grain texture lines on frame
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 12; i++) {
+    const y = (tableH / 12) * i + Math.sin(i * 1.7) * 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(tableW, y); ctx.stroke();
+  }
 
   // Cushion rails
   if (isGlassSkin) {
@@ -617,12 +651,68 @@ function drawPool(
     ctx.strokeRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
     ctx.restore();
   } else {
-    const railGrad = ctx.createLinearGradient(0, 0, 0, tableH);
-    railGrad.addColorStop(0, railColor);
-    railGrad.addColorStop(1, adjustColorBrightness(railColor, -20));
-    ctx.fillStyle = railGrad;
-    ctx.fillRect(RAIL - 8, RAIL - 8, tableW - (RAIL - 8) * 2, tableH - (RAIL - 8) * 2);
+    const railInner = RAIL;
+    const railOuter = RAIL - 8;
+    const railW = railInner - railOuter;
+
+    // Top rail
+    const topRailGrad = ctx.createLinearGradient(0, railOuter, 0, railInner);
+    topRailGrad.addColorStop(0, adjustColorBrightness(railColor, 20));
+    topRailGrad.addColorStop(0.3, railColor);
+    topRailGrad.addColorStop(0.7, adjustColorBrightness(railColor, -15));
+    topRailGrad.addColorStop(1, adjustColorBrightness(railColor, -30));
+    ctx.fillStyle = topRailGrad;
+    ctx.fillRect(railOuter, railOuter, tableW - railOuter * 2, railW);
+
+    // Bottom rail
+    const bottomRailGrad = ctx.createLinearGradient(0, tableH - railInner, 0, tableH - railOuter);
+    bottomRailGrad.addColorStop(0, adjustColorBrightness(railColor, -30));
+    bottomRailGrad.addColorStop(0.3, adjustColorBrightness(railColor, -15));
+    bottomRailGrad.addColorStop(0.7, railColor);
+    bottomRailGrad.addColorStop(1, adjustColorBrightness(railColor, 20));
+    ctx.fillStyle = bottomRailGrad;
+    ctx.fillRect(railOuter, tableH - railInner, tableW - railOuter * 2, railW);
+
+    // Left rail
+    const leftRailGrad = ctx.createLinearGradient(railOuter, 0, railInner, 0);
+    leftRailGrad.addColorStop(0, adjustColorBrightness(railColor, 20));
+    leftRailGrad.addColorStop(0.3, railColor);
+    leftRailGrad.addColorStop(0.7, adjustColorBrightness(railColor, -15));
+    leftRailGrad.addColorStop(1, adjustColorBrightness(railColor, -30));
+    ctx.fillStyle = leftRailGrad;
+    ctx.fillRect(railOuter, railOuter, railW, tableH - railOuter * 2);
+
+    // Right rail
+    const rightRailGrad = ctx.createLinearGradient(tableW - railInner, 0, tableW - railOuter, 0);
+    rightRailGrad.addColorStop(0, adjustColorBrightness(railColor, -30));
+    rightRailGrad.addColorStop(0.3, adjustColorBrightness(railColor, -15));
+    rightRailGrad.addColorStop(0.7, railColor);
+    rightRailGrad.addColorStop(1, adjustColorBrightness(railColor, 20));
+    ctx.fillStyle = rightRailGrad;
+    ctx.fillRect(tableW - railInner, railOuter, railW, tableH - railOuter * 2);
+
+    // Rail cushion nose highlights (inner edge light strip)
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(railInner, railInner, tableW - railInner * 2, tableH - railInner * 2);
   }
+
+  // Inner shadow around felt playing surface
+  ctx.save();
+  const shadowWidth = 6;
+  // Top shadow
+  const topShadow = ctx.createLinearGradient(0, RAIL, 0, RAIL + shadowWidth);
+  topShadow.addColorStop(0, 'rgba(0,0,0,0.35)');
+  topShadow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = topShadow;
+  ctx.fillRect(RAIL, RAIL, tableW - RAIL * 2, shadowWidth);
+  // Left shadow
+  const leftShadow = ctx.createLinearGradient(RAIL, 0, RAIL + shadowWidth, 0);
+  leftShadow.addColorStop(0, 'rgba(0,0,0,0.35)');
+  leftShadow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = leftShadow;
+  ctx.fillRect(RAIL, RAIL, shadowWidth, tableH - RAIL * 2);
+  ctx.restore();
 
   // Felt surface
   if (feltColor) {
@@ -637,8 +727,31 @@ function drawPool(
     ctx.fillRect(RAIL, RAIL, tableW - RAIL * 2, tableH - RAIL * 2);
   }
 
+  // Inner shadow on top of felt (subtle depth from rails)
+  const feltShadowW = 5;
+  const topFS = ctx.createLinearGradient(0, RAIL, 0, RAIL + feltShadowW);
+  topFS.addColorStop(0, 'rgba(0,0,0,0.22)');
+  topFS.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = topFS;
+  ctx.fillRect(RAIL, RAIL, tableW - RAIL * 2, feltShadowW);
+  const leftFS = ctx.createLinearGradient(RAIL, 0, RAIL + feltShadowW, 0);
+  leftFS.addColorStop(0, 'rgba(0,0,0,0.22)');
+  leftFS.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = leftFS;
+  ctx.fillRect(RAIL, RAIL, feltShadowW, tableH - RAIL * 2);
+  const bottomFS = ctx.createLinearGradient(0, tableH - RAIL, 0, tableH - RAIL - feltShadowW);
+  bottomFS.addColorStop(0, 'rgba(0,0,0,0.12)');
+  bottomFS.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = bottomFS;
+  ctx.fillRect(RAIL, tableH - RAIL - feltShadowW, tableW - RAIL * 2, feltShadowW);
+  const rightFS = ctx.createLinearGradient(tableW - RAIL, 0, tableW - RAIL - feltShadowW, 0);
+  rightFS.addColorStop(0, 'rgba(0,0,0,0.12)');
+  rightFS.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = rightFS;
+  ctx.fillRect(tableW - RAIL - feltShadowW, RAIL, feltShadowW, tableH - RAIL * 2);
+
   // Felt texture
-  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.02)';
   ctx.lineWidth = 1;
   for (let x = RAIL; x < tableW - RAIL; x += 40) {
     ctx.beginPath(); ctx.moveTo(x, RAIL); ctx.lineTo(x, tableH - RAIL); ctx.stroke();
@@ -661,23 +774,27 @@ function drawPool(
   // Pockets
   pockets.forEach((p, i) => {
     const isHighlighted = highlightPocket === i;
-    const shadowGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius + 6);
-    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
-    shadowGrad.addColorStop(0.7, 'rgba(0,0,0,0.4)');
-    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = shadowGrad;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius + 6, 0, Math.PI * 2); ctx.fill();
 
+    const outerShadow = ctx.createRadialGradient(p.x, p.y, p.radius * 0.6, p.x, p.y, p.radius + 8);
+    outerShadow.addColorStop(0, 'rgba(0,0,0,0.95)');
+    outerShadow.addColorStop(0.6, 'rgba(0,0,0,0.5)');
+    outerShadow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = outerShadow;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius + 8, 0, Math.PI * 2); ctx.fill();
+
+    const holeGrad = ctx.createRadialGradient(p.x - p.radius * 0.15, p.y - p.radius * 0.15, 0, p.x, p.y, p.radius);
+    holeGrad.addColorStop(0, '#0a0a0a');
+    holeGrad.addColorStop(0.5, '#050505');
+    holeGrad.addColorStop(0.85, '#030303');
+    holeGrad.addColorStop(1, '#111111');
     ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#060606'; ctx.fill();
+    ctx.fillStyle = holeGrad; ctx.fill();
 
-    const trimGrad = ctx.createLinearGradient(p.x - p.radius, p.y - p.radius, p.x + p.radius, p.y + p.radius);
-    trimGrad.addColorStop(0, isHighlighted ? '#FFD700' : '#C0A030');
-    trimGrad.addColorStop(0.5, isHighlighted ? '#FFF0A0' : '#E8C84A');
-    trimGrad.addColorStop(1, isHighlighted ? '#FFD700' : '#9A7820');
-    ctx.strokeStyle = trimGrad;
-    ctx.lineWidth = isHighlighted ? 3 : 2;
-    ctx.stroke();
+    if (isHighlighted) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   });
 
   // Aiming guide + cue
@@ -1228,11 +1345,12 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     const balls = ballsRef.current;
 
     const backend = physicsModeRef.current === 'realistic' ? RealisticBackend : ClassicBackend;
-    const { anyMoving, pocketed, collisions } = backend.step(balls, tw, th, pockets, RAIL);
+    const { anyMoving, pocketed, collisions, cushionBounces } = backend.step(balls, tw, th, pockets, RAIL);
     redrawCanvas();
     movingRef.current = anyMoving;
 
     poolSounds.playCollisions(collisions, settings.casinoSoundEnabled);
+    poolSounds.playCushionBounces(cushionBounces, settings.casinoSoundEnabled);
     if (settings.casinoSoundEnabled && pocketed.length > 0) {
       poolSounds.playPocketDrop();
     }

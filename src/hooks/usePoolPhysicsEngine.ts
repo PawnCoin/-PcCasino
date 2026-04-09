@@ -81,6 +81,7 @@ export interface StepResult {
   anyMoving: boolean;
   pocketed: PhysicsBall[];
   collisions: { velocity: number }[];
+  cushionBounces: { velocity: number }[];
 }
 
 export interface PoolPhysicsBackend {
@@ -97,8 +98,8 @@ function hypot(dx: number, dy: number) {
 
 // ── Classic Backend ───────────────────────────────────────────────────────────
 
-const FRICTION_CLASSIC = 0.984;
-const MIN_SPEED_CLASSIC = 0.07;
+const FRICTION_CLASSIC = 0.976;
+const MIN_SPEED_CLASSIC = 0.12;
 
 export const ClassicBackend: PoolPhysicsBackend = {
   initShot(_balls, _iv) {},
@@ -106,6 +107,7 @@ export const ClassicBackend: PoolPhysicsBackend = {
   step(balls, tableW, tableH, pockets, rail): StepResult {
     const pocketedThisStep: PhysicsBall[] = [];
     const collisions: { velocity: number }[] = [];
+    const cushionBounces: { velocity: number }[] = [];
 
     balls.forEach(ball => {
       if (ball.pocketed) return;
@@ -116,10 +118,10 @@ export const ClassicBackend: PoolPhysicsBackend = {
       ball.x += ball.vx;
       ball.y += ball.vy;
 
-      if (ball.x - ball.radius < rail) { ball.x = rail + ball.radius; ball.vx = Math.abs(ball.vx) * 0.78; }
-      if (ball.x + ball.radius > tableW - rail) { ball.x = tableW - rail - ball.radius; ball.vx = -Math.abs(ball.vx) * 0.78; }
-      if (ball.y - ball.radius < rail) { ball.y = rail + ball.radius; ball.vy = Math.abs(ball.vy) * 0.78; }
-      if (ball.y + ball.radius > tableH - rail) { ball.y = tableH - rail - ball.radius; ball.vy = -Math.abs(ball.vy) * 0.78; }
+      if (ball.x - ball.radius < rail) { const v = Math.abs(ball.vx); ball.x = rail + ball.radius; ball.vx = v * 0.78; cushionBounces.push({ velocity: v }); }
+      if (ball.x + ball.radius > tableW - rail) { const v = Math.abs(ball.vx); ball.x = tableW - rail - ball.radius; ball.vx = -v * 0.78; cushionBounces.push({ velocity: v }); }
+      if (ball.y - ball.radius < rail) { const v = Math.abs(ball.vy); ball.y = rail + ball.radius; ball.vy = v * 0.78; cushionBounces.push({ velocity: v }); }
+      if (ball.y + ball.radius > tableH - rail) { const v = Math.abs(ball.vy); ball.y = tableH - rail - ball.radius; ball.vy = -v * 0.78; cushionBounces.push({ velocity: v }); }
 
       for (const p of pockets) {
         if (hypot(ball.x - p.x, ball.y - p.y) < p.radius) {
@@ -155,7 +157,7 @@ export const ClassicBackend: PoolPhysicsBackend = {
     }
 
     const anyMoving = balls.some(b => !b.pocketed && (Math.abs(b.vx) > MIN_SPEED_CLASSIC || Math.abs(b.vy) > MIN_SPEED_CLASSIC));
-    return { anyMoving, pocketed: pocketedThisStep, collisions };
+    return { anyMoving, pocketed: pocketedThisStep, collisions, cushionBounces };
   },
 
   isSettled(balls) {
@@ -380,6 +382,7 @@ export const RealisticBackend: PoolPhysicsBackend = {
   step(balls, tableW, tableH, pockets, rail): StepResult {
     const pocketedThisStep: PhysicsBall[] = [];
     const collisions: { velocity: number }[] = [];
+    const cushionBounces: { velocity: number }[] = [];
 
     balls.forEach(ball => {
       if (ball.wx === undefined) ball.wx = 0;
@@ -399,19 +402,19 @@ export const RealisticBackend: PoolPhysicsBackend = {
 
       if (ball.x - ball.radius < rail) {
         ball.x = rail + ball.radius;
-        if (ball.vx < 0) applyTaligueCushionBounce(ball, 'x');
+        if (ball.vx < 0) { cushionBounces.push({ velocity: Math.abs(ball.vx) }); applyTaligueCushionBounce(ball, 'x'); }
       }
       if (ball.x + ball.radius > tableW - rail) {
         ball.x = tableW - rail - ball.radius;
-        if (ball.vx > 0) applyTaligueCushionBounce(ball, 'x');
+        if (ball.vx > 0) { cushionBounces.push({ velocity: Math.abs(ball.vx) }); applyTaligueCushionBounce(ball, 'x'); }
       }
       if (ball.y - ball.radius < rail) {
         ball.y = rail + ball.radius;
-        if (ball.vy < 0) applyTaligueCushionBounce(ball, 'y');
+        if (ball.vy < 0) { cushionBounces.push({ velocity: Math.abs(ball.vy) }); applyTaligueCushionBounce(ball, 'y'); }
       }
       if (ball.y + ball.radius > tableH - rail) {
         ball.y = tableH - rail - ball.radius;
-        if (ball.vy > 0) applyTaligueCushionBounce(ball, 'y');
+        if (ball.vy > 0) { cushionBounces.push({ velocity: Math.abs(ball.vy) }); applyTaligueCushionBounce(ball, 'y'); }
       }
     });
 
@@ -456,7 +459,7 @@ export const RealisticBackend: PoolPhysicsBackend = {
     const anyMoving = balls.some(b =>
       !b.pocketed && (Math.abs(b.vx) > MIN_SPEED_REALISTIC || Math.abs(b.vy) > MIN_SPEED_REALISTIC)
     );
-    return { anyMoving, pocketed: pocketedThisStep, collisions };
+    return { anyMoving, pocketed: pocketedThisStep, collisions, cushionBounces };
   },
 
   isSettled(balls) {
