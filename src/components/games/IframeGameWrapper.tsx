@@ -96,11 +96,11 @@ export function IframeGameWrapper({
         );
       }
 
-      if (isRoulette && type === 'roulette:betsCollected' && Array.isArray(event.data.bets)) {
-        for (const bet of event.data.bets) {
-          if (bet && typeof bet.amount === 'number' && bet.amount > 0 && Array.isArray(bet.numbers)) {
-            getSocket().emit('roulette:bet', { amount: bet.amount, numbers: bet.numbers });
-          }
+      if (isRoulette && type === 'roulette:chipPlaced') {
+        const numbers = Array.isArray(event.data.numbers) ? event.data.numbers : [];
+        const chipAmount = typeof event.data.amount === 'number' ? event.data.amount : 0;
+        if (chipAmount > 0 && numbers.length > 0) {
+          getSocket().emit('roulette:bet', { amount: chipAmount, numbers });
         }
       }
 
@@ -193,12 +193,6 @@ export function IframeGameWrapper({
         result: data.result,
         roundId: data.roundId,
       }, '*');
-      if (typeof data.payout === 'number' && data.payout > 0) {
-        iframeRef.current?.contentWindow?.postMessage({
-          type: 'roulette:settlement',
-          payout: data.payout,
-        }, '*');
-      }
     };
 
     const onPlayers = (data: { players: RoulettePlayer[] }) => {

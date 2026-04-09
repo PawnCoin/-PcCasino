@@ -2155,6 +2155,8 @@ window.addEventListener('beforeunload', function(e) {
   
 
 
+  
+
   // ---- Multiplayer Roulette Bridge (appended) ----
   var mp_serverResult = null;
   var mp_phase = 'waiting';
@@ -2163,40 +2165,36 @@ window.addEventListener('beforeunload', function(e) {
   var mp_roundId = 0;
   var mp_timerOverlay = null;
   var mp_spinBlocked = false;
-  var mp_serverPayout = null;
+  var _mp_origMathRandom = Math.random;
 
-  function mp_collectBets() {
-    var bets = [];
-    var betSources = [
-      [infoConstants.numbers, numberBets],
-      [infoConstants.splitNumbersX, splitBetsX],
-      [infoConstants.splitNumbersY, splitBetsY],
-      [infoConstants.cornerNumbers, cornerBets],
-      [infoConstants.streetNumbers, streetBets],
-      [infoConstants.sixainNumbers, sixainBets],
-      [infoConstants.sectionNumbers, sectionBets],
-    ];
-    betSources.forEach(function(src) {
-      var numMap = src[0], betMap = src[1];
-      for (var key in betMap) {
-        if (betMap[key] > 0 && numMap[key]) {
-          bets.push({ numbers: numMap[key].slice(), amount: betMap[key] });
-        }
-      }
-    });
-    return bets;
-  }
-
-  var _mp_origStart = start;
-  start = function() {
-    if (mp_spinBlocked) return;
-    _mp_origStart.apply(this, arguments);
-    if (typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
-      random = mp_serverResult;
-      haben = infoConstants.rollerInfo[random];
+  // Wrap betClick to emit each chip placement to server during betting
+  var _mp_origBetClick = betClick;
+  betClick = function(splitNumbers, splitBets, split) {
+    var oldVal = splitBets[split] || 0;
+    _mp_origBetClick.apply(this, arguments);
+    var newVal = splitBets[split] || 0;
+    var added = newVal - oldVal;
+    if (added > 0 && splitNumbers && splitNumbers[split]) {
+      window.parent.postMessage({
+        type: 'roulette:chipPlaced',
+        numbers: splitNumbers[split].slice(),
+        amount: added
+      }, '*');
     }
   };
 
+  // Wrap start() to patch Math.random so local winCheck uses server result
+  var _mp_origStart = start;
+  start = function() {
+    if (mp_spinBlocked) return;
+    if (typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
+      Math.random = function() { return (mp_serverResult + 0.5) / 37; };
+    }
+    _mp_origStart.apply(this, arguments);
+    Math.random = _mp_origMathRandom;
+  };
+
+  // Wrap endroll to clear server state after round completes
   var _mp_origEndroll = endroll;
   endroll = function() {
     _mp_origEndroll.apply(this, arguments);
@@ -2280,10 +2278,6 @@ window.addEventListener('beforeunload', function(e) {
       mp_phase = 'spinning';
       mp_spinBlocked = false;
       mp_updateTimerOverlay();
-      var collectedBets = mp_collectBets();
-      if (collectedBets.length > 0) {
-        window.parent.postMessage({ type: 'roulette:betsCollected', bets: collectedBets }, '*');
-      }
       setTimeout(function() {
         if (!betStart) {
           start();
@@ -2294,10 +2288,6 @@ window.addEventListener('beforeunload', function(e) {
     if (e.data.type === 'roulette:players') {
       mp_players = e.data.players || [];
       mp_createPlayerOverlay();
-    }
-
-    if (e.data.type === 'roulette:settlement') {
-      mp_serverPayout = e.data.payout;
     }
   });
   
