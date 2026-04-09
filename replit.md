@@ -44,6 +44,14 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 - **Admin**: Admin panel directly accessible for users with `isAdmin: true` flag (password gate removed).
 - **Security**: Profanity filter in lobby chat, 2FA and self-exclusion options in user profiles.
 
+### Poker Hand Evaluation Engine
+- `src/hooks/useGameEngine.ts` — `getBestHand(cards)` finds the optimal 5-card hand from 7 cards (C(7,5)=21 combinations), returns a numeric `score` for direct comparison including kicker resolution. Handles wheel straight (A-2-3-4-5).
+- `resolveHand()` in PokerGame.tsx evaluates all active opponents' actual dealt hole cards vs player's hand — winner determined by hand score comparison, never by random chance.
+- All opponents receive actual hole cards from the deck in `startNewHand()`. All active/non-folded opponents act each betting round (no skipping).
+
+### LiveOne Music Integration
+- Embedded as an iframe within the MusicPlayer panel (no external tab redirect). Users can stream LiveOne without leaving the casino.
+
 ### External Dependencies
 
 - **PostgreSQL**: Primary database for all persistent data.

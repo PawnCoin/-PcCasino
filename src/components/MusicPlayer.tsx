@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown, ExternalLink } from 'lucide-react';
+import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, setSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
@@ -311,38 +311,32 @@ export function MusicPlayer() {
           )}
 
           {activeTab === 'liveone' && (
-            <div className="p-5 flex flex-col items-center gap-4">
-              {/* LiveOne logo / branding */}
+            <div className="flex flex-col items-center gap-2 p-2">
               <div
-                className="w-full rounded-xl p-4 flex flex-col items-center gap-3"
+                className="w-full rounded-xl overflow-hidden flex flex-col items-center"
                 style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #0d0620 100%)', border: '1px solid rgba(139,92,246,0.3)' }}
               >
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-black"
-                  style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff', letterSpacing: '-1px' }}
-                >
-                  L1
+                <div className="flex items-center gap-2 py-2 px-3 w-full" style={{ borderBottom: '1px solid rgba(139,92,246,0.2)' }}>
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff' }}
+                  >
+                    L1
+                  </div>
+                  <div className="font-bold text-white text-sm">LiveOne</div>
+                  <div className="text-[10px] text-gray-400 ml-auto">Stream while you play</div>
                 </div>
-                <div className="text-center">
-                  <div className="font-bold text-white text-base">LiveOne</div>
-                  <div className="text-xs text-gray-400 mt-0.5">Stream millions of songs free</div>
-                </div>
-                <p className="text-xs text-gray-500 text-center leading-relaxed">
-                  Open LiveOne in a new tab to stream any music you like while you play — your casino tracks will keep playing here unless you pause them.
-                </p>
-                <a
-                  href="https://play.liveone.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all"
-                  style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', color: '#fff' }}
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open LiveOne
-                </a>
+                <iframe
+                  src="https://play.liveone.com"
+                  title="LiveOne Music"
+                  className="w-full border-0"
+                  style={{ height: 420, background: '#0d0620' }}
+                  allow="autoplay; encrypted-media"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                />
               </div>
-              <p className="text-xs text-gray-600 text-center">
-                LiveOne is a separate service. Use the Casino Tracks tab to control music from within the app.
+              <p className="text-[10px] text-gray-600 text-center">
+                Stream music directly without leaving the casino.
               </p>
             </div>
           )}

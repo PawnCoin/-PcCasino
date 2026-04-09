@@ -6,7 +6,7 @@ import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { createDeck, shuffleDeck, evaluatePokerHand } from '@/hooks/useGameEngine';
+import { createDeck, shuffleDeck, evaluatePokerHand, getBestHand } from '@/hooks/useGameEngine';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { usePokerVoice } from '@/hooks/useGameVoice';
 import { PokerChip, ChipSelector } from '@/components/PokerChip';
@@ -210,6 +210,7 @@ interface OpponentData {
   position: string;
   avatarIdx: number;
   folded: boolean;
+  holeCards?: Card[];
 }
 
 const ACTION_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -557,26 +558,36 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     const activeOpps = opponents
       .map((o, idx) => ({ ...o, idx }))
       .filter(o => o.active && o.name && !o.folded);
-    const count = Math.min(activeOpps.length, Math.floor(Math.random() * 3) + 1);
-    const acting = activeOpps.slice(0, count);
-    const ACTION_POOL = ['CHECK', 'CALL', 'RAISE', 'FOLD', 'ALL IN'];
     let delay = 0;
-    acting.forEach(opp => {
+    activeOpps.forEach(opp => {
       setTimeout(() => setOppAction({ idx: opp.idx, label: '...', thinking: true }), delay);
-      delay += 700;
-      const label = ACTION_POOL[Math.floor(Math.random() * ACTION_POOL.length)];
+      delay += 500;
+      const rand = Math.random();
+      let label: string;
+      if (currentBet > opp.bet) {
+        if (rand < 0.15) label = 'FOLD';
+        else if (rand < 0.85) label = 'CALL';
+        else if (rand < 0.95) label = 'RAISE';
+        else label = 'ALL IN';
+      } else {
+        if (rand < 0.65) label = 'CHECK';
+        else if (rand < 0.85) label = 'RAISE';
+        else if (rand < 0.95) label = 'FOLD';
+        else label = 'ALL IN';
+      }
       setTimeout(() => {
         setOppAction({ idx: opp.idx, label, thinking: false });
         addAIReaction(opp.name || `opponent-${opp.id}`);
       }, delay);
-      delay += 950;
+      delay += 700;
       setTimeout(() => {
         setOppAction(null);
         if (label === 'FOLD') {
           setOpponents(prev => prev.map(o => o.id === opp.id ? { ...o, folded: true } : o));
           setHandActions(prev => [...prev, { street: currentStreetRef.current, actor: opp.name, action: 'FOLD' }]);
         } else if (label === 'CALL' || label === 'RAISE' || label === 'ALL IN') {
-          const betAdd = label === 'ALL IN' ? opp.balance : label === 'RAISE' ? 50 : 20;
+          const callDiff = Math.max(0, currentBet - opp.bet);
+          const betAdd = label === 'ALL IN' ? opp.balance : label === 'RAISE' ? callDiff + 50 : callDiff;
           const actual = Math.min(betAdd, opp.balance);
           setPot(prev => {
             const newPot = prev + actual;
@@ -588,6 +599,9 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               ? { ...o, balance: Math.max(0, o.balance - actual), bet: o.bet + actual }
               : o
           ));
+          if (label === 'RAISE') {
+            setCurrentBet(prev => prev + 50);
+          }
         } else {
           setHandActions(prev => [...prev, { street: currentStreetRef.current, actor: opp.name, action: 'CHECK' }]);
         }
@@ -595,28 +609,32 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       delay += 150;
     });
     setTimeout(callback, delay + 200);
-  }, [opponents]);
+  }, [opponents, currentBet]);
 
   const startNewHand = useCallback(() => {
     const newDeck = shuffleDeck(createDeck());
     const playerCards = [newDeck[0], newDeck[1]];
-    // SB=10 (player), BB=20 (one opponent), pot starts at 30
     const newOpponents = opponents.map((opp, idx) => ({
-      ...opp, bet: 0, folded: false,
+      ...opp, bet: 0, folded: false, holeCards: undefined as Card[] | undefined,
       active: opp.name !== '' ? (idx < 4 || Math.random() > 0.3) : false,
     }));
-    // Pick one active opponent as BB (bet=20), rest bet=10 (call SB)
-    const activeOppIds = newOpponents.filter(o => o.active && o.name).map(o => o.id);
+    let cardIdx = 2;
+    const withCards = newOpponents.map(o => {
+      if (!o.active || !o.name) return o;
+      const cards = [newDeck[cardIdx], newDeck[cardIdx + 1]];
+      cardIdx += 2;
+      return { ...o, holeCards: cards };
+    });
+    const activeOppIds = withCards.filter(o => o.active && o.name).map(o => o.id);
     const bbId = activeOppIds[0] ?? -1;
-    const finalOpps = newOpponents.map(o => {
+    const finalOpps = withCards.map(o => {
       if (!o.active) return o;
       if (o.id === bbId) return { ...o, bet: 20, balance: o.balance - 20, position: 'BB' };
       return { ...o, bet: 10, balance: o.balance - 10, position: o.position === 'BB' ? '' : o.position };
     });
-    // Pot = player SB(10) + BB(20) + each other active caller(10)
     const oppPot = finalOpps.reduce((s, o) => s + o.bet, 0);
     const startPot = 10 + oppPot;
-    setDeck(newDeck.slice(8));
+    setDeck(newDeck.slice(cardIdx));
     setPlayerHand(playerCards);
     playSound('card');
     setCommunityCards([]);
@@ -786,14 +804,30 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   };
 
   const resolveHand = () => {
-    const allCards = [...playerHand, ...communityCards];
-    const result = evaluatePokerHand(allCards);
-    const playerWins = Math.random() > 0.6;
-    const handName = handRankings[result.hand];
-    const oppCards: Card[] = [
-      deck[0] || { rank: 'K', suit: 'spades' },
-      deck[1] || { rank: 'Q', suit: 'hearts' },
-    ];
+    const playerAllCards = [...playerHand, ...communityCards];
+    const playerBest = getBestHand(playerAllCards);
+    const playerHandName = handRankings[playerBest.hand];
+
+    const activeOpps = opponents.filter(o => o.active && o.name && !o.folded && o.holeCards?.length === 2);
+    let bestOppScore = 0;
+    let bestOppName = '';
+    let bestOppCards: Card[] = [];
+    let bestOppHandName = '';
+
+    for (const opp of activeOpps) {
+      const oppAllCards = [...(opp.holeCards || []), ...communityCards];
+      const oppBest = getBestHand(oppAllCards);
+      if (oppBest.score > bestOppScore) {
+        bestOppScore = oppBest.score;
+        bestOppName = opp.name;
+        bestOppCards = opp.holeCards || [];
+        bestOppHandName = handRankings[oppBest.hand];
+      }
+    }
+
+    const playerWins = activeOpps.length === 0 || playerBest.score >= bestOppScore;
+    const winningHandName = playerWins ? playerHandName : bestOppHandName;
+
     const capturedPot = pot;
     const capturedCommunityCards = [...communityCards];
     const capturedPlayerHand = [...playerHand];
@@ -808,13 +842,12 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setWinEffect(true);
       setPotSweepToUser(true);
       setTimeout(() => setPotSweepToUser(false), 1200);
-      setWinText(`${handName} — ${winAmount} $Pc!`);
-      setMessage(`YOU WIN! ${handName}`);
+      setWinText(`${playerHandName} — ${winAmount} $Pc!`);
+      setMessage(`YOU WIN! ${playerHandName}`);
       playSound('win');
-      if (showVoice) announceEvent(`Winner. You won ${winAmount} with ${handName}.`);
-      setShowdownData({ winner: 'player', handName, winAmount, opponentCards: oppCards, playerCards: playerHand });
+      if (showVoice) announceEvent(`Winner. You won ${winAmount} with ${playerHandName}.`);
+      setShowdownData({ winner: 'player', handName: playerHandName, winAmount, opponentCards: bestOppCards.length ? bestOppCards : undefined, playerCards: playerHand });
 
-      // Save hand to DB
       if (isAuthenticated) {
         gameApi.savePokerHand({
           holeCards: capturedPlayerHand,
@@ -822,21 +855,18 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           actions: capturedActions,
           pot: capturedPot,
           winner: 'player',
-          handName,
+          handName: playerHandName,
           net: capturedPot - playerTotalBet,
           opponents: capturedOpponents.filter(o => o.active && o.name).map(o => ({ name: o.name, folded: o.folded })),
         }).catch(() => {});
       }
     } else {
       setLoseEffect(true);
-      const winnerIdx = Math.floor(Math.random() * 5);
-      const opponentName = opponents[winnerIdx]?.name || 'Taylor';
-      setMessage(`${opponentName} wins with ${handName}`);
+      setMessage(`${bestOppName} wins with ${bestOppHandName}`);
       playSound('lose');
-      if (showVoice) announceEvent(`${opponentName} wins with ${handName}.`);
-      setShowdownData({ winner: 'opponent', handName, winAmount: capturedPot, opponentName, opponentCards: oppCards });
+      if (showVoice) announceEvent(`${bestOppName} wins with ${bestOppHandName}.`);
+      setShowdownData({ winner: 'opponent', handName: bestOppHandName, winAmount: capturedPot, opponentName: bestOppName, opponentCards: bestOppCards });
 
-      // Save hand to DB
       if (isAuthenticated) {
         gameApi.savePokerHand({
           holeCards: capturedPlayerHand,
@@ -844,8 +874,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           actions: capturedActions,
           pot: capturedPot,
           winner: 'opponent',
-          winnerName: opponentName,
-          handName,
+          winnerName: bestOppName,
+          handName: bestOppHandName,
           net: -playerTotalBet,
           opponents: capturedOpponents.filter(o => o.active && o.name).map(o => ({ name: o.name, folded: o.folded })),
         }).catch(() => {});
