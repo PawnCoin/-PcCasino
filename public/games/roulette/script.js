@@ -3,7 +3,7 @@ import * as infoConstants from './modules/constants.js';
 import imageManifest from './modules/image-manifest.js';
 import * as btns from './modules/buttons.js';
 
-const DENOMS_DESC = [500000000, 250000000, 100000000, 50000000, 25000000, 10000000, 5000000, 2000000, 1000000, 500000, 100000, 50000, 25000, 10000, 5000, 1000, 500, 100, 50, 25, 10, 5, 1];
+const DENOMS_DESC = [500000000, 250000000, 100000000, 50000000, 25000000, 10000000, 5000000, 2000000, 1000000];
 const FPS = 60;
 const FRAME_DELAY = 1000 / FPS;
 const STACK_STEP = 0.4;
@@ -34,20 +34,6 @@ let buttonName = [];
 let chipsIndex = 0;
 let chipsMenuOpen = document.querySelector('.menu-open');
 const CHIP_COLOR_BY_VALUE = {
-  1:         '#e0e0e0',
-  5:         '#ef4444',
-  10:        '#3b82f6',
-  25:        '#22c55e',
-  50:        '#f97316',
-  100:       '#1a1a1a',
-  500:       '#8b5cf6',
-  1000:      '#06b6d4',
-  5000:      '#ec4899',
-  10000:     '#eab308',
-  25000:     '#1e3a5f',
-  50000:     '#dc2626',
-  100000:    '#059669',
-  500000:    '#b45309',
   1000000:   '#ef4444',
   2000000:   '#3b82f6',
   5000000:   '#22c55e',
@@ -75,20 +61,6 @@ function formatChipLabel(n) {
 }
 
 const ROULETTE_CHIP_STYLES = {
-  1:         { body:'#b0b0b0', bodyL:'#e8e8e8', bodyD:'#707070', notch:'#ffffff', notch2:'#999999', ring:'#e0e0e0', tierRing:'#4CAF50' },
-  5:         { body:'#7a0030', bodyL:'#d03055', bodyD:'#3a0010', notch:'#ff6080', notch2:'#900020', ring:'#ef4444', tierRing:'#4CAF50' },
-  10:        { body:'#1040a0', bodyL:'#3878f8', bodyD:'#002080', notch:'#6090ff', notch2:'#0030a0', ring:'#3b82f6', tierRing:'#4CAF50' },
-  25:        { body:'#0a6028', bodyL:'#20b050', bodyD:'#003810', notch:'#60e080', notch2:'#105020', ring:'#22c55e', tierRing:'#4CAF50' },
-  50:        { body:'#a04000', bodyL:'#f97040', bodyD:'#602000', notch:'#ffb060', notch2:'#a04000', ring:'#f97316', tierRing:'#4CAF50' },
-  100:       { body:'#1a1a1a', bodyL:'#444444', bodyD:'#000000', notch:'#888888', notch2:'#222222', ring:'#555555', tierRing:'#4CAF50' },
-  500:       { body:'#5020a0', bodyL:'#8b5cf6', bodyD:'#280060', notch:'#d0a0ff', notch2:'#6020a0', ring:'#8b5cf6', tierRing:'#4CAF50' },
-  1000:      { body:'#007090', bodyL:'#06b6d4', bodyD:'#004060', notch:'#80f0ff', notch2:'#007090', ring:'#06b6d4', tierRing:'#2196F3' },
-  5000:      { body:'#a01060', bodyL:'#ec4899', bodyD:'#600030', notch:'#ffb0d8', notch2:'#901050', ring:'#ec4899', tierRing:'#2196F3' },
-  10000:     { body:'#8a7000', bodyL:'#eab308', bodyD:'#504000', notch:'#ffe060', notch2:'#a08000', ring:'#eab308', tierRing:'#2196F3' },
-  25000:     { body:'#0a2040', bodyL:'#1e3a5f', bodyD:'#040c18', notch:'#3060a0', notch2:'#0a2040', ring:'#1e3a5f', tierRing:'#2196F3' },
-  50000:     { body:'#8b0000', bodyL:'#dc2626', bodyD:'#400000', notch:'#ff5050', notch2:'#700000', ring:'#dc2626', tierRing:'#2196F3' },
-  100000:    { body:'#045030', bodyL:'#059669', bodyD:'#002818', notch:'#30d090', notch2:'#045030', ring:'#059669', tierRing:'#2196F3' },
-  500000:    { body:'#7a4000', bodyL:'#b45309', bodyD:'#402000', notch:'#e08030', notch2:'#7a4000', ring:'#b45309', tierRing:'#2196F3' },
   1000000:   { body:'#7a0030', bodyL:'#d03055', bodyD:'#3a0010', notch:'#ff6080', notch2:'#900020', ring:'#ef4444', tierRing:'#00E5FF' },
   2000000:   { body:'#1040a0', bodyL:'#3878f8', bodyD:'#002080', notch:'#6090ff', notch2:'#0030a0', ring:'#3b82f6', tierRing:'#00E5FF' },
   5000000:   { body:'#0a6028', bodyL:'#20b050', bodyD:'#003810', notch:'#60e080', notch2:'#105020', ring:'#22c55e', tierRing:'#00E5FF' },
@@ -101,7 +73,7 @@ const ROULETTE_CHIP_STYLES = {
 };
 
 function makeChipSVG(value, sizePx) {
-  const s = ROULETTE_CHIP_STYLES[value] || ROULETTE_CHIP_STYLES[1];
+  const s = ROULETTE_CHIP_STYLES[value] || ROULETTE_CHIP_STYLES[1000000];
   const size = sizePx || 60;
   const cx = size / 2, cy = size / 2;
   const r = size / 2 - 1.5;
@@ -134,7 +106,7 @@ function makeChipSVG(value, sizePx) {
     + '<circle cx="' + cx + '" cy="' + cy + '" r="' + rMed + '" fill="none" stroke="' + s.ring + '" stroke-width="1.0" opacity="0.4"/>'
     + '<text x="' + cx + '" y="' + (cy - rMed*0.44) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.10) + '" font-weight="900" fill="#111" font-family="Arial Black,Arial,sans-serif" letter-spacing="0.2">$Pc</text>'
     + '<text x="' + cx + '" y="' + (cy + rMed*0.12) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + numFS + '" font-weight="900" fill="#111" font-family="Arial Black,Arial,sans-serif" letter-spacing="-0.5">' + lbl + '</text>'
-    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">' + (value >= 1000000 ? '— M —' : value >= 1000 ? '— K —' : '— $ —') + '</text>'
+    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">— M —</text>'
     + '<ellipse cx="' + (cx - r*0.08) + '" cy="' + (cy - r*0.38) + '" rx="' + (r*0.36) + '" ry="' + (r*0.15) + '" fill="rgba(255,255,255,0.20)"/>'
     + '</svg>';
 }
@@ -159,7 +131,11 @@ let moneyInfo = document.querySelector('#money');
 let moneyTotal;
 let mouseChip = document.querySelector('#circle');
 let movable = document.querySelector('.menu');
-let parentMusicActive = true;
+let music = new Audio(`src/sfx/music/music0.mp3`);
+let musicNumber = 0;
+let musicStatus = true;
+let parentMusicActive = false;
+let musicStatusColor = 'red';
 let numberBets = initializeBets(btns.numberButtons, 'number');
 let oddsInfo = document.querySelector('#disableBackground');
 let preMoney = money;
@@ -457,12 +433,11 @@ function changeLang(lang) {
   });
 }
 
-const FAST_BET_VALUES = [10000000, 25000000, 50000000, 100000000, 250000000, 500000000];
 function checkMoney() {
   const values = infoConstants.chipValues;
   const chips = btns.allChips;
   let maxAffordable = -1;
-  for (let i = 0; i < values.length && i < chips.length; i++) {
+  for (let i = 0; i < values.length; i++) {
     const affordable = money >= values[i];
     chips[i].classList.toggle('disabledChips', !affordable);
     chips[i].style.pointerEvents = affordable ? 'all' : 'none';
@@ -471,13 +446,13 @@ function checkMoney() {
   const iBet = values.indexOf(bet);
   if (iBet !== -1 && money < values[iBet]) {
     for (let j = iBet - 1; j >= 0; j--) {
-      if (money >= values[j] && j < chips.length && chips[j].style.display !== 'none') {
+      if (money >= values[j]) {
         chips[j].click();
         break;
       }
     }
   }
-  if (money < 1) {
+  if (money < 1000000) {
     chips.forEach((chip) => {
       chip.classList.remove('biggerBtn');
       chip.style.pointerEvents = 'none';
@@ -491,9 +466,9 @@ function checkMoney() {
     'disabledCircleBtns',
     money < betSize || betSize == 0
   );
-  for (let j = 0; j < fastBet.length; j++) {
-    const enabled = money >= FAST_BET_VALUES[j];
-    const el = fastBet[j];
+  for (let j = 3; j < values.length; j++) {
+    const enabled = money >= values[j];
+    const el = fastBet[j - 3];
     el.style.filter = enabled ? 'grayscale(0)' : 'grayscale(1)';
     el.style.pointerEvents = enabled ? 'all' : 'none';
   }
@@ -897,7 +872,7 @@ function endroll() {
 
         if (money >= lastBetSize && lastBetSize > 0)
           btns.repeatBetBtn.classList.remove('disabledCircleBtns');
-        if (money < 1) {
+        if (money < 1000000) {
           oddsInfoDisplay('block', 'blur(1vh)', 'none', 'restartGame', true);
           btns.closeBetInfo.style.display = 'none';
         }
@@ -909,7 +884,7 @@ function endroll() {
             syncGameState();
             document.querySelector('#chipsSelectorDisabled').style.display = 'none';
             checkMoney();
-            if (money >= 1 && !menuOpen) {
+            if (money >= 1000000 && !menuOpen) {
               btns.betCompleteBtn.style.pointerEvents = 'all';
               betSection.style.pointerEvents = 'all';
               document.querySelector('#chipsSelector').style.filter = 'grayscale(0)';
@@ -977,7 +952,21 @@ function getCoordsForButton(btn) {
   if (!r && btn.classList.contains('sixain')) r = check('sixain', 'sixain');
   if (r) return r;
 
-  return { top: 50, left: 50 };
+  [
+    [infoConstants.numbers, numberBets, 36],
+    [infoConstants.splitNumbersX, splitBetsX, 18],
+    [infoConstants.splitNumbersY, splitBetsY, 18],
+    [infoConstants.cornerNumbers, cornerBets, 9],
+    [infoConstants.streetNumbers, streetBets, 12],
+    [infoConstants.sixainNumbers, sixainBets, 6],
+    [infoConstants.sectionNumbers, sectionBets, 2, specialSectionFactors],
+  ].forEach((a) => winCheck(...a));
+
+  return stack.reduce((a, chip) => {
+    const d = +chip.dataset.denom;
+    a[d] = (a[d] || 0) + 1;
+    return a;
+  }, {});
 }
 
 function getZoneStack(btn) {
@@ -990,7 +979,7 @@ function handleScroll(e) {
   if (money <= 0 || betStart || menuOpen) return;
   const delta = e.deltaY ?? e.detail ?? e.wheelDelta ?? 0;
   const chips = Array.from(btns.allChips);
-  if (delta > 0 && bet !== infoConstants.chipValues[0]) {
+  if (delta > 0 && bet !== 1000000) {
     for (let i = chipsIndex - 1; i >= 0; i--) {
       if (chips[i] && chips[i].style.display !== 'none') {
         chips[i].click();
@@ -1244,6 +1233,7 @@ function loadingStart() {
       }, 1000);
       setTimeout(() => {
         loadingScreen.style.display = 'none';
+        if (!parentMusicActive) music.play();
       }, 2000);
       function enablePointerEvents() {
         document.querySelector('#betSection').style.pointerEvents = 'all';
@@ -1256,6 +1246,40 @@ function loadingStart() {
   }, 40);
 }
 
+function musicChange(prevNext) {
+  const updateMusic = (num) => {
+    music.pause();
+    music = new Audio(`src/sfx/music/music${num}.mp3`);
+    music.volume = document.querySelector('#musicVolume').value;
+    music.currentTime = 0;
+    music.addEventListener('timeupdate', updateTimer);
+    setTimeout(() => { if (!parentMusicActive) music.play(); }, 1000);
+  };
+  document.querySelector('#musicPause').className = 'fa-solid fa-pause';
+  document.querySelector('#vinyl').style.animationPlayState = 'running';
+  document.querySelector('#musicPause').style.fontSize = '2vh';
+  musicStatusColor = 'red';
+  musicStatus = true;
+  musicNumber += prevNext === 'prev' ? -1 : 1;
+  musicNumber = (musicNumber + 8) % 8;
+  updateMusic(musicNumber);
+}
+
+function musicPause() {
+  const isPlaying = musicStatus;
+  musicStatus = !isPlaying;
+
+  if (musicStatus) { if (!parentMusicActive) music.play(); } else { music.pause(); }
+  document.querySelector('#vinyl').style.animationPlayState = musicStatus
+    ? 'running'
+    : 'paused';
+  btns.musicPauseBtn.className = musicStatus
+    ? 'fa-solid fa-pause'
+    : 'fa-solid fa-play';
+  btns.musicPauseBtn.style.fontSize = musicStatus ? '2vh' : '1.8vh';
+  btns.musicPauseBtn.style.color = musicStatus ? 'red' : '#08ff21';
+  musicStatusColor = btns.musicPauseBtn.style.color;
+}
 
 function numbersBlink() {
   btns.numberButtons.forEach((button) => {
@@ -1635,6 +1659,20 @@ function updateChipsForButton(btn, amount) {
   }
 }
 
+function updateTimer() {
+  let duration = music.duration;
+  let remainingTime = duration - music.currentTime;
+  let minutes = Math.floor(remainingTime / 60);
+  let seconds = Math.floor(remainingTime % 60);
+  minutes = isNaN(minutes) ? '00' : minutes < 10 ? '0' + minutes : minutes;
+  seconds = isNaN(seconds) ? '00' : seconds < 10 ? '0' + seconds : seconds;
+  document.querySelector('#nowPlaying').textContent =
+    infoConstants.songName[musicNumber];
+  document.querySelector('#musicTimer').textContent = minutes + ':' + seconds;
+  if (minutes == 0 && seconds == 1) {
+    musicChange('next');
+  }
+}
 
 function winCheck(numbers, bets, factor, specialFactors = {}) {
   for (let sector in numbers) {
@@ -1680,6 +1718,10 @@ function winNumberWindow() {
   });
 })();
 
+btns.musicPauseBtn.onmouseover = () =>
+  (btns.musicPauseBtn.style.color = musicStatusColor);
+btns.musicPauseBtn.onmouseleave = () =>
+  (btns.musicPauseBtn.style.color = 'black');
 
 btns.numberButtons.forEach((button) => {
   button.addEventListener(
@@ -1715,6 +1757,9 @@ document.addEventListener('wheel', (e) => e.ctrlKey && e.preventDefault(), {
 document.body.addEventListener('contextmenu', (event) => {
   event.preventDefault();
 });
+document.querySelector('#musicVolume').addEventListener('input', function () {
+  music.volume = document.querySelector('#musicVolume').value;
+});
 document.querySelector('#soundFx').addEventListener('input', function () {
   rollSound.volume = document.querySelector('#soundFx').value;
   chipsPutSfx.volume = document.querySelector('#soundFx').value;
@@ -1724,6 +1769,7 @@ document.querySelector('#soundFx').addEventListener('input', function () {
   doubleSound.volume = document.querySelector('#soundFx').value;
   undoSound.volume = document.querySelector('#soundFx').value;
 });
+music.addEventListener('timeupdate', updateTimer);
 game.addEventListener('click', () => {
   chipsMenuOpen.checked = false;
   setTimeout(() => {
@@ -1870,34 +1916,34 @@ bindBetGroup(
 
 btns.allChips.forEach((chip, index) => {
   chip.addEventListener('click', () =>
-    chipSelect(infoConstants.chipValues[index], index + 1, index)
+    chipSelect([1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], index + 1, index)
   );
 });
 
 // ── Casino chip SVG initialization ──────────────────────────────────────────
 (function initChipSVGs() {
-  const chipVals = infoConstants.chipValues;
+  const chipValues = [1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000];
   const selectorPx = Math.round(window.innerHeight * 0.0745);
   btns.allChips.forEach((btn, i) => {
-    if (i < chipVals.length) {
-      btn.innerHTML = makeChipSVG(chipVals[i], selectorPx);
-      btn.style.background = 'transparent';
-      btn.style.border = 'none';
-      btn.style.boxShadow = 'none';
-    }
+    btn.innerHTML = makeChipSVG(chipValues[i], selectorPx);
+    btn.style.background = 'transparent';
+    btn.style.border = 'none';
+    btn.style.boxShadow = 'none';
   });
 
+  // Init cursor chip
   const cursorPx = Math.round(window.innerHeight * 0.03);
-  mouseChip.innerHTML = makeChipSVG(chipVals[0], cursorPx);
+  mouseChip.innerHTML = makeChipSVG(chipValues[0], cursorPx);
   mouseChip.style.background = 'transparent';
   mouseChip.style.border = 'none';
   mouseChip.style.boxShadow = 'none';
 
+  // Tier filter tabs
   const TIER_MAP = {
-    low:  [0, 1, 2, 3, 4, 5, 6],
-    mid:  [7, 8, 9, 10, 11, 12, 13],
-    high: [14, 15, 16, 17, 18, 19, 20, 21, 22],
-    all:  Array.from({length: chipVals.length}, (_, i) => i),
+    low:  [0, 1, 2, 3],
+    mid:  [4, 5, 6],
+    high: [7, 8],
+    all:  [0, 1, 2, 3, 4, 5, 6, 7, 8],
   };
 
   function applyTierFilter(tier) {
@@ -1905,6 +1951,7 @@ btns.allChips.forEach((chip, index) => {
       const show = TIER_MAP[tier].includes(i);
       btn.style.display = show ? 'inline-flex' : 'none';
     });
+    // If currently selected chip is hidden, auto-select first visible chip in tier
     const currentIdx = Array.from(btns.allChips).indexOf(lastSelectedChip);
     if (!TIER_MAP[tier].includes(currentIdx)) {
       const firstVisible = TIER_MAP[tier][0];
@@ -1920,6 +1967,7 @@ btns.allChips.forEach((chip, index) => {
     });
   });
 
+  // Start on low tier (1M-10M)
   applyTierFilter('low');
 })();
 
@@ -1967,6 +2015,8 @@ btns.langBtns.forEach((button, i) => {
   );
 });
 
+btns.musicChangeBtn[0].addEventListener('click', () => musicChange('prev'));
+btns.musicChangeBtn[1].addEventListener('click', () => musicChange('next'));
 
 btns.repeatBetBtn.addEventListener('click', () => repeatLastBet());
 
@@ -1980,6 +2030,8 @@ chipsMenuOpen.addEventListener('click', () =>
   }, 500)
 );
 
+btns.pausePlay.addEventListener('click', musicPause);
+
 btns.restartBtn.addEventListener('click', restartGame);
 
 btns.statisticBtn.addEventListener('click', () =>
@@ -1988,7 +2040,7 @@ btns.statisticBtn.addEventListener('click', () =>
 
 fastBet.forEach((btn, index) => {
   btn.addEventListener('click', () => {
-    fastChips(FAST_BET_VALUES[index], infoConstants.chipValues.indexOf(FAST_BET_VALUES[index]) + 1);
+    fastChips([10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], [4, 5, 6, 7, 8, 9][index]);
   });
 });
 
@@ -2004,9 +2056,23 @@ window.addEventListener('message', function(e) {
 
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.type !== 'music:state') return;
-  parentMusicActive = e.data.playing;
+  var playing = e.data.playing;
+  parentMusicActive = playing;
+  var musicInfoEl = document.getElementById('musicInfo');
+  var musicVolRow = document.getElementById('musicVolume') ? document.getElementById('musicVolume').closest('div') : null;
   var parentBanner = document.getElementById('parentMusicBanner');
-  if (e.data.playing) {
+  if (playing) {
+    // Pause in-game music and hide music controls
+    if (musicStatus) {
+      music.pause();
+      musicStatus = false;
+      var pauseIcon = document.querySelector('#musicPause');
+      if (pauseIcon) pauseIcon.className = 'fa-solid fa-play';
+      var vinyl = document.querySelector('#vinyl');
+      if (vinyl) vinyl.style.animationPlayState = 'paused';
+    }
+    if (musicInfoEl) musicInfoEl.style.display = 'none';
+    if (musicVolRow) musicVolRow.style.display = 'none';
     var label = e.data.trackTitle ? ('Now playing: ' + e.data.trackTitle) : 'Music playing from main player';
     if (!parentBanner) {
       var banner = document.createElement('div');
@@ -2018,42 +2084,12 @@ window.addEventListener('message', function(e) {
       parentBanner.textContent = label;
     }
   } else {
-    if (parentBanner) parentBanner.remove();
+    // Restore in-game music controls
+    if (musicInfoEl) musicInfoEl.style.display = '';
+    if (musicVolRow) musicVolRow.style.display = '';
+    var banner2 = document.getElementById('parentMusicBanner');
+    if (banner2) banner2.remove();
   }
-});
-
-window.addEventListener('message', function(e) {
-  if (!e.data || e.data.type !== 'skin:update') return;
-  var skin = e.data.skin;
-  if (!skin) return;
-
-  var roulette = document.querySelector('#roulette');
-  if (roulette) roulette.style.backgroundColor = skin.wheelBg;
-
-  var rouletteTable = document.querySelector('#rouletteTable');
-  if (rouletteTable) rouletteTable.style.backgroundColor = skin.wheelBg;
-
-  var ball = document.querySelector('#ball');
-  if (ball) ball.style.background = skin.accentColor;
-
-  var rim = document.querySelector('#roulette6');
-  if (rim) {
-    rim.style.borderColor = skin.rimColor;
-    rim.style.boxShadow = '0 0 2vh ' + skin.rimColor;
-  }
-
-  var redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-  var greenNums = [0];
-  document.querySelectorAll('.numbers').forEach(function(el) {
-    var num = parseInt(el.id.replace('n', ''), 10);
-    if (greenNums.indexOf(num) !== -1) {
-      el.style.color = skin.greenColor;
-    } else if (redNums.indexOf(num) !== -1) {
-      el.style.color = skin.redColor;
-    } else {
-      el.style.color = skin.blackColor;
-    }
-  });
 });
 
 window.addEventListener('beforeunload', function(e) {
