@@ -1621,14 +1621,25 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
         for (const p of rouletteRoom.players.values()) { p.betsLocked = true; }
         rouletteRoom.history.unshift(rouletteRoom.result);
         if (rouletteRoom.history.length > 20) rouletteRoom.history.length = 20;
+        const settlePromises = [];
         for (const [sid, p] of rouletteRoom.players) {
           const payout = (p.bets && p.bets.length > 0) ? rouletteResolveBets(p.bets, rouletteRoom.result) : 0;
+          const stake = p.betTotal || 0;
+          const netChange = payout - stake;
           p.lastWin = payout;
+          p.balance = Math.max(0, (p.balance || 0) + netChange);
+          if (netChange !== 0 && p.id && p.id !== sid) {
+            settlePromises.push(
+              query('UPDATE users SET balance = balance + $1 WHERE id = $2 AND balance + $1 >= 0', [netChange, p.id])
+                .catch(err => console.error('[Roulette] DB settle error:', err.message))
+            );
+          }
           io.to(sid).emit('roulette:spin', {
             result: rouletteRoom.result, roundId: rouletteRoom.roundId,
-            players: rouletteGetPlayers(), payout: payout, betTotal: p.betTotal || 0,
+            players: rouletteGetPlayers(), netChange, newBalance: p.balance,
           });
         }
+        if (settlePromises.length > 0) Promise.all(settlePromises).catch(() => {});
         console.log('[Roulette] Round ' + rouletteRoom.roundId + ' result: ' + rouletteRoom.result + ' (' + rouletteRoom.players.size + ' players)');
         rouletteRoom.timer = rouletteRoom.SPIN_DURATION;
       } else {
