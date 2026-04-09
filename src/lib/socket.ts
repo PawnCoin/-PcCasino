@@ -6,6 +6,7 @@ export interface RoomPlayer {
   balance: number;
   avatar: string;
   avatarUrl?: string | null;
+  vipTier?: string;
   seat: number;
   isReady: boolean;
 }
@@ -73,8 +74,8 @@ export function disconnectSocket() {
   }
 }
 
-export function identifyPlayer(username: string, balance: number, avatar: string, avatarUrl?: string | null) {
-  getSocket().emit('player:identify', { username, balance, avatar, avatarUrl: avatarUrl || null });
+export function identifyPlayer(username: string, balance: number, avatar: string, avatarUrl?: string | null, userId?: string) {
+  getSocket().emit('player:identify', { username, balance, avatar, avatarUrl: avatarUrl || null, userId: userId || undefined });
 }
 
 export function getLobby() {

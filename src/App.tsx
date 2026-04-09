@@ -49,6 +49,7 @@ import { JackpotCelebration } from '@/components/JackpotCelebration';
 import { PokerHandSharePage } from '@/components/PokerHandSharePage';
 import { PcTokenModal } from '@/components/PcTokenModal';
 import { VIPCurrencyModal } from '@/components/VIPCurrencyModal';
+import { useAccessControl } from '@/hooks/useAccessControl';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -117,6 +118,8 @@ function App() {
     }
   });
   
+  const access = useAccessControl(isAuthenticated, user?.vipTier);
+
   const [currentView, setCurrentView] = useState<'lobby' | GameType>('lobby');
   const iframeGameActiveRef = useRef(false);
   const [showNavLeaveModal, setShowNavLeaveModal] = useState(false);
@@ -752,8 +755,12 @@ function App() {
 
   // Game selection
   const handleSelectGame = (game: GameType) => {
-    if (!isAuthenticated) {
+    if (!access.canPlayGame) {
       setShowAuth(true);
+      return;
+    }
+    if (game === 'vip' && !access.canAccessVip) {
+      toast.error('VIP Lounge requires Silver tier or above. Wager 10,000,000 $Pc to reach Silver and unlock VIP features.', { duration: 5000 });
       return;
     }
     if (iframeGameActiveRef.current) {
@@ -1126,7 +1133,7 @@ function App() {
           onShowRewards={() => setShowRewards(true)}
           onShowFinancial={() => setShowFinancial(true)}
           onShowCardDeck={() => setShowCardDeck(true)}
-          onShowMultiplayer={() => setShowLobby(true)}
+          onShowMultiplayer={() => { if (!access.canPlayGame) { setShowAuth(true); return; } setShowLobby(true); }}
           onShowProfile={() => setShowProfile(true)}
           onShowAdmin={() => setShowAdmin(true)}
           onShowDeposit={() => setShowDeposit(true)}
@@ -1455,6 +1462,10 @@ function App() {
         isOpen={showLobby}
         onClose={() => setShowLobby(false)}
         onJoinTable={(tableId, game) => {
+          if (!access.canPlayGame) {
+            setShowAuth(true);
+            return;
+          }
           setActiveRoomId(tableId);
           toast.success(`Joined table — loading ${game}!`);
           setCurrentView(game);
@@ -1471,6 +1482,7 @@ function App() {
           roomId={activeRoomId}
           username={user?.username || 'Player'}
           userId={user?.id}
+          vipTier={user?.vipTier}
           onLeave={() => {
             setActiveRoomId(null);
             setCurrentView('lobby');
@@ -1573,7 +1585,7 @@ function App() {
       {currentView === 'lobby' && (
         <div className="fixed bottom-4 right-4 z-30 flex flex-col gap-2">
           <button
-            onClick={() => setShowLobby(true)}
+            onClick={() => { if (!access.canPlayGame) { setShowAuth(true); return; } setShowLobby(true); }}
             className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
             style={{ 
               background: 'rgba(10,10,10,0.9)',
@@ -1605,8 +1617,10 @@ function App() {
           username={user?.username}
           avatar={user?.avatar}
           avatarUrl={user?.avatarUrl}
+          vipTier={user?.vipTier}
           isAuthenticated={isAuthenticated}
           onViewProfile={username => setViewingProfile(username)}
+          onLoginPrompt={() => setShowAuth(true)}
         />
       )}
 

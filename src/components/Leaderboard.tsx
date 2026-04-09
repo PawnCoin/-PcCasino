@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Trophy, TrendingUp, Flame, Crown, Medal, RefreshCw, Calendar, Clock } from 'lucide-react';
+import { VipBadge } from '@/components/VipBadge';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket } from '@/lib/socket';
 import { gameApi } from '@/lib/api';
@@ -15,6 +16,7 @@ interface LeaderboardPlayer {
   winStreak: number;
   favoriteGame: string;
   gamesPlayed: number;
+  vipTier?: string;
 }
 
 function nameToAvatarIdx(name: string): number {
@@ -239,10 +241,13 @@ export function Leaderboard({ onViewProfile }: LeaderboardProps = {}) {
                 <div className="mb-2">
                   <AvatarSprite avatar={ALL_AVATARS[player.avatarIdx % ALL_AVATARS.length]} size={isFirst ? 52 : 42} />
                 </div>
-                <button
-                  className="text-xs font-bold text-center truncate w-full text-white mb-1 hover:text-[#D4AF37] transition-colors"
-                  onClick={() => onViewProfile && onViewProfile(player.username)}
-                >{player.username}</button>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <button
+                    className="text-xs font-bold text-center truncate text-white hover:text-[#D4AF37] transition-colors"
+                    onClick={() => onViewProfile && onViewProfile(player.username)}
+                  >{player.username}</button>
+                  <VipBadge tier={player.vipTier} size="sm" />
+                </div>
                 <div className="text-xs mb-1" style={{ color: activeTab === 'totalWon' ? '#D4AF37' : activeTab === 'balance' ? '#60a5fa' : '#f97316' }}>
                   {activeTab === 'totalWon' ? formatNum(player.totalWon) : activeTab === 'balance' ? formatNum(player.balance) : <>{player.winStreak} <CasinoIcon name="fire" size={12} /></>} $Pc
                 </div>
@@ -268,10 +273,13 @@ export function Leaderboard({ onViewProfile }: LeaderboardProps = {}) {
               <div className="w-8 text-center flex-shrink-0">{getRankIcon(player.rank)}</div>
               <AvatarSprite avatar={ALL_AVATARS[player.avatarIdx % ALL_AVATARS.length]} size={34} />
               <div className="flex-1 min-w-0">
-                <button
-                  className="font-bold text-white text-sm truncate hover:text-[#D4AF37] transition-colors block text-left"
-                  onClick={() => onViewProfile && onViewProfile(player.username)}
-                >{player.username}</button>
+                <div className="flex items-center gap-1">
+                  <button
+                    className="font-bold text-white text-sm truncate hover:text-[#D4AF37] transition-colors block text-left"
+                    onClick={() => onViewProfile && onViewProfile(player.username)}
+                  >{player.username}</button>
+                  <VipBadge tier={player.vipTier} size="sm" />
+                </div>
                 <div className="text-xs text-gray-400">{player.favoriteGame} • {player.gamesPlayed} games</div>
               </div>
               <div className="text-right">

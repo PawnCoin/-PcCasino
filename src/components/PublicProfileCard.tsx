@@ -4,6 +4,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { authApi } from '@/lib/api';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { CasinoIcon } from '@/components/CasinoIcons';
+import { VipBadge } from '@/components/VipBadge';
 
 interface PublicProfile {
   username: string;
@@ -37,14 +38,6 @@ function nameToAvatarIdx(name: string): number {
   return Math.abs(h) % ALL_AVATARS.length;
 }
 
-const TIER_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  bronze: { bg: 'rgba(205,127,50,0.2)', color: '#CD7F32', border: 'rgba(205,127,50,0.4)' },
-  silver: { bg: 'rgba(192,192,192,0.2)', color: '#C0C0C0', border: 'rgba(192,192,192,0.4)' },
-  gold: { bg: 'rgba(212,175,55,0.2)', color: '#D4AF37', border: 'rgba(212,175,55,0.4)' },
-  platinum: { bg: 'rgba(229,228,226,0.2)', color: '#E5E4E2', border: 'rgba(229,228,226,0.4)' },
-  diamond: { bg: 'rgba(185,242,255,0.2)', color: '#B9F2FF', border: 'rgba(185,242,255,0.5)' },
-};
-
 export function PublicProfileCard({ username, onClose, onNavigateToGame }: PublicProfileCardProps) {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,7 +59,6 @@ export function PublicProfileCard({ username, onClose, onNavigateToGame }: Publi
 
   const isOpen = !!username;
 
-  const tierColors = profile ? (TIER_COLORS[profile.vipTier] || TIER_COLORS.bronze) : TIER_COLORS.bronze;
   const avatarIdx = profile ? nameToAvatarIdx(profile.username) : 0;
   const avatarDef = ALL_AVATARS[avatarIdx];
 
@@ -142,12 +134,7 @@ export function PublicProfileCard({ username, onClose, onNavigateToGame }: Publi
                     <p className="text-sm text-gray-400 mt-1 max-w-[200px] leading-relaxed">{profile.bio}</p>
                   )}
                 </div>
-                <span
-                  className="px-2 py-0.5 rounded-full text-xs font-bold uppercase shrink-0 mt-1"
-                  style={{ background: tierColors.bg, color: tierColors.color, border: `1px solid ${tierColors.border}` }}
-                >
-                  {profile.vipTier} VIP
-                </span>
+                <VipBadge tier={profile.vipTier} size="md" showLabel />
               </div>
 
               {/* Stats */}

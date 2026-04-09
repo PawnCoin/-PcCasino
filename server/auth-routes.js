@@ -84,6 +84,24 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+const VIP_TIERS = ['silver', 'gold', 'platinum', 'diamond'];
+
+export async function requireVip(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const tier = req.user.vip_tier || 'bronze';
+  if (!VIP_TIERS.includes(tier)) {
+    return res.status(403).json({
+      error: 'VIP membership required',
+      message: 'This feature requires VIP status (Silver tier or above). Wager at least 10,000,000 $Pc to reach Silver tier.',
+      requiredTier: 'silver',
+      currentTier: tier,
+    });
+  }
+  next();
+}
+
 export async function cleanupExpiredSessions() {
   try {
     const result = await query('DELETE FROM sessions WHERE expires_at < NOW()');

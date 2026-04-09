@@ -10,6 +10,8 @@ import { authApi, kycApi, walletApi, friendsApi, getToken } from '@/lib/api';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { DirectMessageModal } from '@/components/DirectMessageModal';
+import { VipBadge } from '@/components/VipBadge';
+import { useAccessControl } from '@/hooks/useAccessControl';
 
 interface UserProfileProps {
   isOpen: boolean;
@@ -667,6 +669,7 @@ function WalletManager({ userId }: { userId: string }) {
 }
 
 export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, onShowDeposit, onShowWithdraw, onShowReferral, onShowTournaments, onShowLegal, onShowDispute, onNavigateToGame, onUserUpdated }: UserProfileProps) {
+  const access = useAccessControl(true, user?.vipTier);
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [copied, setCopied] = useState(false);
   const [show2FASetup, setShow2FASetup] = useState(false);
@@ -1394,6 +1397,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                                 <div className="text-xs text-gray-500">{req.vipTier?.toUpperCase()} VIP</div>
                               </div>
                               <div className="flex gap-1">
+                                {access.canAddFriend ? (
                                 <button
                                   onClick={async () => {
                                     try {
@@ -1407,6 +1411,11 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                                 >
                                   Accept
                                 </button>
+                                ) : (
+                                <span className="px-2 py-1 rounded-lg text-[10px] text-gray-500" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                  VIP Required (Silver+)
+                                </span>
+                                )}
                                 <button
                                   onClick={async () => {
                                     try {
@@ -1445,10 +1454,14 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                                 <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-black ${f.isOnline ? 'bg-green-400' : 'bg-gray-600'}`} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold text-white">{f.username}</div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm font-bold text-white">{f.username}</span>
+                                  <VipBadge tier={f.vipTier} size="sm" />
+                                </div>
                                 <div className="text-xs text-gray-500">{f.vipTier?.toUpperCase()} VIP • {f.favoriteGame}</div>
                               </div>
                               <div className="flex gap-1">
+                                {access.canMessage ? (
                                 <button
                                   onClick={() => setDmTarget({ id: f.friendId, username: f.username, avatar: f.avatar })}
                                   className="p-1.5 rounded-lg transition-colors"
@@ -1457,6 +1470,15 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                                 >
                                   <MessageSquare className="w-3.5 h-3.5" />
                                 </button>
+                                ) : (
+                                <span
+                                  className="p-1.5 rounded-lg opacity-40 cursor-not-allowed"
+                                  style={{ background: 'rgba(255,255,255,0.03)', color: '#666', border: '1px solid rgba(255,255,255,0.08)' }}
+                                  title="VIP membership required to send messages (Silver tier+). Wager 10M+ $Pc to unlock."
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </span>
+                                )}
                                 <button
                                   onClick={async () => {
                                     try {
@@ -1508,6 +1530,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                                 <div className="text-sm font-bold text-white">{p.username}</div>
                                 <div className="text-xs text-gray-500">{p.gameType} • {new Date(p.encounteredAt).toLocaleDateString()}</div>
                               </div>
+                              {access.canAddFriend ? (
                               <button
                                 onClick={async () => {
                                   try {
@@ -1521,6 +1544,11 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                               >
                                 <UserPlus className="w-3 h-3" /> Add
                               </button>
+                              ) : (
+                              <span className="px-2 py-1 rounded-lg text-[10px] text-gray-500 flex items-center gap-1 cursor-not-allowed" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }} title="VIP membership required (Silver tier+). Wager 10M+ $Pc to unlock.">
+                                <Lock className="w-3 h-3" /> VIP Only
+                              </span>
+                              )}
                             </div>
                           ))}
                         </div>

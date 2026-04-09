@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Flame, TrendingUp, Zap } from 'lucide-react';
+import { VipBadge } from '@/components/VipBadge';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket } from '@/lib/socket';
 
@@ -10,6 +11,7 @@ interface Winner {
   amount: number;
   multiplier?: number;
   timestamp?: number;
+  vipTier?: string;
 }
 
 function nameToAvatarIdx(name: string): number {
@@ -148,7 +150,7 @@ export function RecentWinners() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-white text-sm truncate">{winner.name}</span>
+                    <span className="font-bold text-white text-sm truncate inline-flex items-center gap-1">{winner.name} <VipBadge tier={winner.vipTier} size="sm" /></span>
                     <span className="text-xs text-gray-500 flex-shrink-0">{timeAgo(winner.timestamp)}</span>
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5 truncate">{winner.game}</div>
@@ -178,7 +180,7 @@ export function RecentWinners() {
             {winners.map(w => (
               <div key={w.id} className="flex items-center gap-2 flex-shrink-0 py-1">
                 <AvatarSprite avatar={ALL_AVATARS[nameToAvatarIdx(w.name) % ALL_AVATARS.length]} size={20} />
-                <span className="text-xs text-gray-300">{w.name}</span>
+                <span className="text-xs text-gray-300 inline-flex items-center gap-0.5">{w.name} <VipBadge tier={w.vipTier} size="sm" /></span>
                 <span className="text-xs text-gray-500">won</span>
                 <span className="text-xs font-bold" style={{ color: getAmountColor(w.amount) }}>+{formatAmount(w.amount)} $Pc</span>
                 <span className="text-xs text-gray-500">on {w.game}</span>

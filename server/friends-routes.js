@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from './db.js';
-import { requireAuth } from './auth-routes.js';
+import { requireAuth, requireVip } from './auth-routes.js';
 
 let _io = null;
 export function setFriendsIO(io) { _io = io; }
@@ -77,7 +77,7 @@ async function getFriendship(userId, otherId) {
 }
 
 // ---- Friend Request ----
-router.post('/request', requireAuth, async (req, res) => {
+router.post('/request', requireAuth, requireVip, async (req, res) => {
   const requesterId = req.user.id;
   const { userId: addresseeId } = req.body;
   if (!addresseeId || parseInt(addresseeId) === requesterId) {
@@ -115,7 +115,7 @@ router.post('/request', requireAuth, async (req, res) => {
 });
 
 // ---- Accept Friend Request ----
-router.post('/:id/accept', requireAuth, async (req, res) => {
+router.post('/:id/accept', requireAuth, requireVip, async (req, res) => {
   const userId = req.user.id;
   const friendshipId = parseInt(req.params.id);
   try {
@@ -287,7 +287,7 @@ router.get('/encountered', requireAuth, async (req, res) => {
 });
 
 // ---- Send DM ----
-router.post('/messages/:userId', requireAuth, async (req, res) => {
+router.post('/messages/:userId', requireAuth, requireVip, async (req, res) => {
   const senderId = req.user.id;
   const recipientId = parseInt(req.params.userId);
   const { content } = req.body;

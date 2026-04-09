@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { GameType } from '@/types';
 import { getSocket, identifyPlayer, getLobby, createRoom, joinRoom, leaveRoom, type Room } from '@/lib/socket';
+import { VipBadge } from '@/components/VipBadge';
 
 function nameToAvatar(name: string) {
   let h = 0;
@@ -63,7 +64,7 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
 
     const onConnect = () => {
       setConnected(true);
-      identifyPlayer(username, userBalance, '', avatarUrl);
+      identifyPlayer(username, userBalance, '', avatarUrl, userId);
       getLobby();
     };
 
@@ -85,7 +86,7 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
 
     if (sock.connected) {
       setConnected(true);
-      identifyPlayer(username, userBalance, '', avatarUrl);
+      identifyPlayer(username, userBalance, '', avatarUrl, userId);
       getLobby();
     } else {
       sock.connect();
@@ -430,7 +431,10 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
                       <div className="w-8 h-8 rounded-full overflow-hidden">
                         <AvatarSprite avatar={nameToAvatar(player.username)} size={32} style={{ borderRadius: 0 }} />
                       </div>
-                      <span className="font-medium text-white flex-1">{player.username}</span>
+                      <span className="font-medium text-white flex-1 inline-flex items-center gap-1">
+                        {player.username}
+                        {player.vipTier && <VipBadge tier={player.vipTier} size="sm" />}
+                      </span>
                       {selectedRoom.hostId === player.id && <Crown className="w-4 h-4 text-yellow-400" />}
                       {player.isReady && <CheckCircle className="w-4 h-4 text-green-400" />}
                       <span className="text-xs text-gray-400">{player.balance.toLocaleString()} $Pc</span>

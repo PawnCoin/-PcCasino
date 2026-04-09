@@ -50,6 +50,7 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 - **Navigation**: Includes WeParlay.io external link and an 18+ VIP area.
 - **Admin**: Admin panel directly accessible for users with `isAdmin: true` flag (password gate removed).
 - **Security**: Profanity filter in lobby chat, 2FA and self-exclusion options in user profiles.
+- **Membership Tier Access Control**: Three-tier access system (Guest/Regular/VIP) with server-side enforcement. VIP = Silver tier and above (10M+ $Pc wagered). Guests can browse but not chat, play, or use social features. Regular users can play games and chat but cannot add friends, send DMs, or access VIP lounge. VIP users get full social features. Server enforces via `requireVip` middleware. Frontend uses `useAccessControl` hook and `VipBadge` component for consistent gating and visual tier display across lobby chat, leaderboard, friend lists, and profiles.
 
 ### Poker Hand Evaluation Engine
 - `src/hooks/useGameEngine.ts` — `getBestHand(cards)` finds the optimal 5-card hand from 7 cards (C(7,5)=21 combinations), returns a numeric `score` for direct comparison including kicker resolution. Handles wheel straight (A-2-3-4-5).

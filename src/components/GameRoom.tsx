@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, MessageSquare, Send, Crown, CheckCircle, X, Smile, Wifi, WifiOff, LogOut, UserPlus } from 'lucide-react';
+import { Users, MessageSquare, Send, Crown, CheckCircle, X, Smile, Wifi, WifiOff, LogOut, UserPlus, Lock } from 'lucide-react';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket, leaveRoom, setReady, sendChatMessage, sendReaction, type Room, type ChatMessage } from '@/lib/socket';
 import { friendsApi, getToken } from '@/lib/api';
 import { toast } from 'sonner';
 import { CasinoIcon } from '@/components/CasinoIcons';
+import { VipBadge } from '@/components/VipBadge';
+import { useAccessControl } from '@/hooks/useAccessControl';
 
 function nameToAvatar(name: string) {
   let h = 0;
@@ -18,11 +20,13 @@ interface GameRoomProps {
   roomId: string;
   username: string;
   userId?: string;
+  vipTier?: string;
   onLeave: () => void;
   onViewProfile?: (username: string) => void;
 }
 
-export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: GameRoomProps) {
+export function GameRoom({ roomId, username, userId, vipTier, onLeave, onViewProfile }: GameRoomProps) {
+  const access = useAccessControl(true, vipTier);
   const [room, setRoom] = useState<Room | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -248,19 +252,24 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
                 </div>
                 {player.id !== userId && onViewProfile ? (
                   <button
-                    className="text-xs text-white truncate flex-1 text-left hover:text-[#D4AF37] transition-colors"
+                    className="text-xs text-white truncate flex-1 text-left hover:text-[#D4AF37] transition-colors inline-flex items-center gap-1"
                     onClick={() => onViewProfile(player.username)}
                   >
                     {player.username}
+                    {player.vipTier && <VipBadge tier={player.vipTier} size="sm" />}
                   </button>
                 ) : (
-                  <span className="text-xs text-white truncate flex-1">{player.username}</span>
+                  <span className="text-xs text-white truncate flex-1 inline-flex items-center gap-1">
+                    {player.username}
+                    {player.vipTier && <VipBadge tier={player.vipTier} size="sm" />}
+                  </span>
                 )}
                 {room?.hostId === player.id && <Crown className="w-3 h-3 text-yellow-400 flex-shrink-0" />}
                 {player.isReady && <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />}
                 {player.id === userId ? (
                   <span className="text-xs text-purple-400 flex-shrink-0">you</span>
                 ) : getToken() && (
+                  access.canAddFriend ? (
                   <button
                     onClick={async () => {
                       const pid = String(player.id);
@@ -282,6 +291,14 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
                   >
                     <UserPlus className="w-3 h-3" />
                   </button>
+                  ) : (
+                  <span
+                    className="flex-shrink-0 p-0.5 rounded opacity-40 cursor-not-allowed"
+                    title="VIP membership required (Silver tier+). Wager 10M+ $Pc to unlock."
+                  >
+                    <Lock className="w-3 h-3 text-gray-500" />
+                  </span>
+                  )
                 )}
               </div>
             ))

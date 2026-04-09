@@ -76,27 +76,29 @@ async function getLeaderboardFromDB(period = 'alltime') {
   try {
     let sql;
     if (period === 'daily') {
-      sql = `SELECT u.id, u.username, u.balance, u.avatar,
+      sql = `SELECT u.id, u.username, u.balance, u.avatar, u.vip_tier as "vipTier",
                     COALESCE(SUM(gh.win_amount), 0) as "totalWon",
                     COUNT(gh.id) as "gamesPlayed"
              FROM game_history gh
              JOIN users u ON gh.user_id = u.id
              WHERE gh.result = 'win' AND gh.created_at >= NOW() - INTERVAL '24 hours'
-             GROUP BY u.id, u.username, u.balance, u.avatar
+             GROUP BY u.id, u.username, u.balance, u.avatar, u.vip_tier
              ORDER BY "totalWon" DESC LIMIT 20`;
     } else if (period === 'weekly') {
-      sql = `SELECT u.id, u.username, u.balance, u.avatar,
+      sql = `SELECT u.id, u.username, u.balance, u.avatar, u.vip_tier as "vipTier",
                     COALESCE(SUM(gh.win_amount), 0) as "totalWon",
                     COUNT(gh.id) as "gamesPlayed"
              FROM game_history gh
              JOIN users u ON gh.user_id = u.id
              WHERE gh.result = 'win' AND gh.created_at >= NOW() - INTERVAL '7 days'
-             GROUP BY u.id, u.username, u.balance, u.avatar
+             GROUP BY u.id, u.username, u.balance, u.avatar, u.vip_tier
              ORDER BY "totalWon" DESC LIMIT 20`;
     } else {
       sql = `SELECT l.user_id as id, l.username, l.total_won as "totalWon", l.balance, l.games_played as "gamesPlayed",
-                    l.favorite_game as "favoriteGame", COALESCE(l.win_streak, 0) as "winStreak"
+                    l.favorite_game as "favoriteGame", COALESCE(l.win_streak, 0) as "winStreak",
+                    u.vip_tier as "vipTier"
              FROM leaderboard l
+             LEFT JOIN users u ON l.user_id = u.id
              ORDER BY l.total_won DESC LIMIT 20`;
     }
     const result = await query(sql);
@@ -1751,7 +1753,14 @@ io.on('connection', (socket) => {
   console.log(`[+] ${socket.id}`);
 
   socket.on('player:identify', async ({ username, balance, avatar, userId, avatarUrl }) => {
-    const player = { id: userId || socket.id, socketId: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, roomId: null, seat: null, isReady: false, connectedAt: Date.now() };
+    let vipTier = 'bronze';
+    if (userId) {
+      try {
+        const r = await query('SELECT vip_tier FROM users WHERE id = $1', [userId]);
+        if (r.rows.length) vipTier = r.rows[0].vip_tier || 'bronze';
+      } catch {}
+    }
+    const player = { id: userId || socket.id, socketId: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, vipTier, roomId: null, seat: null, isReady: false, connectedAt: Date.now() };
     players.set(socket.id, player);
     if (userId) socket.join(`user_${userId}`);
     socket.emit('lobby:update', { rooms: getPublicRooms() });
@@ -1775,7 +1784,8 @@ io.on('connection', (socket) => {
     players.set(socket.id, { ...player, roomId: null, seat: 0 });
     const maxPlayers = game === 'poker' ? 6 : game === 'spades' ? 4 : game === 'dominoes' ? 4 : game === 'bingo' ? 20 : 8;
     const roomId = generateRoomId();
-    const newRoom = { id: roomId, game, name: name || `${username}'s Table`, minBet: minBet || 10, maxBet: maxBet || 1000, maxPlayers, players: [{ id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, seat: 0, isReady: false }], status: 'waiting', pot: 0, createdAt: Date.now(), isPrivate: !!isPrivate, hostId: socket.id, gameState: null, chat: [] };
+    const existingPlayer = players.get(socket.id);
+    const newRoom = { id: roomId, game, name: name || `${username}'s Table`, minBet: minBet || 10, maxBet: maxBet || 1000, maxPlayers, players: [{ id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, vipTier: existingPlayer?.vipTier || 'bronze', seat: 0, isReady: false }], status: 'waiting', pot: 0, createdAt: Date.now(), isPrivate: !!isPrivate, hostId: socket.id, gameState: null, chat: [] };
     rooms.set(roomId, newRoom);
     socket.join(roomId);
     players.get(socket.id).roomId = roomId;
@@ -1798,7 +1808,7 @@ io.on('connection', (socket) => {
     const player = players.get(socket.id) || { id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, isReady: false };
     player.roomId = roomId; player.seat = seat;
     players.set(socket.id, player);
-    room.players.push({ id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, seat, isReady: false });
+    room.players.push({ id: socket.id, username, balance, avatar, avatarUrl: avatarUrl || null, vipTier: player.vipTier || 'bronze', seat, isReady: false });
     socket.join(roomId);
     io.to(roomId).emit('room:update', { room });
     io.to(roomId).emit('room:playerJoined', { player: { id: socket.id, username, seat } });
@@ -1879,18 +1889,23 @@ io.on('connection', (socket) => {
     broadcastLobby();
   });
 
-  socket.on('game:win', ({ amount, game, username, userId }) => {
+  socket.on('game:win', async ({ amount, game, username, userId }) => {
     const winner = generateWinner();
     winner.name = username || winner.name;
     winner.game = game || winner.game;
     winner.amount = amount || winner.amount;
-    recentWinners.unshift(winner);
-    if (recentWinners.length > 50) recentWinners.pop();
-    io.emit('winners:new', winner);
-    // Record win to DB leaderboard if we have a userId
     const player = players.get(socket.id);
     const resolvedUserId = userId || player?.id;
     const resolvedUsername = username || player?.username;
+    try {
+      if (resolvedUserId && typeof resolvedUserId === 'number') {
+        const uRow = await query('SELECT vip_tier FROM users WHERE id = $1', [resolvedUserId]);
+        if (uRow.rows.length) winner.vipTier = uRow.rows[0].vip_tier || 'bronze';
+      }
+    } catch {}
+    recentWinners.unshift(winner);
+    if (recentWinners.length > 50) recentWinners.pop();
+    io.emit('winners:new', winner);
     if (resolvedUserId && typeof resolvedUserId === 'number') {
       recordWinToDB(resolvedUserId, resolvedUsername, amount, game).then(() => broadcastLeaderboard());
     } else {
@@ -1919,12 +1934,27 @@ io.on('connection', (socket) => {
     if (room) { room.chat = [...(room.chat || []).slice(-50), msg]; io.to(player.roomId).emit('chat:message', msg); }
   });
 
-  socket.on('lobby:chat', ({ message, username, avatar, avatarUrl }) => {
+  socket.on('lobby:chat', async ({ message, token }) => {
     if (!message || message.trim().length === 0 || message.length > 200) return;
-    const msg = { id: Date.now(), socketId: socket.id, username: username || 'Guest', avatar: avatar || '👤', avatarUrl: avatarUrl || null, message: message.trim(), timestamp: Date.now() };
-    lobbyChat.push(msg);
-    if (lobbyChat.length > 100) lobbyChat.shift();
-    io.emit('lobby:chat', msg);
+    if (!token) return;
+    try {
+      const payload = verifyToken(token);
+      if (!payload) return;
+      const sessionCheck = await query(
+        'SELECT id FROM sessions WHERE token = $1 AND expires_at > NOW()',
+        [token]
+      );
+      if (!sessionCheck.rows.length) return;
+      const userRow = await query('SELECT id, username, avatar, social_avatar_url, vip_tier FROM users WHERE id = $1', [payload.userId]);
+      if (!userRow.rows.length) return;
+      const u = userRow.rows[0];
+      const msg = { id: Date.now(), socketId: socket.id, username: u.username, avatar: u.avatar || '👤', avatarUrl: u.social_avatar_url || null, vipTier: u.vip_tier || 'bronze', message: message.trim(), timestamp: Date.now() };
+      lobbyChat.push(msg);
+      if (lobbyChat.length > 100) lobbyChat.shift();
+      io.emit('lobby:chat', msg);
+    } catch (err) {
+      console.error('[lobby:chat auth]', err.message);
+    }
   });
 
   socket.on('lobby:chat:history', () => {
