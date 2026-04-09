@@ -155,6 +155,11 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [smackMode, setSmackMode] = useState(false);
   const [smackActive, setSmackActive] = useState(false);
   const [trickAnnouncement, setTrickAnnouncement] = useState<{ winner: string; leadsNext: boolean } | null>(null);
+  const [activeProps, setActiveProps] = useState<Record<string, boolean>>({});
+  const propTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => {
+    return () => { Object.values(propTimers.current).forEach(t => clearTimeout(t)); };
+  }, []);
 
   // Disarm smack if the player's turn ends before they play a card
   useEffect(() => {
@@ -808,6 +813,25 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             60%  { filter: drop-shadow(0 0 12px rgba(212,175,55,0.6)); }
             100% { filter: drop-shadow(0 4px 12px rgba(0,0,0,0.75)); }
           }
+          @keyframes smokeWisp {
+            0%   { transform: translateY(0) scaleX(1) rotate(0deg); opacity: 0.6; }
+            25%  { transform: translateY(-12px) scaleX(1.2) rotate(-8deg); opacity: 0.45; }
+            50%  { transform: translateY(-22px) scaleX(0.9) rotate(4deg); opacity: 0.3; }
+            75%  { transform: translateY(-30px) scaleX(1.1) rotate(-3deg); opacity: 0.15; }
+            100% { transform: translateY(-40px) scaleX(0.8) rotate(6deg); opacity: 0; }
+          }
+          @keyframes glassShake {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(-6deg); }
+            30% { transform: rotate(5deg); }
+            45% { transform: rotate(-4deg); }
+            60% { transform: rotate(3deg); }
+            75% { transform: rotate(-1deg); }
+          }
+          @keyframes cigarGlow {
+            0%, 100% { filter: drop-shadow(0 0 3px rgba(255,120,20,0.4)); }
+            50%      { filter: drop-shadow(0 0 10px rgba(255,160,40,0.9)) drop-shadow(0 0 4px rgba(255,80,0,0.6)); }
+          }
           @keyframes smackRipple {
             0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 0.9; border-width: 4px; }
             60%  { transform: translate(-50%,-50%) scale(1.8); opacity: 0.5; border-width: 2px; }
@@ -1072,7 +1096,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* Leather outer ring */}
                 <div className="absolute pointer-events-none" style={{
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  width: '82%', height: '88%', minHeight: 240, minWidth: 240, maxWidth: 520, maxHeight: 420,
+                  width: '88%', height: '92%', minHeight: 280, minWidth: 280, maxWidth: 680, maxHeight: 520,
                   borderRadius: '28px',
                   background: 'radial-gradient(ellipse at 38% 30%, #4a2208 0%, #2a1205 45%, #1a0902 100%)',
                   boxShadow: '0 8px 60px rgba(0,0,0,0.85), 0 2px 8px rgba(0,0,0,0.6), inset 0 2px 6px rgba(255,255,255,0.05)',
@@ -1081,7 +1105,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* Wood-grain rail */}
                 <div className="absolute pointer-events-none" style={{
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  width: 'calc(82% - 16px)', height: 'calc(88% - 12px)', minHeight: 228, minWidth: 228, maxWidth: 504, maxHeight: 408,
+                  width: 'calc(88% - 16px)', height: 'calc(92% - 12px)', minHeight: 268, minWidth: 268, maxWidth: 664, maxHeight: 508,
                   borderRadius: '22px',
                   background: 'conic-gradient(from 0deg, #8B5E3C 0%, #6B4226 8%, #9a6a44 16%, #5a3418 24%, #8B5E3C 32%, #7a5230 40%, #9a6742 48%, #6B4226 56%, #8B5E3C 64%, #5a3418 72%, #9a6a44 80%, #7a5230 88%, #8B5E3C 100%)',
                   boxShadow: 'inset 0 3px 10px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06)',
@@ -1090,7 +1114,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* Felt surface */}
                 <div className="absolute pointer-events-none" style={{
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  width: 'calc(82% - 48px)', height: 'calc(88% - 38px)', minHeight: 202, minWidth: 192, maxWidth: 472, maxHeight: 382,
+                  width: 'calc(88% - 48px)', height: 'calc(92% - 38px)', minHeight: 242, minWidth: 232, maxWidth: 632, maxHeight: 482,
                   borderRadius: '16px',
                   background: tableSkin.felt,
                   boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4)',
@@ -1109,7 +1133,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     textShadow: '1px 1px 0px rgba(255,255,255,0.07), -1px -1px 0px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.4)',
                     filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))',
                     opacity: 0.55,
-                  }}>\u2660</div>
+                  }}>{'♠'}</div>
                   <div style={{
                     fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: '0.45em',
                     color: 'transparent',
@@ -1130,6 +1154,103 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
                 {/* $Pc watermark */}
                 <TableBrand style={{ opacity: 0.09 }} />
+
+                {/* ── INTERACTIVE TABLE PROPS ── */}
+                <div className="absolute z-[4]" style={{ bottom: '8%', right: '8%' }}>
+                  <div className="flex items-end gap-3">
+                    {/* Whiskey glass */}
+                    <button
+                      onClick={() => {
+                        if (propTimers.current.whiskey) clearTimeout(propTimers.current.whiskey);
+                        setActiveProps(p => ({ ...p, whiskey: true }));
+                        propTimers.current.whiskey = setTimeout(() => setActiveProps(p => ({ ...p, whiskey: false })), 1200);
+                      }}
+                      title="Cheers!"
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                        animation: activeProps.whiskey ? 'glassShake 0.6s ease-out, propSparkle 1s ease-out' : undefined,
+                        filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.7))',
+                        transition: 'filter 0.2s',
+                      }}
+                    >
+                      <svg width="28" height="32" viewBox="0 0 28 32">
+                        <path d="M6 4 L22 4 L20 22 Q20 26 16 26 L12 26 Q8 26 8 22 Z" fill="rgba(180,140,60,0.35)" stroke="rgba(255,220,120,0.5)" strokeWidth="1"/>
+                        <rect x="8" y="26" width="12" height="2" rx="1" fill="rgba(160,120,40,0.6)"/>
+                        <rect x="6" y="28" width="16" height="2" rx="1" fill="rgba(140,100,30,0.7)"/>
+                        <ellipse cx="14" cy="5" rx="8" ry="1.5" fill="rgba(200,160,60,0.15)" stroke="rgba(255,220,120,0.3)" strokeWidth="0.5"/>
+                        <path d="M9 8 Q14 12 19 8" fill="none" stroke="rgba(255,200,80,0.2)" strokeWidth="0.5"/>
+                      </svg>
+                    </button>
+                    {/* Cigar */}
+                    <button
+                      onClick={() => {
+                        if (propTimers.current.cigar) clearTimeout(propTimers.current.cigar);
+                        setActiveProps(p => ({ ...p, cigar: true }));
+                        propTimers.current.cigar = setTimeout(() => setActiveProps(p => ({ ...p, cigar: false })), 2500);
+                      }}
+                      title="Light up"
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative',
+                        animation: activeProps.cigar ? 'cigarGlow 1.5s ease-in-out infinite' : undefined,
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))',
+                      }}
+                    >
+                      <svg width="40" height="16" viewBox="0 0 40 16">
+                        <rect x="2" y="6" width="30" height="5" rx="2" fill="#7a5230"/>
+                        <rect x="2" y="6" width="6" height="5" rx="2" fill="#5a3a1a"/>
+                        <rect x="32" y="5" width="6" height="7" rx="1.5" fill="#9a7a50" stroke="rgba(255,220,120,0.3)" strokeWidth="0.5"/>
+                        <circle cx="38" cy="8.5" r="2" fill={activeProps.cigar ? '#ff6a00' : '#994400'} style={{ transition: 'fill 0.3s' }}/>
+                      </svg>
+                      {activeProps.cigar && (
+                        <div style={{ position: 'absolute', right: -2, top: -8, pointerEvents: 'none' }}>
+                          {[0,1,2].map(i => (
+                            <div key={i} style={{
+                              position: 'absolute', left: i * 4 - 4, top: -i * 3,
+                              width: 6, height: 6, borderRadius: '50%',
+                              background: 'rgba(180,180,200,0.3)',
+                              animation: `smokeWisp 1.8s ease-out ${i * 0.3}s infinite`,
+                            }} />
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                {/* Ashtray — top left corner of table */}
+                <div className="absolute z-[4]" style={{ top: '10%', left: '8%' }}>
+                  <button
+                    onClick={() => {
+                      if (propTimers.current.ashtray) clearTimeout(propTimers.current.ashtray);
+                      setActiveProps(p => ({ ...p, ashtray: true }));
+                      propTimers.current.ashtray = setTimeout(() => setActiveProps(p => ({ ...p, ashtray: false })), 1500);
+                    }}
+                    title="Tap the ashtray"
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                      animation: activeProps.ashtray ? 'propBounce 0.7s ease-out' : undefined,
+                      filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.7))',
+                    }}
+                  >
+                    <svg width="36" height="20" viewBox="0 0 36 20">
+                      <ellipse cx="18" cy="14" rx="16" ry="6" fill="rgba(60,60,60,0.7)" stroke="rgba(100,100,100,0.4)" strokeWidth="1"/>
+                      <ellipse cx="18" cy="12" rx="14" ry="4" fill="rgba(40,40,40,0.8)"/>
+                      <ellipse cx="18" cy="12" rx="10" ry="2.5" fill="rgba(30,30,30,0.9)"/>
+                      <rect x="12" y="10" width="12" height="1.5" rx="0.5" fill="rgba(80,80,80,0.5)"/>
+                    </svg>
+                    {activeProps.ashtray && (
+                      <div style={{ position: 'absolute', left: '50%', top: -6, pointerEvents: 'none' }}>
+                        {[0,1].map(i => (
+                          <div key={i} style={{
+                            position: 'absolute', left: i * 6 - 3, top: -i * 2,
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: 'rgba(160,160,180,0.25)',
+                            animation: `smokeWisp 2s ease-out ${i * 0.4}s infinite`,
+                          }} />
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                </div>
 
                 {/* ── BOOK STACKS ON TABLE ── */}
                 {gamePhase === 'playing' && (
@@ -1245,7 +1366,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">{players[2].name}</div>
-                      <div className="text-xs text-white/60">{players[2].nilBid ? 'NIL' : `Bid: ${players[2].bid ?? '?'}`} \u00b7 {players[2].tricks}\u2713</div>
+                      <div className="text-xs text-white/60">{players[2].nilBid ? 'NIL' : `Bid: ${players[2].bid ?? '?'}`} {'·'} {players[2].tricks}{'✓'}</div>
                     </div>
                   </div>
                 </div>
@@ -1281,7 +1402,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                     <div className="text-xs font-bold text-white">{players[1].name}</div>
                     <div className="text-[10px] text-white/60">{players[1].nilBid ? 'NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
-                    <div className="text-[10px] text-white/60">{players[1].tricks}\u2713</div>
+                    <div className="text-[10px] text-white/60">{players[1].tricks}{'✓'}</div>
                   </div>
                 </div>
 
@@ -1316,7 +1437,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                     <div className="text-xs font-bold text-white">{players[3].name}</div>
                     <div className="text-[10px] text-white/60">{players[3].nilBid ? 'NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
-                    <div className="text-[10px] text-white/60">{players[3].tricks}\u2713</div>
+                    <div className="text-[10px] text-white/60">{players[3].tricks}{'✓'}</div>
                   </div>
                 </div>
 
@@ -1335,18 +1456,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <span className="text-[10px] text-gray-400">auto-play</span>
                   </div>
                 )}
-
-                {/* ── YOUR AVATAR (bottom center of table) ── */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-2 rounded-full bg-black/85 border border-[#D4AF37]/40 backdrop-blur-sm">
-                  <div className="relative">
-                    <AvatarSprite avatar={SPADES_AVATARS[0]} size={44} active={currentPlayer === 0 && gamePhase === 'playing'} />
-                    {currentPlayer === 0 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-white">You</div>
-                    <div className="text-xs text-white/60">{players[0].nilBid ? 'NIL' : players[0].blindNilBid ? 'BNIL' : `Bid: ${players[0].bid ?? '?'}`} \u00b7 {players[0].tricks}\u2713</div>
-                  </div>
-                </div>
 
                 {/* ── CENTER TRICK AREA ── */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20" style={{ width: '220px', height: '200px' }}>
@@ -1389,7 +1498,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-black/70 px-2 py-1 rounded-lg border border-[#D4AF37]/20 backdrop-blur-sm pointer-events-none"
                       style={{ zIndex: 0 }}>
                       <div className="text-xs text-[#C0C0C0]">Trick {completedTricks.length + 1}/13</div>
-                      {spadesBroken && <div className="text-xs text-[#D4AF37] font-bold">\u2660 Broken</div>}
+                      {spadesBroken && <div className="text-xs text-[#D4AF37] font-bold">{'♠'} Broken</div>}
                     </div>
                   )}
                 </div>
@@ -1563,6 +1672,22 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
               {/* WOOD RAIL */}
               <div className="h-4 wood-rail" />
 
+              {/* YOUR BADGE — below table, above hand */}
+              {(gamePhase === 'bidding' || gamePhase === 'playing') && (
+                <div className="flex items-center justify-center gap-2 py-1.5" style={{ background: 'rgba(5,5,10,0.95)' }}>
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/85 border border-[#D4AF37]/40 backdrop-blur-sm">
+                    <div className="relative">
+                      <AvatarSprite avatar={SPADES_AVATARS[0]} size={36} active={currentPlayer === 0 && gamePhase === 'playing'} />
+                      {currentPlayer === 0 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-white">You</div>
+                      <div className="text-xs text-white/60">{players[0].nilBid ? 'NIL' : players[0].blindNilBid ? 'BNIL' : `Bid: ${players[0].bid ?? '?'}`} {'·'} {players[0].tricks}{'✓'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* MESSAGE BAR */}
               {message && (
                 <div className="text-center py-2 px-3" style={{ background: 'rgba(0,0,0,0.8)' }}>
@@ -1581,24 +1706,29 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   {/* Reaction buttons + SMACK */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
                     <div className="flex gap-1 items-center">
-                      {/* SMACK button — arm before playing a card you're confident about */}
-                      {gamePhase === 'playing' && currentPlayer === 0 && (
-                        <button
-                          onClick={() => setSmackMode(m => !m)}
-                          title={smackMode ? 'SMACK armed — play any card to slam it!' : 'Arm the SMACK — play with attitude!'}
-                          style={{
-                            fontSize: 11, padding: '2px 7px', borderRadius: 8,
-                            background: smackMode ? 'rgba(212,175,55,0.25)' : 'rgba(255,255,255,0.05)',
-                            border: `1.5px solid ${smackMode ? '#D4AF37' : 'rgba(255,255,255,0.15)'}`,
-                            color: smackMode ? '#D4AF37' : '#666',
-                            cursor: 'pointer', fontWeight: 800, letterSpacing: '0.04em',
-                            transition: 'all 0.2s',
-                            animation: smackMode ? 'smackArmPulse 0.8s ease-in-out infinite' : undefined,
-                            userSelect: 'none',
-                          }}>
-                          {smackMode ? 'ARMED!' : 'SMACK'}
-                        </button>
-                      )}
+                      {/* SMACK button — always visible, only active when it's your turn to play */}
+                      {(gamePhase === 'bidding' || gamePhase === 'playing') && (() => {
+                        const canArm = gamePhase === 'playing' && currentPlayer === 0;
+                        return (
+                          <button
+                            onClick={() => canArm && setSmackMode(m => !m)}
+                            title={!canArm ? 'SMACK — available when it\'s your turn' : smackMode ? 'SMACK armed — play any card to slam it!' : 'Arm the SMACK — play with attitude!'}
+                            style={{
+                              fontSize: 11, padding: '2px 7px', borderRadius: 8,
+                              background: smackMode && canArm ? 'rgba(212,175,55,0.25)' : 'rgba(255,255,255,0.05)',
+                              border: `1.5px solid ${smackMode && canArm ? '#D4AF37' : 'rgba(255,255,255,0.15)'}`,
+                              color: smackMode && canArm ? '#D4AF37' : canArm ? '#888' : '#444',
+                              cursor: canArm ? 'pointer' : 'default',
+                              fontWeight: 800, letterSpacing: '0.04em',
+                              transition: 'all 0.2s',
+                              animation: smackMode && canArm ? 'smackArmPulse 0.8s ease-in-out infinite' : undefined,
+                              userSelect: 'none',
+                              opacity: canArm ? 1 : 0.45,
+                            }}>
+                            {smackMode && canArm ? 'ARMED!' : 'SMACK'}
+                          </button>
+                        );
+                      })()}
                       <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
                     </div>
                   </div>
