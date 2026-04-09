@@ -25,12 +25,16 @@
             var _pcUrlBalance = parseInt(new URLSearchParams(window.location.search).get('balance'), 10);
             var _pcStartBalance = isNaN(_pcUrlBalance) ? 1000 : _pcUrlBalance;
             var _pcPrevBalance = _pcStartBalance;
+            var _pcGamePhase = 'loading';
+            var _pcMenuShown = false;
+            var _pcCustomChipValue = null;
+            var _pcSceneryFilter = 'none';
 
             $(document).ready(function () {
                 var oMain = new CMain({
                     money: _pcStartBalance,
                     min_bet: 1,
-                    max_bet: 100,
+                    max_bet: 1000000000,
                     win_occurrence: 40,
                     game_cash: _pcStartBalance,
                     chip_values: [1, 5, 10, 25, 50, 100],
@@ -50,6 +54,10 @@
                 });
 
                 $(oMain).on("start_session", function (evt) {
+                    if (_pcGamePhase !== 'betting') {
+                        _pcGamePhase = 'betting';
+                        window.parent.postMessage({ type: 'hr:phase', phase: 'betting' }, '*');
+                    }
                     if (getParamValue('ctl-arcade') === "true") {
                         parent.__ctlArcadeStartSession();
                     }
@@ -62,10 +70,15 @@
                 });
 
                 $(oMain).on("bet_placed", function (evt, iTotBet) {
-                    // Track bets for balance sync
+                    _pcGamePhase = 'racing';
+                    window.parent.postMessage({ type: 'hr:phase', phase: 'racing' }, '*');
+                    if (window._pcCrowdChants) window._pcCrowdChants.start();
                 });
 
                 $(oMain).on("save_score", function (evt, iScore) {
+                    _pcGamePhase = 'result';
+                    window.parent.postMessage({ type: 'hr:phase', phase: 'result' }, '*');
+                    if (window._pcCrowdChants) window._pcCrowdChants.stop();
                     if (getParamValue('ctl-arcade') === "true") {
                         parent.__ctlArcadeSaveScore({ score: iScore });
                     }
@@ -76,6 +89,10 @@
                         window.parent.postMessage({ type: 'bet', amount: Math.abs(netChange) }, '*');
                     }
                     _pcPrevBalance = iScore;
+
+                    setTimeout(function () {
+                        _pcAutoReturnToBetting();
+                    }, 3000);
                 });
 
                 $(oMain).on("show_interlevel_ad", function (evt) {
@@ -102,18 +119,166 @@
                 } else {
                     sizeHandler();
                 }
+
+                _pcPatchContinuousPlay();
+                _pcPatchChipSystem();
             });
+
+            function _pcAutoReturnToBetting() {
+                if (_pcGamePhase !== 'result') return;
+                try {
+                    if (typeof s_oGame !== 'undefined' && s_oGame && typeof s_oGame.returnInBetPanel === 'function') {
+                        s_oGame.returnInBetPanel();
+                        return;
+                    }
+                    if (typeof s_oMain !== 'undefined' && s_oMain) {
+                        s_oMain.gotoBetPanel();
+                    }
+                } catch (e) {}
+            }
+
+            function _pcPatchContinuousPlay() {
+                var _checkInterval = setInterval(function () {
+                    if (typeof s_oMain === 'undefined' || !s_oMain) return;
+                    clearInterval(_checkInterval);
+
+                    var _origGotoMenu = s_oMain.gotoMenu.bind(s_oMain);
+                    s_oMain.gotoMenu = function () {
+                        if (_pcMenuShown) {
+                            s_oMain.gotoBetPanel();
+                        } else {
+                            _pcMenuShown = true;
+                            _origGotoMenu();
+                            _pcGamePhase = 'menu';
+                            window.parent.postMessage({ type: 'hr:phase', phase: 'menu' }, '*');
+                        }
+                    };
+
+                    var _origGotoBetPanel = s_oMain.gotoBetPanel.bind(s_oMain);
+                    s_oMain.gotoBetPanel = function () {
+                        _origGotoBetPanel();
+                        _pcGamePhase = 'betting';
+                        window.parent.postMessage({ type: 'hr:phase', phase: 'betting' }, '*');
+                        setTimeout(_pcHideNativeChips, 200);
+                    };
+                }, 100);
+            }
+
+            function _pcPatchChipSystem() {
+                var _checkInterval = setInterval(function () {
+                    if (typeof CHIP_VALUES === 'undefined') return;
+                    clearInterval(_checkInterval);
+
+                    window._pcOrigChipValues = CHIP_VALUES.slice();
+
+                    window._pcSetChipValue = function (value) {
+                        _pcCustomChipValue = value;
+                        if (typeof CHIP_VALUES !== 'undefined' && CHIP_VALUES.length > 0) {
+                            CHIP_VALUES[0] = value;
+                            if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel) {
+                                s_oBetPanel.setChipSelected(0);
+                            }
+                        }
+                    };
+                }, 100);
+
+                _pcPatchChipPanelConstructor();
+            }
+
+            function _pcPatchChipPanelConstructor() {
+                var _checkCtor = setInterval(function () {
+                    if (typeof CChipPanel === 'undefined') return;
+                    clearInterval(_checkCtor);
+
+                    var _OrigCChipPanel = CChipPanel;
+                    CChipPanel = function (x, y, container) {
+                        var beforeCount = container.numChildren;
+                        _OrigCChipPanel.call(this, x, y, container);
+                        try {
+                            for (var i = beforeCount; i < container.numChildren; i++) {
+                                var child = container.getChildAt(i);
+                                if (child) {
+                                    child.alpha = 0;
+                                    child.mouseEnabled = false;
+                                    if (child.visible !== undefined) child.visible = false;
+                                }
+                            }
+                        } catch (e) {}
+                        return this;
+                    };
+                    CChipPanel.prototype = _OrigCChipPanel.prototype;
+                }, 50);
+            }
+
+            function _pcHideNativeChips() {
+                try {
+                    if (typeof s_oStage === 'undefined' || !s_oStage) return;
+                    var stage = s_oStage;
+                    for (var ci = 0; ci < stage.numChildren; ci++) {
+                        var child = stage.getChildAt(ci);
+                        if (!child || !child.numChildren) continue;
+                        for (var gi = 0; gi < child.numChildren; gi++) {
+                            var gc = child.getChildAt(gi);
+                            if (!gc) continue;
+                            var isFiche = gc.x >= 980 && gc.x <= 1080 && gc.y >= 280 && gc.y <= 620;
+                            var hasInteract = gc.cursor === 'pointer' || typeof gc._listeners !== 'undefined';
+                            if (isFiche && hasInteract) {
+                                gc.alpha = 0;
+                                gc.mouseEnabled = false;
+                                if (gc.visible !== undefined) gc.visible = false;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            function _pcApplyScenery(filter) {
+                _pcSceneryFilter = filter;
+                var canvas = document.getElementById('canvas');
+                if (canvas) {
+                    canvas.style.filter = filter;
+                    canvas.style.webkitFilter = filter;
+                }
+            }
 
             window.addEventListener('message', function (e) {
                 if (!e.data || typeof e.data !== 'object') return;
+                if (e.source !== window.parent && e.source !== window) return;
                 if (e.data.type === 'balance:update' && typeof e.data.balance === 'number') {
                     _pcPrevBalance = e.data.balance;
+                    if (typeof s_iCurMoney !== 'undefined') {
+                        s_iCurMoney = e.data.balance;
+                    }
                 }
                 if (e.data.type === 'balance' && typeof e.data.balance === 'number') {
                     _pcPrevBalance = e.data.balance;
+                    if (typeof s_iCurMoney !== 'undefined') {
+                        s_iCurMoney = e.data.balance;
+                    }
                     if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel !== null) {
                         s_oBetPanel.setMoney(e.data.balance);
                     }
+                }
+                if (e.data.type === 'hr:chipSelect' && typeof e.data.value === 'number') {
+                    if (window._pcSetChipValue) {
+                        window._pcSetChipValue(e.data.value);
+                    }
+                }
+                if (e.data.type === 'hr:scenery' && typeof e.data.filter === 'string') {
+                    _pcApplyScenery(e.data.filter);
+                }
+                if (e.data.type === 'hr:chantMute' && typeof e.data.muted === 'boolean') {
+                    if (window._pcCrowdChants) {
+                        window._pcCrowdChants.setMuted(e.data.muted);
+                    }
+                }
+                if (e.data.type === 'hr:chantVolume' && typeof e.data.volume === 'number') {
+                    if (window._pcCrowdChants) {
+                        window._pcCrowdChants.setVolume(e.data.volume);
+                    }
+                }
+                if (e.data.type === 'hr:getPhase') {
+                    window.parent.postMessage({ type: 'hr:phase', phase: _pcGamePhase }, '*');
                 }
             });
 
@@ -129,6 +294,7 @@
         <div data-orientation="landscape" class="orientation-msg-container"><p class="orientation-msg-text">Please rotate your device</p></div>
         <div id="block_game" style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%; display:none"></div>
 
+        <script src="crowd-chants.js"></script>
         <script src="music-hook.js"></script>
 </body>
 </html>

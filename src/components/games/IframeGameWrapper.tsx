@@ -5,6 +5,7 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, getSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
 import { getDefaultRouletteSkin, ROULETTE_SKINS } from '@/hooks/useRouletteSkin';
 import { getSocket } from '@/lib/socket';
+import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -31,6 +32,21 @@ interface RoulettePlayer {
   avatar: string | null;
   betTotal: number;
 }
+
+type HorseRacePhase = 'loading' | 'menu' | 'betting' | 'racing' | 'result';
+
+interface SceneryOption {
+  id: string;
+  label: string;
+  filter: string;
+  icon: string;
+}
+
+const SCENERY_OPTIONS: SceneryOption[] = [
+  { id: 'classic', label: 'Classic', filter: 'none', icon: '🌿' },
+  { id: 'night', label: 'Night Race', filter: 'brightness(0.55) contrast(1.2) saturate(0.7) hue-rotate(200deg)', icon: '🌙' },
+  { id: 'desert', label: 'Desert', filter: 'sepia(0.5) saturate(1.3) brightness(1.05) hue-rotate(-10deg)', icon: '🏜️' },
+];
 
 export function IframeGameWrapper({
   gameId,
@@ -68,6 +84,12 @@ export function IframeGameWrapper({
   const [rouletteTimer, setRouletteTimer] = useState(0);
   const rouletteRoundIdRef = useRef(0);
   const isRoulette = gameId === 'roulette';
+  const isHorseRacing = gameId === 'horse-racing';
+
+  const [hrPhase, setHrPhase] = useState<HorseRacePhase>('loading');
+  const [hrSelectedChip, setHrSelectedChip] = useState(5);
+  const [hrScenery, setHrScenery] = useState('classic');
+  const [hrShowChips, setHrShowChips] = useState(true);
 
   const iframeSrc = `${gamePath}?balance=${balance}`;
 
@@ -82,6 +104,14 @@ export function IframeGameWrapper({
       trackTitle: getSoundTrackTitle(),
     }, '*');
   }, []);
+
+  const sendHrChantState = useCallback(() => {
+    if (!isHorseRacing) return;
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage({ type: 'hr:chantMute', muted: getSoundMuted() }, '*');
+    win.postMessage({ type: 'hr:chantVolume', volume: getSoundVolume() }, '*');
+  }, [isHorseRacing]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -131,11 +161,23 @@ export function IframeGameWrapper({
         gameInProgressRef.current = event.data.active;
         onGameStateChange?.(event.data.active);
       }
+
+      if (isHorseRacing && type === 'hr:phase' && typeof event.data.phase === 'string') {
+        const phase = event.data.phase as HorseRacePhase;
+        setHrPhase(phase);
+        if (phase === 'racing') {
+          gameInProgressRef.current = true;
+          onGameStateChange?.(true);
+        } else if (phase === 'betting' || phase === 'result') {
+          gameInProgressRef.current = false;
+          onGameStateChange?.(false);
+        }
+      }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onBet, onWin, isRoulette]);
+  }, [onBet, onWin, isRoulette, isHorseRacing]);
 
   useEffect(() => {
     if (isLoaded && iframeRef.current?.contentWindow) {
@@ -157,8 +199,10 @@ export function IframeGameWrapper({
     if (!isLoaded) return;
     sendMusicState();
     sendSkinState();
+    if (isHorseRacing) sendHrChantState();
     const unsubMusic = subscribeSoundState(() => {
       sendMusicState();
+      if (isHorseRacing) sendHrChantState();
     });
     const handleSkinChange = (e: Event) => {
       const id = (e as CustomEvent).detail as string;
@@ -172,7 +216,7 @@ export function IframeGameWrapper({
       unsubMusic();
       window.removeEventListener('pcasino_roulette_skin_change', handleSkinChange);
     };
-  }, [isLoaded, sendMusicState, sendSkinState]);
+  }, [isLoaded, sendMusicState, sendSkinState, isHorseRacing, sendHrChantState]);
 
   useEffect(() => {
     if (!isRoulette || !isLoaded) return;
@@ -240,6 +284,24 @@ export function IframeGameWrapper({
     };
   }, [isRoulette, isLoaded, username, avatarUrl, userId]);
 
+  useEffect(() => {
+    if (!isHorseRacing || !isLoaded) return;
+    iframeRef.current?.contentWindow?.postMessage({ type: 'hr:chipSelect', value: hrSelectedChip }, '*');
+  }, [hrSelectedChip, isHorseRacing, isLoaded]);
+
+  const handleHrChipSelect = useCallback((amount: number) => {
+    setHrSelectedChip(amount);
+    iframeRef.current?.contentWindow?.postMessage({ type: 'hr:chipSelect', value: amount }, '*');
+  }, []);
+
+  const handleHrSceneryChange = useCallback((sceneryId: string) => {
+    setHrScenery(sceneryId);
+    const opt = SCENERY_OPTIONS.find(s => s.id === sceneryId);
+    if (opt) {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'hr:scenery', filter: opt.filter }, '*');
+    }
+  }, []);
+
   const requestBack = useCallback(() => {
     if (gameInProgressRef.current) {
       setShowLeaveModal(true);
@@ -260,6 +322,9 @@ export function IframeGameWrapper({
   const handleReload = () => {
     setIsLoaded(false);
     setLoadError(false);
+    if (isHorseRacing) {
+      setHrPhase('loading');
+    }
     if (iframeRef.current) {
       iframeRef.current.src = iframeSrc;
     }
@@ -303,6 +368,22 @@ export function IframeGameWrapper({
           {rouletteTimer}s
         </div>
       )}
+
+      {isHorseRacing && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px',
+          borderRadius: 8,
+          background: hrPhase === 'racing' ? 'rgba(239,68,68,0.15)' : hrPhase === 'betting' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+          border: `1px solid ${hrPhase === 'racing' ? 'rgba(239,68,68,0.3)' : hrPhase === 'betting' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+          fontSize: 11, fontWeight: 700,
+          color: hrPhase === 'racing' ? '#ef4444' : hrPhase === 'betting' ? '#22c55e' : '#888',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}>
+          {hrPhase === 'racing' ? 'RACING' : hrPhase === 'betting' ? 'PLACE BETS' : hrPhase === 'result' ? 'RESULTS' : hrPhase === 'menu' ? 'READY' : 'LOADING'}
+        </div>
+      )}
+
       <CasinoIcon name={gameEmoji} size={20} />
       <button
         onClick={handleReload}
@@ -322,6 +403,118 @@ export function IframeGameWrapper({
       >
         {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
       </button>
+    </div>
+  );
+
+  const hrChipOverlay = isHorseRacing && isLoaded && (hrPhase === 'betting' || hrPhase === 'menu') && (
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 25,
+      background: 'linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0) 100%)',
+      padding: '20px 12px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 8,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 2 }}>
+        <div style={{
+          fontSize: 11, color: '#D4AF37', fontWeight: 700, letterSpacing: '1px',
+          textTransform: 'uppercase',
+        }}>
+          Bet Chip: {formatChipLabel(hrSelectedChip)} $Pc
+        </div>
+        <button
+          onClick={() => setHrShowChips(v => !v)}
+          style={{
+            padding: '3px 10px',
+            borderRadius: 12,
+            border: '1px solid rgba(212,175,55,0.4)',
+            background: hrShowChips ? 'rgba(212,175,55,0.2)' : 'rgba(212,175,55,0.08)',
+            color: '#D4AF37',
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {hrShowChips ? '▴ HIDE CHIPS' : '▾ SHOW ALL CHIPS'}
+        </button>
+      </div>
+
+      {hrShowChips && (
+        <div style={{
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: 16,
+          padding: '10px 14px',
+          border: '1px solid rgba(212,175,55,0.2)',
+          maxHeight: 220,
+          overflowY: 'auto',
+          width: '100%',
+          maxWidth: 600,
+        }}>
+          <ChipSelector
+            selectedChip={hrSelectedChip}
+            onSelect={handleHrChipSelect}
+            balance={balance}
+            compact
+          />
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        {SCENERY_OPTIONS.map(s => (
+          <button
+            key={s.id}
+            onClick={() => handleHrSceneryChange(s.id)}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 10,
+              border: hrScenery === s.id ? '1.5px solid #D4AF37' : '1px solid rgba(255,255,255,0.12)',
+              background: hrScenery === s.id ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.04)',
+              color: hrScenery === s.id ? '#D4AF37' : '#888',
+              fontSize: 10,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12 }}>{s.icon}</span>
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const hrRacingOverlay = isHorseRacing && isLoaded && hrPhase === 'racing' && (
+    <div style={{
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      zIndex: 25,
+      background: 'rgba(0,0,0,0.7)',
+      borderRadius: 12,
+      padding: '6px 14px',
+      border: '1px solid rgba(239,68,68,0.3)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+    }}>
+      <div style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: '#ef4444',
+        animation: 'pulse 1s infinite',
+      }} />
+      <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, letterSpacing: '1px' }}>
+        LIVE
+      </span>
     </div>
   );
 
@@ -377,6 +570,9 @@ export function IframeGameWrapper({
           onError={() => { setLoadError(true); setIsLoaded(true); }}
           title={gameName}
         />
+
+        {hrChipOverlay}
+        {hrRacingOverlay}
 
         {isRoulette && otherPlayers.length > 0 && (
           <div style={{
@@ -448,6 +644,15 @@ export function IframeGameWrapper({
             </div>
           </div>
         </div>
+      )}
+
+      {isHorseRacing && (
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+          }
+        `}</style>
       )}
     </div>
   );

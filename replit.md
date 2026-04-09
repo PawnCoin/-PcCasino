@@ -37,6 +37,7 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
     - **Spades - Elite Competitive Edition**: Features 4 AI levels, NIL/Blind NIL bidding, house rules customization, ranked mode with MMR tracking, emoji reactions, and trick replay.
     - **Pool Table & Darts 501**: Canvas-based games with realistic physics and AI opponents.
     - **Iframe Game Integration**: `IframeGameWrapper` facilitates embedding external HTML5 games (French Roulette, Blackjack, Craps, Horse Racing) with balance synchronization and event bridging via `window.postMessage`.
+    - **Horse Racing Enhancements**: SVG chip system overlay (ChipSelector with standard/thousands/millions tiers via CChipPanel constructor patching), continuous play (auto-returns to betting 3s after race result via patched gotoMenu/gotoBetPanel), 3 track scenery themes (Classic, Night Race, Desert) via CSS filters, and crowd chant audio during races using 15 WAV clips played through Howler.js at 1–3s intervals. Files: `public/games/horse-racing/index.html`, `public/games/horse-racing/crowd-chants.js`, `public/games/horse-racing/sounds/chant_*.wav`, `src/components/games/IframeGameWrapper.tsx`.
     - **Poker Hand History & Replay**: Stores and allows replay of poker hands, with public sharing capabilities.
 
 #### Feature Specifications
