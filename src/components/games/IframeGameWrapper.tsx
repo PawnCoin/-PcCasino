@@ -91,7 +91,8 @@ export function IframeGameWrapper({
   const [hrScenery, setHrScenery] = useState('classic');
   const [hrShowChips, setHrShowChips] = useState(true);
 
-  const iframeSrc = `${gamePath}?balance=${balance}`;
+  const [initialBalance] = useState(() => balance);
+  const iframeSrc = `${gamePath}?balance=${initialBalance}`;
 
   const sendMusicState = useCallback(() => {
     const win = iframeRef.current?.contentWindow;
@@ -325,7 +326,7 @@ export function IframeGameWrapper({
       setHrPhase('loading');
     }
     if (iframeRef.current) {
-      iframeRef.current.src = iframeSrc;
+      iframeRef.current.src = `${gamePath}?balance=${balanceRef.current}`;
     }
   };
 
