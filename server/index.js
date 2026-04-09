@@ -14,6 +14,7 @@ import kycRoutes, { adminKycRouter } from './kyc-routes.js';
 import walletRoutes from './wallet-routes.js';
 import friendsRoutes, { setFriendsIO } from './friends-routes.js';
 import { initDatabase, query, pool } from './db.js';
+import { cleanupExpiredSessions } from './auth-routes.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
 import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
 
@@ -1804,5 +1805,9 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Multiplayer server running on :${PORT}`);
   setJackpotIO(io);
   setFriendsIO(io);
-  initDatabase().then(() => loadJackpotFromDB());
+  initDatabase().then(() => {
+    loadJackpotFromDB();
+    cleanupExpiredSessions();
+    setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+  });
 });

@@ -37,12 +37,31 @@ export async function requireAuth(req, res, next) {
   if (!payload) return res.status(401).json({ error: 'Invalid token' });
 
   try {
+    const sessionCheck = await query(
+      'SELECT id FROM sessions WHERE token = $1 AND expires_at > NOW()',
+      [token]
+    );
+    if (!sessionCheck.rows.length) {
+      return res.status(401).json({ error: 'Session expired or invalid' });
+    }
+
     const result = await query('SELECT * FROM users WHERE id = $1', [payload.userId]);
     if (!result.rows.length) return res.status(401).json({ error: 'User not found' });
     req.user = result.rows[0];
     next();
   } catch (err) {
     res.status(500).json({ error: 'Auth error' });
+  }
+}
+
+export async function cleanupExpiredSessions() {
+  try {
+    const result = await query('DELETE FROM sessions WHERE expires_at < NOW()');
+    if (result.rowCount > 0) {
+      console.log(`[Sessions] Cleaned up ${result.rowCount} expired sessions`);
+    }
+  } catch (err) {
+    console.error('[Sessions] Cleanup error:', err.message);
   }
 }
 
@@ -303,12 +322,9 @@ router.get('/me', requireAuth, async (req, res) => {
   });
 });
 
-// Logout
+// Logout — invalidates all sessions for this user (logs out everywhere)
 router.post('/logout', requireAuth, async (req, res) => {
-  const token = req.headers.authorization?.slice(7);
-  if (token) {
-    await query('DELETE FROM sessions WHERE token = $1', [token]).catch(() => {});
-  }
+  await query('DELETE FROM sessions WHERE user_id = $1', [req.user.id]).catch(() => {});
   res.json({ success: true });
 });
 

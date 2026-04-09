@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { paymentsApi } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -100,25 +101,15 @@ export function FinancialModal({
     setPcpayLoading(true);
     setPcpayError('');
     try {
-      const token = localStorage.getItem('pcasino_token') || '';
-      const res = await fetch('/api/deposit/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPcpayError(data.error || 'PcPay checkout failed. Try manual deposit.');
-        return;
-      }
+      const data = await paymentsApi.initiateDeposit(amount);
       const checkoutUrl = data.checkout_url || data.checkoutUrl || data.url || data.redirect_url;
       if (checkoutUrl) {
         window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
       } else {
         setPcpayError('Checkout URL not returned. Contact support.');
       }
-    } catch {
-      setPcpayError('Could not reach PcPay. Try manual deposit.');
+    } catch (err: any) {
+      setPcpayError(err.message || 'Could not reach PcPay. Try manual deposit.');
     } finally {
       setPcpayLoading(false);
     }
@@ -126,10 +117,7 @@ export function FinancialModal({
 
   useEffect(() => {
     if (!depositAddressProp && isOpen) {
-      fetch('/api/payments/address', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('pcasino_token') || ''}` },
-      })
-        .then(r => r.json())
+      paymentsApi.getDepositAddress()
         .then(d => { if (d?.address) setDepositAddressFetched(d.address); })
         .catch(() => {});
     }

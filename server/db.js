@@ -82,6 +82,9 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`);
 
     await query(`
       CREATE TABLE IF NOT EXISTS deposit_requests (

@@ -23,7 +23,7 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 - **State Management**: React hooks with `localStorage` for persistence.
 - **Multiplayer**: Real-time interaction powered by Socket.io, enabling features like live rooms, chat, game state synchronization, and emoji reactions.
 - **Sound Design**: Programmatically generated sound effects using Web Audio API for chip clinks, wins, card deals, dice rolls, etc.
-- **Authentication**: Real OAuth 2.0 integration with Google, Discord, and Twitter.
+- **Authentication**: Real OAuth 2.0 integration with Google, Discord, and Twitter. Session-table-backed auth with retry logic on /api/auth/me (3 attempts for network errors, immediate clear on 401). Global 401 interceptor triggers centralized logout with toast. Logout invalidates all sessions across devices. Hourly expired session cleanup.
 - **Persistence**: PostgreSQL database for user profiles, game history, leaderboards, daily bonuses, and jackpot data.
 - **Payment Processing**: PcPay webhook integration for automatic balance crediting and real-time payment confirmation.
 - **Game Features**:

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { getSocket } from '@/lib/socket';
-import { authApi, paymentsApi, gameApi, friendsApi, setToken, clearToken, getToken } from '@/lib/api';
+import { authApi, paymentsApi, gameApi, friendsApi, setToken, clearToken, getToken, setSessionExpiredHandler } from '@/lib/api';
 import { Navigation } from '@/components/Navigation';
 import { ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
@@ -175,6 +175,18 @@ function App() {
     } catch { }
   }, []);
 
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      clearToken();
+      setUser(null);
+      setIsAuthenticated(false);
+      setNotifications([]);
+      setUnreadCount(0);
+      localStorage.removeItem('pcasino_user');
+      toast.error('Session expired, please log in again');
+    });
+  }, []);
+
   // Detect ?ref=CODE on load — validate, store in sessionStorage, show welcome overlay
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -257,11 +269,27 @@ function App() {
     }
   }, []);
 
-  // Check for existing session via JWT token
+  // Check for existing session via JWT token with retry logic
   useEffect(() => {
     const token = getToken();
     if (token) {
-      authApi.me().then(data => {
+      const MAX_RETRIES = 3;
+      const RETRY_DELAY = 1500;
+
+      const attemptMe = async (attempt: number): Promise<any> => {
+        try {
+          return await authApi.me();
+        } catch (err: any) {
+          if (err.status === 401) throw err;
+          if (attempt < MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, RETRY_DELAY));
+            return attemptMe(attempt + 1);
+          }
+          throw err;
+        }
+      };
+
+      attemptMe(1).then(data => {
         if (data.user) {
           setUser({
             id: data.user.id,
@@ -280,7 +308,6 @@ function App() {
             emailVerified: data.user.emailVerified,
           } as any);
           setIsAuthenticated(true);
-          // Load transactions from DB
           paymentsApi.getTransactions({ limit: 100 }).then(txData => {
             if (txData.transactions) {
               setTransactions(txData.transactions.map((t: any) => ({
@@ -293,32 +320,18 @@ function App() {
               })));
             }
           }).catch(() => {
-            // Fall back to localStorage transactions
             const storedTxs = localStorage.getItem('pcasino_transactions');
             if (storedTxs) setTransactions(JSON.parse(storedTxs));
           });
           fetchNotifications();
         }
-      }).catch(() => {
-        // Token invalid, clear it
-        clearToken();
-        const storedUser = localStorage.getItem('pcasino_user');
-        const storedTxs = localStorage.getItem('pcasino_transactions');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-          setIsAuthenticated(true);
+      }).catch((err: any) => {
+        if (err.status === 401) {
+          clearToken();
+          localStorage.removeItem('pcasino_user');
+          toast.error('Session expired, please log in again');
         }
-        if (storedTxs) setTransactions(JSON.parse(storedTxs));
       });
-    } else {
-      // No token - use localStorage for offline/guest state
-      const storedUser = localStorage.getItem('pcasino_user');
-      const storedTxs = localStorage.getItem('pcasino_transactions');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
-      }
-      if (storedTxs) setTransactions(JSON.parse(storedTxs));
     }
   }, [fetchNotifications]);
 
@@ -496,6 +509,7 @@ function App() {
   };
 
   const logout = async () => {
+    setSessionExpiredHandler(null);
     try { await authApi.logout(); } catch { }
     clearToken();
     setUser(null);
@@ -504,6 +518,15 @@ function App() {
     setUnreadCount(0);
     localStorage.removeItem('pcasino_user');
     toast.success('Logged out successfully');
+    setSessionExpiredHandler(() => {
+      clearToken();
+      setUser(null);
+      setIsAuthenticated(false);
+      setNotifications([]);
+      setUnreadCount(0);
+      localStorage.removeItem('pcasino_user');
+      toast.error('Session expired, please log in again');
+    });
   };
 
   // Transaction management

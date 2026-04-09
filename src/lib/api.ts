@@ -1,5 +1,12 @@
 const API_BASE = '/api';
 
+type SessionExpiredHandler = () => void;
+let _onSessionExpired: SessionExpiredHandler | null = null;
+
+export function setSessionExpiredHandler(handler: SessionExpiredHandler | null) {
+  _onSessionExpired = handler;
+}
+
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('pcasino_token');
   return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
@@ -11,7 +18,15 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
     headers: { ...getAuthHeaders(), ...(options.headers as Record<string, string> || {}) },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+  if (res.status === 401 && path !== '/auth/me' && path !== '/auth/login' && path !== '/auth/register') {
+    const hasToken = !!localStorage.getItem('pcasino_token');
+    if (hasToken && _onSessionExpired) _onSessionExpired();
+  }
+  if (!res.ok) {
+    const err = new Error(data.error || `API error ${res.status}`) as any;
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -79,6 +94,9 @@ export const authApi = {
 // Payments
 export const paymentsApi = {
   getDepositAddress: () => apiFetch('/payments/address'),
+
+  initiateDeposit: (amount: number) =>
+    apiFetch('/deposit/initiate', { method: 'POST', body: JSON.stringify({ amount }) }),
 
   requestDeposit: (body: { amount: number; txHash?: string; fromAddress?: string; network?: string }) =>
     apiFetch('/payments/deposit/request', { method: 'POST', body: JSON.stringify(body) }),
