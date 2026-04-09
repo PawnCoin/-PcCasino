@@ -1787,8 +1787,12 @@ io.on('connection', (socket) => {
   socket.on('room:join', ({ roomId, username, balance, avatar, avatarUrl }, cb) => {
     if (roomId === 'roulette-main') {
       const mainPlayer = players.get(socket.id);
-      const playerBalance = typeof balance === 'number' ? balance : ((mainPlayer && typeof mainPlayer.balance === 'number') ? mainPlayer.balance : 0);
-      const rp = { id: socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
+      const trustedId = (mainPlayer && mainPlayer.id) ? mainPlayer.id : socket.id;
+      const trustedUsername = (mainPlayer && mainPlayer.username) ? mainPlayer.username : (username || 'Guest');
+      const trustedAvatarUrl = mainPlayer ? mainPlayer.avatarUrl : (avatarUrl || null);
+      const trustedAvatar = mainPlayer ? mainPlayer.avatar : (avatar || null);
+      const playerBalance = (mainPlayer && typeof mainPlayer.balance === 'number') ? mainPlayer.balance : 0;
+      const rp = { id: trustedId, socketId: socket.id, username: trustedUsername, avatarUrl: trustedAvatarUrl, avatar: trustedAvatar, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
       rouletteRoom.players.set(socket.id, rp);
       socket.join('roulette-main');
       rouletteEnsureTimer();
@@ -1969,10 +1973,14 @@ io.on('connection', (socket) => {
 
   
     // ---- Multiplayer Roulette Handlers ----
-    socket.on('roulette:join', ({ username, avatarUrl, avatar, userId }) => {
+    socket.on('roulette:join', () => {
       const mainPlayer = players.get(socket.id);
+      const trustedId = (mainPlayer && mainPlayer.id) ? mainPlayer.id : socket.id;
+      const trustedUsername = (mainPlayer && mainPlayer.username) ? mainPlayer.username : 'Guest';
+      const trustedAvatarUrl = mainPlayer ? mainPlayer.avatarUrl : null;
+      const trustedAvatar = mainPlayer ? mainPlayer.avatar : null;
       const playerBalance = (mainPlayer && typeof mainPlayer.balance === 'number') ? mainPlayer.balance : 0;
-      const rp = { id: userId || socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
+      const rp = { id: trustedId, socketId: socket.id, username: trustedUsername, avatarUrl: trustedAvatarUrl, avatar: trustedAvatar, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
       rouletteRoom.players.set(socket.id, rp);
       socket.join('roulette-main');
       rouletteEnsureTimer();
