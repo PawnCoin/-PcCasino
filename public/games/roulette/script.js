@@ -2151,11 +2151,14 @@ window.addEventListener('beforeunload', function(e) {
 });
 
 
+  
   // ---- Multiplayer Roulette Bridge (appended) ----
   var mp_serverResult = null;
   var mp_phase = 'waiting';
   var mp_timer = 0;
   var mp_players = [];
+  var mp_roundId = 0;
+  var mp_autoSpinPending = false;
   var mp_timerOverlay = null;
 
   function mp_createTimerOverlay() {
@@ -2202,9 +2205,34 @@ window.addEventListener('beforeunload', function(e) {
       nm.style.cssText = 'font-size:8px;color:#D4AF37;font-weight:600;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
       nm.textContent = p.username || 'Guest';
       card.appendChild(nm);
+      if (p.betTotal > 0) {
+        var bt = document.createElement('span');
+        bt.style.cssText = 'font-size:7px;color:#22c55e;font-weight:700;';
+        bt.textContent = p.betTotal.toLocaleString() + ' $Pc';
+        card.appendChild(bt);
+      }
       cont.appendChild(card);
     });
     document.body.appendChild(cont);
+  }
+
+  function mp_autoSpin() {
+    if (betStart) return;
+    if (typeof mp_serverResult !== 'number') return;
+    if (betSize <= 0) return;
+    if (typeof start === 'function') {
+      start();
+    }
+  }
+
+  // Wrap endroll to clear server result after round completes
+  var _mp_origEndroll = typeof endroll === 'function' ? endroll : null;
+  if (_mp_origEndroll) {
+    endroll = function() {
+      _mp_origEndroll.apply(this, arguments);
+      mp_serverResult = null;
+      mp_autoSpinPending = false;
+    };
   }
 
   window.addEventListener('message', function(e) {
@@ -2213,6 +2241,7 @@ window.addEventListener('beforeunload', function(e) {
     if (e.data.type === 'roulette:state') {
       mp_phase = e.data.phase;
       mp_timer = e.data.timer;
+      mp_roundId = e.data.roundId || 0;
       mp_players = e.data.players || [];
       mp_updateTimerOverlay();
       mp_createPlayerOverlay();
@@ -2220,8 +2249,17 @@ window.addEventListener('beforeunload', function(e) {
 
     if (e.data.type === 'roulette:spin') {
       mp_serverResult = e.data.result;
+      mp_roundId = e.data.roundId || 0;
       mp_phase = 'spinning';
+      mp_autoSpinPending = true;
       mp_updateTimerOverlay();
+      if (typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
+        random = mp_serverResult;
+        haben = infoConstants.rollerInfo[random];
+      }
+      setTimeout(function() {
+        if (mp_autoSpinPending) mp_autoSpin();
+      }, 200);
     }
 
     if (e.data.type === 'roulette:players') {
@@ -2229,15 +2267,4 @@ window.addEventListener('beforeunload', function(e) {
       mp_createPlayerOverlay();
     }
   });
-  
-
-  // Reset server result after endroll completes so next round uses fresh result
-  var mp_origEndroll = typeof endroll === 'function' ? endroll : null;
-  if (mp_origEndroll) {
-    var _origEndroll = endroll;
-    endroll = function() {
-      _origEndroll.apply(this, arguments);
-      mp_serverResult = null;
-    };
-  }
   

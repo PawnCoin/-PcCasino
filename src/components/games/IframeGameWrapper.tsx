@@ -57,6 +57,7 @@ export function IframeGameWrapper({
   const [roulettePlayers, setRoulettePlayers] = useState<RoulettePlayer[]>([]);
   const [roulettePhase, setRoulettePhase] = useState<string>('waiting');
   const [rouletteTimer, setRouletteTimer] = useState(0);
+  const rouletteRoundIdRef = useRef(0);
   const isRoulette = gameId === 'roulette';
 
   const iframeSrc = `${gamePath}?balance=${balance}`;
@@ -86,7 +87,7 @@ export function IframeGameWrapper({
           '*'
         );
         if (isRoulette && success) {
-          getSocket().emit('roulette:betUpdate', { betTotal: amount });
+          getSocket().emit('roulette:bet', { amount });
         }
       }
 
@@ -96,6 +97,9 @@ export function IframeGameWrapper({
           { type: 'win:confirmed', amount, balance: balanceRef.current },
           '*'
         );
+        if (isRoulette) {
+          getSocket().emit('roulette:winReport', { winAmount: amount, roundId: rouletteRoundIdRef.current });
+        }
       }
 
       if (type === 'getBalance') {
@@ -163,20 +167,25 @@ export function IframeGameWrapper({
       userId: userId || null,
     });
 
-    const onState = (data: { phase: string; timer: number; players: RoulettePlayer[] }) => {
+    const onState = (data: { phase: string; timer: number; roundId: number; players: RoulettePlayer[]; history?: number[] }) => {
       setRoulettePhase(data.phase);
       setRouletteTimer(data.timer);
       setRoulettePlayers(data.players);
+      rouletteRoundIdRef.current = data.roundId;
       iframeRef.current?.contentWindow?.postMessage({
         type: 'roulette:state',
         phase: data.phase,
         timer: data.timer,
+        roundId: data.roundId,
         players: data.players,
+        history: data.history,
       }, '*');
     };
 
-    const onSpin = (data: { result: number; roundId: number }) => {
+    const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[] }) => {
       setRoulettePhase('spinning');
+      rouletteRoundIdRef.current = data.roundId;
+      if (data.players) setRoulettePlayers(data.players);
       iframeRef.current?.contentWindow?.postMessage({
         type: 'roulette:spin',
         result: data.result,
@@ -364,11 +373,9 @@ export function IframeGameWrapper({
                 <span style={{ fontSize: 9, color: '#D4AF37', fontWeight: 600, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {p.username}
                 </span>
-                {p.betTotal > 0 && (
-                  <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 700 }}>
-                    {p.betTotal.toLocaleString()} $Pc
-                  </span>
-                )}
+                <span style={{ fontSize: 8, color: p.betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>
+                  {p.betTotal > 0 ? `${p.betTotal.toLocaleString()} $Pc` : 'Watching'}
+                </span>
               </div>
             ))}
           </div>

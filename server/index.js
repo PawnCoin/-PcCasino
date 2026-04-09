@@ -317,11 +317,20 @@ setInterval(checkTournamentReminders, 5 * 60 * 1000);
 function generateRoomId() { return `room_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
 
 function getPublicRooms() {
-  return Array.from(rooms.values()).filter(r => !r.isPrivate).map(r => ({
+  const publicRooms = Array.from(rooms.values()).filter(r => !r.isPrivate).map(r => ({
     id: r.id, game: r.game, name: r.name, minBet: r.minBet, maxBet: r.maxBet, maxPlayers: r.maxPlayers,
     players: r.players.map(p => ({ id: p.id, username: p.username, balance: p.balance, seat: p.seat, isReady: p.isReady })),
     status: r.status, pot: r.pot, createdAt: r.createdAt, isPrivate: r.isPrivate,
   }));
+  if (rouletteRoom.players.size > 0 || rouletteRoom.phase !== 'waiting') {
+    publicRooms.unshift({
+      id: 'roulette-main', game: 'roulette', name: 'Roulette Table', minBet: 1, maxBet: 500000000, maxPlayers: 50,
+      players: rouletteGetPlayers().map(p => ({ id: p.id, username: p.username, balance: 0, seat: 0, isReady: true })),
+      status: rouletteRoom.phase === 'betting' ? 'waiting' : 'playing', pot: 0,
+      createdAt: Date.now(), isPrivate: false,
+    });
+  }
+  return publicRooms;
 }
 
 function broadcastLobby() { io.emit('lobby:update', { rooms: getPublicRooms() }); }
@@ -1565,13 +1574,15 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
     roundId: 0,
     intervalId: null,
     BETTING_DURATION: 30,
-    RESULT_DELAY: 12,
+    SPIN_DURATION: 12,
+    history: [],
   };
 
   function rouletteGetPlayers() {
     return Array.from(rouletteRoom.players.values()).map(p => ({
       id: p.id, socketId: p.socketId, username: p.username,
-      avatarUrl: p.avatarUrl, avatar: p.avatar, betTotal: p.betTotal || 0,
+      avatarUrl: p.avatarUrl, avatar: p.avatar,
+      betTotal: p.betTotal || 0, lastWin: p.lastWin || 0,
     }));
   }
 
@@ -1586,10 +1597,14 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
     rouletteRoom.phase = 'betting';
     rouletteRoom.timer = rouletteRoom.BETTING_DURATION;
     rouletteRoom.result = null;
-    for (const p of rouletteRoom.players.values()) { p.betTotal = 0; }
+    for (const p of rouletteRoom.players.values()) {
+      p.betTotal = 0;
+      p.lastWin = 0;
+      p.betsLocked = false;
+    }
     rouletteBroadcast('roulette:state', {
       phase: 'betting', timer: rouletteRoom.timer, roundId: rouletteRoom.roundId,
-      players: rouletteGetPlayers(),
+      players: rouletteGetPlayers(), history: rouletteRoom.history,
     });
   }
 
@@ -1604,8 +1619,15 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
       if (rouletteRoom.timer <= 0) {
         rouletteRoom.phase = 'spinning';
         rouletteRoom.result = Math.floor(Math.random() * 37);
-        rouletteBroadcast('roulette:spin', { result: rouletteRoom.result, roundId: rouletteRoom.roundId });
-        rouletteRoom.timer = rouletteRoom.RESULT_DELAY;
+        for (const p of rouletteRoom.players.values()) { p.betsLocked = true; }
+        rouletteRoom.history.unshift(rouletteRoom.result);
+        if (rouletteRoom.history.length > 20) rouletteRoom.history.length = 20;
+        rouletteBroadcast('roulette:spin', {
+          result: rouletteRoom.result, roundId: rouletteRoom.roundId,
+          players: rouletteGetPlayers(),
+        });
+        console.log('[Roulette] Round ' + rouletteRoom.roundId + ' result: ' + rouletteRoom.result + ' (' + rouletteRoom.players.size + ' players)');
+        rouletteRoom.timer = rouletteRoom.SPIN_DURATION;
       } else {
         rouletteBroadcast('roulette:state', {
           phase: 'betting', timer: rouletteRoom.timer, roundId: rouletteRoom.roundId,
@@ -1837,16 +1859,17 @@ io.on('connection', (socket) => {
   
     // ---- Multiplayer Roulette Handlers ----
     socket.on('roulette:join', ({ username, avatarUrl, avatar, userId }) => {
-      const rp = { id: userId || socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0 };
+      const rp = { id: userId || socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false };
       rouletteRoom.players.set(socket.id, rp);
       socket.join('roulette-main');
       rouletteEnsureTimer();
       socket.emit('roulette:state', {
         phase: rouletteRoom.phase, timer: rouletteRoom.timer, roundId: rouletteRoom.roundId,
-        players: rouletteGetPlayers(),
+        players: rouletteGetPlayers(), history: rouletteRoom.history,
       });
       rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
       console.log('[Roulette] ' + rp.username + ' joined (' + rouletteRoom.players.size + ' players)');
+    broadcastLobby();
     });
 
     socket.on('roulette:leave', () => {
@@ -1855,13 +1878,21 @@ io.on('connection', (socket) => {
       socket.leave('roulette-main');
       rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
       if (rp) console.log('[Roulette] ' + rp.username + ' left (' + rouletteRoom.players.size + ' players)');
+    broadcastLobby();
     });
 
-    socket.on('roulette:betUpdate', ({ betTotal }) => {
+    socket.on('roulette:bet', ({ amount }) => {
       const rp = rouletteRoom.players.get(socket.id);
-      if (rp && rouletteRoom.phase === 'betting') {
-        rp.betTotal = typeof betTotal === 'number' ? betTotal : 0;
+      if (rp && rouletteRoom.phase === 'betting' && !rp.betsLocked && typeof amount === 'number' && amount > 0) {
+        rp.betTotal += amount;
         rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+      }
+    });
+
+    socket.on('roulette:winReport', ({ winAmount, roundId }) => {
+      const rp = rouletteRoom.players.get(socket.id);
+      if (rp && typeof winAmount === 'number' && roundId === rouletteRoom.roundId) {
+        rp.lastWin = winAmount;
       }
     });
 
