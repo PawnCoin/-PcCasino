@@ -683,7 +683,6 @@ function doubleBets() {
   betSize = recomputeTotalBet();
   syncGameState();
   money -= betSize;
-  window.parent.postMessage({ type: "bet", amount: betSize }, "*");
   moneyInfo.innerHTML = `${currentLang[0]} ${safeMoney(money).toLocaleString("en-US")} $Pc`;
   totalBet.innerHTML = `${currentLang[1]} ${safeMoney(betSize).toLocaleString("en-US")} $Pc`;
   [
@@ -943,6 +942,7 @@ function endroll() {
               betSection.style.pointerEvents = 'all';
               document.querySelector('#chipsSelector').style.filter = 'grayscale(0)';
             }
+            dealerAnnounce("Place your bets");
           }
       })();
     }, 3000);
@@ -1605,7 +1605,6 @@ function spin(spinSpeed) {
 }
 
 function start() {
-  dealerAnnounce("Place your bets");
   winSum = 0;
   btns.repeatBetBtn.classList.add('disabledCircleBtns');
   [btns.doubleBet, btns.cancelLastBtn, btns.cancelAllbtn].forEach((el) =>
@@ -2279,6 +2278,10 @@ window.addEventListener('beforeunload', function(e) {
 
   function mp_updateTimerOverlay() {
     mp_createTimerOverlay();
+    if (!mp_isMultiplayer) {
+      mp_timerOverlay.style.opacity = '0';
+      return;
+    }
     if (mp_phase === 'betting' && mp_timer > 0) {
       mp_timerOverlay.style.opacity = '1';
       mp_timerOverlay.textContent = 'Place Bets: ' + mp_timer + 's';
@@ -2300,29 +2303,32 @@ window.addEventListener('beforeunload', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
 
     if (e.data.type === 'roulette:state') {
-      mp_isMultiplayer = true;
+      mp_players = e.data.players || [];
+      mp_isMultiplayer = mp_players.length > 1;
       mp_phase = e.data.phase;
       mp_timer = e.data.timer;
       mp_roundId = e.data.roundId || 0;
-      mp_players = e.data.players || [];
-      if (mp_phase === 'betting') {
+      if (mp_phase === 'betting' && mp_isMultiplayer) {
         mp_spinBlocked = true;
+      } else if (!mp_isMultiplayer) {
+        mp_spinBlocked = false;
       }
       mp_updateTimerOverlay();
     }
 
     if (e.data.type === 'roulette:spin') {
-      mp_isMultiplayer = true;
       mp_serverResult = e.data.result;
       mp_roundId = e.data.roundId || 0;
       mp_phase = 'spinning';
       mp_spinBlocked = false;
       mp_updateTimerOverlay();
-      setTimeout(function() {
-        if (!betStart) {
-          start();
-        }
-      }, 200);
+      if (mp_isMultiplayer) {
+        setTimeout(function() {
+          if (!betStart) {
+            start();
+          }
+        }, 200);
+      }
     }
 
     if (e.data.type === 'roulette:players') {

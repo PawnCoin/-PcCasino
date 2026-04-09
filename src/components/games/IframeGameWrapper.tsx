@@ -120,23 +120,19 @@ export function IframeGameWrapper({
       const { type, amount } = event.data;
 
       if (type === 'bet' && typeof amount === 'number' && amount > 0) {
-        if (!isRoulette) {
-          const success = onBet(amount);
-          iframeRef.current?.contentWindow?.postMessage(
-            { type: 'bet:result', success, balance: success ? balanceRef.current : balanceRef.current },
-            '*'
-          );
-        }
+        const success = onBet(amount);
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'bet:result', success, balance: success ? balanceRef.current : balanceRef.current },
+          '*'
+        );
       }
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
-        if (!isRoulette) {
-          onWin(amount);
-          iframeRef.current?.contentWindow?.postMessage(
-            { type: 'win:confirmed', amount, balance: balanceRef.current },
-            '*'
-          );
-        }
+        onWin(amount);
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'win:confirmed', amount, balance: balanceRef.current },
+          '*'
+        );
       }
 
       if (isRoulette && type === 'roulette:betsSnapshot') {
@@ -253,13 +249,16 @@ export function IframeGameWrapper({
         result: data.result,
         roundId: data.roundId,
       }, '*');
-      if (typeof data.newBalance === 'number' && onBalanceSyncRef.current) {
-        onBalanceSyncRef.current(data.newBalance);
-      } else if (typeof data.netChange === 'number' && data.netChange !== 0) {
-        if (data.netChange > 0) {
-          onWinRef.current(data.netChange);
-        } else {
-          onBetRef.current(Math.abs(data.netChange));
+      const playerCount = data.players ? data.players.length : roulettePlayers.length;
+      if (playerCount > 1) {
+        if (typeof data.newBalance === 'number' && onBalanceSyncRef.current) {
+          onBalanceSyncRef.current(data.newBalance);
+        } else if (typeof data.netChange === 'number' && data.netChange !== 0) {
+          if (data.netChange > 0) {
+            onWinRef.current(data.netChange);
+          } else {
+            onBetRef.current(Math.abs(data.netChange));
+          }
         }
       }
     };
