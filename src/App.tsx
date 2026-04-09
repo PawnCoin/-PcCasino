@@ -13,6 +13,7 @@ import { Leaderboard } from '@/components/Leaderboard';
 import { WalletConnect } from '@/components/WalletConnect';
 import { AuthModal } from '@/components/AuthModal';
 import { FinancialModal } from '@/components/FinancialModal';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { CardDeckSelector } from '@/components/CardDeckSelector';
 import { VappTVPlayer } from '@/components/VappTVPlayer';
 import { useCardDeck } from '@/hooks/useCardDeck';
@@ -397,7 +398,7 @@ function App() {
         setUser(userData);
         setIsAuthenticated(true);
         localStorage.setItem('pcasino_user', JSON.stringify(userData));
-        toast.success(`Welcome! 1B $Pc bonus ready!`);
+        toast.success(`Welcome! 1B $Pc bonus ready!`, { icon: <CasinoIcon name="slot-machine" size={16} /> });
         fetchNotifications();
       }
     } catch (err: any) {
@@ -417,7 +418,7 @@ function App() {
         setIsAuthenticated(true);
         localStorage.setItem('pcasino_user', JSON.stringify(userData));
         addTransaction('deposit', 1_000_000_000, 'Welcome Bonus');
-        toast.success('Welcome! 1B $Pc bonus added!');
+        toast.success('Welcome! 1B $Pc bonus added!', { icon: <CasinoIcon name="slot-machine" size={16} /> });
       } else {
         const userData = JSON.parse(existingUser);
         setUser(userData);
@@ -450,7 +451,7 @@ function App() {
     setPendingReferralCode(undefined);
     localStorage.setItem('pcasino_user', JSON.stringify(userData));
     fetchNotifications();
-    toast.success(`Welcome, ${userData.username}! 🎰`);
+    toast.success(`Welcome, ${userData.username}!`);
     setShowAuth(false);
     setShowProfile(true);
   };
@@ -462,19 +463,19 @@ function App() {
       if (newBal !== undefined) updateBalance(newBal);
       else if (user) updateBalance(user.balance + amount);
       addTransaction('deposit', amount, 'Auto-credited');
-      toast.success(`✅ Deposit of ${parseInt(amount).toLocaleString()} $Pc confirmed — your balance has been updated`, { duration: 8000 });
+      toast.success(`Deposit of ${parseInt(amount).toLocaleString()} $Pc confirmed \u2014 your balance has been updated`, { duration: 8000, icon: <CasinoIcon name="checkmark" size={16} /> });
       fetchNotifications();
     };
     const onCashbackCredited = ({ amount, tier }: any) => {
       if (user) updateBalance(user.balance + amount);
       addTransaction('deposit', amount, 'VIP Cashback');
-      toast.success(`💎 ${tier?.toUpperCase()} cashback: ${parseInt(amount).toLocaleString()} $Pc credited!`, { duration: 8000 });
+      toast.success(`${tier?.toUpperCase()} cashback: ${parseInt(amount).toLocaleString()} $Pc credited!`, { duration: 8000, icon: <CasinoIcon name="gem" size={16} /> });
       fetchNotifications();
     };
     const onPaymentRefund = ({ amount }: any) => {
       if (user) updateBalance(user.balance + amount);
       addTransaction('deposit', amount, 'Dispute Refund');
-      toast.success(`↩️ Refund of ${parseInt(amount).toLocaleString()} $Pc credited!`);
+      toast.success(`Refund of ${parseInt(amount).toLocaleString()} $Pc credited!`, { icon: <CasinoIcon name="money-bag" size={16} /> });
     };
     const onJackpotWon = (payload: { userId: number | string; username: string; amount: number; newJackpot: number; timestamp: number }) => {
       if (user && String(user.id) === String(payload.userId)) {
@@ -594,7 +595,7 @@ function App() {
       updateBalance(user.balance + amount);
       setSessionWins(prev => prev + amount);
       addTransaction('win', amount, currentView === 'lobby' ? undefined : currentView);
-      toast.success(`You won ${amount.toLocaleString()} $Pc!`);
+      toast.success(`You won ${amount.toLocaleString()} $Pc!`, { icon: <CasinoIcon name="trophy" size={16} /> });
       const gameLabel = currentView === 'lobby' ? 'Casino' : currentView;
       // Record to DB asynchronously
       if (getToken()) {
@@ -629,7 +630,7 @@ function App() {
     if (dailyLossLimit && dailyLossLimit > 0) {
       const newTotal = sessionLosses + amount;
       if (newTotal >= dailyLossLimit * 0.8 && newTotal < dailyLossLimit) {
-        toast.warning(`⚠️ You're approaching your daily loss limit (${Math.round((newTotal / dailyLossLimit) * 100)}% used)`);
+        toast.warning(`You're approaching your daily loss limit (${Math.round((newTotal / dailyLossLimit) * 100)}% used)`, { icon: <CasinoIcon name="warning" size={16} /> });
       }
     }
   }, [user, sessionLosses]);
@@ -719,7 +720,7 @@ function App() {
             updateBalance(data.balance ?? user.balance + 50_000_000);
             addTransaction('deposit', data.bonus || 50_000_000, 'Daily Bonus');
             setDailyBonusClaimed(true);
-            toast.success(`🎁 Claimed ${(data.bonus || 50_000_000).toLocaleString()} $Pc daily bonus!`);
+            toast.success(`Claimed ${(data.bonus || 50_000_000).toLocaleString()} $Pc daily bonus!`, { icon: <CasinoIcon name="gift" size={16} /> });
             fetchNotifications();
           }
         } catch (err: any) {
@@ -732,14 +733,14 @@ function App() {
             updateBalance(user.balance + 50_000_000);
             addTransaction('deposit', 50_000_000, 'Daily Bonus');
             setDailyBonusClaimed(true);
-            toast.success('Claimed 50M $Pc daily bonus!');
+            toast.success('Claimed 50M $Pc daily bonus!', { icon: <CasinoIcon name="gift" size={16} /> });
           }
         }
       } else {
         updateBalance(user.balance + 50_000_000);
         addTransaction('deposit', 50_000_000, 'Daily Bonus');
         setDailyBonusClaimed(true);
-        toast.success('Claimed 50M $Pc daily bonus!');
+        toast.success('Claimed 50M $Pc daily bonus!', { icon: <CasinoIcon name="gift" size={16} /> });
       }
     }
   };
@@ -789,7 +790,7 @@ function App() {
 
   // Share to social media
   const handleShare = (platform: 'twitter' | 'discord' | 'copy') => {
-    const text = `I'm playing at $Pc Casino! Join me and get a welcome bonus! 🎰💰`;
+    const text = `I'm playing at $Pc Casino! Join me and get a welcome bonus!`;
     const url = window.location.origin;
     
     switch (platform) {
@@ -827,7 +828,7 @@ function App() {
           <IframeGameWrapper
             gameId="blackjack"
             gameName="Blackjack"
-            gameEmoji="🃏"
+            gameEmoji="cards"
             gamePath="/games/blackjack/index.html"
             balance={user?.balance || 0}
             onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
@@ -841,7 +842,7 @@ function App() {
           <IframeGameWrapper
             gameId="roulette"
             gameName="Roulette"
-            gameEmoji="🎡"
+            gameEmoji="roulette"
             gamePath="/games/roulette/index.html"
             balance={user?.balance || 0}
             onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
@@ -859,7 +860,7 @@ function App() {
           <IframeGameWrapper
             gameId="craps"
             gameName="Craps & Dice"
-            gameEmoji="🎲"
+            gameEmoji="dice"
             gamePath="/games/craps/index.html"
             balance={user?.balance || 0}
             onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
@@ -921,7 +922,7 @@ function App() {
           <IframeGameWrapper
             gameId="horse-racing"
             gameName="Horse Racing"
-            gameEmoji="🏇"
+            gameEmoji="horse"
             gamePath="/games/horse-racing/index.html"
             balance={user?.balance || 0}
             onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
@@ -957,7 +958,7 @@ function App() {
         return (
           <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #0a1628 0%, #060d1a 100%)' }}>
             <InGameTopBar
-              gameName="⚽ Sportsbook"
+              gameName="Sportsbook"
               balance={user?.balance || 0}
               onBack={() => setCurrentView('lobby')}
               onShowWallet={() => setShowDeposit(true)}
@@ -998,7 +999,7 @@ function App() {
               onOpenDeposit={() => setShowDeposit(true)}
             />
             <div className="flex justify-center py-3 px-4">
-              <JackpotTicker onJackpotWin={(amount) => { if (!jackpotCelebration) toast.success(`🎰 Jackpot won: ${amount.toLocaleString()} $Pc!`, { duration: 6000 }); }} />
+              <JackpotTicker onJackpotWin={(amount) => { if (!jackpotCelebration) toast.success(`Jackpot won: ${amount.toLocaleString()} $Pc!`, { duration: 6000, icon: <CasinoIcon name="slot-machine" size={16} /> }); }} />
             </div>
             <GamesGrid onSelectGame={handleSelectGame} />
             <Leaderboard onViewProfile={username => setViewingProfile(username)} />
@@ -1590,7 +1591,7 @@ function App() {
             }}
             title="Multiplayer Lobby"
           >
-            <span className="text-xl">👥</span>
+            <CasinoIcon name="users" size={20} />
           </button>
           <button
             onClick={() => setShowVappTV(!showVappTV)}
@@ -1602,7 +1603,7 @@ function App() {
             }}
             title="VappTV"
           >
-            <span className="text-xl">📺</span>
+            <CasinoIcon name="tv" size={20} />
           </button>
         </div>
       )}
@@ -1639,7 +1640,7 @@ function App() {
           >
             <div className="flex items-center justify-center w-14 h-14 rounded-full"
               style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
-              <span style={{ fontSize: 26, color: '#ef4444' }}>⚠</span>
+              <CasinoIcon name="warning" size={26} color="#ef4444" />
             </div>
             <h3 className="font-casino text-xl font-bold metallic-gold-text text-center">Leave Game?</h3>
             <p className="text-[#A0A0A0] text-sm text-center leading-relaxed">

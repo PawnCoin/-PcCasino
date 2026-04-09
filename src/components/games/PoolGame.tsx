@@ -8,6 +8,7 @@ import { LobbyChat } from '@/components/LobbyChat';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { useTableSkin } from '@/hooks/useTableSkin';
 import type { TableSkinDef } from '@/hooks/useTableSkin';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { usePoolBallSkin, getDefaultPoolBallPreset } from '@/hooks/usePoolBallSkin';
 import type { BallMaterial } from '@/hooks/usePoolBallSkin';
 import { usePoolCueSkin, getDefaultCueSkin, CUE_SKINS } from '@/hooks/usePoolCueSkin';
@@ -1478,7 +1479,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     onWin(winAmt);
     setLocalBalance(prev => prev + betAmountRef.current);
     triggerWinBurst();
-    addReaction('👑', 'you');
+    addReaction('crown', 'you');
     poolVoice.say8BallCornerPocket();
     playSound('win');
     phaseLockRef.current = 'won'; setPhase('won');
@@ -1750,18 +1751,18 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         {gameMode === 'select' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, maxWidth: 680, width: '100%' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 28, fontWeight: 900, letterSpacing: '0.1em' }}>🎱 <PcTokenLabel size={26} /> POOL SUITE</div>
+              <div style={{ fontFamily: "'Cinzel', serif", fontSize: 28, fontWeight: 900, letterSpacing: '0.1em' }}><PcTokenLabel size={26} /> POOL SUITE</div>
               <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Choose your game mode</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, width: '100%' }}>
               {([
-                { id: '8ball', label: '8-Ball', sub: 'Solids vs Stripes, classic', emoji: '🎱', color: '#1a1a1a' },
-                { id: '9ball', label: '9-Ball', sub: '9 balls, win with the 9', emoji: '9️⃣', color: '#F5C518' },
-                { id: 'snooker', label: 'Snooker', sub: 'Reds + colors, highest score', emoji: '🔴', color: '#CC0000' },
-                { id: 'shotbet', label: 'Shot Bet', sub: 'Call your shot, bet per ball', emoji: '💰', color: '#D4AF37' },
-                { id: 'rake', label: 'RAKE', sub: 'Spell R-A-K-E to lose', emoji: '🐴', color: '#8B5CF6' },
-                { id: 'tournament', label: 'Tournament', sub: 'Bracket — 4 or 8 players', emoji: '🏆', color: '#F59E0B' },
+                { id: '8ball', label: '8-Ball', sub: 'Solids vs Stripes, classic', emoji: 'pool-ball', color: '#1a1a1a' },
+                { id: '9ball', label: '9-Ball', sub: '9 balls, win with the 9', emoji: '9', color: '#F5C518' },
+                { id: 'snooker', label: 'Snooker', sub: 'Reds + colors, highest score', emoji: 'circle', color: '#CC0000' },
+                { id: 'shotbet', label: 'Shot Bet', sub: 'Call your shot, bet per ball', emoji: 'money-bag', color: '#D4AF37' },
+                { id: 'rake', label: 'RAKE', sub: 'Spell R-A-K-E to lose', emoji: 'horse', color: '#8B5CF6' },
+                { id: 'tournament', label: 'Tournament', sub: 'Bracket — 4 or 8 players', emoji: 'trophy', color: '#F59E0B' },
               ] as const).map(m => (
                 <button
                   key={m.id}
@@ -1777,7 +1778,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(212,175,55,0.1)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(212,175,55,0.4)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}
                 >
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>{m.emoji}</div>
+                  <div style={{ marginBottom: 6 }}><CasinoIcon name={m.emoji} size={28} /></div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>{m.label}</div>
                   <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{m.sub}</div>
                 </button>
@@ -1833,7 +1834,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         {/* ── Tournament Setup ────────────────────────────────────────────── */}
         {phase === 'betting' && gameMode === 'tournament' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, maxWidth: 480, width: '100%' }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, fontWeight: 900, color: '#D4AF37' }}>🏆 TOURNAMENT</div>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22, fontWeight: 900, color: '#D4AF37' }}>TOURNAMENT</div>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
               {([
                 { size: 4, mode: '8ball' as GameMode, fee: 50000, label: '4-Player 8-Ball — 50K entry' },
@@ -1909,7 +1910,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               )}
               {tournament && tournamentMatchup && (
                 <div style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 11, color: '#FCD34D' }}>
-                  🏆 vs {tournamentMatchup.opponent}
+                  vs {tournamentMatchup.opponent}
                 </div>
               )}
             </div>
@@ -1968,7 +1969,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               {/* Win/Loss overlay */}
               {(phase === 'won' || phase === 'lost') && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', gap: 12 }}>
-                  <div style={{ fontSize: 56 }}>{phase === 'won' ? '🏆' : '😔'}</div>
+                  <div><CasinoIcon name={phase === 'won' ? 'trophy' : 'sad'} size={56} /></div>
                   <div style={{ fontSize: 24, fontFamily: "'Cinzel', serif" }}>
                     {phase === 'won'
                       ? <><span style={{ color: '#4CAF50', fontWeight: 800 }}>+</span><PcTokenLabel amount={betAmount * 2} size={24} /></>
@@ -2001,7 +2002,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               {/* Shooting hint */}
               {canShoot && phase === 'playing' && (
                 <div style={{ fontSize: 11, color: '#6b7280', padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)' }}>
-                  🎯 Click & drag from cue ball to aim and shoot
+                  Click & drag from cue ball to aim and shoot
                 </div>
               )}
               {movingRef.current && (
@@ -2082,7 +2083,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                 onClick={() => setShowChat(v => !v)}
                 style={{ padding: '6px 10px', borderRadius: 8, background: showChat ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af', cursor: 'pointer', fontSize: 12 }}
               >
-                💬 Chat
+                Chat
               </button>
             </div>
 
@@ -2183,7 +2184,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
       {/* Chat overlay */}
       {showChat && (
         <div style={{ position: 'fixed', bottom: 80, right: 16, zIndex: 200 }}>
-          <LobbyChat username={''} avatar={'🎱'} isAuthenticated={true} />
+          <LobbyChat username={''} avatar={''} isAuthenticated={true} />
         </div>
       )}
     </div>

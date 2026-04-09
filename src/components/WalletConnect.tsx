@@ -3,6 +3,7 @@ import { Wallet, ChevronDown, LogOut, User, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface WalletConnectProps {
   isConnected: boolean;
@@ -13,11 +14,11 @@ interface WalletConnectProps {
 }
 
 const WALLETS = [
-  { id: 'metamask', name: 'MetaMask', icon: '🦊', color: '#E2761B', description: 'Browser extension — Ethereum' },
-  { id: 'phantom', name: 'Phantom', icon: '👻', color: '#AB9FF2', description: 'Solana & Ethereum' },
-  { id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', color: '#0052FF', description: 'Extension or mobile app' },
-  { id: 'trust', name: 'Trust Wallet', icon: '🔐', color: '#3375BB', description: 'Open in Trust Wallet browser' },
-  { id: 'walletconnect', name: 'WalletConnect', icon: '🔗', color: '#3B99FC', description: 'Coming soon — QR code' },
+  { id: 'metamask', name: 'MetaMask', iconName: 'fox', color: '#E2761B', description: 'Browser extension — Ethereum' },
+  { id: 'phantom', name: 'Phantom', iconName: 'ghost', color: '#AB9FF2', description: 'Solana & Ethereum' },
+  { id: 'coinbase', name: 'Coinbase Wallet', iconName: 'circle', color: '#0052FF', description: 'Extension or mobile app' },
+  { id: 'trust', name: 'Trust Wallet', iconName: 'lock', color: '#3375BB', description: 'Open in Trust Wallet browser' },
+  { id: 'walletconnect', name: 'WalletConnect', iconName: 'link', color: '#3B99FC', description: 'Coming soon — QR code' },
 ];
 
 declare global {
@@ -260,7 +261,7 @@ export function WalletConnect({
                     boxShadow: `0 0 20px ${wallet.color}30`,
                   }}
                 >
-                  {wallet.icon}
+                  <CasinoIcon name={wallet.iconName} size={24} />
                 </div>
 
                 <div className="flex-1 text-left relative z-10">
@@ -280,7 +281,7 @@ export function WalletConnect({
           </div>
 
           <div className="mt-4 p-3 rounded-lg bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-xs text-[#C0C0C0]">
-            💡 MetaMask and Phantom will trigger a real browser popup if you have them installed.
+            MetaMask and Phantom will trigger a real browser popup if you have them installed.
           </div>
 
           <div className="pt-4 border-t border-[#5D4037]/30 text-center">

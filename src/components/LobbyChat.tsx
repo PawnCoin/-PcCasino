@@ -77,7 +77,7 @@ export function LobbyChat({ username, avatar, avatarUrl, isAuthenticated, onView
     socketRef.current.emit('lobby:chat', {
       message: filtered,
       username: username || 'Guest',
-      avatar: avatar || '👤',
+      avatar: avatar || '',
       avatarUrl: avatarUrl || null,
     });
     setInput('');

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Lock, Crown, ChevronRight, Star, Shield, History, Gift, TrendingDown } from 'lucide-react';
 import type { GameType } from '@/types';
 import { vipApi } from '@/lib/api';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface VipAreaProps {
   balance: number;
@@ -12,12 +13,12 @@ interface VipAreaProps {
 }
 
 const vipGames = [
-  { id: 'poker' as GameType, name: "Texas Hold'em", emoji: '♠️', description: 'High-stakes private tables', minBet: 5000 },
-  { id: 'blackjack' as GameType, name: 'Blackjack', emoji: '🃏', description: 'Dealer vs. VIP only', minBet: 2500 },
-  { id: 'roulette' as GameType, name: 'Roulette', emoji: '🎰', description: 'European wheel, no limits', minBet: 1000 },
-  { id: 'craps' as GameType, name: 'Craps', emoji: '🎲', description: 'Private craps pit', minBet: 1000 },
-  { id: 'bingo' as GameType, name: 'Bingo', emoji: '🎱', description: 'VIP bingo lounge', minBet: 500 },
-  { id: 'slots' as GameType, name: 'Slots', emoji: '💎', description: 'Diamond tier jackpots', minBet: 250 },
+  { id: 'poker' as GameType, name: "Texas Hold'em", iconName: 'spade', description: 'High-stakes private tables', minBet: 5000 },
+  { id: 'blackjack' as GameType, name: 'Blackjack', iconName: 'cards', description: 'Dealer vs. VIP only', minBet: 2500 },
+  { id: 'roulette' as GameType, name: 'Roulette', iconName: 'slot-machine', description: 'European wheel, no limits', minBet: 1000 },
+  { id: 'craps' as GameType, name: 'Craps', iconName: 'dice', description: 'Private craps pit', minBet: 1000 },
+  { id: 'bingo' as GameType, name: 'Bingo', iconName: 'pool-ball', description: 'VIP bingo lounge', minBet: 500 },
+  { id: 'slots' as GameType, name: 'Slots', iconName: 'gem', description: 'Diamond tier jackpots', minBet: 250 },
 ];
 
 const TIER_RATES: Record<string, number> = { bronze: 0, silver: 1, gold: 2, platinum: 5, diamond: 10 };
@@ -80,7 +81,7 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
             className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
             style={{ background: 'linear-gradient(135deg, #6A0DAD, #A020F0)', boxShadow: '0 0 40px rgba(160,32,240,0.5)' }}
           >
-            <span className="text-4xl">🔞</span>
+            <CasinoIcon name="age-restricted" size={40} />
           </div>
           <h2
             className="font-casino text-3xl font-bold mb-3"
@@ -194,16 +195,16 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 sm:mt-6">
               {[
-                { icon: '💃', label: 'Live Performers', desc: 'Live entertainment & private shows' },
-                { icon: '🥂', label: 'Premium Service', desc: 'Dedicated hosts, no wait times' },
-                { icon: '🎰', label: 'All Casino Games', desc: 'Full game suite, higher limits' },
+                { icon: 'dancer', label: 'Live Performers', desc: 'Live entertainment & private shows' },
+                { icon: 'champagne', label: 'Premium Service', desc: 'Dedicated hosts, no wait times' },
+                { icon: 'slot-machine', label: 'All Casino Games', desc: 'Full game suite, higher limits' },
               ].map(item => (
                 <div
                   key={item.label}
                   className="p-3 sm:p-4 rounded-2xl flex items-center gap-3"
                   style={{ background: 'rgba(160,32,240,0.1)', border: '1px solid rgba(160,32,240,0.2)' }}
                 >
-                  <span className="text-2xl">{item.icon}</span>
+                  <CasinoIcon name={item.icon} size={28} />
                   <div>
                     <div className="font-bold text-white text-sm">{item.label}</div>
                     <div className="text-xs text-[#A080B0]">{item.desc}</div>
@@ -272,7 +273,7 @@ export function VipArea({ balance, userId, vipTier = 'bronze', onBack, onSelectG
                   }}
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <span className="text-4xl">{game.emoji}</span>
+                    <CasinoIcon name={game.iconName} size={40} />
                     <div
                       className="px-2 py-1 rounded-full text-xs font-bold"
                       style={{ background: 'rgba(160,32,240,0.2)', border: '1px solid rgba(160,32,240,0.4)', color: '#E040FB' }}

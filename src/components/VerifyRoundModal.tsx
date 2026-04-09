@@ -83,7 +83,7 @@ export function VerifyRoundModal({ isOpen, onClose, round, lastReveal, game, onO
         ) : (
           <div className="space-y-1">
             <div className="text-xs text-gray-500 mb-3">
-              Round #{display.roundId} · {lastReveal ? 'Server seed revealed ✓' : 'Round in progress — server seed will be revealed after completion'}
+              Round #{display.roundId} \u00b7 {lastReveal ? 'Server seed revealed' : 'Round in progress \u2014 server seed will be revealed after completion'}
             </div>
 
             <Field
@@ -101,7 +101,7 @@ export function VerifyRoundModal({ isOpen, onClose, round, lastReveal, game, onO
 
             {lastReveal?.serverSeed && (
               <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-xs text-green-400">
-                ✓ Server seed revealed. Use the verification tool to reproduce this round independently.
+                Server seed revealed. Use the verification tool to reproduce this round independently.
               </div>
             )}
 

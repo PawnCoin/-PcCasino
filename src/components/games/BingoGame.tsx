@@ -8,6 +8,7 @@ import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useBingoSkin, type BingoSkinId } from '@/hooks/useBingoSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -73,7 +74,7 @@ interface CardSkinDef {
 }
 const BINGO_SKINS: CardSkinDef[] = [
   {
-    id: 'classic', name: 'Classic', emoji: '🎰',
+    id: 'classic', name: 'Classic', emoji: 'slot-machine',
     cardBg: 'linear-gradient(160deg,rgba(28,28,28,0.97),rgba(12,12,12,0.99))',
     cardBorder: 'rgba(212,175,55,0.4)', winBorder: 'rgba(212,175,55,0.9)', winGlow: '#D4AF37',
     cellBg: 'rgba(28,28,28,0.8)', cellHinted: 'rgba(40,32,8,0.95)', cellDaubed: 'rgba(15,15,15,0.95)', cellWin: 'rgba(212,175,55,0.18)',
@@ -81,7 +82,7 @@ const BINGO_SKINS: CardSkinDef[] = [
     daubBg: '', textColor: '#e5e7eb', hintedText: '#D4AF37', daubedText: 'rgba(255,255,255,0.5)',
   },
   {
-    id: 'royal', name: 'Royal', emoji: '👑',
+    id: 'royal', name: 'Royal', emoji: 'crown',
     cardBg: 'linear-gradient(160deg,rgba(30,15,60,0.98),rgba(10,5,30,0.99))',
     cardBorder: 'rgba(147,112,219,0.5)', winBorder: 'rgba(186,156,255,0.95)', winGlow: '#9370DB',
     cellBg: 'rgba(25,10,50,0.85)', cellHinted: 'rgba(55,25,100,0.95)', cellDaubed: 'rgba(14,5,30,0.97)', cellWin: 'rgba(147,112,219,0.22)',
@@ -89,7 +90,7 @@ const BINGO_SKINS: CardSkinDef[] = [
     daubBg: 'linear-gradient(135deg,rgba(80,0,140,0.9),rgba(147,112,219,0.88))', textColor: '#d8b4fe', hintedText: '#c084fc', daubedText: 'rgba(216,180,254,0.45)',
   },
   {
-    id: 'neon', name: 'Neon', emoji: '⚡',
+    id: 'neon', name: 'Neon', emoji: 'lightning',
     cardBg: 'linear-gradient(160deg,rgba(0,5,15,0.99),rgba(0,2,10,0.99))',
     cardBorder: 'rgba(0,255,200,0.45)', winBorder: 'rgba(0,255,200,0.95)', winGlow: '#00ffc8',
     cellBg: 'rgba(0,10,20,0.9)', cellHinted: 'rgba(0,38,38,0.95)', cellDaubed: 'rgba(0,4,10,0.98)', cellWin: 'rgba(0,255,200,0.12)',
@@ -97,7 +98,7 @@ const BINGO_SKINS: CardSkinDef[] = [
     daubBg: 'linear-gradient(135deg,rgba(0,100,80,0.9),rgba(0,220,180,0.9))', textColor: '#67e8f9', hintedText: '#00ffc8', daubedText: 'rgba(0,255,200,0.38)',
   },
   {
-    id: 'vintage', name: 'Vintage', emoji: '📜',
+    id: 'vintage', name: 'Vintage', emoji: 'document',
     cardBg: 'linear-gradient(160deg,rgba(55,35,15,0.97),rgba(38,24,10,0.99))',
     cardBorder: 'rgba(180,140,80,0.45)', winBorder: 'rgba(200,160,90,0.95)', winGlow: '#C8A050',
     cellBg: 'rgba(48,30,12,0.85)', cellHinted: 'rgba(78,52,18,0.95)', cellDaubed: 'rgba(28,18,6,0.97)', cellWin: 'rgba(180,140,80,0.2)',
@@ -105,7 +106,7 @@ const BINGO_SKINS: CardSkinDef[] = [
     daubBg: 'linear-gradient(135deg,rgba(100,62,20,0.9),rgba(180,132,58,0.88))', textColor: '#d4b896', hintedText: '#c8a96e', daubedText: 'rgba(180,140,80,0.45)',
   },
   {
-    id: 'space', name: 'Space', emoji: '🚀',
+    id: 'space', name: 'Space', emoji: 'rocket',
     cardBg: 'linear-gradient(160deg,rgba(5,5,25,0.99),rgba(2,2,15,0.99))',
     cardBorder: 'rgba(100,149,237,0.45)', winBorder: 'rgba(130,175,255,0.95)', winGlow: '#6495ED',
     cellBg: 'rgba(8,8,30,0.9)', cellHinted: 'rgba(18,18,65,0.95)', cellDaubed: 'rgba(4,4,18,0.98)', cellWin: 'rgba(100,149,237,0.16)',
@@ -113,7 +114,7 @@ const BINGO_SKINS: CardSkinDef[] = [
     daubBg: 'linear-gradient(135deg,rgba(25,25,112,0.9),rgba(100,149,237,0.88))', textColor: '#bfdbfe', hintedText: '#93c5fd', daubedText: 'rgba(147,197,253,0.38)',
   },
   {
-    id: 'gold', name: 'Gold VIP', emoji: '💎',
+    id: 'gold', name: 'Gold VIP', emoji: 'gem',
     cardBg: 'linear-gradient(160deg,rgba(16,10,0,0.99),rgba(8,5,0,0.99))',
     cardBorder: 'rgba(255,215,0,0.5)', winBorder: 'rgba(255,215,0,0.95)', winGlow: '#FFD700',
     cellBg: 'rgba(16,10,0,0.9)', cellHinted: 'rgba(40,28,0,0.95)', cellDaubed: 'rgba(8,5,0,0.98)', cellWin: 'rgba(255,215,0,0.18)',
@@ -508,13 +509,13 @@ function BingoCard({ cardIdx, card, daubed, hinted, winCells, cellSize, onDaub, 
                 transition: 'background 0.25s, box-shadow 0.25s',
               }}
             >
-              {bingoFeedback === 'valid' ? '✓ BINGO!' : bingoFeedback === 'invalid' ? '✗ NOT YET' : 'BINGO!'}
+              {bingoFeedback === 'valid' ? 'BINGO!' : bingoFeedback === 'invalid' ? 'NOT YET' : 'BINGO!'}
             </button>
           </div>
         )}
         {phase === 'won' && isWinner && (
           <div style={{ padding: '0 8px 8px', textAlign: 'center' }}>
-            <div style={{ fontSize: cellSize >= 54 ? 20 : 15, fontWeight: 900, fontFamily: "'Cinzel',serif", background: 'linear-gradient(135deg,#D4AF37,#FFD700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.7))' }}>✓ BINGO!</div>
+            <div style={{ fontSize: cellSize >= 54 ? 20 : 15, fontWeight: 900, fontFamily: "'Cinzel',serif", background: 'linear-gradient(135deg,#D4AF37,#FFD700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.7))' }}>BINGO!</div>
           </div>
         )}
       </div>
@@ -720,7 +721,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       playSound('jackpot');
       onWin(prize);
       triggerWinBurst();
-      addReaction('🎉', 'you');
+      addReaction('party', 'you');
       setWonPrize(prize);
       setWinCells(newWinCells);
       setWinPattern(bestPattern);
@@ -834,7 +835,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               boxShadow: '0 0 20px rgba(67,160,71,0.6)',
               animation: 'verifiedPulse 1s ease-in-out infinite',
             }}>
-              <span style={{ fontSize: 20 }}>✓</span> VERIFIED
+              VERIFIED
             </div>
 
             {/* Winner name + pattern + prize */}
@@ -993,7 +994,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                       transform: cardSkin === sk.id ? 'scale(1.08)' : 'scale(1)',
                     }}
                   >
-                    <span style={{ fontSize: 22 }}>{sk.emoji}</span>
+                    <span><CasinoIcon name={sk.emoji} size={22} /></span>
                     <span style={{ fontSize: 10, letterSpacing: '0.08em' }}>{sk.name.toUpperCase()}</span>
                   </button>
                 ))}
@@ -1082,7 +1083,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                   boxShadow: autoPlay ? '0 3px 12px rgba(183,28,28,0.5)' : '0 3px 12px rgba(21,101,192,0.5)',
                   letterSpacing: '0.08em',
                 }}>
-                  {autoPlay ? '⏸ STOP AUTO' : '⚡ AUTO PLAY'}
+                  {autoPlay ? 'STOP AUTO' : 'AUTO PLAY'}
                 </button>
 
                 {/* Speed selector */}
@@ -1115,7 +1116,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                       fontSize: 14, lineHeight: 1,
                       boxShadow: cardSkin === sk.id ? `0 0 8px ${sk.winGlow}66` : 'none',
                     }}
-                  >{sk.emoji}</button>
+                  ><CasinoIcon name={sk.emoji} size={14} /></button>
                 ))}
               </div>
             </div>
@@ -1268,7 +1269,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               flex: '1 0 auto',
               maxWidth: '200px',
             }}>
-              {bingoFeedback === 'valid' ? '✓ BINGO!' : bingoFeedback === 'invalid' ? '✗ NOT YET' : 'BINGO!'}
+              {bingoFeedback === 'valid' ? 'BINGO!' : bingoFeedback === 'invalid' ? 'NOT YET' : 'BINGO!'}
             </button>
 
             {/* Stats */}

@@ -3,6 +3,7 @@ import { gameApi } from '@/lib/api';
 import { PokerHandReplay } from '@/components/PokerHandReplay';
 import type { PokerHandRecord } from '@/components/PokerHandReplay';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface PokerHandSharePageProps {
   token: string;
@@ -51,7 +52,7 @@ export function PokerHandSharePage({ token, onBack }: PokerHandSharePageProps) {
           )}
           <div>
             <div style={{ fontSize: 22, fontWeight: 800, color: '#D4AF37', letterSpacing: '0.05em' }}>
-              ♠ Poker Hand Replay
+              Poker Hand Replay
             </div>
             <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>$Pc Casino · Texas Hold'em</div>
           </div>
@@ -78,7 +79,7 @@ export function PokerHandSharePage({ token, onBack }: PokerHandSharePageProps) {
             background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
             borderRadius: 12, padding: '24px', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>❌</div>
+            <div style={{ marginBottom: 12 }}><CasinoIcon name="close" size={32} color="#ef4444" /></div>
             <div style={{ color: '#ef4444', fontSize: 14, fontWeight: 700 }}>Hand Not Found</div>
             <div style={{ color: '#6b7280', fontSize: 12, marginTop: 4 }}>{error}</div>
           </div>

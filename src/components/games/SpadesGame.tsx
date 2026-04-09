@@ -8,6 +8,7 @@ import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack, ChipSelector, formatChipLabel, ALL_CHIP_DENOMS } from '@/components/PokerChip';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { chooseAICard, calculateAIBid } from '@/hooks/useSpadesAI';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { AvatarSprite, SPADES_AVATARS } from '@/components/AvatarSprite';
@@ -73,17 +74,17 @@ const getTier = (mmr: number) => [...TIERS].reverse().find(t => mmr >= t.min) ||
 const DEFAULT_RULES: HouseRules = { targetScore: 500, sandbagPenalty: true, nilAllowed: true, blindNilAllowed: true };
 const PARTNER_INDEX: Record<number, number> = { 0: 2, 1: 3, 2: 0, 3: 1 };
 
-const SUIT_SYMBOLS: Record<string, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
+const SUIT_SYMBOLS: Record<string, string> = { hearts: '\u2665', diamonds: '\u2666', clubs: '\u2663', spades: '\u2660' };
 const PLAYER_NAMES = ['You', 'West', 'Partner', 'East'];
 const SPADES_RANK: Record<string, number> = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
-const QUICK_TEXTS = ['Nice play! 👌', 'Good job! 👍', 'Thanks partner! 🤝', 'Nice! 🎉', 'Well played! 🔥', 'Ouch! 😬', 'Lucky! 🍀'];
+const QUICK_TEXTS = ['Nice play!', 'Good job!', 'Thanks partner!', 'Nice!', 'Well played!', 'Ouch!', 'Lucky!'];
 const PLAYER_COLORS = [
   'from-[#D4AF37] to-[#8B6914]',
   'from-[#B71C1C] to-[#7B1111]',
   'from-[#1565C0] to-[#0D3E87]',
   'from-[#2E7D32] to-[#1B5020]',
 ];
-const PLAYER_AVATARS = ['🎭', '⚔️', '🤝', '🛡️'];
+const PLAYER_AVATARS = ['mask', 'sword', 'handshake', 'shield'];
 const PLAYER_TEXT_COLORS = ['text-[#D4AF37]', 'text-[#ef5350]', 'text-[#64b5f6]', 'text-[#81c784]'];
 
 export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: SpadesGameProps) {
@@ -308,7 +309,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
   const triggerSpadesBroken = () => {
     setShowSpadesBroken(true);
-    showTip('♠ Spades are broken! You can now lead spades.');
+    showTip('Spades are broken! You can now lead spades.');
     setTimeout(() => setShowSpadesBroken(false), 1800);
   };
 
@@ -526,7 +527,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         if (won) {
           onWin(currentBet * 2);
           triggerWinBurst();
-          setMessage(`🎉 You won! +${currentBet * 2} $Pc`);
+          setMessage(`You won! +${currentBet * 2} $Pc`);
           setWinFlash(true); setTimeout(() => setWinFlash(false), 2500);
           playSound('win');
           if (rankedMode) setPlayerStats(p => ({ ...p, wins: p.wins + 1, mmr: p.mmr + 25 }));
@@ -854,7 +855,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
         {/* NAV */}
         <InGameTopBar
-          gameName="♠ Spades"
+          gameName="Spades"
           balance={balance}
           onBack={onBack}
           onAddBalance={onAddBalance}
@@ -879,7 +880,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         {tooltip && (
           <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-black/90 border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-medium pointer-events-none"
             style={{ animation: 'tipSlide 0.3s ease-out' }}>
-            💡 {tooltip}
+            {tooltip}
           </div>
         )}
 
@@ -897,7 +898,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           {gamePhase === 'menu' && (
             <div className="flex-1 flex flex-col items-center justify-center gap-5 px-4 py-8">
               <div className="text-center">
-                <div className="text-9xl mb-2" style={{ textShadow: '0 0 60px rgba(212,175,55,0.7)', filter: 'drop-shadow(0 0 30px rgba(212,175,55,0.5))' }}>♠</div>
+                <div className="mb-2"><CasinoIcon name="spade" size={120} color="#D4AF37" /></div>
                 <h1 className="font-casino text-5xl font-bold text-gradient-gold tracking-widest">SPADES</h1>
                 <p className="text-gray-500 text-sm mt-1">Elite Competitive Edition</p>
               </div>
@@ -909,7 +910,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <button key={d} onClick={() => setAIDifficulty(d)}
                       className="py-2.5 rounded-xl font-bold text-sm transition-all border-2 capitalize"
                       style={{ background: aiDifficulty === d ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.04)', borderColor: aiDifficulty === d ? '#D4AF37' : 'rgba(255,255,255,0.08)', color: aiDifficulty === d ? '#D4AF37' : '#666' }}>
-                      {d === 'elite' ? '👑 ' : d === 'hard' ? '🔥 ' : d === 'medium' ? '⚡ ' : '😊 '}{d}
+                      {d}{d === 'elite' ? ' \u2605' : ''}
                     </button>
                   ))}
                 </div>
@@ -917,7 +918,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 <button onClick={() => setRankedMode(r => !r)}
                   className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 transition-all"
                   style={{ background: rankedMode ? 'rgba(212,175,55,0.1)' : 'rgba(255,255,255,0.04)', borderColor: rankedMode ? '#D4AF37' : 'rgba(255,255,255,0.08)' }}>
-                  <span className="text-sm font-bold" style={{ color: rankedMode ? '#D4AF37' : '#666' }}>🏆 Ranked Mode</span>
+                  <span className="text-sm font-bold" style={{ color: rankedMode ? '#D4AF37' : '#666' }}>Ranked Mode</span>
                   <div className="w-10 h-5 rounded-full relative" style={{ background: rankedMode ? '#D4AF37' : '#333' }}>
                     <div className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all" style={{ left: rankedMode ? '22px' : '2px' }} />
                   </div>
@@ -935,15 +936,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   <button onClick={() => setTooltipsEnabled(t => !t)}
                     className="flex-1 py-2 rounded-lg text-xs font-bold border transition-all"
                     style={{ background: tooltipsEnabled ? 'rgba(30,136,229,0.15)' : 'transparent', borderColor: tooltipsEnabled ? '#1E88E5' : 'rgba(255,255,255,0.1)', color: tooltipsEnabled ? '#1E88E5' : '#555' }}>
-                    💡 Tips {tooltipsEnabled ? 'ON' : 'OFF'}
+                    Tips {tooltipsEnabled ? 'ON' : 'OFF'}
                   </button>
                   <button onClick={() => setShowHouseRules(true)}
                     className="flex-1 py-2 rounded-lg text-xs font-bold border border-white/10 text-gray-500 hover:text-white hover:border-white/25 transition-all">
-                    ⚙️ Rules
+                    Rules
                   </button>
                 </div>
 
-                <Button onClick={() => setGamePhase('betting')} className="btn-primary w-full py-4 text-xl font-bold">PLAY NOW ♠</Button>
+                <Button onClick={() => setGamePhase('betting')} className="btn-primary w-full py-4 text-xl font-bold">PLAY NOW</Button>
               </div>
             </div>
           )}
@@ -996,7 +997,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
               </div>
 
               <Button onClick={startGame} disabled={currentBet === 0} className="btn-primary py-4 px-12 text-xl font-bold">
-                DEAL CARDS ♠
+                DEAL CARDS
               </Button>
               <button onClick={() => setGamePhase('menu')} className="text-gray-600 text-sm hover:text-gray-400 transition-colors">← Back to Menu</button>
             </div>
@@ -1016,15 +1017,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, (teamScore.you / houseRules.targetScore) * 100)}%`, background: '#43A047' }} />
                       </div>
                       <span className="text-[#43A047] text-xs font-bold">{teamScore.you}</span>
-                      <span className="text-gray-600 text-[10px]">· {bags.you}🎒</span>
+                      <span className="text-gray-600 text-[10px]">{bags.you} bags</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => setShowCardBackPicker(true)} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-all" title="Card Back">🃏</button>
+                    <button onClick={() => setShowCardBackPicker(true)} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-all" title="Card Back"><CasinoIcon name="cards" size={10} /></button>
                     <span className="text-[#D4AF37]/50 text-[10px]">{houseRules.targetScore}pt</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-gray-600 text-[10px]">{bags.opponent}🎒 ·</span>
+                    <span className="text-gray-600 text-[10px]">{bags.opponent} bags</span>
                     <span className="text-[#ef5350] text-xs font-bold">{teamScore.opponent}</span>
                     <div className="w-14 h-2 rounded-full bg-black/50 overflow-hidden border border-[#B71C1C]/30">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, (teamScore.opponent / houseRules.targetScore) * 100)}%`, background: '#B71C1C' }} />
@@ -1108,7 +1109,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     textShadow: '1px 1px 0px rgba(255,255,255,0.07), -1px -1px 0px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.4)',
                     filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))',
                     opacity: 0.55,
-                  }}>♠</div>
+                  }}>\u2660</div>
                   <div style={{
                     fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: '0.45em',
                     color: 'transparent',
@@ -1201,7 +1202,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       animation: 'thoughtBubblePop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
                     }}>
                       <div style={{ fontSize: 15, fontWeight: 900, color: '#D4AF37', letterSpacing: '0.03em' }}>
-                        {trickAnnouncement.winner === 'You' ? '🏆 You won the trick!' : `🏆 ${trickAnnouncement.winner} won the trick!`}
+                        {trickAnnouncement.winner === 'You' ? 'You won the trick!' : `${trickAnnouncement.winner} won the trick!`}
                       </div>
                       {trickAnnouncement.leadsNext && (
                         <div style={{ fontSize: 12, color: '#C0C0C0', marginTop: 4, fontWeight: 600 }}>
@@ -1244,7 +1245,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">{players[2].name}</div>
-                      <div className="text-xs text-white/60">{players[2].nilBid ? '🚫NIL' : `Bid: ${players[2].bid ?? '?'}`} · {players[2].tricks}✓</div>
+                      <div className="text-xs text-white/60">{players[2].nilBid ? 'NIL' : `Bid: ${players[2].bid ?? '?'}`} \u00b7 {players[2].tricks}\u2713</div>
                     </div>
                   </div>
                 </div>
@@ -1279,8 +1280,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       {currentPlayer === 1 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div className="text-xs font-bold text-white">{players[1].name}</div>
-                    <div className="text-[10px] text-white/60">{players[1].nilBid ? '🚫NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
-                    <div className="text-[10px] text-white/60">{players[1].tricks}✓</div>
+                    <div className="text-[10px] text-white/60">{players[1].nilBid ? 'NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
+                    <div className="text-[10px] text-white/60">{players[1].tricks}\u2713</div>
                   </div>
                 </div>
 
@@ -1314,8 +1315,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       {currentPlayer === 3 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div className="text-xs font-bold text-white">{players[3].name}</div>
-                    <div className="text-[10px] text-white/60">{players[3].nilBid ? '🚫NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
-                    <div className="text-[10px] text-white/60">{players[3].tricks}✓</div>
+                    <div className="text-[10px] text-white/60">{players[3].nilBid ? 'NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
+                    <div className="text-[10px] text-white/60">{players[3].tricks}\u2713</div>
                   </div>
                 </div>
 
@@ -1343,7 +1344,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
                   <div>
                     <div className="text-sm font-bold text-white">You</div>
-                    <div className="text-xs text-white/60">{players[0].nilBid ? '🚫NIL' : players[0].blindNilBid ? '🔮BNIL' : `Bid: ${players[0].bid ?? '?'}`} · {players[0].tricks}✓</div>
+                    <div className="text-xs text-white/60">{players[0].nilBid ? 'NIL' : players[0].blindNilBid ? 'BNIL' : `Bid: ${players[0].bid ?? '?'}`} \u00b7 {players[0].tricks}\u2713</div>
                   </div>
                 </div>
 
@@ -1388,7 +1389,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-black/70 px-2 py-1 rounded-lg border border-[#D4AF37]/20 backdrop-blur-sm pointer-events-none"
                       style={{ zIndex: 0 }}>
                       <div className="text-xs text-[#C0C0C0]">Trick {completedTricks.length + 1}/13</div>
-                      {spadesBroken && <div className="text-xs text-[#D4AF37] font-bold">♠ Broken</div>}
+                      {spadesBroken && <div className="text-xs text-[#D4AF37] font-bold">\u2660 Broken</div>}
                     </div>
                   )}
                 </div>
@@ -1507,7 +1508,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                         <div className="mt-2">
                           <button onClick={() => setPendingBid({ amount: 0, isNil: false, isBlindNil: true })}
                             className="w-full py-1.5 rounded-full font-bold text-xs border-2 border-purple-500 text-purple-300 bg-purple-900/30 hover:bg-purple-800/50 transition-all hover:scale-105">
-                            🔮 Blind NIL (±200)
+                            Blind NIL (\u00b1200)
                           </button>
                         </div>
                       )}
@@ -1537,7 +1538,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                           onClick={() => { const b = pendingBid; setPendingBid(null); placeBid(b.amount, b.isNil, b.isBlindNil); }}
                           className="px-5 py-2 rounded-full text-sm font-black text-black transition-all hover:scale-105"
                           style={{ background: 'linear-gradient(135deg,#D4AF37,#B8860B)' }}>
-                          Lock It In ♠
+                          Lock It In
                         </button>
                       </div>
                     </div>
@@ -1547,14 +1548,14 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* SPADES BROKEN BURST */}
                 {showSpadesBroken && (
                   <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-                    <div className="text-9xl" style={{ animation: 'spadesBurst 2s ease-out forwards', color: '#D4AF37', textShadow: '0 0 60px rgba(212,175,55,0.9)' }}>♠</div>
+                    <div style={{ animation: 'spadesBurst 2s ease-out forwards' }}><CasinoIcon name="spade" size={120} color="#D4AF37" /></div>
                   </div>
                 )}
 
                 {/* WIN FLASH */}
                 {winFlash && (
                   <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-                    <div className="text-5xl font-casino font-black text-[#43A047]" style={{ animation: 'spadesBurst 2s ease-out forwards', textShadow: '0 0 40px rgba(67,160,71,0.9)' }}>🎉 WIN!</div>
+                    <div className="text-5xl font-casino font-black text-[#43A047]" style={{ animation: 'spadesBurst 2s ease-out forwards', textShadow: '0 0 40px rgba(67,160,71,0.9)' }}>WIN!</div>
                   </div>
                 )}
               </div>
@@ -1595,7 +1596,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                             animation: smackMode ? 'smackArmPulse 0.8s ease-in-out infinite' : undefined,
                             userSelect: 'none',
                           }}>
-                          💥 {smackMode ? 'ARMED!' : 'SMACK'}
+                          {smackMode ? 'ARMED!' : 'SMACK'}
                         </button>
                       )}
                       <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
@@ -1648,7 +1649,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         <Dialog open={showHandResult} onOpenChange={() => {}}>
           <DialogContent className="max-w-sm glass-panel-strong border-[#D4AF37]/40" style={{ zIndex: 200 }}>
             <DialogHeader>
-              <DialogTitle className="font-casino text-xl text-gradient-gold text-center">♠ Round {round - 1} Results</DialogTitle>
+              <DialogTitle className="font-casino text-xl text-gradient-gold text-center">Round {round - 1} Results</DialogTitle>
             </DialogHeader>
             {handResult && (
               <div className="space-y-4 py-2">
@@ -1705,7 +1706,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
                 </div>
                 <Button onClick={() => handResult.continueFn()} className="w-full btn-primary text-base font-bold py-3">
-                  {handResult.newTotalYou >= houseRules.targetScore || handResult.newTotalOpp >= houseRules.targetScore ? '🎯 See Results' : '▶ Next Round'}
+                  {handResult.newTotalYou >= houseRules.targetScore || handResult.newTotalOpp >= houseRules.targetScore ? 'See Results' : 'Next Round'}
                 </Button>
               </div>
             )}
@@ -1724,7 +1725,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         {/* ═══ CARD BACK PICKER DIALOG ═══ */}
         <Dialog open={showCardBackPicker} onOpenChange={setShowCardBackPicker}>
           <DialogContent className="max-w-sm glass-panel-strong border-[#D4AF37]/30">
-            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">🃏 Card Back Style</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">Card Back Style</DialogTitle></DialogHeader>
             <div className="py-2 space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 {CARD_BACK_PRESETS.map(preset => {
@@ -1751,7 +1752,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
               <div className="border-t border-white/10 pt-3">
                 <div className="text-xs text-gray-500 mb-2">Upload Custom Design</div>
                 <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-[#D4AF37]/50 transition-all">
-                  <span className="text-sm">📁</span>
+                  <CasinoIcon name="document" size={14} />
                   <span className="text-xs text-gray-400">Choose image file…</span>
                   <input type="file" accept="image/*" className="hidden" onChange={e => {
                     const file = e.target.files?.[0];
@@ -1779,7 +1780,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         {/* ═══ HOUSE RULES DIALOG ═══ */}
         <Dialog open={showHouseRules} onOpenChange={setShowHouseRules}>
           <DialogContent className="max-w-sm glass-panel-strong border-[#D4AF37]/30">
-            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">⚙️ House Rules</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">House Rules</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
               <div>
                 <div className="text-sm text-[#C0C0C0] mb-2">Target Score</div>
@@ -1794,9 +1795,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 </div>
               </div>
               {[
-                { key: 'sandbagPenalty', label: '🎒 Sandbag Penalty (10 bags = -100)' },
-                { key: 'nilAllowed', label: '🚫 NIL Bidding' },
-                { key: 'blindNilAllowed', label: '🔮 Blind NIL Bidding' },
+                { key: 'sandbagPenalty', label: 'Sandbag Penalty (10 bags = -100)' },
+                { key: 'nilAllowed', label: 'NIL Bidding' },
+                { key: 'blindNilAllowed', label: 'Blind NIL Bidding' },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center justify-between py-2 border-b border-white/5">
                   <span className="text-sm text-gray-300">{label}</span>
@@ -1828,7 +1829,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         {/* ═══ LAST TRICK DIALOG ═══ */}
         <Dialog open={showLastTrick} onOpenChange={setShowLastTrick}>
           <DialogContent className="max-w-sm glass-panel-strong border-[#D4AF37]/30">
-            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">↩ Last Trick</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">Last Trick</DialogTitle></DialogHeader>
             {lastTrick && (
               <div className="py-4">
                 <div className="relative mx-auto" style={{ width: '200px', height: '200px' }}>
@@ -1859,7 +1860,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         {/* ═══ TOURNAMENT DIALOG ═══ */}
         <Dialog open={showTournament} onOpenChange={setShowTournament}>
           <DialogContent className="max-w-sm glass-panel-strong border-[#D4AF37]/30">
-            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">🏆 Tournament</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-casino text-xl text-gradient-gold">Tournament</DialogTitle></DialogHeader>
             <div className="py-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {[{ t1: 'You & Partner', t2: 'Team Alpha' }, { t1: 'Team Beta', t2: 'Team Gamma' }].map((m, i) => (
@@ -1881,7 +1882,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         {/* ═══ RULES DIALOG ═══ */}
         <Dialog open={showRules} onOpenChange={setShowRules}>
           <DialogContent className="max-w-lg glass-panel-strong max-h-[80vh] overflow-y-auto border-[#D4AF37]/20">
-            <DialogHeader><DialogTitle className="font-casino text-2xl text-gradient-gold">♠ Spades Rules</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-casino text-2xl text-gradient-gold">Spades Rules</DialogTitle></DialogHeader>
             <div className="space-y-4 text-sm">
               {[
                 { t: 'Objective', items: ['First team to reach target score (default 500 pts) wins.', 'Win by accurately bidding and winning tricks each round.'] },

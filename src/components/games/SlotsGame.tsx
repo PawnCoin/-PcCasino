@@ -13,6 +13,7 @@ import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { useProvablyFair } from '@/hooks/useProvablyFair';
 import { VerifyRoundModal } from '@/components/VerifyRoundModal';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface SlotsGameProps {
   balance: number;
@@ -24,27 +25,27 @@ interface SlotsGameProps {
   onOpenProvablyFair?: (prefill?: { serverSeed?: string; clientSeed?: string; nonce?: number }) => void;
 }
 
-const SYMBOLS = ['🍒', '🍋', '🍊', '🔔', '⭐', '💎', '7️⃣', '🎰'] as const;
+const SYMBOLS = ['cherry', 'lemon', 'orange', 'bell', 'star', 'gem', 'seven', 'slot-machine'] as const;
 const SYMBOL_NAMES: Record<string, string> = {
-  '🍒': 'Cherry',
-  '🍋': 'Lemon',
-  '🍊': 'Orange',
-  '🔔': 'Bell',
-  '⭐': 'Star',
-  '💎': 'Diamond',
-  '7️⃣': 'Seven',
-  '🎰': '$Pc',
+  'cherry': 'Cherry',
+  'lemon': 'Lemon',
+  'orange': 'Orange',
+  'bell': 'Bell',
+  'star': 'Star',
+  'gem': 'Diamond',
+  'seven': 'Seven',
+  'slot-machine': '$Pc',
 };
 
 const PAYOUTS: Record<string, number> = {
-  '🍒': 2,
-  '🍋': 3,
-  '🍊': 4,
-  '🔔': 6,
-  '⭐': 8,
-  '💎': 15,
-  '7️⃣': 25,
-  '🎰': 50,
+  'cherry': 2,
+  'lemon': 3,
+  'orange': 4,
+  'bell': 6,
+  'star': 8,
+  'gem': 15,
+  'seven': 25,
+  'slot-machine': 50,
 };
 
 const CHIP_VALUES = [1_000_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000];
@@ -110,14 +111,14 @@ const slotsRules = {
     'Each row is a separate payline (3 paylines total)',
   ],
   payouts: [
-    '🎰 $Pc Logo: 50x (JACKPOT)',
-    '7️⃣ Lucky Seven: 25x',
-    '💎 Diamond: 15x',
-    '⭐ Star: 8x',
-    '🔔 Bell: 6x',
-    '🍊 Orange: 4x',
-    '🍋 Lemon: 3x',
-    '🍒 Cherry: 2x',
+    '$Pc Logo: 50x (JACKPOT)',
+    'Lucky Seven: 25x',
+    'Diamond: 15x',
+    'Star: 8x',
+    'Bell: 6x',
+    'Orange: 4x',
+    'Lemon: 3x',
+    'Cherry: 2x',
   ],
   special: [
     'Jackpot: 5 $Pc logos on any row pays 50x × 3 = 150x your bet!',
@@ -264,12 +265,12 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               setLastWin(totalWin);
               onWin(totalWin + currentBet);
               triggerWinBurst();
-              addReaction(lines.some(l => l.symbol === '🎰' && l.count === 5) ? '👑' : '🎉', 'you');
+              addReaction(lines.some(l => l.symbol === 'slot-machine' && l.count === 5) ? 'crown' : 'celebrate', 'you');
 
-              const hasJackpot = lines.some(l => l.symbol === '🎰' && l.count === 5);
+              const hasJackpot = lines.some(l => l.symbol === 'slot-machine' && l.count === 5);
               if (hasJackpot) {
                 setIsJackpot(true);
-                setMessage(`🎰 JACKPOT! +${totalWin.toFixed(2)} $Pc! 🎰`);
+                setMessage(`JACKPOT! +${totalWin.toFixed(2)} $Pc!`);
                 playSound('jackpot');
               } else {
                 setMessage(`Winner! +${totalWin.toFixed(2)} $Pc!`);
@@ -436,7 +437,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                     animation: isJackpot ? 'slots-jackpot-flash 0.3s ease-in-out infinite alternate' : 'none',
                   }}
                 >
-                  ★ JACKPOT ★
+                  JACKPOT
                 </span>
               </div>
 
@@ -801,7 +802,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 border: 'none',
               }}
             >
-              {spinning ? '⏳ SPINNING...' : '🎰 SPIN'}
+              {spinning ? 'SPINNING...' : 'SPIN'}
             </Button>
             <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
           </div>
@@ -820,7 +821,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           <DialogContent className="bg-[#1a1a2e] border-[#D4AF37]/30 text-white max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-[#D4AF37] text-2xl font-bold flex items-center gap-2">
-                🎰 Slots Rules & Payouts
+                Slots Rules & Payouts
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 text-sm">

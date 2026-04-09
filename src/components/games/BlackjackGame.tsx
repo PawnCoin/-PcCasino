@@ -156,7 +156,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
     // Convert server card format {suit, value} → typed Card
     const suitMap: Record<string, Card['suit']> = {
-      '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
+      '\u2660': 'spades', '\u2665': 'hearts', '\u2666': 'diamonds', '\u2663': 'clubs',
     };
     const serverToCard = (sc: { suit: string; value: string }): Card => {
       const suit = suitMap[sc.suit] ?? 'spades';
@@ -191,7 +191,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     const roundId = currentPfRoundIdRef.current;
     if (!roundId) return null;
     const suitMap: Record<string, Card['suit']> = {
-      '♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs',
+      '\u2660': 'spades', '\u2665': 'hearts', '\u2666': 'diamonds', '\u2663': 'clubs',
     };
     const sc = await pfDrawBlackjackCard(roundId);
     if (!sc) return null;
@@ -369,7 +369,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       setMessage(`You win! +${totalWin.toFixed(2)} $Pc`);
       triggerWin(playerBlackjack);
       triggerWinBurst();
-      addReaction(playerBlackjack ? '🎉' : '🤑', 'you');
+      addReaction(playerBlackjack ? 'party' : 'money-face', 'you');
     } else {
       setMessage('Dealer wins.');
       triggerBust();

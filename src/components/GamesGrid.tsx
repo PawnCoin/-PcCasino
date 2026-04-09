@@ -400,7 +400,7 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                             : game.isSpecial === 'sports'
                             ? 'background: linear-gradient(135deg, #0a1628, #060d1a); font-size: 5rem;'
                             : 'background: linear-gradient(135deg, #1a1a1a, #0a0a0a); font-size: 5rem;';
-                          fallback.innerText = game.isSpecial === 'vip' ? '👑' : game.isSpecial === 'sports' ? '🏈' : '🎰';
+                          fallback.innerText = game.isSpecial === 'vip' ? 'VIP' : game.isSpecial === 'sports' ? 'SPORTS' : 'PLAY';
                           parent.insertBefore(fallback, parent.firstChild);
                         }
                       }}
@@ -465,8 +465,8 @@ export function GamesGrid({ onSelectGame }: GamesGridProps) {
                       }}
                     >
                       <span className="text-[#707070]">
-                        {game.isSpecial === 'sports' ? '🏈 WeParlay Inc.' :
-                         game.isSpecial === 'vip' ? '🔞 18+ Only' :
+                        {game.isSpecial === 'sports' ? 'WeParlay Inc.' :
+                         game.isSpecial === 'vip' ? '18+ Only' :
                          game.activeTables > 0 ? `${game.activeTables} tables` : '500K Jackpot'}
                       </span>
                       <span 

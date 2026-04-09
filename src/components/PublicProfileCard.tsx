@@ -3,6 +3,7 @@ import { X, Twitter, Instagram, Send, MessageCircle, Shield } from 'lucide-react
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { authApi } from '@/lib/api';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface PublicProfile {
   username: string;
@@ -69,10 +70,10 @@ export function PublicProfileCard({ username, onClose, onNavigateToGame }: Publi
   const avatarIdx = profile ? nameToAvatarIdx(profile.username) : 0;
   const avatarDef = ALL_AVATARS[avatarIdx];
 
-  const GAME_EMOJIS: Record<string, string> = {
-    poker: '🃏', blackjack: '♠️', roulette: '🎡', craps: '🎲', slots: '🎰',
-    bingo: '🅱️', spades: '♠', dominoes: '🁣', pool: '🎱', darts: '🎯',
-    'horse-racing': '🏇', sports: '⚽', vip: '💎',
+  const GAME_ICONS: Record<string, string> = {
+    poker: 'cards', blackjack: 'spade', roulette: 'roulette-wheel', craps: 'dice', slots: 'slot-machine',
+    bingo: 'bingo', spades: 'spade', dominoes: 'domino', pool: 'pool-ball', darts: 'target',
+    'horse-racing': 'horse', sports: 'soccer', vip: 'gem',
   };
 
   return (
@@ -105,7 +106,7 @@ export function PublicProfileCard({ username, onClose, onNavigateToGame }: Publi
                 <AvatarSprite avatar={avatarDef} size={64} style={{ borderRadius: 0 }} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
-                  👤
+                  <CasinoIcon name="person" size={30} />
                 </div>
               )}
             </div>
@@ -172,7 +173,7 @@ export function PublicProfileCard({ username, onClose, onNavigateToGame }: Publi
                     )}
                     {profile.favoriteGame && (
                       <div className="text-center">
-                        <div className="text-base">{profile.favoriteGameIcon || GAME_EMOJIS[profile.favoriteGame] || '🎮'}</div>
+                        <CasinoIcon name={GAME_ICONS[profile.favoriteGame] || 'gamepad'} size={20} />
                         <div className="text-xs text-gray-500 truncate">{profile.favoriteGameName || profile.favoriteGame}</div>
                       </div>
                     )}

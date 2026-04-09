@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Zap, TrendingUp, ExternalLink } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 const QUICK_AMOUNTS = [
   { label: '1M', value: 1_000_000 },
@@ -75,7 +76,7 @@ export function InGameQuickBuy({ isOpen, onClose, onAddBalance, currentBalance }
         <div style={{ padding: '18px 20px' }}>
           {step === 'success' ? (
             <div style={{ textAlign: 'center', padding: '30px 0' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+              <div style={{ marginBottom: 12 }}><CasinoIcon name="checkmark" size={48} color="#22c55e" /></div>
               <div style={{ fontFamily: "'Cinzel',serif", fontSize: 18, color: '#D4AF37', fontWeight: 900 }}>Added!</div>
               <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 6 }}>{formatPc(amount)} $Pc added to balance</div>
             </div>

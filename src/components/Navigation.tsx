@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Menu, X, Wallet, History, Gift, LogOut, User, ChevronDown, DollarSign, BarChart3, Layers, Users, ExternalLink, Shield, UserCircle, AlertTriangle, Star, Home, Trophy, BookOpen, Crown, MessageSquare } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -239,7 +240,7 @@ export function Navigation({
                     <TooltipContent side="bottom">
                       {balance >= 100_000_000 ? (
                         <div className="text-center">
-                          <p className="font-bold text-yellow-400">👑 VIP Member</p>
+                          <p className="font-bold text-yellow-400"><CasinoIcon name="crown" size={14} /> VIP Member</p>
                           <p className="text-xs">100M+ $Pc — Bet with fiat, crypto & commodities</p>
                           <p className="text-xs text-gray-400">Click for financial options</p>
                         </div>
@@ -270,7 +271,7 @@ export function Navigation({
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom">
-                        <p className="font-bold text-yellow-400">👑 VIP Multi-Currency</p>
+                        <p className="font-bold text-yellow-400"><CasinoIcon name="crown" size={14} /> VIP Multi-Currency</p>
                         <p className="text-xs">Bet with fiat, crypto & commodities</p>
                       </TooltipContent>
                     </Tooltip>

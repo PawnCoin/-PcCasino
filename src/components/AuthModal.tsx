@@ -351,7 +351,7 @@ export function AuthModal({ isOpen, onClose, onConnect, onWalletConnect, onEmail
               {referral && (
                 <div className="mt-1 text-xs px-2 py-0.5 rounded flex items-center gap-1"
                   style={{ color: '#D4AF37' }}>
-                  <span>✓</span>
+                  <span>\u2713</span>
                   <span>Referral code applied — welcome bonus included!</span>
                 </div>
               )}

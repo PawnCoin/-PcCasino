@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Crown, AlertTriangle, Info, Lock, CheckCircle } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface VIPCurrencyModalProps {
   isOpen: boolean;
@@ -13,16 +14,16 @@ interface VIPCurrencyModalProps {
 }
 
 const FIATS = [
-  { code: 'USD', name: 'US Dollar', flag: '🇺🇸', rate: '~$0.000139' },
-  { code: 'EUR', name: 'Euro', flag: '🇪🇺', rate: '~€0.000128' },
-  { code: 'GBP', name: 'British Pound', flag: '🇬🇧', rate: '~£0.000109' },
-  { code: 'JPY', name: 'Japanese Yen', flag: '🇯🇵', rate: '~¥0.0208' },
-  { code: 'CAD', name: 'Canadian Dollar', flag: '🇨🇦', rate: '~$0.000189' },
-  { code: 'AUD', name: 'Australian Dollar', flag: '🇦🇺', rate: '~$0.000213' },
-  { code: 'CHF', name: 'Swiss Franc', flag: '🇨🇭', rate: '~₣0.000125' },
-  { code: 'CNY', name: 'Chinese Yuan', flag: '🇨🇳', rate: '~¥0.00101' },
-  { code: 'MXN', name: 'Mexican Peso', flag: '🇲🇽', rate: '~$0.00239' },
-  { code: 'BRL', name: 'Brazilian Real', flag: '🇧🇷', rate: '~R$0.000764' },
+  { code: 'USD', name: 'US Dollar', flag: 'US', rate: '~$0.000139' },
+  { code: 'EUR', name: 'Euro', flag: 'EU', rate: '~\u20ac0.000128' },
+  { code: 'GBP', name: 'British Pound', flag: 'GB', rate: '~\u00a30.000109' },
+  { code: 'JPY', name: 'Japanese Yen', flag: 'JP', rate: '~\u00a50.0208' },
+  { code: 'CAD', name: 'Canadian Dollar', flag: 'CA', rate: '~$0.000189' },
+  { code: 'AUD', name: 'Australian Dollar', flag: 'AU', rate: '~$0.000213' },
+  { code: 'CHF', name: 'Swiss Franc', flag: 'CH', rate: '~CHF 0.000125' },
+  { code: 'CNY', name: 'Chinese Yuan', flag: 'CN', rate: '~\u00a50.00101' },
+  { code: 'MXN', name: 'Mexican Peso', flag: 'MX', rate: '~$0.00239' },
+  { code: 'BRL', name: 'Brazilian Real', flag: 'BR', rate: '~R$0.000764' },
 ];
 
 const CRYPTOS = [
@@ -30,15 +31,15 @@ const CRYPTOS = [
   { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ' },
   { symbol: 'BNB', name: 'BNB', icon: '⬡' },
   { symbol: 'SOL', name: 'Solana', icon: '◎' },
-  { symbol: 'XRP', name: 'XRP', icon: '✕' },
+  { symbol: 'XRP', name: 'XRP', icon: 'X' },
   { symbol: 'ADA', name: 'Cardano', icon: '₳' },
   { symbol: 'AVAX', name: 'Avalanche', icon: 'A' },
   { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
   { symbol: 'DOT', name: 'Polkadot', icon: '●' },
   { symbol: 'LINK', name: 'Chainlink', icon: '⬡' },
   { symbol: 'MATIC', name: 'Polygon', icon: '⬡' },
-  { symbol: 'UNI', name: 'Uniswap', icon: '🦄' },
-  { symbol: 'ATOM', name: 'Cosmos', icon: '⚛' },
+  { symbol: 'UNI', name: 'Uniswap', icon: 'U' },
+  { symbol: 'ATOM', name: 'Cosmos', icon: 'A' },
   { symbol: 'LTC', name: 'Litecoin', icon: 'Ł' },
   { symbol: 'TRX', name: 'TRON', icon: 'T' },
   { symbol: 'NEAR', name: 'NEAR Protocol', icon: 'N' },
@@ -47,19 +48,19 @@ const CRYPTOS = [
   { symbol: 'ICP', name: 'Internet Computer', icon: '∞' },
   { symbol: 'MANA', name: 'Decentraland', icon: 'M' },
   { symbol: 'SAND', name: 'The Sandbox', icon: 'S' },
-  { symbol: 'APE', name: 'ApeCoin', icon: '🦍' },
-  { symbol: 'SHIB', name: 'Shiba Inu', icon: '🐕' },
-  { symbol: 'XLM', name: 'Stellar', icon: '✦' },
+  { symbol: 'APE', name: 'ApeCoin', icon: 'A' },
+  { symbol: 'SHIB', name: 'Shiba Inu', icon: 'S' },
+  { symbol: 'XLM', name: 'Stellar', icon: '*' },
   { symbol: 'VET', name: 'VeChain', icon: 'V' },
 ];
 
 const COMMODITIES = [
-  { symbol: 'GOLD', name: 'Gold', icon: '🥇', unit: 'per troy oz' },
-  { symbol: 'SILVER', name: 'Silver', icon: '🥈', unit: 'per troy oz' },
-  { symbol: 'OIL', name: 'Crude Oil (WTI)', icon: '🛢️', unit: 'per barrel' },
-  { symbol: 'NAT_GAS', name: 'Natural Gas', icon: '⛽', unit: 'per MMBtu' },
-  { symbol: 'PLAT', name: 'Platinum', icon: '⬡', unit: 'per troy oz' },
-  { symbol: 'COPPER', name: 'Copper', icon: '🔶', unit: 'per lb' },
+  { symbol: 'GOLD', name: 'Gold', icon: 'Au', unit: 'per troy oz' },
+  { symbol: 'SILVER', name: 'Silver', icon: 'Ag', unit: 'per troy oz' },
+  { symbol: 'OIL', name: 'Crude Oil (WTI)', icon: 'OIL', unit: 'per barrel' },
+  { symbol: 'NAT_GAS', name: 'Natural Gas', icon: 'NG', unit: 'per MMBtu' },
+  { symbol: 'PLAT', name: 'Platinum', icon: 'Pt', unit: 'per troy oz' },
+  { symbol: 'COPPER', name: 'Copper', icon: 'Cu', unit: 'per lb' },
 ];
 
 export function VIPCurrencyModal({ isOpen, onClose, balance, walletVerified, onOpenDeposit }: VIPCurrencyModalProps) {
@@ -152,9 +153,9 @@ export function VIPCurrencyModal({ isOpen, onClose, balance, walletVerified, onO
 
                 {/* Tab Selector */}
                 <div className="flex gap-2 mb-5">
-                  <TabBtn id="fiat" label="💵 Fiat Currencies" />
-                  <TabBtn id="crypto" label="₿ Top 25 Crypto" />
-                  <TabBtn id="commodity" label="🥇 Commodities" />
+                  <TabBtn id="fiat" label="Fiat Currencies" />
+                  <TabBtn id="crypto" label="Top 25 Crypto" />
+                  <TabBtn id="commodity" label="Commodities" />
                 </div>
 
                 {/* Fiat Tab */}

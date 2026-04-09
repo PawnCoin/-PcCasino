@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface JackpotCelebrationProps {
   amount: number;
@@ -62,7 +63,7 @@ export function JackpotCelebration({ amount, username, onClose }: JackpotCelebra
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="text-6xl animate-bounce select-none">🎰</div>
+        <div className="animate-bounce select-none"><CasinoIcon name="slot-machine" size={56} /></div>
 
         <div>
           <div
@@ -91,7 +92,7 @@ export function JackpotCelebration({ amount, username, onClose }: JackpotCelebra
         </div>
 
         <div className="flex gap-2 text-3xl select-none animate-pulse">
-          <span>🎊</span><span>🏆</span><span>💎</span><span>🏆</span><span>🎊</span>
+          <CasinoIcon name="confetti" size={28} /><CasinoIcon name="trophy" size={28} /><CasinoIcon name="gem" size={28} /><CasinoIcon name="trophy" size={28} /><CasinoIcon name="confetti" size={28} />
         </div>
 
         <button

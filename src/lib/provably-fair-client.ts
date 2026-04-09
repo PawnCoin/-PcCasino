@@ -4,7 +4,7 @@
  * After a round is revealed, users can run this locally to verify the deck order.
  */
 
-const CARD_SUITS = ['♠', '♥', '♦', '♣'] as const;
+const CARD_SUITS = ['\u2660', '\u2665', '\u2666', '\u2663'] as const;
 const CARD_VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'] as const;
 
 export interface VerifiableCard {
@@ -88,7 +88,7 @@ export async function deriveSlotGrid(
   clientSeed: string,
   nonce: number
 ): Promise<string[][]> {
-  const SYMBOLS = ['🍒', '🍋', '🍊', '🔔', '⭐', '💎', '7️⃣', '🎰'];
+  const SYMBOLS = ['cherry', 'lemon', 'orange', 'bell', 'star', 'gem', 'seven', 'slot-machine'];
   const WEIGHTS = [20, 18, 15, 12, 10, 8, 5, 2];
   const TOTAL_WEIGHT = WEIGHTS.reduce((a, b) => a + b, 0);
   const ROWS = 3;

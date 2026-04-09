@@ -202,7 +202,7 @@ export function MusicPlayer() {
                 </span>
               )}
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-sm">✕</button>
+            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-sm">\u00d7</button>
           </div>
 
           {/* Tab bar */}

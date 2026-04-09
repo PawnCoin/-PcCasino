@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { FileText, Shield, Coins, AlertTriangle, Scale, Cookie, ChevronLeft, BookOpen, Heart, Users, Star } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 export type LegalPage = 'terms' | 'privacy' | 'responsible' | 'rules' | 'crypto' | 'malfunction' | 'cookies' | 'aml' | 'affiliate' | 'rewards';
 
@@ -13,9 +14,9 @@ interface LegalPagesProps {
 }
 
 const pages: { id: LegalPage; label: string; icon: typeof FileText }[] = [
-  { id: 'rules', label: '📋 Game Rules & Steps', icon: Scale },
-  { id: 'affiliate', label: '🤝 Affiliate Program', icon: Users },
-  { id: 'rewards', label: '⭐ Rewards & Bonuses', icon: Star },
+  { id: 'rules', label: 'Game Rules & Steps', icon: Scale },
+  { id: 'affiliate', label: 'Affiliate Program', icon: Users },
+  { id: 'rewards', label: 'Rewards & Bonuses', icon: Star },
   { id: 'terms', label: 'Terms of Service', icon: FileText },
   { id: 'privacy', label: 'Privacy Policy', icon: Shield },
   { id: 'responsible', label: 'Responsible Gaming', icon: Heart },
@@ -215,7 +216,7 @@ function RulesContent() {
         'Multiple winners split the jackpot equally',
       ]} />
 
-      <SectionTitle>🚫 Anti-Cheating & Fair Play Policy</SectionTitle>
+      <SectionTitle><CasinoIcon name="prohibited" size={18} /> Anti-Cheating & Fair Play Policy</SectionTitle>
       <Warning>Any attempt to cheat, collude, or gain an unfair advantage will result in immediate permanent ban and forfeiture of all funds. No appeals for confirmed cheating cases.</Warning>
       <BulletList items={[
         'No direct messaging between players during active game sessions — private communication is disabled',

@@ -3,6 +3,7 @@ import { Trophy, TrendingUp, Flame, Crown, Medal, RefreshCw, Calendar, Clock } f
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket } from '@/lib/socket';
 import { gameApi } from '@/lib/api';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface LeaderboardPlayer {
   rank: number;
@@ -243,7 +244,7 @@ export function Leaderboard({ onViewProfile }: LeaderboardProps = {}) {
                   onClick={() => onViewProfile && onViewProfile(player.username)}
                 >{player.username}</button>
                 <div className="text-xs mb-1" style={{ color: activeTab === 'totalWon' ? '#D4AF37' : activeTab === 'balance' ? '#60a5fa' : '#f97316' }}>
-                  {activeTab === 'totalWon' ? formatNum(player.totalWon) : activeTab === 'balance' ? formatNum(player.balance) : `${player.winStreak} 🔥`} $Pc
+                  {activeTab === 'totalWon' ? formatNum(player.totalWon) : activeTab === 'balance' ? formatNum(player.balance) : <>{player.winStreak} <CasinoIcon name="fire" size={12} /></>} $Pc
                 </div>
                 <div className="w-full rounded-t-xl flex items-center justify-center font-bold"
                   style={{
@@ -253,7 +254,7 @@ export function Leaderboard({ onViewProfile }: LeaderboardProps = {}) {
                     color: isFirst ? '#D4AF37' : '#9ca3af',
                     fontSize: isFirst ? 22 : 18,
                   }}>
-                  {isFirst ? '🥇' : podiumIdx === 0 ? '🥈' : '🥉'}
+                  <CasinoIcon name={isFirst ? 'gold-medal' : podiumIdx === 0 ? 'silver-medal' : 'bronze-medal'} size={isFirst ? 22 : 18} />
                 </div>
               </div>
             );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePokerVoice } from '@/hooks/useGameVoice';
 import type { Card } from '@/types';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface PokerHandAnalyzerProps {
   holeCards: Card[];
@@ -252,7 +253,7 @@ export function PokerHandAnalyzer({ holeCards, communityCards, isVisible }: Poke
             className="ml-auto text-[#D4AF37] hover:text-[#FFD700] transition-colors"
             title="Read aloud"
           >
-            🔊
+            <CasinoIcon name="speaker" size={16} />
           </button>
         )}
       </div>
@@ -286,7 +287,7 @@ export function PokerHandAnalyzer({ holeCards, communityCards, isVisible }: Poke
           border: '1px solid rgba(212,175,55,0.3)',
         }}
       >
-        <span className="text-[#D4AF37]">💡</span>{' '}
+        <CasinoIcon name="info" size={14} color="#D4AF37" />{' '}
         <span className="text-[#C0C0C0]">{analysis.advice}</span>
       </div>
 

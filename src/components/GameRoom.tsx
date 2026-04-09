@@ -4,6 +4,7 @@ import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import { getSocket, leaveRoom, setReady, sendChatMessage, sendReaction, type Room, type ChatMessage } from '@/lib/socket';
 import { friendsApi, getToken } from '@/lib/api';
 import { toast } from 'sonner';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 function nameToAvatar(name: string) {
   let h = 0;
@@ -11,7 +12,7 @@ function nameToAvatar(name: string) {
   return ALL_AVATARS[h % ALL_AVATARS.length];
 }
 
-const QUICK_REACTIONS = ['🔥', '👏', '💎', '🎉', '😂', '💀', '🤑', '👑'];
+const QUICK_REACTIONS = ['fire', 'clap', 'gem', 'celebrate', 'laugh', 'skull', 'money-face', 'crown'];
 
 interface GameRoomProps {
   roomId: string;
@@ -89,7 +90,7 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
         id: nextMsgId(),
         playerId: 'system',
         username: 'System',
-        message: '🎮 Game has started!',
+        message: 'Game has started!',
         timestamp: Date.now(),
       }]);
     };
@@ -154,7 +155,7 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
         {/* Floating reactions */}
         {floatingReactions.map(r => (
           <div key={r.id} className="floating-reaction" style={{ left: `${r.x}%` }}>
-            {r.emoji}
+            <CasinoIcon name={r.emoji} size={24} />
           </div>
         ))}
 
@@ -202,7 +203,7 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
             zIndex: 100,
           }}
         >
-          {r.emoji}
+          <CasinoIcon name={r.emoji} size={24} />
         </div>
       ))}
 
@@ -298,7 +299,7 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
               color: myReady ? '#4ade80' : '#9ca3af',
             }}
           >
-            {myReady ? '✓ Ready' : 'Ready?'}
+            {myReady ? 'Ready' : 'Ready?'}
           </button>
           <div className="flex gap-0.5 flex-wrap flex-1">
             {QUICK_REACTIONS.map(emoji => (
@@ -308,7 +309,7 @@ export function GameRoom({ roomId, username, userId, onLeave, onViewProfile }: G
                 className="text-base hover:scale-125 transition-transform p-0.5 rounded"
                 title={`Send ${emoji}`}
               >
-                {emoji}
+                <CasinoIcon name={emoji} size={20} />
               </button>
             ))}
           </div>

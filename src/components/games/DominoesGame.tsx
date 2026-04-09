@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { AvatarSprite } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -87,8 +88,8 @@ const TILE_GAP = 5;
 const TARGET_SCORE = 150;
 const SPEED_DELAYS: Record<GameSpeed, number> = { 1: 2400, 2: 1800, 3: 700, 4: 200 };
 
-const DOM_QUICK_TEXTS = ['Nice draw! 🎲', "Can't play! 😤", 'Big score! 🔥', 'Good block! 🛡️', 'Ouch! 😬', 'My turn! 😏', 'Watch this! 👀'];
-const DOM_REACTIONS = ['🔥', '😤', '🎉', '👏', '💀', '🤙', '😱'];
+const DOM_QUICK_TEXTS = ['Nice draw!', "Can't play!", 'Big score!', 'Good block!', 'Ouch!', 'My turn!', 'Watch this!'];
+const DOM_REACTIONS = ['fire', 'angry', 'party', 'clap', 'skull', 'wave', 'shocked'];
 
 interface DomReaction { id: string; player: string; emoji: string; }
 
@@ -840,7 +841,7 @@ function ScoreBoard({ players, currentPlayer, lastScorer, lastScoreAmount, round
           return (
             <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 60 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                {isLeader && <span style={{ fontSize: 9 }}>👑</span>}
+                {isLeader && <span style={{ fontSize: 9, color: '#D4AF37' }}>\u2655</span>}
                 <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? '#D4AF37' : '#ccc' }}>{p.name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -893,7 +894,7 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
           background: 'rgba(183,28,28,0.92)', border: '1px solid #EF5350', borderRadius: 10,
           padding: '2px 8px', fontSize: 9, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap',
           animation: 'pop .2s ease', zIndex: 10, pointerEvents: 'none' }}>
-          🤜 {player.name} KNOCKED
+          {player.name} KNOCKED
         </div>
       )}
       <AvatarSprite avatar={player.avatarDef} size={isHuman ? 40 : 32} active={active} style={{ flexShrink: 0, borderRadius: '50%' }} />
@@ -947,10 +948,10 @@ function WashingScreen({ onDone, skinKey, washerName, isNewGame }: { onDone: () 
   const count = 18;
 
   const titleText = isNewGame
-    ? (washing ? '🔀 COMPUTER IS SHUFFLING…' : '🃏 NEW GAME — Computer Shuffles the Bones')
+    ? (washing ? 'COMPUTER IS SHUFFLING...' : 'NEW GAME \u2014 Computer Shuffles the Bones')
     : washerName === 'You'
-      ? (washing ? '🔀 WASHING THE BONES…' : '🫵 YOU HAVE THE LOWEST SCORE — MUST WASH!')
-      : (washing ? `🔀 ${washerName.toUpperCase()} IS WASHING…` : `😤 ${washerName.toUpperCase()} HAS THE LOWEST SCORE — WASHING…`);
+      ? (washing ? 'WASHING THE BONES...' : 'YOU HAVE THE LOWEST SCORE \u2014 MUST WASH!')
+      : (washing ? `${washerName.toUpperCase()} IS WASHING...` : `${washerName.toUpperCase()} HAS THE LOWEST SCORE \u2014 WASHING...`);
 
   const subText = isNewGame
     ? 'Dealer shuffles all 28 bones face-down…'
@@ -995,7 +996,7 @@ function WashingScreen({ onDone, skinKey, washerName, isNewGame }: { onDone: () 
           fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', gap: 10,
           boxShadow: '0 0 20px rgba(212,175,55,0.4)', animation: 'pulse 1.2s infinite',
         }}>
-          🔀 Wash the Bones!
+          Wash the Bones!
         </button>
       )}
     </div>
@@ -1122,7 +1123,7 @@ function PickingScreen({
             {/* Header */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '8px 12px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <div style={{ background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '4px 10px', color: '#D4AF37', fontWeight: 700, fontSize: 12 }}>
-                {humanDone ? '✓ 7 Bones — Ready!' : `Pick ${7 - humanClaims} more`}
+                {humanDone ? '7 Bones \u2014 Ready!' : `Pick ${7 - humanClaims} more`}
               </div>
               {!humanDone && (
                 <div style={{
@@ -1132,7 +1133,7 @@ function PickingScreen({
                   color: pickTimeLeft <= 5 ? '#fff' : '#888', fontWeight: 700, fontSize: 12,
                   transition: 'all .3s', animation: pickTimeLeft <= 5 ? 'pulse .6s infinite' : 'none',
                 }}>
-                  ⏱ Auto-pick in {pickTimeLeft}s
+                  Auto-pick in {pickTimeLeft}s
                 </div>
               )}
               {humanDone && (
@@ -1220,7 +1221,7 @@ function DomReactionBubble({ reaction, playerColor }: { reaction: DomReaction; p
       boxShadow: `0 4px 18px rgba(0,0,0,0.7), 0 0 10px ${playerColor}55`,
       animation: 'bubblePop .32s cubic-bezier(0.34,1.56,0.64,1) both',
     }}>
-      {reaction.emoji}
+      <CasinoIcon name={reaction.emoji} size={24} />
       <div style={{
         position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)',
         width: 0, height: 0,
@@ -1351,7 +1352,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     const scorer = gs.lastScorer ?? '';
     const isHuman = scorer === 'You';
     if (isHuman) {
-      toast.success(`🎯 +${gs.lastMoveScore} pts! (${gs.openEndTotal} open ends)`);
+      toast.success(`+${gs.lastMoveScore} pts! (${gs.openEndTotal} open ends)`);
       setPropCelebrating(true);
       setTimeout(() => setPropCelebrating(false), 1200);
     } else {
@@ -1370,7 +1371,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       setPlaySecondsLeft(s => {
         if (s <= 1) {
           clearInterval(iv);
-          toast.error('⏱ Too slow! You were replaced by CPU.');
+          toast.error('Too slow! You were replaced by CPU.');
           dispatch({ type: 'REPLACE_HUMAN' });
           return 0;
         }
@@ -1435,11 +1436,11 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       } else if (gs.boneyard.length > 0) {
         // AI draws from boneyard — will retry on next drawTrigger cycle
         audio.draw();
-        if (Math.random() > 0.5) setTimeout(() => addReaction(Math.random() > 0.5 ? "😤" : "Can't play! 😤", player.id), 150);
+        if (Math.random() > 0.5) setTimeout(() => addReaction(Math.random() > 0.5 ? "angry" : "Can't play!", player.id), 150);
         dispatch({ type: 'DRAW', playerId: player.id });
       } else {
         audio.knock();
-        if (Math.random() > 0.45) setTimeout(() => addReaction(Math.random() > 0.5 ? "🤜" : "Good block! 🛡️", player.id), 100);
+        if (Math.random() > 0.45) setTimeout(() => addReaction(Math.random() > 0.5 ? "fist" : "Good block!", player.id), 100);
         dispatch({ type: 'PASS' });
       }
     }, delay);
@@ -1457,11 +1458,11 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       if (humanWon) {
         if (slamOn) { setShaking(true); setCracking(true); setTimeout(() => { setShaking(false); setCracking(false); }, 900); }
         audio.slam(); setTimeout(() => audio.crack(), 180); setTimeout(() => audio.win(), 350);
-        addReaction('🎉', 'human');
+        addReaction('party', 'human');
         if (gs.mode === 'real') { const w = gs.bet * 3; onWin(w); triggerWinBurst(); toast.success(`DOMINO OUT! +${w} $Pc · +${gs.roundScore} pts`); }
         else toast.success('DOMINO OUT! (Practice)');
       } else {
-        addReaction('😤', 'human');
+        addReaction('angry', 'human');
         gs.mode === 'real' ? toast.error(`${gs.roundWinner} wins! +${gs.roundScore} pts`) : toast.info(`${gs.roundWinner} wins the round.`);
       }
     }
@@ -1489,7 +1490,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
     setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null);
   };
   const handleDraw = () => { if (!canDraw) return; audio.draw(); dispatch({ type: 'DRAW' }); toast.info('Drew a tile'); };
-  const handlePass = () => { if (!canPass) return; audio.knock(); dispatch({ type: 'PASS' }); toast.info('🤜 You knocked — passing'); };
+  const handlePass = () => { if (!canPass) return; audio.knock(); dispatch({ type: 'PASS' }); toast.info('You knocked \u2014 passing'); };
 
   const confirmBet = () => {
     if (balance < gs.bet) { toast.error('Insufficient balance!'); return; }
@@ -1506,7 +1507,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const handleStartPlaying = useCallback(() => { dispatch({ type: 'START_PLAYING' }); }, []);
 
   const table = tableSkinDef;
-  const speedLabels: Record<GameSpeed, string> = { 1: '🐢 Slow', 2: '🚶 Normal', 3: '🏃 Fast', 4: '⚡ Turbo' };
+  const speedLabels: Record<GameSpeed, string> = { 1: 'Slow', 2: 'Normal', 3: 'Fast', 4: 'Turbo' };
   const isGameWon = gs.phase === 'roundOver' && gs.players.some(p => p.score >= gs.targetScore);
 
   let statusMsg = '';
@@ -1552,7 +1553,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
         .dom-board::-webkit-scrollbar-track { background: transparent; }
       `}</style>
 
-      <InGameTopBar gameName="🁣 Dominoes" balance={balance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} showShare
+      <InGameTopBar gameName="Dominoes" balance={balance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} showShare
         rightSlot={
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {gs.mode === 'practice' && gs.phase !== 'setup' && <span style={{ padding: '2px 10px', borderRadius: 20, background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.4)', color: '#42A5F5', fontSize: 11, fontWeight: 700 }}>PRACTICE</span>}
@@ -1565,8 +1566,8 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       {showSettings && (
         <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(320px, 100vw)', zIndex: 200, background: 'rgba(6,4,0,.98)', borderLeft: '1px solid rgba(212,175,55,.3)', padding: '18px 14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#D4AF37', fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>⚙ Settings</span>
-            <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 20 }}>✕</button>
+            <span style={{ color: '#D4AF37', fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>Settings</span>
+            <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 20 }}>\u00d7</button>
           </div>
           <div>
             <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Game Speed</div>
@@ -1601,20 +1602,20 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             </div>
           </div>
           <div style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: 10, padding: '10px 12px' }}>
-            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, marginBottom: 6 }}>📜 Rules (Draw · All-Fives)</div>
+            <div style={{ color: '#D4AF37', fontWeight: 700, fontSize: 11, marginBottom: 6 }}>Rules (Draw \u00b7 All-Fives)</div>
             <div style={{ color: '#555', fontSize: 10, lineHeight: 1.7 }}>
-              • Highest double plays first<br />
-              • <span style={{ color: '#D4AF37' }}>★ Spinner:</span> first double — opens all 4 sides (L/R/Top/Bottom)<br />
-              • Regular doubles placed perpendicularly (sideways)<br />
-              • <span style={{ color: '#43A047' }}>Score during play:</span> open ends sum ÷ 5 = points<br />
-              • Up to 4 open ends counted when spinner is active<br />
-              • Doubles at arm tips count both sides (e.g. [4|4] = 8)<br />
-              • Domino-out: opponents' remaining pips (÷5)<br />
-              • Blocked: lowest pip total wins (÷5)<br />
-              • Draw from boneyard when you can't play<br />
-              • Knock (pass) only when boneyard is empty<br />
-              • Loser washes bones for next round<br />
-              • First to {gs.targetScore || selectedTargetScore} pts wins
+              \u2022 Highest double plays first<br />
+              \u2022 <span style={{ color: '#D4AF37' }}>Spinner:</span> first double — opens all 4 sides (L/R/Top/Bottom)<br />
+              {'\u2022'} Regular doubles placed perpendicularly (sideways)<br />
+              {'\u2022'} <span style={{ color: '#43A047' }}>Score during play:</span> open ends sum {'\u00f7'} 5 = points<br />
+              {'\u2022'} Up to 4 open ends counted when spinner is active<br />
+              {'\u2022'} Doubles at arm tips count both sides (e.g. [4|4] = 8)<br />
+              {'\u2022'} Domino-out: opponents' remaining pips ({'\u00f7'}5)<br />
+              {'\u2022'} Blocked: lowest pip total wins ({'\u00f7'}5)<br />
+              {'\u2022'} Draw from boneyard when you can't play<br />
+              {'\u2022'} Knock (pass) only when boneyard is empty<br />
+              {'\u2022'} Loser washes bones for next round<br />
+              {'\u2022'} First to {gs.targetScore || selectedTargetScore} pts wins
             </div>
           </div>
         </div>
@@ -1625,7 +1626,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'rgba(12,9,0,.97)', border: '1px solid rgba(212,175,55,.4)', borderRadius: 20, padding: 'clamp(16px,4vw,36px)', maxWidth: 440, width: '100%', boxShadow: '0 40px 80px rgba(0,0,0,.85)', animation: 'slideUp .4s ease' }}>
             <div style={{ textAlign: 'center', marginBottom: 22 }}>
-              <div style={{ fontSize: 46, marginBottom: 8 }}>🁣🁢🁡</div>
+              <div style={{ marginBottom: 8 }}><CasinoIcon name="dominoes" size={46} /></div>
               <div style={{ fontFamily: 'Georgia,serif', fontSize: 24, fontWeight: 800, color: '#D4AF37', letterSpacing: 3 }}>DOMINOES</div>
               <div style={{ color: '#555', fontSize: 12, marginTop: 3 }}>Draw · All-Fives · Double-Six · 4 Players</div>
             </div>
@@ -1653,7 +1654,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               </div>
               <div style={{ color: '#555', fontSize: 11, marginBottom: 10 }}>Learn free — no bets. 3 sessions max.</div>
               <button onClick={() => gs.practiceGamesLeft > 0 && startWash('practice', true)} disabled={gs.practiceGamesLeft === 0} style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: 'none', cursor: gs.practiceGamesLeft > 0 ? 'pointer' : 'not-allowed', background: gs.practiceGamesLeft > 0 ? 'rgba(30,136,229,.22)' : 'rgba(60,60,60,.3)', color: gs.practiceGamesLeft > 0 ? '#42A5F5' : '#444', fontWeight: 700, fontSize: 13 }}>
-                {gs.practiceGamesLeft > 0 ? '🎓 Start Free Practice' : 'Practice Limit Reached'}
+                {gs.practiceGamesLeft > 0 ? 'Start Free Practice' : 'Practice Limit Reached'}
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(212,175,55,0.15)' }}>
@@ -1680,7 +1681,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                 </div>
               )
             }
-            {betConfirmed && <div style={{ marginTop: 8, textAlign: 'center', color: '#43A047', fontSize: 12, fontWeight: 600 }}>✓ Bet locked — choose above</div>}
+            {betConfirmed && <div style={{ marginTop: 8, textAlign: 'center', color: '#43A047', fontSize: 12, fontWeight: 600 }}>Bet locked \u2014 choose above</div>}
           </div>
         </div>
       )}
@@ -1703,12 +1704,12 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       {gs.phase === 'roundOver' && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'rgba(12,9,0,.98)', border: '1px solid rgba(212,175,55,.5)', borderRadius: 20, padding: 'clamp(16px,4vw,36px)', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 40px 80px rgba(0,0,0,.9)', animation: 'slideUp .5s ease' }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>{isGameWon ? '🏆' : gs.roundWinner === 'You' ? '🏆' : '😔'}</div>
+            <div style={{ marginBottom: 8 }}><CasinoIcon name={isGameWon || gs.roundWinner === 'You' ? 'trophy' : 'sad'} size={48} /></div>
             <div style={{ fontFamily: 'Georgia,serif', fontSize: 20, fontWeight: 800, color: gs.roundWinner === 'You' ? '#D4AF37' : '#EF5350', marginBottom: 4 }}>
               {isGameWon ? `GAME OVER — ${gs.players.find(p => p.score >= gs.targetScore)?.name ?? gs.roundWinner} WINS!` : gs.roundWinner === 'You' ? 'DOMINO OUT!' : `${gs.roundWinner} Wins the Round`}
             </div>
             {gs.roundScore > 0 && <div style={{ color: '#888', fontSize: 13, marginBottom: 4 }}>+{gs.roundScore} pts to {gs.roundWinner}</div>}
-            {gs.roundLoser && !isGameWon && <div style={{ color: '#EF5350', fontSize: 12, marginBottom: 6, fontWeight: 600 }}>😅 {gs.roundLoser === 'You' ? 'You lost' : gs.roundLoser + ' lost'} — must wash next round!</div>}
+            {gs.roundLoser && !isGameWon && <div style={{ color: '#EF5350', fontSize: 12, marginBottom: 6, fontWeight: 600 }}>{gs.roundLoser === 'You' ? 'You lost' : gs.roundLoser + ' lost'} — must wash next round!</div>}
             {gs.roundWinner === 'You' && gs.mode === 'real' && <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}><span style={{ color: '#43A047' }}>+</span><PcTokenLabel amount={gs.bet * 3} size={20} /></div>}
             {gs.mode === 'practice' && <div style={{ color: '#42A5F5', fontSize: 12, marginBottom: 6 }}>Practice round — no payout</div>}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px', margin: '12px 0', textAlign: 'left' }}>
@@ -1716,7 +1717,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               {[...gs.players].sort((a, b) => b.score - a.score).map((p, i) => (
                 <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 11 }}>{['🥇','🥈','🥉','4️⃣'][i]}</span>
+                    <span style={{ fontSize: 11 }}>{['1st','2nd','3rd','4th'][i]}</span>
                     <span style={{ fontSize: 13, color: i === 0 ? '#D4AF37' : '#888' }}>{p.name}</span>
                     {p.name === gs.roundLoser && !isGameWon && <span style={{ fontSize: 9, color: '#EF5350', fontWeight: 700 }}>WASHES</span>}
                   </div>
@@ -1779,7 +1780,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                 <CrackOverlay active={cracking} />
                 {lastPlayBanner && <LastPlayBanner playerName={lastPlayBanner.playerName} left={lastPlayBanner.left} right={lastPlayBanner.right} skinKey={dominoSkin} />}
                 <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 6, display: 'flex', gap: 5, alignItems: 'center' }}>
-                  <div style={{ padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(255,255,255,.2)', color: '#ddd', fontSize: 11, fontWeight: 600 }}>🁣 {gs.boneyard.length}</div>
+                  <div style={{ padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(255,255,255,.2)', color: '#ddd', fontSize: 11, fontWeight: 600 }}>{gs.boneyard.length} bones</div>
                   <button onClick={() => setBoardZoom(z => Math.min(z + 0.15, 2.2))} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(212,175,55,.3)', background: 'rgba(0,0,0,.6)', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomIn size={13} /></button>
                   <button onClick={() => setBoardZoom(z => Math.max(z - 0.15, 0.4))} style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(212,175,55,.3)', background: 'rgba(0,0,0,.6)', color: '#D4AF37', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomOut size={13} /></button>
                 </div>
@@ -1899,7 +1900,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                           transition: 'all .2s',
                           boxShadow: scoring ? '0 0 12px rgba(67,160,71,0.5)' : 'none',
                         }}>
-                          {scoring ? `✓ ${gs.openEndTotal} pts!` : `Ends: ${gs.openEndTotal}`}
+                          {scoring ? `${gs.openEndTotal} pts!` : `Ends: ${gs.openEndTotal}`}
                         </div>
                       );
                     })()}
@@ -1923,7 +1924,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                             <div key={pt.tile.id} style={{ position: 'absolute', left: pos.x, top: pos.y, animation: isNewest ? 'tileIn .28s cubic-bezier(0.34,1.56,0.64,1)' : 'none' }}>
                               <DominoTileView dispLeft={pt.dispLeft} dispRight={pt.dispRight} isDouble={pt.isDouble} skinKey={dominoSkin} dims={dims} />
                               {isSpinner && (
-                                <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', fontSize: 8, fontWeight: 800, color: '#D4AF37', background: 'rgba(0,0,0,0.8)', padding: '1px 5px', borderRadius: 6, whiteSpace: 'nowrap', border: '1px solid rgba(212,175,55,0.5)' }}>★ SPINNER</div>
+                                <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', fontSize: 8, fontWeight: 800, color: '#D4AF37', background: 'rgba(0,0,0,0.8)', padding: '1px 5px', borderRadius: 6, whiteSpace: 'nowrap', border: '1px solid rgba(212,175,55,0.5)' }}>SPINNER</div>
                               )}
                             </div>
                           );
@@ -2002,7 +2003,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                               {/* If arms not yet open, show lock indicator */}
                               {!topBottomOpen && (
                                 <div style={{ position: 'absolute', left: spinnerCX - 60, top: spinnerPos.y - 32, fontSize: 9, color: 'rgba(255,100,100,0.85)', fontWeight: 700, textAlign: 'center', width: 120, background: 'rgba(0,0,0,0.7)', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(255,100,100,0.4)' }}>
-                                  🔒 Play both sides first
+                                  Play both sides first
                                 </div>
                               )}
                               {topBottomOpen && topOpen && (
@@ -2056,9 +2057,9 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                 border: `1px solid ${playSecondsLeft <= 8 ? '#EF5350' : 'rgba(255,255,255,0.08)'}`,
                 animation: playSecondsLeft <= 8 ? 'pulse .6s infinite' : 'none',
                 transition: 'all .3s',
-              }}>⏱ {playSecondsLeft}s</span>
+              }}>{playSecondsLeft}s</span>
             )}
-            {gs.humanReplaced && <span style={{ fontSize: 11, color: '#EF5350', fontWeight: 700 }}>🤖 You were replaced by CPU</span>}
+            {gs.humanReplaced && <span style={{ fontSize: 11, color: '#EF5350', fontWeight: 700 }}>You were replaced by CPU</span>}
           </div>
 
           <div style={{ display: 'flex', gap: 7, justifyContent: 'center', padding: '2px 16px 4px', flexShrink: 0, flexWrap: 'wrap' }}>
@@ -2095,7 +2096,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             )}
             {isHumanTurn && !activeTile && (
               <>{canDraw && <Button onClick={handleDraw} style={{ background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.45)', color: '#42A5F5', fontWeight: 700 }}>Draw from Boneyard</Button>}
-              {canPass && <Button onClick={handlePass} style={{ background: 'rgba(183,28,28,.18)', border: '1px solid rgba(183,28,28,.45)', color: '#EF5350', fontWeight: 700 }}>🤜 Knock (Pass)</Button>}</>
+              {canPass && <Button onClick={handlePass} style={{ background: 'rgba(183,28,28,.18)', border: '1px solid rgba(183,28,28,.45)', color: '#EF5350', fontWeight: 700 }}>Knock (Pass)</Button>}</>
             )}
           </div>
 
@@ -2104,8 +2105,8 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             {showReactionPanel && (
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 14, padding: '5px 10px', animation: 'pop .2s ease' }}>
                 {DOM_REACTIONS.map(emoji => (
-                  <button key={emoji} onClick={() => { addReaction(emoji, 'human'); setShowReactionPanel(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '2px 4px', borderRadius: 8, transition: 'transform .1s' }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.3)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-                    {emoji}
+                  <button key={emoji} onClick={() => { addReaction(emoji, 'human'); setShowReactionPanel(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 8, transition: 'transform .1s' }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.3)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
+                    <CasinoIcon name={emoji} size={24} />
                   </button>
                 ))}
                 {DOM_QUICK_TEXTS.map(text => (
@@ -2116,7 +2117,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
               </div>
             )}
             <button onClick={() => setShowReactionPanel(p => !p)} style={{ background: showReactionPanel ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showReactionPanel ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 20, cursor: 'pointer', fontSize: 15, padding: '3px 10px', color: '#D4AF37', fontWeight: 700, transition: 'all .15s' }}>
-              💬
+              <CasinoIcon name="chat" size={15} />
             </button>
           </div>
 

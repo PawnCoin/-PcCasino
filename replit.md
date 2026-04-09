@@ -15,6 +15,7 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 - **In-Game UI**: A unified `InGameTopBar` provides consistent navigation, balance display, quick-buy options, and settings accessible via `InGameOptionsPanel`.
 - **Game Skins**: Game-specific skins for Roulette, Craps, Slots, Bingo, and Darts are implemented, allowing visual customization.
 - **Accessibility & SEO**: `index.html` is optimized with full metadata, Open Graph, Twitter Cards, JSON-LD, skip-links, and semantic HTML for improved SEO and accessibility. Static pages like `/about`, `/contact`, `/privacy-policy`, and `/terms` are also provided.
+- **Casino Icon Library**: All Unicode emojis replaced with custom SVG icon components from `src/components/CasinoIcons.tsx`. The `CasinoIcon` component renders icons by name (e.g., `<CasinoIcon name="cards" />`). Uses casino gold palette (#D4AF37, #F4D03F, #B8860B) with dark backgrounds. ICON_MAP has 80+ icons with aliases. `EmojiSpan` helper and `EMOJI_TO_ICON` mapping available for legacy emoji-to-icon conversion.
 - **Responsive Design**: Mobile detection is handled by `use-mobile.ts`.
 
 #### Technical Implementations

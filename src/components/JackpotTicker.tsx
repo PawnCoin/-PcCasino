@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Zap, History } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 import { JackpotHistory } from './JackpotHistory';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface JackpotTickerProps {
   onJackpotWin?: (amount: number) => void;
@@ -57,12 +58,12 @@ export function JackpotTicker({ onJackpotWin }: JackpotTickerProps) {
     return (
       <div className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl animate-bounce"
         style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(255,215,0,0.2))', border: '2px solid #D4AF37', boxShadow: '0 0 40px rgba(212,175,55,0.8)' }}>
-        <span className="text-2xl">🎰</span>
+        <CasinoIcon name="slot-machine" size={28} />
         <div className="text-center">
           <div className="text-xs font-bold text-yellow-300 tracking-widest">JACKPOT WON!</div>
           <div className="font-casino text-xl font-bold text-yellow-400">{lastWon} just hit it!</div>
         </div>
-        <span className="text-2xl">🎊</span>
+        <CasinoIcon name="confetti" size={28} />
       </div>
     );
   }

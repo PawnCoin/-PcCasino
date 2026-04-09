@@ -807,7 +807,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
     if (totalWin > 0) {
       onWin(totalWin);
       triggerWinBurst();
-      addReaction('💰', 'you');
+      addReaction('money-bag', 'you');
       setMessage(prev => `${prev} You won ${totalWin} $Pc!`);
       setWinFlash(true);
       setWinText(`+${totalWin} $Pc`);

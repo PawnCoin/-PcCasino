@@ -3,6 +3,7 @@ import { PlayingCard } from '@/components/PlayingCard';
 import { ChevronDown, ChevronUp, Share2, Trophy, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface PokerAction {
   street: string;
@@ -34,7 +35,7 @@ interface PokerHandReplayProps {
 }
 
 const SUIT_SYMBOLS: Record<string, string> = {
-  spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣',
+  spades: '\u2660', hearts: '\u2665', diamonds: '\u2666', clubs: '\u2663',
 };
 const SUIT_COLORS: Record<string, string> = {
   spades: '#fff', hearts: '#ef4444', diamonds: '#ef4444', clubs: '#fff',
@@ -129,7 +130,7 @@ export function PokerHandReplay({ hand, compact = false }: PokerHandReplayProps)
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 16,
         }}>
-          {isWin ? '🏆' : '📉'}
+          <CasinoIcon name={isWin ? 'trophy' : 'chart-down'} size={16} />
         </div>
 
         {/* Hole cards */}

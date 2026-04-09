@@ -81,10 +81,10 @@ export function PlayingCard({
   }
 
   const suitSymbols: Record<string, string> = {
-    hearts: '♥',
-    diamonds: '♦',
-    clubs: '♣',
-    spades: '♠',
+    hearts: '\u2665',
+    diamonds: '\u2666',
+    clubs: '\u2663',
+    spades: '\u2660',
   };
 
   const suitColors: Record<string, string> = {

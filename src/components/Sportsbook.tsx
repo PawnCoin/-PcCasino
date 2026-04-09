@@ -3,6 +3,7 @@ import { Trophy, ChevronRight, TrendingUp, DollarSign, X, Check } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import type { LiveEvent } from '@/types';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 const mockEvents: LiveEvent[] = [
   {
@@ -39,10 +40,10 @@ const mockEvents: LiveEvent[] = [
   },
 ];
 
-const sportEmojis: Record<string, string> = {
-  NFL: '🏈',
-  NBA: '🏀',
-  UFC: '🥊',
+const sportIcons: Record<string, string> = {
+  NFL: 'football',
+  NBA: 'basketball',
+  UFC: 'boxing',
 };
 
 interface BetSlip {
@@ -93,7 +94,7 @@ export function Sportsbook({ onPlaceBet, balance, isAuthenticated }: SportsbookP
       const payout = calculatePayout(amount, betSlip.odds);
       const won = Math.random() > 0.55; // 45% win rate for house edge
       if (won) {
-        toast.success(`🏆 You won! +${Math.floor(payout - amount).toLocaleString()} $Pc`);
+        toast.success(`You won! +${Math.floor(payout - amount).toLocaleString()} $Pc`);
       } else {
         toast.error(`Lost ${amount.toLocaleString()} $Pc on ${betSlip.selection}`);
       }
@@ -126,7 +127,7 @@ export function Sportsbook({ onPlaceBet, balance, isAuthenticated }: SportsbookP
         <div className="glass-panel rounded-2xl p-6 border border-yellow-500/20">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {mockEvents.map((event) => {
-              const sportEmoji = sportEmojis[event.sport] || '🏆';
+              const sportIconName = sportIcons[event.sport] || 'trophy';
               const isLive = event.status === 'live';
 
               return (
@@ -136,7 +137,7 @@ export function Sportsbook({ onPlaceBet, balance, isAuthenticated }: SportsbookP
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{sportEmoji}</span>
+                      <CasinoIcon name={sportIconName} size={24} />
                       <span className="font-bold text-sm">{event.sport}</span>
                     </div>
                     {isLive ? (

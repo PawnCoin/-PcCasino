@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 const ADMIN_KEY = 'pcasino_admin_auth';
 
@@ -304,15 +305,15 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                   <h3 className="font-bold text-white">Dashboard Overview</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
-                      { label: 'Players Online', value: stats.playersOnline || 0, color: '#4ade80', icon: '👥' },
-                      { label: 'Active Tables', value: stats.activeTables || 0, color: '#60a5fa', icon: '🎲' },
-                      { label: 'Open Disputes', value: stats.activeDisputes || disputes.filter(d => d.status === 'open').length, color: '#f87171', icon: '⚠️' },
-                      { label: 'Active Tournaments', value: stats.activeTournaments || tournaments.filter(t => t.status !== 'finished').length, color: '#facc15', icon: '🏆' },
-                      { label: 'Total $Pc Won', value: formatNum(stats.totalWon || 0), color: '#D4AF37', icon: '💰' },
-                      { label: 'Live Users', value: users.length, color: '#c084fc', icon: '🌐' },
+                      { label: 'Players Online', value: stats.playersOnline || 0, color: '#4ade80', iconName: 'people' },
+                      { label: 'Active Tables', value: stats.activeTables || 0, color: '#60a5fa', iconName: 'dice' },
+                      { label: 'Open Disputes', value: stats.activeDisputes || disputes.filter(d => d.status === 'open').length, color: '#f87171', iconName: 'warning' },
+                      { label: 'Active Tournaments', value: stats.activeTournaments || tournaments.filter(t => t.status !== 'finished').length, color: '#facc15', iconName: 'trophy' },
+                      { label: 'Total $Pc Won', value: formatNum(stats.totalWon || 0), color: '#D4AF37', iconName: 'money-bag' },
+                      { label: 'Live Users', value: users.length, color: '#c084fc', iconName: 'globe' },
                     ].map(stat => (
                       <div key={stat.label} className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <div className="text-2xl mb-1">{stat.icon}</div>
+                        <div className="mb-1"><CasinoIcon name={stat.iconName} size={28} /></div>
                         <div className="font-bold text-xl" style={{ color: stat.color }}>{stat.value}</div>
                         <div className="text-xs text-gray-400">{stat.label}</div>
                       </div>
@@ -446,15 +447,15 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div><span className="text-gray-500">Email:</span> <span className="text-gray-300">{sub.email || '—'}</span> {sub.email_verified ? <span className="text-green-400">✓</span> : <span className="text-red-400">✗</span>}</div>
-                        <div><span className="text-gray-500">Phone:</span> <span className="text-gray-300">{sub.phone_number || '—'}</span> {sub.phone_verified ? <span className="text-green-400">✓</span> : <span className="text-red-400">✗</span>}</div>
+                        <div><span className="text-gray-500">Email:</span> <span className="text-gray-300">{sub.email || '\u2014'}</span> {sub.email_verified ? <span className="text-green-400">\u2713</span> : <span className="text-red-400">\u2717</span>}</div>
+                        <div><span className="text-gray-500">Phone:</span> <span className="text-gray-300">{sub.phone_number || '\u2014'}</span> {sub.phone_verified ? <span className="text-green-400">\u2713</span> : <span className="text-red-400">\u2717</span>}</div>
                         <div><span className="text-gray-500">Submitted:</span> <span className="text-gray-300">{new Date(sub.submitted_at).toLocaleString()}</span></div>
                         <div><span className="text-gray-500">Doc ID:</span> <span className="text-gray-400 font-mono text-[10px]">{(sub.id_document_path || '—').slice(0, 30)}</span></div>
                       </div>
 
                       {sub.linked_profiles?.length > 0 && (
                         <div className="p-2 rounded-lg text-xs" style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.4)' }}>
-                          <span className="text-red-400 font-bold">⚠️ IDENTITY MATCH DETECTED</span>
+                          <span className="text-red-400 font-bold">IDENTITY MATCH DETECTED</span>
                           <span className="text-gray-400 ml-2">Same document used by: {sub.linked_profiles.map((p: any) => `${p.username} (ID: ${p.user_id})`).join(', ')}</span>
                         </div>
                       )}
@@ -472,7 +473,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                                   <button onClick={() => loadKycDoc(sub.id, docType)}
                                     className="w-full py-1.5 rounded-lg text-center transition-colors"
                                     style={{ background: docType === 'id' ? 'rgba(59,130,246,0.1)' : 'rgba(168,85,247,0.1)', border: `1px solid ${docType === 'id' ? 'rgba(59,130,246,0.3)' : 'rgba(168,85,247,0.3)'}`, color: docType === 'id' ? '#60a5fa' : '#c084fc' }}>
-                                    {loading ? '⏳ Loading...' : docType === 'id' ? '📄 Load ID Doc' : '🤳 Load Selfie'}
+                                    {loading ? 'Loading...' : docType === 'id' ? 'Load ID Doc' : 'Load Selfie'}
                                   </button>
                                 ) : docData ? (
                                   <img src={docData} alt={docType === 'id' ? 'ID Document' : 'Selfie'} className="w-full rounded-lg max-h-32 object-contain" style={{ border: '1px solid rgba(255,255,255,0.15)' }} />
@@ -494,7 +495,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                         {sub.linked_profiles?.length > 0 && (
                           <Button onClick={() => approveKyc(sub.id, true)} size="sm"
                             style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)', fontSize: 11 }}>
-                            ⚠️ Force Approve
+                            Force Approve
                           </Button>
                         )}
                         <input

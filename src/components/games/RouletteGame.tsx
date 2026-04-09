@@ -418,7 +418,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
       if (totalWinAmount > 0) {
         onWin(totalWinAmount);
         triggerWinBurst();
-        addReaction('🤑', 'you');
+        addReaction('money-face', 'you');
         setLastWin(totalWinAmount);
         setMessage(laPartageRefund > 0
           ? `Zero! La Partage: ${laPartageRefund} $Pc returned!`

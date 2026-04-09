@@ -80,7 +80,7 @@ export function InGameTopBar({
 
           {membership.isMember && (
             <div style={{ padding: '2px 6px', borderRadius: 6, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 9, fontWeight: 700, color: '#D4AF37', letterSpacing: '0.08em', flexShrink: 0 }}>
-              ★ VIP
+              VIP
             </div>
           )}
 

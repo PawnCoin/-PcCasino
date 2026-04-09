@@ -171,12 +171,12 @@ export function ProvablyFairPage({ onBack, isOpen, onClose, prefill, inline }: P
         {/* Commitment hash validation */}
         {hashCheckPassed && (
           <div className="mb-3 p-2 rounded bg-green-500/10 border border-green-500/20 text-xs text-green-400">
-            ✓ SHA-256(serverSeed) matches the committed hash — server could not have changed the outcome.
+            SHA-256(serverSeed) matches the committed hash \u2014 server could not have changed the outcome.
           </div>
         )}
         {hashCheckFailed && (
           <div className="mb-3 p-2 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-400">
-            ✗ SHA-256(serverSeed) does NOT match the committed hash. The seed may have been tampered with.
+            SHA-256(serverSeed) does NOT match the committed hash. The seed may have been tampered with.
           </div>
         )}
         {hashMatch === null && (

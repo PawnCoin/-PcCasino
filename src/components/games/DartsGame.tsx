@@ -277,10 +277,10 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     if (newScore === 0) {
       setPlayerScore(0);
       setGamePhase('won');
-      setMessage('🎯 You win! 501 reached exactly!');
+      setMessage('You win! 501 reached exactly!');
       if (betPlaced) onWin(betAmount * 2);
       triggerWinBurst();
-      addReaction('🎯', 'you');
+      addReaction('target', 'you');
       return;
     } else if (newScore < 0) {
       setMessage('Bust! Score went below 0. Turn forfeited.');
@@ -454,7 +454,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
           {(gamePhase === 'won' || gamePhase === 'lost') && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontSize: 40 }}>{gamePhase === 'won' ? '🎯' : '😔'}</div>
+              <div style={{ fontSize: 40 }}>{gamePhase === 'won' ? '\u2316' : '\u2639'}</div>
               <div style={{ fontSize: 20, fontWeight: 700 }}>
                 {gamePhase === 'won'
                   ? <><span style={{ color: '#43A047' }}>+</span><PcTokenLabel amount={betAmount * 2} size={20} /></>
@@ -474,7 +474,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           <div style={{ padding: '16px', borderRadius: 12, background: turn === 'player' ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${turn === 'player' ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <AvatarSprite avatar={playerAvatarDef} size={28} active={turn === 'player'} />
-              <div style={{ fontSize: 11, color: '#6b7280' }}>YOU {turn === 'player' && gamePhase === 'playing' ? '🎯' : ''}</div>
+              <div style={{ fontSize: 11, color: '#6b7280' }}>YOU {turn === 'player' && gamePhase === 'playing' ? '\u2316' : ''}</div>
             </div>
             <div style={{ fontSize: 48, fontWeight: 700, color: '#D4AF37', lineHeight: 1 }}>{playerScore}</div>
             <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Throw {throwCount + 1}/3</div>
@@ -486,7 +486,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           <div style={{ padding: '16px', borderRadius: 12, background: turn === 'ai' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${turn === 'ai' ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <AvatarSprite avatar={DARTS_AI_AVATAR} size={28} active={turn === 'ai'} />
-              <div style={{ fontSize: 11, color: '#6b7280' }}>AI {turn === 'ai' ? '🤖' : ''}</div>
+              <div style={{ fontSize: 11, color: '#6b7280' }}>AI</div>
             </div>
             <div style={{ fontSize: 48, fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>{aiScore}</div>
           </div>

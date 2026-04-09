@@ -3,6 +3,7 @@ import { gameApi } from '@/lib/api';
 import { PokerHandReplay } from '@/components/PokerHandReplay';
 import type { PokerHandRecord } from '@/components/PokerHandReplay';
 import { History, RefreshCw, AlertCircle } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface PokerHandHistoryProps {
   isAuthenticated: boolean;
@@ -38,7 +39,7 @@ export function PokerHandHistory({ isAuthenticated }: PokerHandHistoryProps) {
   if (!isAuthenticated) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+        <div style={{ marginBottom: 12 }}><CasinoIcon name="lock" size={32} /></div>
         <div style={{ color: '#9ca3af', fontSize: 14 }}>Sign in to view your hand history</div>
       </div>
     );
@@ -84,7 +85,7 @@ export function PokerHandHistory({ isAuthenticated }: PokerHandHistoryProps) {
 
         {!loading && fetched && hands.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🃏</div>
+            <div style={{ marginBottom: 12 }}><CasinoIcon name="cards" size={32} /></div>
             <div style={{ color: '#9ca3af', fontSize: 13 }}>No hands recorded yet</div>
             <div style={{ color: '#4b5563', fontSize: 11, marginTop: 4 }}>Play a few hands to see your history here</div>
           </div>

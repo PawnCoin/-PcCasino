@@ -3,6 +3,7 @@ import { Users, Search, Lock, Globe, Clock, Trophy, Zap, MessageSquare, ChevronR
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { GameType } from '@/types';
@@ -25,8 +26,8 @@ interface MultiplayerLobbyProps {
 }
 
 const gameIcons: Record<string, string> = {
-  poker: '♠️', blackjack: '🃏', roulette: '🎰', craps: '🎲', spades: '♠️',
-  slots: '🎰', sports: '🏈', bingo: '🎱', dominoes: '🁣', pool: '🎱', darts: '🎯', vip: '👑',
+  poker: 'spade', blackjack: 'cards', roulette: 'slot-machine', craps: 'dice', spades: 'spade',
+  slots: 'slot-machine', sports: 'football', bingo: 'pool-ball', dominoes: 'domino', pool: 'pool-ball', darts: 'target', vip: 'crown',
 };
 
 const gameNames: Record<string, string> = {
@@ -309,7 +310,7 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
                         style={{ background: 'linear-gradient(135deg, rgba(147,51,234,0.25), rgba(236,72,153,0.25))' }}>
-                        {gameIcons[room.game] || '🎮'}
+                        <CasinoIcon name={gameIcons[room.game] || 'gamepad'} size={20} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -404,7 +405,7 @@ export function MultiplayerLobby({ isOpen, onClose, onJoinTable, userBalance, us
           {selectedRoom && (
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.2)' }}>
-                <div className="text-4xl">{gameIcons[selectedRoom.game] || '🎮'}</div>
+                <CasinoIcon name={gameIcons[selectedRoom.game] || 'gamepad'} size={40} />
                 <div>
                   <div className="font-bold text-white">{gameNames[selectedRoom.game] || selectedRoom.game}</div>
                   <div className="text-sm text-gray-400">

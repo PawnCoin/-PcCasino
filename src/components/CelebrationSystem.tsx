@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
-export const CELEBRATION_EMOJIS = ['🎉', '🔥', '💰', '😤', '🤑', '👑', '🫡', '💎'];
-export const AI_REACTION_EMOJIS = ['🔥', '👏', '😤', '🎉', '💀', '🤙'];
+export const CELEBRATION_EMOJIS = ['celebrate', 'fire', 'money-bag', 'angry', 'money-face', 'crown', 'salute', 'gem'];
+export const AI_REACTION_EMOJIS = ['fire', 'clap', 'angry', 'celebrate', 'skull', 'shaka'];
 
 export interface CelebrationReaction {
   id: string;
@@ -79,7 +80,7 @@ function FloatingReaction({ reaction, playerPositions = {} }: FloatingReactionPr
         minWidth: 44,
         textAlign: 'center',
       }}>
-        {reaction.emoji}
+        <CasinoIcon name={reaction.emoji} size={24} />
       </div>
       <div style={{
         position: 'absolute',
@@ -125,7 +126,6 @@ function WinBurstDisplay({ burst, onComplete }: WinBurstDisplayProps) {
               position: 'fixed',
               left: burst.x,
               top: burst.y,
-              fontSize: 20 + Math.random() * 14,
               zIndex: 9998,
               pointerEvents: 'none',
               animation: `celebBurst ${duration}ms ease-out ${delay}ms both`,
@@ -133,7 +133,7 @@ function WinBurstDisplay({ burst, onComplete }: WinBurstDisplayProps) {
               '--ty': `${ty}px`,
             } as unknown as React.CSSProperties}
           >
-            {emoji}
+            <CasinoIcon name={emoji} size={20 + Math.random() * 14} />
           </div>
         );
       })}
@@ -189,7 +189,7 @@ export function EmojiReactionPicker({ onReact, emojis = CELEBRATION_EMOJIS, enab
         }}
         title="Send reaction"
       >
-        😊
+        <CasinoIcon name="smile" size={16} />
       </button>
 
       {open && (
@@ -225,7 +225,7 @@ export function EmojiReactionPicker({ onReact, emojis = CELEBRATION_EMOJIS, enab
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.35)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
             >
-              {emoji}
+              <CasinoIcon name={emoji} size={22} />
             </button>
           ))}
         </div>
@@ -313,7 +313,7 @@ export function useReactions(enabled: boolean) {
 
   const triggerWinBurst = useCallback((x?: number, y?: number) => {
     if (!enabled) return;
-    const emojis = ['🎉', '🔥', '💰', '🤑', '👑', '💎', '⭐', '🎊'];
+    const emojis = ['celebrate', 'fire', 'money-bag', 'money-face', 'crown', 'gem', 'star', 'confetti'];
     const burst: WinBurst = {
       id: `burst-${Date.now()}`,
       x: x ?? window.innerWidth / 2,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { User, Shield, History, Gift, AlertTriangle, Copy, CheckCircle, Bell, Lock, Eye, EyeOff, TrendingUp, Clock, Wallet, DollarSign, FileText, X, ExternalLink, ChevronRight, Star, QrCode, Smartphone, Upload, Phone, BadgeCheck, RefreshCw, Plus, Trash2, Star as StarIcon, Edit, Camera, Twitter, Instagram, Send, MessageCircle, Play, Save, Users, MessageSquare, UserPlus, UserX, Swords } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -98,11 +99,11 @@ function ProvablyFairSection() {
 
   const handleVerify = () => {
     if (!verifyClientSeed || !verifyServerSeed || !verifyNonce) {
-      setVerifyResult('❌ Please fill in all fields to verify');
+      setVerifyResult('Please fill in all fields to verify');
       return;
     }
     const result = generateResult(verifyClientSeed, verifyServerSeed, verifyNonce);
-    setVerifyResult(`✅ Verified! Raw result: ${result} | Roulette: ${result % 37} | Dice: ${(result % 6) + 1} | Slots ROI: ${((result % 100) / 100).toFixed(4)}`);
+    setVerifyResult(`Verified! Raw result: ${result} | Roulette: ${result % 37} | Dice: ${(result % 6) + 1} | Slots ROI: ${((result % 100) / 100).toFixed(4)}`);
   };
 
   return (
@@ -287,7 +288,7 @@ function KycFlow({ user, onComplete }: { user: NonNullable<UserProfileProps['use
                     background: isComplete ? '#4ade80' : isCurrent ? '#D4AF37' : 'rgba(255,255,255,0.1)',
                     color: isComplete || isCurrent ? 'black' : '#9ca3af',
                   }}>
-                  {isComplete ? '✓' : i + 1}
+                  {isComplete ? '\u2713' : i + 1}
                 </div>
                 <span className="text-[10px] text-gray-500 mt-0.5">{labels[i]}</span>
               </div>
@@ -449,7 +450,7 @@ function KycFlow({ user, onComplete }: { user: NonNullable<UserProfileProps['use
         ].map((tier, i) => (
           <div key={i} className="flex items-center gap-3 text-sm">
             <div className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${tier.done ? 'bg-green-500 text-black' : 'bg-white/10 text-gray-500'}`}>
-              {tier.done ? '✓' : i + 1}
+              {tier.done ? '\u2713' : i + 1}
             </div>
             <div>
               <span className={tier.done ? 'text-green-400' : 'text-gray-300'}>{tier.label}</span>
@@ -619,7 +620,7 @@ function WalletManager({ userId }: { userId: string }) {
                     )}
                     {w.wallet_verified && (
                       <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}>
-                        ✓ Verified
+                        Verified
                       </span>
                     )}
                   </div>
@@ -924,12 +925,12 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
     return '#9ca3af';
   };
 
-  const txIcon = (type: string) => {
-    if (type === 'win') return '🏆';
-    if (type === 'bet') return '🎲';
-    if (type === 'deposit') return '💰';
-    if (type === 'withdraw') return '🏧';
-    return '📋';
+  const txIconName = (type: string) => {
+    if (type === 'win') return 'trophy';
+    if (type === 'bet') return 'dice';
+    if (type === 'deposit') return 'money-bag';
+    if (type === 'withdraw') return 'money-bag';
+    return 'document';
   };
 
   const kycBadgeColor = kycStatus === 'approved' ? { bg: 'rgba(74,222,128,0.1)', color: '#4ade80', border: 'rgba(74,222,128,0.3)' }
@@ -961,7 +962,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl"
                     style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
-                    {user.avatar || '👤'}
+                    <CasinoIcon name="person" size={24} />
                   </div>
                 )}
               </div>
@@ -1117,7 +1118,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                               <AvatarSprite avatar={avatarDef} size={64} style={{ borderRadius: 0 }} />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-3xl" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)' }}>
-                                {user.avatar || '👤'}
+                                <CasinoIcon name="person" size={24} />
                               </div>
                             )}
                           </div>
@@ -1214,13 +1215,13 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
-                      { label: 'Total Won', value: formatAmount(totalWon), color: '#4ade80', icon: '🏆' },
-                      { label: 'Total Bet', value: formatAmount(totalBet), color: '#facc15', icon: '🎲' },
-                      { label: 'Net Profit', value: formatAmount(Math.abs(netProfit)), color: getNetColor(netProfit), icon: netProfit >= 0 ? '📈' : '📉' },
-                      { label: 'Win Rate', value: `${winRate}%`, color: '#c084fc', icon: '🎯' },
+                      { label: 'Total Won', value: formatAmount(totalWon), color: '#4ade80', iconName: 'trophy' },
+                      { label: 'Total Bet', value: formatAmount(totalBet), color: '#facc15', iconName: 'dice' },
+                      { label: 'Net Profit', value: formatAmount(Math.abs(netProfit)), color: getNetColor(netProfit), iconName: netProfit >= 0 ? 'star' : 'chart-down' },
+                      { label: 'Win Rate', value: `${winRate}%`, color: '#c084fc', iconName: 'target' },
                     ].map(stat => (
                       <div key={stat.label} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        <div className="text-xl">{stat.icon}</div>
+                        <CasinoIcon name={stat.iconName} size={24} />
                         <div className="font-bold text-lg mt-1" style={{ color: stat.color }}>{stat.value}</div>
                         <div className="text-xs text-gray-400">{stat.label}</div>
                       </div>
@@ -1257,7 +1258,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                         <div key={item.label} className="flex justify-between text-sm items-center">
                           <span className="text-gray-400">{item.label}</span>
                           <span className="text-xs font-bold" style={{ color: item.done ? '#4ade80' : '#9ca3af' }}>
-                            {item.done ? '✓ ' : ''}{item.value}
+                            {item.done ? '\u2713 ' : ''}{item.value}
                           </span>
                         </div>
                       ))}
@@ -1285,7 +1286,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                         {favoriteGames.map((fg, idx) => {
                           return (
                             <div key={fg.game} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                              <span className="text-xl w-7 text-center">{fg.icon || '🎮'}</span>
+                              <span className="w-7 flex justify-center"><CasinoIcon name={fg.icon || 'gamepad'} size={22} /></span>
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-white">{fg.gameName || fg.game}</div>
                                 <div className="text-xs text-gray-500">{fg.playCount} plays • {fg.winRate}% wins</div>
@@ -1330,7 +1331,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                     <div className="space-y-2">
                       {transactions.map(tx => (
                         <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                          <div className="text-xl w-8 text-center">{txIcon(tx.type)}</div>
+                          <div className="w-8 flex justify-center"><CasinoIcon name={txIconName(tx.type)} size={20} /></div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-white capitalize">{tx.type}</span>
@@ -1386,7 +1387,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                             <div key={req.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
                               <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0"
                                 style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                                🎰
+                                <CasinoIcon name="slot-machine" size={18} />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold text-white">{req.username}</div>
@@ -1439,7 +1440,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                               <div className="relative flex-shrink-0">
                                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg"
                                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                  🎰
+                                  <CasinoIcon name="slot-machine" size={18} />
                                 </div>
                                 <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-black ${f.isOnline ? 'bg-green-400' : 'bg-gray-600'}`} />
                               </div>
@@ -1501,7 +1502,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                             <div key={p.userId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
                               <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0"
                                 style={{ background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.2)' }}>
-                                🎮
+                                <CasinoIcon name="gamepad" size={18} />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold text-white">{p.username}</div>
@@ -1580,7 +1581,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                       </div>
                     </div>
                     <Button onClick={() => toast.info('Verification email sent. Check your inbox.')} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
-                      {user.emailVerified ? 'Verified ✓' : 'Resend'}
+                      {user.emailVerified ? 'Verified' : 'Resend'}
                     </Button>
                   </div>
                   {/* KYC */}
@@ -1592,7 +1593,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                       </div>
                     </div>
                     <Button onClick={() => setShowKycFlow(true)} size="sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11 }}>
-                      {kycStatus === 'approved' ? 'Verified ✓' : 'Verify'}
+                      {kycStatus === 'approved' ? 'Verified' : 'Verify'}
                     </Button>
                   </div>
                   </div>
@@ -1733,7 +1734,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                     ].map(bonus => (
                       <div key={bonus.name} className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: `${bonus.color}20`, border: `1px solid ${bonus.color}40` }}>
-                          {bonus.status === 'claimed' ? '✓' : bonus.status === 'locked' ? '🔒' : bonus.status === 'active' ? '⚡' : '🎁'}
+                          <CasinoIcon name={bonus.status === 'claimed' ? 'checkmark' : bonus.status === 'locked' ? 'lock' : bonus.status === 'active' ? 'lightning' : 'gift'} size={20} />
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-white text-sm">{bonus.name}</div>
@@ -1820,13 +1821,13 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
                             color: selfExclusion === period ? '#f87171' : '#9ca3af',
                             border: selfExclusion === period ? '1px solid rgba(248,113,113,0.4)' : '1px solid rgba(255,255,255,0.1)',
                           }}>
-                          {selfExclusionLoading ? '...' : selfExclusion === period ? '✓ ' : ''}{period}
+                          {selfExclusionLoading ? '...' : selfExclusion === period ? '\u2713 ' : ''}{period}
                         </button>
                       ))}
                     </div>
                     {selfExclusion && (
                       <div className="p-3 rounded-lg" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)' }}>
-                        <div className="text-xs text-red-400 font-bold">⛔ Self-exclusion active: {selfExclusion}</div>
+                        <div className="text-xs text-red-400 font-bold">Self-exclusion active: {selfExclusion}</div>
                         <div className="text-xs text-gray-400 mt-1">To reinstate your account, please contact support@pccasino.com</div>
                       </div>
                     )}

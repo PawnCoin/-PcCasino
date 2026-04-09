@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ExternalLink, Info, TrendingUp, Shield, Zap, Crown, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface WeParlaySectionProps {
   userBalance: number;
@@ -62,7 +63,7 @@ export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionPro
               </p>
               <div className="border-t border-white/10 pt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <span>🏈</span>
+                  <CasinoIcon name="football" size={16} />
                   <span>WeParlay Inc.</span>
                 </div>
                 <div className="flex gap-2">
@@ -120,14 +121,14 @@ export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionPro
             {/* Content */}
             <div className="p-6">
               <div className="mb-1">
-                <h3 className="font-casino text-2xl font-bold" style={{ color: '#E040FB' }}>Adult V.I.P. Area</h3>
+                <h3 className="font-casino text-2xl font-bold" style={{ color: '#E040FB' }}><CasinoIcon name="crown" size={22} /> Adult V.I.P. Area</h3>
               </div>
               <p className="text-sm text-gray-400 mb-4 leading-relaxed">
                 Exclusive 18+ private lounge. Invite-only games, private dance rooms, and all casino games.
               </p>
               <div className="border-t border-purple-900/40 pt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm" style={{ color: 'rgba(200,100,220,0.8)' }}>
-                  <span className="text-base">🔞</span>
+                  <CasinoIcon name="age-restricted" size={16} />
                   <span>18+ Only</span>
                 </div>
                 <div className="flex gap-2">
@@ -172,7 +173,7 @@ export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionPro
         <DialogContent className="max-w-md" style={{ background: 'rgba(8,16,32,0.99)', border: '1px solid rgba(21,101,192,0.4)' }}>
           <DialogHeader>
             <DialogTitle className="font-casino text-xl" style={{ color: '#64B5F6' }}>
-              🏈 WeParlay Free Picks
+              <CasinoIcon name="football" size={20} /> WeParlay Free Picks
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm">
@@ -201,12 +202,12 @@ export function WeParlaySection({ userBalance, onSelectVip }: WeParlaySectionPro
         <DialogContent className="max-w-md" style={{ background: 'rgba(13,0,24,0.99)', border: '1px solid rgba(160,32,240,0.4)' }}>
           <DialogHeader>
             <DialogTitle className="font-casino text-xl" style={{ color: '#E040FB' }}>
-              👑 Adult V.I.P. Area
+              <CasinoIcon name="crown" size={20} /> Adult V.I.P. Area
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="p-3 rounded-xl text-center" style={{ background: 'rgba(160,32,240,0.1)', border: '1px solid rgba(160,32,240,0.3)' }}>
-              <div className="text-3xl mb-2">🔞</div>
+              <div className="mb-2"><CasinoIcon name="age-restricted" size={32} /></div>
               <p className="text-purple-300 font-bold">Strictly 18+ Only</p>
               <p className="text-gray-400 text-xs mt-1">Age verification required upon entry</p>
             </div>

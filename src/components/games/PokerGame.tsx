@@ -192,7 +192,7 @@ function DealerSeat({ dealer }: { dealer: { name: string; avatar: DealerAvatarDe
           <DealerAvatarSprite avatar={dealer.avatar} size={54} />
         </div>
         <div style={{ padding: '6px 10px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: 8, color: '#D4AF37', letterSpacing: '0.2em', fontWeight: 800, textTransform: 'uppercase' }}>♠ Dealer</div>
+          <div style={{ fontSize: 8, color: '#D4AF37', letterSpacing: '0.2em', fontWeight: 800, textTransform: 'uppercase' }}>Dealer</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginTop: 2, whiteSpace: 'nowrap' }}>{dealer.name}</div>
           <div style={{ fontSize: 7.5, color: 'rgba(212,175,55,0.55)', marginTop: 2, letterSpacing: '0.1em' }}>$Pc Casino</div>
         </div>
@@ -261,7 +261,7 @@ function OpponentSeat({
         <div style={{ opacity: 0.4, filter: 'grayscale(1)' }}>
           <PlayingCard hidden size="sm" cardBackStyle={cardBackStyle} />
         </div>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#ef4444', textShadow: '0 0 8px rgba(239,68,68,0.6)', pointerEvents: 'none' }}>✕</div>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#ef4444', textShadow: '0 0 8px rgba(239,68,68,0.6)', pointerEvents: 'none' }}>\u00d7</div>
       </div>
     );
     return (
@@ -439,7 +439,7 @@ function UserSeat({
               onClick={() => fileRef.current?.click()}
               style={{ fontSize: 10, color: '#9ca3af', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}
             >
-              📷 Upload photo instead
+              Upload photo instead
             </button>
           </div>
         </div>
@@ -839,7 +839,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       const winAmount = capturedPot;
       onWin(winAmount);
       triggerWinBurst();
-      addReaction('🔥', 'you');
+      addReaction('fire', 'you');
       setWinEffect(true);
       setPotSweepToUser(true);
       setTimeout(() => setPotSweepToUser(false), 1200);
@@ -1236,12 +1236,12 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               {showdownData && (
                 <div className="absolute inset-0 z-[25] flex items-center justify-center pointer-events-none">
                   <div className="text-center px-6 py-4 rounded-2xl" style={{ background: 'radial-gradient(ellipse at center,rgba(0,0,0,0.97) 0%,rgba(0,0,0,0.82) 70%,transparent 100%)', minWidth: 360, maxWidth: 480 }}>
-                    <div style={{ fontSize: 10, letterSpacing: '0.35em', marginBottom: 6, fontWeight: 800, color: 'rgba(212,175,55,0.75)' }}>♠ SHOWDOWN ♠</div>
+                    <div style={{ fontSize: 10, letterSpacing: '0.35em', marginBottom: 6, fontWeight: 800, color: 'rgba(212,175,55,0.75)' }}>SHOWDOWN</div>
                     <div className="text-2xl font-casino font-bold mb-1" style={{ color: showdownData.winner === 'player' ? '#D4AF37' : '#ef4444', textShadow: showdownData.winner === 'player' ? '0 0 24px rgba(212,175,55,0.7)' : '0 0 24px rgba(239,68,68,0.5)' }}>
                       {showdownData.handName.toUpperCase()}
                     </div>
                     <div className="text-base font-bold mb-4" style={{ color: showdownData.winner === 'player' ? '#43A047' : '#9ca3af' }}>
-                      {showdownData.winner === 'player' ? `🏆 YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!` : `${showdownData.opponentName} wins this hand`}
+                      {showdownData.winner === 'player' ? `YOU WIN ${showdownData.winAmount.toLocaleString()} $Pc!` : `${showdownData.opponentName} wins this hand`}
                     </div>
 
                     {/* Community cards (board) */}
@@ -1267,7 +1267,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                       {showdownData.playerCards && (
                         <div>
                           <div style={{ fontSize: 8, color: showdownData.winner === 'player' ? '#D4AF37' : 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>
-                            {showdownData.winner === 'player' ? '★ Your Cards' : 'Your Cards'}
+                            {showdownData.winner === 'player' ? 'Your Cards' : 'Your Cards'}
                           </div>
                           <div className="flex justify-center gap-1.5 items-center">
                             {showdownData.playerCards.map((c, i) => (
@@ -1283,7 +1283,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                       {showdownData.opponentCards && (
                         <div>
                           <div style={{ fontSize: 8, color: showdownData.winner === 'opponent' ? '#ef4444' : 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>
-                            {showdownData.winner === 'opponent' ? `★ ${showdownData.opponentName}` : showdownData.opponentName}
+                            {showdownData.winner === 'opponent' ? showdownData.opponentName : showdownData.opponentName}
                           </div>
                           <div className="flex justify-center gap-1.5 items-center">
                             {showdownData.opponentCards.map((c, i) => (
@@ -1395,7 +1395,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               <div>
                 <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Hand Rankings (Best to Worst)</h3>
                 <div className="grid grid-cols-1 gap-1 text-gray-300">
-                  {['Royal Flush - A♦ K♦ Q♦ J♦ 10♦','Straight Flush - Five in a row, same suit','Four of a Kind - Four same rank','Full House - Three of a kind + pair','Flush - All five same suit','Straight - Five in order mixed suits','Three of a Kind','Two Pair','One Pair','High Card'].map((hand, i) => (
+                  {['Royal Flush - A\u2666 K\u2666 Q\u2666 J\u2666 10\u2666','Straight Flush - Five in a row, same suit','Four of a Kind - Four same rank','Full House - Three of a kind + pair','Flush - All five same suit','Straight - Five in order mixed suits','Three of a Kind','Two Pair','One Pair','High Card'].map((hand, i) => (
                     <div key={i} className="flex items-start gap-2 p-1 rounded hover:bg-white/5">
                       <span className="text-[#D4AF37] font-bold w-6">{i + 1}.</span>
                       <span>{hand}</span>

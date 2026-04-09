@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { RefreshCw, Maximize2, Minimize2, AlertTriangle, Users } from 'lucide-react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, getSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
 import { getDefaultRouletteSkin, ROULETTE_SKINS } from '@/hooks/useRouletteSkin';
@@ -302,7 +303,7 @@ export function IframeGameWrapper({
           {rouletteTimer}s
         </div>
       )}
-      <span style={{ fontSize: 20 }}>{gameEmoji}</span>
+      <CasinoIcon name={gameEmoji} size={20} />
       <button
         onClick={handleReload}
         title="Reload game"
@@ -341,7 +342,7 @@ export function IframeGameWrapper({
         {!isLoaded && !loadError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10"
             style={{ background: 'rgba(0,0,0,0.9)' }}>
-            <div className="text-6xl mb-4 animate-bounce">{gameEmoji}</div>
+            <div className="mb-4 animate-bounce"><CasinoIcon name={gameEmoji} size={64} /></div>
             <p className="text-[#D4AF37] font-casino text-xl mb-2">Loading {gameName}…</p>
             <p className="text-[#808080] text-sm">Game files loading from /games/{gameId}/</p>
           </div>
@@ -350,7 +351,7 @@ export function IframeGameWrapper({
         {loadError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10"
             style={{ background: 'rgba(0,0,0,0.9)' }}>
-            <div className="text-6xl mb-4">{gameEmoji}</div>
+            <div className="mb-4"><CasinoIcon name={gameEmoji} size={64} /></div>
             <h2 className="font-casino text-2xl font-bold mb-2 metallic-gold-text">{gameName}</h2>
             <p className="text-[#A0A0A0] text-base mb-2">Game files not found</p>
             <p className="text-[#606060] text-sm mb-6 text-center max-w-sm">

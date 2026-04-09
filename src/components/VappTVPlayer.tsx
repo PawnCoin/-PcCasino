@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Tv, X, Maximize2, Minimize2, Volume2, VolumeX, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface VappTVPlayerProps {
   isOpen: boolean;
@@ -8,11 +9,11 @@ interface VappTVPlayerProps {
 }
 
 const channels = [
-  { id: 'sports', name: 'Sports Central', category: 'Sports', thumbnail: '🏈' },
-  { id: 'movies', name: 'Cinema HD', category: 'Movies', thumbnail: '🎬' },
-  { id: 'music', name: 'Music TV', category: 'Music', thumbnail: '🎵' },
-  { id: 'news', name: '24/7 News', category: 'News', thumbnail: '📰' },
-  { id: 'gaming', name: 'Esports TV', category: 'Gaming', thumbnail: '🎮' },
+  { id: 'sports', name: 'Sports Central', category: 'Sports', thumbnail: 'football' },
+  { id: 'movies', name: 'Cinema HD', category: 'Movies', thumbnail: 'tv' },
+  { id: 'music', name: 'Music TV', category: 'Music', thumbnail: 'speaker' },
+  { id: 'news', name: '24/7 News', category: 'News', thumbnail: 'globe' },
+  { id: 'gaming', name: 'Esports TV', category: 'Gaming', thumbnail: 'gamepad' },
 ];
 
 export function VappTVPlayer({ isOpen, onClose }: VappTVPlayerProps) {
@@ -100,7 +101,7 @@ export function VappTVPlayer({ isOpen, onClose }: VappTVPlayerProps) {
               <div className="text-center">
                 {!isPlaying ? (
                   <>
-                    <div className="text-6xl mb-4">{currentChannel.thumbnail}</div>
+                    <div className="mb-4"><CasinoIcon name={currentChannel.thumbnail} size={64} /></div>
                     <Button 
                       onClick={() => setIsPlaying(true)}
                       className="btn-primary rounded-full px-6"
@@ -114,7 +115,7 @@ export function VappTVPlayer({ isOpen, onClose }: VappTVPlayerProps) {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
                         <div className="animate-pulse text-purple-400 mb-2">● LIVE</div>
-                        <div className="text-4xl">{currentChannel.thumbnail}</div>
+                        <div><CasinoIcon name={currentChannel.thumbnail} size={40} /></div>
                       </div>
                     </div>
                     <Button
@@ -147,7 +148,7 @@ export function VappTVPlayer({ isOpen, onClose }: VappTVPlayerProps) {
                         : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }`}
                   >
-                    <span className="mr-1">{channel.thumbnail}</span>
+                    <span className="mr-1 inline-flex"><CasinoIcon name={channel.thumbnail} size={16} /></span>
                     {channel.name}
                   </button>
                 ))}

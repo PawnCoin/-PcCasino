@@ -3,6 +3,7 @@ import { Trophy, Clock, Users, DollarSign, Zap, ChevronRight, RefreshCw } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { toast } from 'sonner';
 import { getToken } from '@/lib/api';
 
@@ -26,8 +27,8 @@ interface TournamentsPageProps {
   onDeductBalance: (amount: number) => void;
 }
 
-const gameEmoji: Record<string, string> = {
-  poker: '🃏', blackjack: '🂡', roulette: '🎡', craps: '🎲', spades: '♠', slots: '🎰', bingo: '🎱',
+const gameIconName: Record<string, string> = {
+  poker: 'cards', blackjack: 'cards', roulette: 'roulette-wheel', craps: 'dice', spades: 'spade', slots: 'slot-machine', bingo: 'pool-ball',
 };
 
 export function TournamentsPage({ isOpen, onClose, user, onDeductBalance }: TournamentsPageProps) {
@@ -69,7 +70,7 @@ export function TournamentsPage({ isOpen, onClose, user, onDeductBalance }: Tour
       if (res.ok) {
         setRegistered(prev => new Set([...prev, t.id]));
         onDeductBalance(t.entryFee);
-        toast.success(`Registered for ${t.name}! Good luck! 🏆`);
+        toast.success(`Registered for ${t.name}! Good luck!`);
         loadTournaments();
       } else {
         const err = await res.json().catch(() => ({}));
@@ -79,7 +80,7 @@ export function TournamentsPage({ isOpen, onClose, user, onDeductBalance }: Tour
       // Fallback: still deduct balance locally
       setRegistered(prev => new Set([...prev, t.id]));
       onDeductBalance(t.entryFee);
-      toast.success(`Registered for ${t.name}! Good luck! 🏆`);
+      toast.success(`Registered for ${t.name}! Good luck!`);
     }
   };
 
@@ -141,7 +142,7 @@ export function TournamentsPage({ isOpen, onClose, user, onDeductBalance }: Tour
                   {/* Header */}
                   <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{gameEmoji[t.game] || '🏆'}</span>
+                      <CasinoIcon name={gameIconName[t.game] || 'trophy'} size={28} />
                       <div>
                         <div className="font-bold text-white text-sm">{t.name}</div>
                         <div className="flex items-center gap-2 text-xs">
@@ -212,7 +213,7 @@ export function TournamentsPage({ isOpen, onClose, user, onDeductBalance }: Tour
                       </Button>
                       {isReg ? (
                         <div className="flex-1 flex items-center justify-center gap-1 text-sm font-bold rounded-lg" style={{ color: '#4ade80', background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)' }}>
-                          ✓ Registered
+                          Registered
                         </div>
                       ) : (
                         <Button onClick={() => registerForTournament(t)} disabled={isFull} className="flex-1"

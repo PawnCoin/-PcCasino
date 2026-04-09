@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { X, Volume2, VolumeX, User, Palette, Mic, MessageSquare, Bot, Tv, Music, Sparkles, Star, Crown, Gem, Upload, Check, Zap, ChevronDown } from 'lucide-react';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { CasinoIcon } from '@/components/CasinoIcons';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { useCardDeck } from '@/hooks/useCardDeck';
@@ -231,7 +232,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
               <section style={{ marginTop: 'auto' }}>
                 <div style={{ background: isMember ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isMember ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '12px 14px' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: isMember ? '#D4AF37' : '#6b7280', letterSpacing: '0.1em', marginBottom: 4 }}>
-                    {isMember ? '★ $PC CASINO MEMBER' : 'PLAYER ACCOUNT'}
+                    {isMember ? '$PC CASINO MEMBER' : 'PLAYER ACCOUNT'}
                   </div>
                   <div style={{ fontSize: 10, color: '#4b5563', lineHeight: 1.6 }}>
                     {isMember
@@ -319,7 +320,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </div>
 
-              <GameSkinSection title="Card Backs" emoji="🃏" subtitle="Poker, Blackjack, Spades" activeGame={activeGame} gameKeys={['Poker', 'Blackjack', 'Spades', "Hold'em"]} defaultOpen>
+              <GameSkinSection title="Card Backs" emoji="cards" subtitle="Poker, Blackjack, Spades" activeGame={activeGame} gameKeys={['Poker', 'Blackjack', 'Spades', "Hold'em"]} defaultOpen>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                   {allDecks.map(deck => {
                     const isSelected = selectedDeck === deck.id;
@@ -421,11 +422,11 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Pool — Ball Material" emoji="🎱" subtitle="Ball finish & physics" activeGame={activeGame} gameKeys={['Pool Table']}>
+              <GameSkinSection title="Pool — Ball Material" emoji="pool-ball" subtitle="Ball finish & physics" activeGame={activeGame} gameKeys={['Pool Table']}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {POOL_BALL_PRESETS.map(preset => {
                     const isSelected = activeBallPreset.id === preset.id;
-                    const matEmoji = { classic: '🎱', glass: '🔮', metallic: '⚙️', crystal: '💎', frosted: '❄️' }[preset.material] ?? '🎱';
+                    const matIconName = { classic: 'pool-ball', glass: 'crystal-ball', metallic: 'gear', crystal: 'gem', frosted: 'snowflake' }[preset.material] ?? 'pool-ball';
                     return (
                       <button
                         key={preset.id}
@@ -439,7 +440,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                           transition: 'all 0.15s',
                         }}
                       >
-                        <span style={{ fontSize: 20 }}>{matEmoji}</span>
+                        <CasinoIcon name={matIconName} size={20} />
                         <div style={{ flex: 1, textAlign: 'left' }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#D4AF37' : '#e5e7eb' }}>{preset.name}</div>
                           <div style={{ fontSize: 9, color: '#4b5563', textTransform: 'capitalize' }}>{preset.material} finish</div>
@@ -475,7 +476,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                           }}
                         >
-                          <span style={{ fontSize: 18 }}>{mode === 'classic' ? '🎱' : '⚛️'}</span>
+                          <CasinoIcon name={mode === 'classic' ? 'pool-ball' : 'atom'} size={18} />
                           <span style={{ fontSize: 10, fontWeight: 700, color: isSelected ? '#D4AF37' : '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                             {mode}
                           </span>
@@ -487,7 +488,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Pool — Cue Sticks" emoji="🏑" subtitle="Cue stick styles" activeGame={activeGame} gameKeys={['Pool Table']}>
+              <GameSkinSection title="Pool — Cue Sticks" emoji="target" subtitle="Cue stick styles" activeGame={activeGame} gameKeys={['Pool Table']}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {CUE_SKINS.map(cue => {
                     const isSelected = activeCueSkin.id === cue.id;
@@ -526,7 +527,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Dominoes — Tile Skins" emoji="🁣" subtitle="Domino tile appearance" activeGame={activeGame} gameKeys={['Dominoes']}>
+              <GameSkinSection title="Dominoes — Tile Skins" emoji="domino" subtitle="Domino tile appearance" activeGame={activeGame} gameKeys={['Dominoes']}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {(Object.keys(DOMINO_SKINS) as DominoSkinKey[]).map(key => {
                     const skin = DOMINO_SKINS[key];
@@ -571,7 +572,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Roulette — Wheel Skins" emoji="🎡" subtitle="Wheel color scheme" activeGame={activeGame} gameKeys={['Roulette']}>
+              <GameSkinSection title="Roulette — Wheel Skins" emoji="roulette-wheel" subtitle="Wheel color scheme" activeGame={activeGame} gameKeys={['Roulette']}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {ROULETTE_SKINS.map(skin => {
                     const isSelected = activeRouletteSkin.id === skin.id;
@@ -617,7 +618,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Craps — Dice Skins" emoji="🎲" subtitle="Dice material & color" activeGame={activeGame} gameKeys={['Craps']}>
+              <GameSkinSection title="Craps — Dice Skins" emoji="dice" subtitle="Dice material & color" activeGame={activeGame} gameKeys={['Craps']}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {DICE_SKINS.map(skin => {
                     const isSelected = activeDiceSkin.id === skin.id;
@@ -668,7 +669,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Slots — Reel Themes" emoji="🎰" subtitle="Slot machine theme" activeGame={activeGame} gameKeys={['Slots']}>
+              <GameSkinSection title="Slots — Reel Themes" emoji="slot-machine" subtitle="Slot machine theme" activeGame={activeGame} gameKeys={['Slots']}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {SLOTS_SKINS.map(skin => {
                     const isSelected = activeSlotsSkin.id === skin.id;
@@ -694,8 +695,8 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                             <span style={{ fontSize: 8, fontWeight: 900, color: skin.headerText, letterSpacing: '0.1em' }}>SLOTS</span>
                           </div>
                           <div style={{ flex: 1, background: skin.reelBg, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, borderTop: `1px solid ${skin.reelBorder}` }}>
-                            {['🍒', '⭐', '💎'].map((s, i) => (
-                              <span key={i} style={{ fontSize: 10 }}>{s}</span>
+                            {['cherry', 'star', 'gem'].map((s, i) => (
+                              <span key={i}><CasinoIcon name={s} size={10} /></span>
                             ))}
                           </div>
                         </div>
@@ -717,7 +718,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Bingo — Card Skins" emoji="📋" subtitle="Bingo card & dauber style" activeGame={activeGame} gameKeys={['Bingo']}>
+              <GameSkinSection title="Bingo — Card Skins" emoji="bingo" subtitle="Bingo card & dauber style" activeGame={activeGame} gameKeys={['Bingo']}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {BINGO_SKIN_PREVIEWS.map(skin => {
                     const isSelected = activeBingoSkinId === skin.id;
@@ -771,7 +772,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                 </div>
               </GameSkinSection>
 
-              <GameSkinSection title="Darts — Board Skins" emoji="🎯" subtitle="Dartboard style" activeGame={activeGame} gameKeys={['Darts']}>
+              <GameSkinSection title="Darts — Board Skins" emoji="target" subtitle="Dartboard style" activeGame={activeGame} gameKeys={['Darts']}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {DARTS_SKINS.map(skin => {
                     const isSelected = activeDartsSkin.id === skin.id;
@@ -857,7 +858,7 @@ function GameSkinSection({ title, emoji, subtitle, activeGame, gameKeys, default
           borderBottom: isOpen ? '1px solid rgba(255,255,255,0.06)' : 'none',
         }}
       >
-        <span style={{ fontSize: 16 }}>{emoji}</span>
+        <CasinoIcon name={emoji} size={16} />
         <div style={{ flex: 1, textAlign: 'left' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: isCurrentGame ? '#D4AF37' : '#e5e7eb', letterSpacing: '0.05em' }}>
             {title}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface CasinoBackgroundProps {
   videoUrl?: string;
@@ -17,7 +18,7 @@ export function CasinoBackground({ videoUrl, opacity = 0.35 }: CasinoBackgroundP
       size: Math.random() * 4 + 0.8,
       alpha: Math.random() * 0.5 + 0.08,
       type: Math.random() < 0.3 ? 'suit' : 'chip',
-      suit: ['♠', '♥', '♦', '♣'][Math.floor(Math.random() * 4)],
+      suit: ['S', 'H', 'D', 'C'][Math.floor(Math.random() * 4)],
       rotation: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 0.03,
       color: ['rgba(212,175,55,', 'rgba(255,215,0,', 'rgba(180,140,40,', 'rgba(255,180,0,'][Math.floor(Math.random() * 4)],
@@ -222,11 +223,11 @@ function CasinoOverlay() {
         position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px',
         background: 'linear-gradient(90deg, transparent 0%, rgba(212,175,55,0.2) 30%, rgba(212,175,55,0.4) 50%, rgba(212,175,55,0.2) 70%, transparent 100%)',
       }} />
-      <div style={{ position: 'absolute', top: '15%', left: '2%', opacity: 0.07, fontSize: 11, color: '#D4AF37', fontFamily: 'serif', letterSpacing: '0.4em', writingMode: 'vertical-rl', transform: 'rotate(180deg)', userSelect: 'none' }}>
-        ♠ ♥ ♦ ♣ ♠ ♥ ♦ ♣ ♠ ♥
+      <div style={{ position: 'absolute', top: '15%', left: '2%', opacity: 0.07, writingMode: 'vertical-rl', transform: 'rotate(180deg)', userSelect: 'none', display: 'flex', gap: 4, flexDirection: 'column', alignItems: 'center' }}>
+        {['spade','heart-suit','diamond-suit','club-suit','spade','heart-suit','diamond-suit','club-suit','spade','heart-suit'].map((n,i) => <CasinoIcon key={i} name={n} size={11} color="#D4AF37" />)}
       </div>
-      <div style={{ position: 'absolute', top: '15%', right: '2%', opacity: 0.07, fontSize: 11, color: '#D4AF37', fontFamily: 'serif', letterSpacing: '0.4em', writingMode: 'vertical-rl', userSelect: 'none' }}>
-        ♣ ♦ ♥ ♠ ♣ ♦ ♥ ♠ ♣ ♦
+      <div style={{ position: 'absolute', top: '15%', right: '2%', opacity: 0.07, writingMode: 'vertical-rl', userSelect: 'none', display: 'flex', gap: 4, flexDirection: 'column', alignItems: 'center' }}>
+        {['club-suit','diamond-suit','heart-suit','spade','club-suit','diamond-suit','heart-suit','spade','club-suit','diamond-suit'].map((n,i) => <CasinoIcon key={i} name={n} size={11} color="#D4AF37" />)}
       </div>
     </div>
   );

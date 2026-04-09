@@ -334,10 +334,10 @@ export function ChipSelector({ selectedChip, onSelect, onDoubleClick, balance, c
               1–500
             </button>
             <button style={TAB_STYLES(tab === 'thousands', 'thousands')} onClick={() => setTab('thousands')}>
-              {isHighStakes ? '⚡ 1K–500K' : '1K–500K'}
+              {isHighStakes ? '1K–500K' : '1K–500K'}
             </button>
             <button style={TAB_STYLES(tab === 'millions', 'millions')} onClick={() => setTab('millions')}>
-              1M–1B ★
+              1M\u20131B
             </button>
           </>
         )}
@@ -748,7 +748,13 @@ function DicePairIcon() {
 }
 
 function CardFanIcon() {
-  const suits = ['♠', '♥', '♦', '♣'];
+  const suitPaths = [
+    'M8 2C8 2 4 6 4 9C4 12 8 15 8 15C8 15 12 12 12 9C12 6 8 2 8 2Z',
+    'M8 3L6 6L2 7L5 10L4 14L8 12L12 14L11 10L14 7L10 6Z',
+    'M8 2L4 8L8 14L12 8Z',
+    'M8 2C5 2 2 5 2 8C2 11 8 8 8 8C8 8 14 11 14 8C14 5 11 2 8 2Z',
+  ];
+  const suitColors = ['#111', '#c00', '#c00', '#111'];
   const colors = ['#e8e8e8', '#fff', '#f4f4f4', '#efefef'];
   const rotations = [-25, -10, 5, 20];
   const W = 44, H = 62;
@@ -759,14 +765,9 @@ function CardFanIcon() {
         <g key={i} transform={`rotate(${rot}, ${cx}, ${cy})`}>
           <rect x={cx - 9} y={cy - 50} width={18} height={28} rx={2}
             fill={colors[i]} stroke="#aaa" strokeWidth={0.6} />
-          <text
-            x={cx} y={cy - 36}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fontWeight="bold"
-            fill={suits[i] === '♥' || suits[i] === '♦' ? '#c00' : '#111'}
-          >
-            {suits[i]}
-          </text>
+          <svg x={cx - 9 + 2} y={cy - 50 + 4} width={14} height={14} viewBox="0 0 16 16">
+            <path d={suitPaths[i]} fill={suitColors[i]} />
+          </svg>
         </g>
       ))}
     </svg>

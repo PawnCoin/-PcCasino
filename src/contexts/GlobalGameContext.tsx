@@ -37,7 +37,7 @@ const MEMBER_THRESHOLD = 100_000_000;
 
 const DEFAULT_SETTINGS: GameSettings = {
   displayName: 'Player',
-  avatar: '🎲',
+  avatar: 'dice',
   avatarDef: JSON.stringify(ALL_AVATARS[0]),
   volumeLevel: 0.7,
   voiceEnabled: true,
@@ -106,7 +106,7 @@ export function GlobalGameProvider({ children, balance }: { children: ReactNode;
   }, []);
 
   const shareWin = useCallback(async (game: string, amount: number, detail?: string) => {
-    const text = `🎰 I just won ${formatPc(amount)} $Pc playing ${game} on $Pc Casino! ${detail || ''} Come play with me! 💰 #PcCasino #Crypto`;
+    const text = `I just won ${formatPc(amount)} $Pc playing ${game} on $Pc Casino! ${detail || ''} Come play with me! #PcCasino #Crypto`;
     try {
       if (navigator.share) {
         await navigator.share({ title: '$Pc Casino Win!', text });

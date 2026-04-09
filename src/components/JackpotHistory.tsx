@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Trophy, X, Clock, User, Coins } from 'lucide-react';
 import { jackpotApi } from '@/lib/api';
+import { CasinoIcon } from '@/components/CasinoIcons';
 
 interface JackpotWin {
   id: number;
@@ -76,7 +77,7 @@ export function JackpotHistory({ onClose }: JackpotHistoryProps) {
             </div>
           ) : history.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-5xl mb-3">🎰</div>
+              <div className="mb-3"><CasinoIcon name="slot-machine" size={48} /></div>
               <div className="text-yellow-600 font-medium">No jackpots won yet</div>
               <div className="text-gray-600 text-sm mt-1">Be the first to hit the jackpot!</div>
             </div>
