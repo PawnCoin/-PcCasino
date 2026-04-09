@@ -322,14 +322,12 @@ function getPublicRooms() {
     players: r.players.map(p => ({ id: p.id, username: p.username, balance: p.balance, seat: p.seat, isReady: p.isReady })),
     status: r.status, pot: r.pot, createdAt: r.createdAt, isPrivate: r.isPrivate,
   }));
-  if (rouletteRoom.players.size > 0 || rouletteRoom.phase !== 'waiting') {
-    publicRooms.unshift({
-      id: 'roulette-main', game: 'roulette', name: 'Roulette Table', minBet: 1, maxBet: 500000000, maxPlayers: 50,
-      players: rouletteGetPlayers().map(p => ({ id: p.id, username: p.username, balance: 0, seat: 0, isReady: true })),
-      status: rouletteRoom.phase === 'betting' ? 'waiting' : 'playing', pot: 0,
-      createdAt: Date.now(), isPrivate: false,
-    });
-  }
+  publicRooms.unshift({
+    id: 'roulette-main', game: 'roulette', name: 'Roulette Table', minBet: 1, maxBet: 500000000, maxPlayers: 50,
+    players: rouletteGetPlayers().map(p => ({ id: p.id, username: p.username, balance: 0, seat: 0, isReady: true })),
+    status: rouletteRoom.phase === 'betting' ? 'waiting' : (rouletteRoom.phase === 'spinning' ? 'playing' : 'waiting'),
+    pot: 0, createdAt: Date.now(), isPrivate: false,
+  });
   return publicRooms;
 }
 

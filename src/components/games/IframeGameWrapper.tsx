@@ -86,10 +86,6 @@ export function IframeGameWrapper({
           { type: 'bet:result', success, balance: success ? balanceRef.current : balanceRef.current },
           '*'
         );
-        if (isRoulette && success) {
-          const numbers = Array.isArray(event.data.numbers) ? event.data.numbers : [];
-          getSocket().emit('roulette:bet', { amount, numbers });
-        }
       }
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
@@ -98,6 +94,14 @@ export function IframeGameWrapper({
           { type: 'win:confirmed', amount, balance: balanceRef.current },
           '*'
         );
+      }
+
+      if (isRoulette && type === 'roulette:betsCollected' && Array.isArray(event.data.bets)) {
+        for (const bet of event.data.bets) {
+          if (bet && typeof bet.amount === 'number' && bet.amount > 0 && Array.isArray(bet.numbers)) {
+            getSocket().emit('roulette:bet', { amount: bet.amount, numbers: bet.numbers });
+          }
+        }
       }
 
       if (type === 'getBalance') {
