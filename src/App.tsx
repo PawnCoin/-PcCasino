@@ -848,6 +848,9 @@ function App() {
             onBet={handleBet}
             onWin={handleWin}
             onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
+            username={user?.username || 'Player'}
+            userId={user?.id}
+            avatarUrl={user?.avatarUrl}
           />
         );
       case 'craps':

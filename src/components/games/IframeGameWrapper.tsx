@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { RefreshCw, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, AlertTriangle, Users } from 'lucide-react';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, getSoundTrackTitle, subscribeSoundState } from '@/hooks/soundState';
 import { getDefaultRouletteSkin, ROULETTE_SKINS } from '@/hooks/useRouletteSkin';
+import { getSocket } from '@/lib/socket';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -15,6 +16,18 @@ interface IframeGameWrapperProps {
   onWin: (amount: number) => void;
   onShowWallet?: () => void;
   onGameStateChange?: (active: boolean) => void;
+  username?: string;
+  userId?: string | number;
+  avatarUrl?: string | null;
+}
+
+interface RoulettePlayer {
+  id: string | number;
+  socketId: string;
+  username: string;
+  avatarUrl: string | null;
+  avatar: string | null;
+  betTotal: number;
 }
 
 export function IframeGameWrapper({
@@ -28,6 +41,9 @@ export function IframeGameWrapper({
   onWin,
   onShowWallet,
   onGameStateChange,
+  username,
+  userId,
+  avatarUrl,
 }: IframeGameWrapperProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -38,9 +54,13 @@ export function IframeGameWrapper({
   balanceRef.current = balance;
   const gameInProgressRef = useRef(false);
 
+  const [roulettePlayers, setRoulettePlayers] = useState<RoulettePlayer[]>([]);
+  const [roulettePhase, setRoulettePhase] = useState<string>('waiting');
+  const [rouletteTimer, setRouletteTimer] = useState(0);
+  const isRoulette = gameId === 'roulette';
+
   const iframeSrc = `${gamePath}?balance=${balance}`;
 
-  // Send current music state to the iframe
   const sendMusicState = useCallback(() => {
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
@@ -56,6 +76,7 @@ export function IframeGameWrapper({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return;
+      if (iframeRef.current?.contentWindow && event.source !== iframeRef.current.contentWindow) return;
       const { type, amount } = event.data;
 
       if (type === 'bet' && typeof amount === 'number' && amount > 0) {
@@ -64,6 +85,9 @@ export function IframeGameWrapper({
           { type: 'bet:result', success, balance: success ? balanceRef.current : balanceRef.current },
           '*'
         );
+        if (isRoulette && success) {
+          getSocket().emit('roulette:betUpdate', { betTotal: amount });
+        }
       }
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
@@ -89,7 +113,7 @@ export function IframeGameWrapper({
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onBet, onWin]);
+  }, [onBet, onWin, isRoulette]);
 
   useEffect(() => {
     if (isLoaded && iframeRef.current?.contentWindow) {
@@ -128,6 +152,58 @@ export function IframeGameWrapper({
     };
   }, [isLoaded, sendMusicState, sendSkinState]);
 
+  useEffect(() => {
+    if (!isRoulette || !isLoaded) return;
+    const socket = getSocket();
+
+    socket.emit('roulette:join', {
+      username: username || 'Guest',
+      avatarUrl: avatarUrl || null,
+      avatar: null,
+      userId: userId || null,
+    });
+
+    const onState = (data: { phase: string; timer: number; players: RoulettePlayer[] }) => {
+      setRoulettePhase(data.phase);
+      setRouletteTimer(data.timer);
+      setRoulettePlayers(data.players);
+      iframeRef.current?.contentWindow?.postMessage({
+        type: 'roulette:state',
+        phase: data.phase,
+        timer: data.timer,
+        players: data.players,
+      }, '*');
+    };
+
+    const onSpin = (data: { result: number; roundId: number }) => {
+      setRoulettePhase('spinning');
+      iframeRef.current?.contentWindow?.postMessage({
+        type: 'roulette:spin',
+        result: data.result,
+        roundId: data.roundId,
+      }, '*');
+    };
+
+    const onPlayers = (data: { players: RoulettePlayer[] }) => {
+      setRoulettePlayers(data.players);
+      iframeRef.current?.contentWindow?.postMessage({
+        type: 'roulette:players',
+        players: data.players,
+      }, '*');
+    };
+
+    socket.on('roulette:state', onState);
+    socket.on('roulette:spin', onSpin);
+    socket.on('roulette:players', onPlayers);
+
+    return () => {
+      socket.emit('roulette:leave');
+      socket.off('roulette:state', onState);
+      socket.off('roulette:spin', onSpin);
+      socket.off('roulette:players', onPlayers);
+    };
+  }, [isRoulette, isLoaded, username, avatarUrl, userId]);
+
   const requestBack = useCallback(() => {
     if (gameInProgressRef.current) {
       setShowLeaveModal(true);
@@ -162,8 +238,35 @@ export function IframeGameWrapper({
     setIsFullscreen(!isFullscreen);
   };
 
+  const otherPlayers = roulettePlayers.filter(p => {
+    if (userId) return p.id !== userId;
+    return p.socketId !== getSocket().id;
+  });
+
   const rightSlot = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {isRoulette && roulettePlayers.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px',
+          borderRadius: 8, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)',
+          fontSize: 12, color: '#D4AF37', fontWeight: 600,
+        }}>
+          <Users size={12} />
+          <span>{roulettePlayers.length}</span>
+        </div>
+      )}
+      {isRoulette && roulettePhase === 'betting' && rouletteTimer > 0 && (
+        <div style={{
+          padding: '3px 10px', borderRadius: 8,
+          background: rouletteTimer <= 5 ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)',
+          border: `1px solid ${rouletteTimer <= 5 ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.3)'}`,
+          fontSize: 12, fontWeight: 700,
+          color: rouletteTimer <= 5 ? '#ef4444' : '#22c55e',
+          fontFamily: 'monospace',
+        }}>
+          {rouletteTimer}s
+        </div>
+      )}
       <span style={{ fontSize: 20 }}>{gameEmoji}</span>
       <button
         onClick={handleReload}
@@ -238,6 +341,38 @@ export function IframeGameWrapper({
           onError={() => { setLoadError(true); setIsLoaded(true); }}
           title={gameName}
         />
+
+        {isRoulette && otherPlayers.length > 0 && (
+          <div style={{
+            position: 'absolute', bottom: 8, left: 8, display: 'flex', gap: 6,
+            pointerEvents: 'none', zIndex: 20,
+          }}>
+            {otherPlayers.slice(0, 6).map((p, i) => (
+              <div key={p.socketId || i} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                background: 'rgba(0,0,0,0.75)', borderRadius: 10, padding: '4px 8px',
+                border: '1px solid rgba(212,175,55,0.3)', minWidth: 52,
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: p.avatarUrl ? `url(${p.avatarUrl}) center/cover` : 'linear-gradient(135deg, #D4AF37, #8B6914)',
+                  border: '2px solid #D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, color: '#fff',
+                }}>
+                  {!p.avatarUrl && (p.username?.[0]?.toUpperCase() || '?')}
+                </div>
+                <span style={{ fontSize: 9, color: '#D4AF37', fontWeight: 600, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.username}
+                </span>
+                {p.betTotal > 0 && (
+                  <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 700 }}>
+                    {p.betTotal.toLocaleString()} $Pc
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showLeaveModal && (

@@ -1554,7 +1554,80 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
   res.redirect(`/?oauth_error=twitter_coming_soon`);
 });
 
-// ---- Socket.io events ----
+
+  // ---- Multiplayer Roulette Room Engine ----
+  const rouletteRoom = {
+    id: 'roulette-main',
+    players: new Map(),
+    phase: 'waiting',
+    timer: 0,
+    result: null,
+    roundId: 0,
+    intervalId: null,
+    BETTING_DURATION: 30,
+    RESULT_DELAY: 12,
+  };
+
+  function rouletteGetPlayers() {
+    return Array.from(rouletteRoom.players.values()).map(p => ({
+      id: p.id, socketId: p.socketId, username: p.username,
+      avatarUrl: p.avatarUrl, avatar: p.avatar, betTotal: p.betTotal || 0,
+    }));
+  }
+
+  function rouletteBroadcast(event, data) {
+    for (const [sid] of rouletteRoom.players) {
+      io.to(sid).emit(event, data);
+    }
+  }
+
+  function rouletteStartRound() {
+    rouletteRoom.roundId++;
+    rouletteRoom.phase = 'betting';
+    rouletteRoom.timer = rouletteRoom.BETTING_DURATION;
+    rouletteRoom.result = null;
+    for (const p of rouletteRoom.players.values()) { p.betTotal = 0; }
+    rouletteBroadcast('roulette:state', {
+      phase: 'betting', timer: rouletteRoom.timer, roundId: rouletteRoom.roundId,
+      players: rouletteGetPlayers(),
+    });
+  }
+
+  function rouletteTickTimer() {
+    if (rouletteRoom.players.size === 0) {
+      rouletteRoom.phase = 'waiting';
+      if (rouletteRoom.intervalId) { clearInterval(rouletteRoom.intervalId); rouletteRoom.intervalId = null; }
+      return;
+    }
+    if (rouletteRoom.phase === 'betting') {
+      rouletteRoom.timer--;
+      if (rouletteRoom.timer <= 0) {
+        rouletteRoom.phase = 'spinning';
+        rouletteRoom.result = Math.floor(Math.random() * 37);
+        rouletteBroadcast('roulette:spin', { result: rouletteRoom.result, roundId: rouletteRoom.roundId });
+        rouletteRoom.timer = rouletteRoom.RESULT_DELAY;
+      } else {
+        rouletteBroadcast('roulette:state', {
+          phase: 'betting', timer: rouletteRoom.timer, roundId: rouletteRoom.roundId,
+          players: rouletteGetPlayers(),
+        });
+      }
+    } else if (rouletteRoom.phase === 'spinning') {
+      rouletteRoom.timer--;
+      if (rouletteRoom.timer <= 0) {
+        rouletteStartRound();
+      }
+    }
+  }
+
+  function rouletteEnsureTimer() {
+    if (!rouletteRoom.intervalId) {
+      rouletteRoom.intervalId = setInterval(rouletteTickTimer, 1000);
+      rouletteStartRound();
+    }
+  }
+
+  // ---- Socket.io events ----
 io.on('connection', (socket) => {
   console.log(`[+] ${socket.id}`);
 
@@ -1761,8 +1834,45 @@ io.on('connection', (socket) => {
     }
   });
 
+  
+    // ---- Multiplayer Roulette Handlers ----
+    socket.on('roulette:join', ({ username, avatarUrl, avatar, userId }) => {
+      const rp = { id: userId || socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0 };
+      rouletteRoom.players.set(socket.id, rp);
+      socket.join('roulette-main');
+      rouletteEnsureTimer();
+      socket.emit('roulette:state', {
+        phase: rouletteRoom.phase, timer: rouletteRoom.timer, roundId: rouletteRoom.roundId,
+        players: rouletteGetPlayers(),
+      });
+      rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+      console.log('[Roulette] ' + rp.username + ' joined (' + rouletteRoom.players.size + ' players)');
+    });
+
+    socket.on('roulette:leave', () => {
+      const rp = rouletteRoom.players.get(socket.id);
+      rouletteRoom.players.delete(socket.id);
+      socket.leave('roulette-main');
+      rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+      if (rp) console.log('[Roulette] ' + rp.username + ' left (' + rouletteRoom.players.size + ' players)');
+    });
+
+    socket.on('roulette:betUpdate', ({ betTotal }) => {
+      const rp = rouletteRoom.players.get(socket.id);
+      if (rp && rouletteRoom.phase === 'betting') {
+        rp.betTotal = typeof betTotal === 'number' ? betTotal : 0;
+        rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+      }
+    });
+
   socket.on('disconnect', () => {
-    const player = players.get(socket.id);
+    // Cleanup roulette room on disconnect
+      const roulettePlayer = rouletteRoom.players.get(socket.id);
+      if (roulettePlayer) {
+        rouletteRoom.players.delete(socket.id);
+        rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+      }
+      const player = players.get(socket.id);
     if (player?.roomId) {
       const room = rooms.get(player.roomId);
       if (room) {
