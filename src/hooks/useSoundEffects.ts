@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getSoundMuted, getSoundVolume, getSoundAmbient, setSoundMuted, setSoundVolume, setSoundAmbient, subscribeSoundState } from './soundState';
 
-type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' | 'click' | 'diceRoll' | 'shuffle' | 'dealerCall' | 'jackpot' | 'ballClick' | 'wheelTick' | 'noMoreBets' | 'ballLand' | 'chipPlace' | 'smack';
+type SoundType = 'chip' | 'card' | 'win' | 'lose' | 'spin' | 'clear' | 'error' | 'click' | 'diceRoll' | 'shuffle' | 'dealerCall' | 'jackpot' | 'ballClick' | 'wheelTick' | 'noMoreBets' | 'ballLand' | 'chipPlace' | 'smack' | 'spadesCut';
 
 let sharedAudioContext: AudioContext | null = null;
 let masterGainNode: GainNode | null = null;
@@ -546,43 +546,69 @@ function playClick(ctx: AudioContext, master: GainNode, now: number, vol: number
   osc.stop(now + 0.025);
 }
 
-function playSmackSound(ctx: AudioContext, master: GainNode, now: number, vol: number) {
-  const smackVol = vol * 3;
+const SMACK_SOUNDS = ['/sounds/smack-clap-1.wav', '/sounds/smack-clap-2.wav', '/sounds/smack-clap-3.wav'];
+let smackBuffers: AudioBuffer[] = [];
+let smackBuffersLoaded = false;
+
+function preloadSmackBuffers() {
+  if (smackBuffersLoaded) return;
+  smackBuffersLoaded = true;
+  const ctx = getAudioContext();
+  SMACK_SOUNDS.forEach((url, i) => {
+    fetch(url).then(r => r.arrayBuffer()).then(ab => ctx.decodeAudioData(ab)).then(buf => { smackBuffers[i] = buf; });
+  });
+}
+
+function playSmackSound(ctx: AudioContext, master: GainNode, _now: number, vol: number) {
+  preloadSmackBuffers();
+  const ready = smackBuffers.filter(Boolean);
+  if (ready.length === 0) {
+    const audio = new Audio(SMACK_SOUNDS[Math.floor(Math.random() * SMACK_SOUNDS.length)]);
+    audio.volume = Math.min(1, vol * 1.5);
+    audio.play().catch(() => {});
+    return;
+  }
+  const buf = ready[Math.floor(Math.random() * ready.length)];
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const gain = ctx.createGain();
+  gain.gain.value = vol * 1.5;
+  src.connect(gain);
+  gain.connect(master);
+  src.start(ctx.currentTime);
+}
+
+function playSpadesCutSound(ctx: AudioContext, master: GainNode, now: number, vol: number) {
+  const cutVol = vol * 2;
   const layer = ctx.createGain();
   layer.connect(master);
 
-  const crackBuf = createNoiseBuffer(ctx, 0.01);
-  const crackSrc = ctx.createBufferSource();
-  crackSrc.buffer = crackBuf;
-  const crackHP = ctx.createBiquadFilter();
-  crackHP.type = 'highpass';
-  crackHP.frequency.value = 6000;
-  const crackBP = ctx.createBiquadFilter();
-  crackBP.type = 'peaking';
-  crackBP.frequency.value = 8000;
-  crackBP.gain.value = 18;
-  crackBP.Q.value = 3;
-  const crackGain = ctx.createGain();
-  crackGain.gain.setValueAtTime(1.0 * smackVol, now);
-  crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
-  crackSrc.connect(crackHP);
-  crackHP.connect(crackBP);
-  crackBP.connect(crackGain);
-  crackGain.connect(layer);
-  crackSrc.start(now);
-  crackSrc.stop(now + 0.015);
+  const noiseBuf = createNoiseBuffer(ctx, 0.08);
+  const noiseSrc = ctx.createBufferSource();
+  noiseSrc.buffer = noiseBuf;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 3000;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.6 * cutVol, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+  noiseSrc.connect(hp);
+  hp.connect(noiseGain);
+  noiseGain.connect(layer);
+  noiseSrc.start(now);
+  noiseSrc.stop(now + 0.08);
 
-  const snapOsc = ctx.createOscillator();
-  snapOsc.type = 'square';
-  snapOsc.frequency.setValueAtTime(5000, now);
-  snapOsc.frequency.exponentialRampToValueAtTime(1500, now + 0.015);
-  const snapGain = ctx.createGain();
-  snapGain.gain.setValueAtTime(0.4 * smackVol, now);
-  snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
-  snapOsc.connect(snapGain);
-  snapGain.connect(layer);
-  snapOsc.start(now);
-  snapOsc.stop(now + 0.02);
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(800, now);
+  osc.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.35 * cutVol, now);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  osc.connect(oscGain);
+  oscGain.connect(layer);
+  osc.start(now);
+  osc.stop(now + 0.15);
 }
 
 function playSynthSound(type: SoundType, volume: number) {
@@ -609,6 +635,7 @@ function playSynthSound(type: SoundType, volume: number) {
     case 'clear': return playClick(ctx, master, now, volume * 0.7);
     case 'error': return playLose(ctx, master, now, volume * 0.5);
     case 'smack': return playSmackSound(ctx, master, now, volume);
+    case 'spadesCut': return playSpadesCutSound(ctx, master, now, volume);
   }
 }
 

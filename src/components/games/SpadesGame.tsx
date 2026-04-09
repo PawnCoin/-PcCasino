@@ -317,6 +317,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
   const triggerSpadesBroken = () => {
     setShowSpadesBroken(true);
+    playSound('spadesCut');
     showTip('Spades are broken! You can now lead spades.');
     setTimeout(() => setShowSpadesBroken(false), 1800);
   };
@@ -1338,33 +1339,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
                 )}
 
-                {/* ── PARTNER (TOP) — card fan on table, badge OUTSIDE above table ── */}
-                {/* Partner card backs - arch fan (stays on table) */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
-                  {(() => {
-                    const n = Math.min(players[2].hand.length || 8, 13);
-                    const step = Math.min(8, 72 / Math.max(n - 1, 1));
-                    return (
-                      <div style={{ position: 'relative', width: '220px', height: '64px' }}>
-                        {Array.from({ length: n }).map((_, i) => {
-                          const angle = (i - (n - 1) / 2) * step;
-                          return (
-                            <div key={i} style={{
-                              position: 'absolute', left: '50%', bottom: 0,
-                              transform: `translateX(-50%) rotate(${angle}deg)`,
-                              transformOrigin: 'bottom center',
-                              zIndex: i,
-                            }}>
-                              {renderCardBack(38, 56, 0, i)}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-                {/* Partner badge — positioned OUTSIDE the table, overlapping the top edge */}
-                <div className="absolute left-1/2 -translate-x-1/2 z-[15]" style={{ top: '-18px' }}>
+                {/* ── PARTNER (TOP) — badge outside top, cards between badge and table center ── */}
+                {/* Partner badge — outside table top edge */}
+                <div className="absolute left-1/2 -translate-x-1/2 z-[15]" style={{ top: '-20px' }}>
                   <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/85 border border-[#1565C0]/50 backdrop-blur-sm shadow-lg">
                     <div className="relative">
                       <AvatarSprite avatar={SPADES_AVATARS[2]} size={32} active={currentPlayer === 2 && gamePhase === 'playing'} />
@@ -1376,9 +1353,46 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                   </div>
                 </div>
+                {/* Partner card fan — arches DOWNWARD toward table center */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+                  {(() => {
+                    const n = Math.min(players[2].hand.length || 8, 13);
+                    const step = Math.min(8, 72 / Math.max(n - 1, 1));
+                    return (
+                      <div style={{ position: 'relative', width: '220px', height: '64px' }}>
+                        {Array.from({ length: n }).map((_, i) => {
+                          const angle = (i - (n - 1) / 2) * step;
+                          return (
+                            <div key={i} style={{
+                              position: 'absolute', left: '50%', top: 0,
+                              transform: `translateX(-50%) rotate(${angle}deg)`,
+                              transformOrigin: 'top center',
+                              zIndex: i,
+                            }}>
+                              {renderCardBack(38, 56, 0, i)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
 
-                {/* ── WEST (LEFT) — card fan on table, badge OUTSIDE left edge ── */}
-                <div className="absolute left-1 top-1/2 -translate-y-1/2 z-10">
+                {/* ── WEST (LEFT) — badge outside left, cards between badge and table, fan toward table ── */}
+                {/* West badge — outside left edge */}
+                <div className="absolute top-1/2 -translate-y-1/2 z-[15]" style={{ left: '-8px' }}>
+                  <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/85 border border-[#8B0000]/50 backdrop-blur-sm shadow-lg">
+                    <div className="relative mb-1">
+                      <AvatarSprite avatar={SPADES_AVATARS[1]} size={40} active={currentPlayer === 1 && gamePhase === 'playing'} />
+                      {currentPlayer === 1 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
+                    </div>
+                    <div className="text-xs font-bold text-white">{players[1].name}</div>
+                    <div className="text-[10px] text-white/60">{players[1].nilBid ? 'NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
+                    <div className="text-[10px] text-white/60">{players[1].tricks}{'✓'}</div>
+                  </div>
+                </div>
+                {/* West card fan — arches RIGHTWARD toward table center */}
+                <div className="absolute left-[60px] top-1/2 -translate-y-1/2 z-10">
                   {(() => {
                     const n = Math.min(players[1].hand.length || 8, 13);
                     const step = Math.min(8, 72 / Math.max(n - 1, 1));
@@ -1401,21 +1415,10 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     );
                   })()}
                 </div>
-                {/* West badge — positioned OUTSIDE the table, overlapping the left edge */}
-                <div className="absolute top-1/2 -translate-y-1/2 z-[15]" style={{ left: '-28px' }}>
-                  <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/85 border border-[#8B0000]/50 backdrop-blur-sm shadow-lg">
-                    <div className="relative mb-1">
-                      <AvatarSprite avatar={SPADES_AVATARS[1]} size={40} active={currentPlayer === 1 && gamePhase === 'playing'} />
-                      {currentPlayer === 1 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
-                    </div>
-                    <div className="text-xs font-bold text-white">{players[1].name}</div>
-                    <div className="text-[10px] text-white/60">{players[1].nilBid ? 'NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
-                    <div className="text-[10px] text-white/60">{players[1].tricks}{'✓'}</div>
-                  </div>
-                </div>
 
-                {/* ── EAST (RIGHT) — card fan on table, badge OUTSIDE right edge ── */}
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 z-10">
+                {/* ── EAST (RIGHT) — badge outside right, cards between badge and table, fan toward table ── */}
+                {/* East card fan — arches LEFTWARD toward table center */}
+                <div className="absolute right-[60px] top-1/2 -translate-y-1/2 z-10">
                   {(() => {
                     const n = Math.min(players[3].hand.length || 8, 13);
                     const step = Math.min(8, 72 / Math.max(n - 1, 1));
@@ -1438,8 +1441,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     );
                   })()}
                 </div>
-                {/* East badge — positioned OUTSIDE the table, overlapping the right edge */}
-                <div className="absolute top-1/2 -translate-y-1/2 z-[15]" style={{ right: '-28px' }}>
+                {/* East badge — outside right edge */}
+                <div className="absolute top-1/2 -translate-y-1/2 z-[15]" style={{ right: '-8px' }}>
                   <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/85 border border-[#1b5020]/50 backdrop-blur-sm shadow-lg">
                     <div className="relative mb-1">
                       <AvatarSprite avatar={SPADES_AVATARS[3]} size={40} active={currentPlayer === 3 && gamePhase === 'playing'} />
