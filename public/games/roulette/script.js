@@ -173,18 +173,22 @@ let yCord;
 let zone = document.querySelector('#chipsSelector');
 let _currentDictor = null;
 
-function dealerAnnounce(text) {
-  try {
-    const el = document.getElementById("dictorVoice");
-    const vol = el ? Math.max(0, Math.min(1, Number(el.value) || 0)) : 0.5;
-    if (vol <= 0) return;
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 0.9;
-    utter.pitch = 0.85;
-    utter.volume = vol;
-    speechSynthesis.cancel(); speechSynthesis.speak(utter);
-  } catch(e) {}
-}
+const _dealerClips = {
+    "Place your bets": new Audio("src/sfx/dictor/place-your-bets.mp3"),
+    "No more bets": new Audio("src/sfx/dictor/no-more-bets.mp3")
+  };
+  function dealerAnnounce(text) {
+    try {
+      const el = document.getElementById("dictorVoice");
+      const vol = el ? Math.max(0, Math.min(1, Number(el.value) || 0)) : 0.5;
+      if (vol <= 0) return;
+      const clip = _dealerClips[text];
+      if (!clip) return;
+      clip.currentTime = 0;
+      clip.volume = vol;
+      clip.play().catch(function() {});
+    } catch(e) { console.warn("dealerAnnounce error:", e); }
+  }
 
 function animateChipToTargetPercent(chip, targetPercent, duration = 500) {
   return new Promise((resolve) => {

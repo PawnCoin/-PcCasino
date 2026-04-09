@@ -1081,7 +1081,7 @@ input[type='range']::-webkit-slider-thumb {
     -0.1vh 0 0 black, 0 -0.1vh 0 black;
   font-family: 'bald', oswald;
   color: white;
-  font-size: 9vh;
+  font-size: 10vh;
   width: 9vh;
   margin: 0 auto;
   text-align: center;
@@ -1127,7 +1127,10 @@ input[type='range']::-webkit-slider-thumb {
   font-family: 'bald', oswald;
   color: #cd953b;
   text-align: center;
-  font-size: 3.5vh;
+  font-size: 4.2vh;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 1vh rgba(205,149,59,0.5);
   display: none;
 }
 
@@ -1824,7 +1827,10 @@ input[type='range']::-webkit-slider-thumb {
 
 .betComplete > i {
   color: black;
-  font-size: 3.5vh;
+  font-size: 4.2vh;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 1vh rgba(205,149,59,0.5);
   margin-left: 1vh;
 }
 
