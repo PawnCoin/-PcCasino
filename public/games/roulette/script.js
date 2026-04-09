@@ -2157,6 +2157,8 @@ window.addEventListener('beforeunload', function(e) {
 
   
 
+  
+
   // ---- Multiplayer Roulette Bridge (appended) ----
   var mp_serverResult = null;
   var mp_phase = 'waiting';
@@ -2165,39 +2167,66 @@ window.addEventListener('beforeunload', function(e) {
   var mp_roundId = 0;
   var mp_timerOverlay = null;
   var mp_spinBlocked = false;
+  var mp_isMultiplayer = false;
   var _mp_origMathRandom = Math.random;
 
-  // Wrap betClick to emit each chip placement to server during betting
-  var _mp_origBetClick = betClick;
-  betClick = function(splitNumbers, splitBets, split) {
-    var oldVal = splitBets[split] || 0;
-    _mp_origBetClick.apply(this, arguments);
-    var newVal = splitBets[split] || 0;
-    var added = newVal - oldVal;
-    if (added > 0 && splitNumbers && splitNumbers[split]) {
-      window.parent.postMessage({
-        type: 'roulette:chipPlaced',
-        numbers: splitNumbers[split].slice(),
-        amount: added
-      }, '*');
-    }
-  };
+  function mp_collectBets() {
+    var bets = [];
+    var betSources = [
+      [infoConstants.numbers, numberBets],
+      [infoConstants.splitNumbersX, splitBetsX],
+      [infoConstants.splitNumbersY, splitBetsY],
+      [infoConstants.cornerNumbers, cornerBets],
+      [infoConstants.streetNumbers, streetBets],
+      [infoConstants.sixainNumbers, sixainBets],
+      [infoConstants.sectionNumbers, sectionBets],
+    ];
+    betSources.forEach(function(src) {
+      var numMap = src[0], betMap = src[1];
+      for (var key in betMap) {
+        if (betMap[key] > 0 && numMap[key]) {
+          bets.push({ numbers: numMap[key].slice(), amount: betMap[key] });
+        }
+      }
+    });
+    return bets;
+  }
 
-  // Wrap start() to patch Math.random so local winCheck uses server result
+  // Wrap start() to use server result via Math.random patch
   var _mp_origStart = start;
   start = function() {
     if (mp_spinBlocked) return;
-    if (typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
+    if (mp_isMultiplayer && typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
+      var betsSnapshot = mp_collectBets();
+      window.parent.postMessage({
+        type: 'roulette:betsSnapshot',
+        bets: betsSnapshot,
+        betTotal: betSize
+      }, '*');
       Math.random = function() { return (mp_serverResult + 0.5) / 37; };
     }
     _mp_origStart.apply(this, arguments);
     Math.random = _mp_origMathRandom;
   };
 
-  // Wrap endroll to clear server state after round completes
+  // Wrap endroll to suppress local win/bet postMessages in multiplayer
   var _mp_origEndroll = endroll;
   endroll = function() {
-    _mp_origEndroll.apply(this, arguments);
+    if (mp_isMultiplayer) {
+      var _origPM = window.parent.postMessage;
+      var _suppress = true;
+      window.parent.postMessage = function(msg) {
+        if (_suppress && msg && (msg.type === 'win' || msg.type === 'bet')) {
+          return;
+        }
+        return _origPM.apply(window.parent, arguments);
+      };
+      _mp_origEndroll.apply(this, arguments);
+      _suppress = false;
+      window.parent.postMessage = _origPM;
+    } else {
+      _mp_origEndroll.apply(this, arguments);
+    }
     mp_serverResult = null;
     mp_spinBlocked = false;
   };
@@ -2261,6 +2290,7 @@ window.addEventListener('beforeunload', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
 
     if (e.data.type === 'roulette:state') {
+      mp_isMultiplayer = true;
       mp_phase = e.data.phase;
       mp_timer = e.data.timer;
       mp_roundId = e.data.roundId || 0;
@@ -2273,6 +2303,7 @@ window.addEventListener('beforeunload', function(e) {
     }
 
     if (e.data.type === 'roulette:spin') {
+      mp_isMultiplayer = true;
       mp_serverResult = e.data.result;
       mp_roundId = e.data.roundId || 0;
       mp_phase = 'spinning';

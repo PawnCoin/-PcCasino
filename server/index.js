@@ -1936,6 +1936,14 @@ io.on('connection', (socket) => {
       }
     });
 
+    socket.on('roulette:betsSnapshot', ({ bets, betTotal }) => {
+      const rp = rouletteRoom.players.get(socket.id);
+      if (rp && Array.isArray(bets)) {
+        rp.bets = bets.filter(b => b && typeof b.amount === 'number' && b.amount > 0 && Array.isArray(b.numbers));
+        rp.betTotal = typeof betTotal === 'number' ? betTotal : rp.bets.reduce((s, b) => s + b.amount, 0);
+      }
+    });
+
   socket.on('disconnect', () => {
     // Cleanup roulette room on disconnect
       const roulettePlayer = rouletteRoom.players.get(socket.id);

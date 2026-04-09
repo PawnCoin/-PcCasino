@@ -89,19 +89,24 @@ export function IframeGameWrapper({
       }
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
-        onWin(amount);
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: 'win:confirmed', amount, balance: balanceRef.current },
-          '*'
-        );
+        if (!isRoulette) {
+          onWin(amount);
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: 'win:confirmed', amount, balance: balanceRef.current },
+            '*'
+          );
+        }
       }
 
-      if (isRoulette && type === 'roulette:chipPlaced') {
-        const numbers = Array.isArray(event.data.numbers) ? event.data.numbers : [];
-        const chipAmount = typeof event.data.amount === 'number' ? event.data.amount : 0;
-        if (chipAmount > 0 && numbers.length > 0) {
-          getSocket().emit('roulette:bet', { amount: chipAmount, numbers });
-        }
+      if (isRoulette && type === 'roulette:betsSnapshot') {
+        const bets = Array.isArray(event.data.bets) ? event.data.bets : [];
+        getSocket().emit('roulette:betsSnapshot', {
+          bets: bets.map((b: { numbers: number[]; amount: number }) => ({
+            numbers: Array.isArray(b.numbers) ? b.numbers : [],
+            amount: typeof b.amount === 'number' ? b.amount : 0,
+          })),
+          betTotal: typeof event.data.betTotal === 'number' ? event.data.betTotal : 0,
+        });
       }
 
       if (type === 'getBalance') {
@@ -193,6 +198,9 @@ export function IframeGameWrapper({
         result: data.result,
         roundId: data.roundId,
       }, '*');
+      if (typeof data.payout === 'number' && data.payout > 0) {
+        onWin(data.payout);
+      }
     };
 
     const onPlayers = (data: { players: RoulettePlayer[] }) => {
