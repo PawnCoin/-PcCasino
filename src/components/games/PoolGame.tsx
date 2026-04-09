@@ -46,10 +46,31 @@ interface Ball {
   pocketed: boolean;
   isCue: boolean;
   isEight: boolean;
+  pocketIndex?: number;
   snookerType?: 'red' | 'yellow' | 'green' | 'brown' | 'blue' | 'pink' | 'black';
   points?: number;
   respotX?: number; respotY?: number;
 }
+
+interface PocketAnim {
+  ballColor: string;
+  ballId: number;
+  striped: boolean;
+  pocketX: number;
+  pocketY: number;
+  startTime: number;
+}
+
+interface PocketNotification {
+  ballId: number;
+  ballColor: string;
+  striped: boolean;
+  isEight: boolean;
+  pocketLabel: string;
+  startTime: number;
+}
+
+const POCKET_LABELS = ['Top-Left Corner', 'Top Side', 'Top-Right Corner', 'Bottom-Left Corner', 'Bottom Side', 'Bottom-Right Corner'];
 interface Pocket { x: number; y: number; radius: number; }
 interface TournamentSlot { name: string; isAI: boolean; }
 interface TournamentBracket { slots: TournamentSlot[]; results: (string | null)[]; round: number; }
@@ -587,6 +608,7 @@ function drawPool(
   skin?: TableSkinDef | null,
   ballMaterial?: BallMaterial,
   cueSkin?: CueSkinDef | null,
+  pocketAnims?: PocketAnim[],
 ) {
   ctx.save();
 
@@ -862,6 +884,41 @@ function drawPool(
     }
   });
 
+  if (pocketAnims && pocketAnims.length > 0) {
+    const now = performance.now();
+    pocketAnims.forEach(anim => {
+      const elapsed = now - anim.startTime;
+      const duration = 500;
+      if (elapsed > duration) return;
+      const t = elapsed / duration;
+      const scale = 1 - t * 0.8;
+      const alpha = 1 - t;
+      const r = BALL_R * scale;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(anim.pocketX, anim.pocketY, r + 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(anim.pocketX, anim.pocketY, r, 0, Math.PI * 2);
+      ctx.fillStyle = anim.ballColor;
+      ctx.fill();
+
+      if (anim.striped) {
+        ctx.beginPath();
+        ctx.arc(anim.pocketX, anim.pocketY, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(anim.pocketX - r, anim.pocketY - r * 0.3, r * 2, r * 0.6);
+      }
+
+      ctx.restore();
+    });
+  }
+
   // Vignette
   const vig = ctx.createRadialGradient(tableW / 2, tableH / 2, tableH * 0.3, tableW / 2, tableH / 2, tableW * 0.75);
   vig.addColorStop(0, 'rgba(0,0,0,0)');
@@ -994,6 +1051,10 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const [selectedCallPocket, setSelectedCallPocket] = useState<number | null>(null);
   const [showChat, setShowChat] = useState(false);
 
+  const [pocketNotifications, setPocketNotifications] = useState<PocketNotification[]>([]);
+  const pocketAnimsRef = useRef<PocketAnim[]>([]);
+  const notifTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   // ── Refs ───────────────────────────────────────────────────────────────────
   const triggerAiShotRef = useRef<() => void>(() => {});
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1085,6 +1146,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
       tableSkinRef.current,
       ballPresetRef.current?.material,
       cueSkinRef.current,
+      pocketAnimsRef.current,
     );
   }, []);
 
@@ -1346,6 +1408,43 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
     const backend = physicsModeRef.current === 'realistic' ? RealisticBackend : ClassicBackend;
     const { anyMoving, pocketed, collisions, cushionBounces } = backend.step(balls, tw, th, pockets, RAIL);
+
+    const now = performance.now();
+    pocketAnimsRef.current = pocketAnimsRef.current.filter(a => now - a.startTime < 500);
+
+    if (pocketed.length > 0) {
+      const castBalls = pocketed as Ball[];
+      castBalls.forEach(b => {
+        const pi = b.pocketIndex ?? 0;
+        const pocket = pockets[pi];
+        if (!b.isCue) {
+          pocketAnimsRef.current.push({
+            ballColor: b.color,
+            ballId: b.id,
+            striped: b.striped,
+            pocketX: pocket.x,
+            pocketY: pocket.y,
+            startTime: now,
+          });
+          setPocketNotifications(prev => [
+            ...prev,
+            {
+              ballId: b.id,
+              ballColor: b.color,
+              striped: b.striped,
+              isEight: b.isEight,
+              pocketLabel: POCKET_LABELS[pi] ?? 'pocket',
+              startTime: now,
+            },
+          ]);
+          const tid = setTimeout(() => {
+            setPocketNotifications(prev => prev.filter(n => n.startTime !== now || n.ballId !== b.id));
+            notifTimeoutsRef.current = notifTimeoutsRef.current.filter(t => t !== tid);
+          }, 2500);
+          notifTimeoutsRef.current.push(tid);
+        }
+      });
+    }
     redrawCanvas();
     movingRef.current = anyMoving;
 
@@ -1357,8 +1456,19 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
     if (anyMoving) {
       animRef.current = requestAnimationFrame(gameLoopStep);
+    } else if (pocketAnimsRef.current.length > 0) {
+      const drainAnims = () => {
+        const n = performance.now();
+        pocketAnimsRef.current = pocketAnimsRef.current.filter(a => n - a.startTime < 500);
+        redrawCanvas();
+        if (pocketAnimsRef.current.length > 0) {
+          animRef.current = requestAnimationFrame(drainAnims);
+        } else {
+          handleShotEnd(pocketed as Ball[]);
+        }
+      };
+      animRef.current = requestAnimationFrame(drainAnims);
     } else {
-      // All balls stopped — pocketed items are Ball objects at runtime (cast is safe)
       handleShotEnd(pocketed as Ball[]);
     }
   }, [redrawCanvas, handleShotEnd, settings.casinoSoundEnabled, poolSounds]);
@@ -1563,6 +1673,10 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
   const resetToSelect = useCallback(() => {
     if (animRef.current) cancelAnimationFrame(animRef.current);
+    pocketAnimsRef.current = [];
+    setPocketNotifications([]);
+    notifTimeoutsRef.current.forEach(clearTimeout);
+    notifTimeoutsRef.current = [];
     setGameMode('select');
     gameModeRef.current = 'select';
     setPhase('lobby');
@@ -1573,7 +1687,11 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
 
   // Cleanup
   useEffect(() => {
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      notifTimeoutsRef.current.forEach(clearTimeout);
+      notifTimeoutsRef.current = [];
+    };
   }, []);
 
   // Initial render
@@ -1823,6 +1941,30 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                 onTouchEnd={e => { e.preventDefault(); shoot(); }}
               />
 
+              {pocketNotifications.length > 0 && (
+                <div style={{ position: 'absolute', top: 8, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, pointerEvents: 'none', zIndex: 10 }}>
+                  <style>{`@keyframes pocketNotifFade { 0% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-8px); } }`}</style>
+                  {pocketNotifications.map((n, i) => (
+                    <div key={`${n.ballId}-${n.startTime}-${i}`} style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 12px', borderRadius: 20,
+                      background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.15)',
+                      animation: 'pocketNotifFade 2.5s ease forwards',
+                    }}>
+                      <span style={{
+                        display: 'inline-block', width: 14, height: 14, borderRadius: '50%',
+                        background: n.isEight ? '#1a1a1a' : n.ballColor,
+                        border: n.striped ? '2px solid #FFFFFF' : n.isEight ? '1px solid #444' : '1px solid rgba(255,255,255,0.2)',
+                        boxShadow: `0 0 4px ${n.ballColor}`,
+                      }} />
+                      <span style={{ fontSize: 11, color: '#e5e7eb', fontWeight: 600 }}>
+                        {n.isEight ? '8-ball' : `${n.ballId}-ball`} — {n.pocketLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Win/Loss overlay */}
               {(phase === 'won' || phase === 'lost') && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', gap: 12 }}>
@@ -1944,12 +2086,84 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
               </button>
             </div>
 
-            {/* Ball tracker */}
+            {/* Visual Ball Tray */}
             {(gameMode === '8ball' || gameMode === 'shotbet') && (
-              <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#6b7280', justifyContent: 'center' }}>
-                <span>Solids: {solidsPocketed}/7</span>
-                <span>Stripes: {stripesPocketed}/7</span>
-                <span>8-ball: {ballsRef.current.find(b => b.isEight)?.pocketed ? '✅ pocketed' : '🎱 on table'}</span>
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center',
+                padding: '8px 14px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                width: '100%', maxWidth: tw,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <span style={{ fontSize: 10, color: '#6b7280', width: 48, textAlign: 'right', flexShrink: 0 }}>Solids</span>
+                  <div style={{ display: 'flex', gap: 4, flex: 1, justifyContent: 'center' }}>
+                    {solids.map(b => {
+                      const isPocketed = b.pocketed;
+                      return (
+                        <div key={b.id} style={{
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: isPocketed ? b.color : 'transparent',
+                          border: `2px solid ${isPocketed ? b.color : 'rgba(255,255,255,0.15)'}`,
+                          opacity: isPocketed ? 1 : 0.3,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 8, fontWeight: 700, color: isPocketed ? '#fff' : 'rgba(255,255,255,0.3)',
+                          boxShadow: isPocketed ? `0 0 6px ${b.color}55` : 'none',
+                          transition: 'all 0.3s ease',
+                        }}>
+                          {b.id}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span style={{ fontSize: 10, color: '#6b7280', width: 48, flexShrink: 0 }}>{solidsPocketed}/7</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  {(() => {
+                    const eightBall = ballsRef.current.find(b => b.isEight);
+                    const ep = eightBall?.pocketed ?? false;
+                    return (
+                      <div style={{
+                        width: 24, height: 24, borderRadius: '50%',
+                        background: ep ? '#1a1a1a' : 'transparent',
+                        border: `2px solid ${ep ? '#444' : 'rgba(255,255,255,0.15)'}`,
+                        opacity: ep ? 1 : 0.4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 9, fontWeight: 800, color: ep ? '#fff' : 'rgba(255,255,255,0.3)',
+                        boxShadow: ep ? '0 0 8px rgba(0,0,0,0.5)' : 'none',
+                        transition: 'all 0.3s ease',
+                      }}>
+                        8
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <span style={{ fontSize: 10, color: '#6b7280', width: 48, textAlign: 'right', flexShrink: 0 }}>Stripes</span>
+                  <div style={{ display: 'flex', gap: 4, flex: 1, justifyContent: 'center' }}>
+                    {stripes.map(b => {
+                      const isPocketed = b.pocketed;
+                      return (
+                        <div key={b.id} style={{
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: isPocketed
+                            ? `radial-gradient(circle, ${b.color} 40%, #fff 40%, #fff 55%, ${b.color} 55%)`
+                            : 'transparent',
+                          border: `2px solid ${isPocketed ? b.color : 'rgba(255,255,255,0.15)'}`,
+                          opacity: isPocketed ? 1 : 0.3,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 8, fontWeight: 700, color: isPocketed ? '#fff' : 'rgba(255,255,255,0.3)',
+                          boxShadow: isPocketed ? `0 0 6px ${b.color}55` : 'none',
+                          transition: 'all 0.3s ease',
+                        }}>
+                          {b.id}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span style={{ fontSize: 10, color: '#6b7280', width: 48, flexShrink: 0 }}>{stripesPocketed}/7</span>
+                </div>
               </div>
             )}
             {gameMode === 'snooker' && (

@@ -65,6 +65,7 @@ export interface PhysicsBall {
   radius: number;
   pocketed: boolean;
   isCue: boolean;
+  pocketIndex?: number;
   /** Angular velocities in rad/frame (for realistic mode) */
   wx?: number;
   wy?: number;
@@ -123,9 +124,11 @@ export const ClassicBackend: PoolPhysicsBackend = {
       if (ball.y - ball.radius < rail) { const v = Math.abs(ball.vy); ball.y = rail + ball.radius; ball.vy = v * 0.78; cushionBounces.push({ velocity: v }); }
       if (ball.y + ball.radius > tableH - rail) { const v = Math.abs(ball.vy); ball.y = tableH - rail - ball.radius; ball.vy = -v * 0.78; cushionBounces.push({ velocity: v }); }
 
-      for (const p of pockets) {
+      for (let pi = 0; pi < pockets.length; pi++) {
+        const p = pockets[pi];
         if (hypot(ball.x - p.x, ball.y - p.y) < p.radius) {
           ball.pocketed = true;
+          ball.pocketIndex = pi;
           ball.vx = 0; ball.vy = 0;
           pocketedThisStep.push(ball);
           break;
@@ -439,10 +442,12 @@ export const RealisticBackend: PoolPhysicsBackend = {
 
     balls.forEach(ball => {
       if (ball.pocketed) return;
-      for (const p of pockets) {
+      for (let pi = 0; pi < pockets.length; pi++) {
+        const p = pockets[pi];
         const d = hypot(ball.x - p.x, ball.y - p.y);
         if (d < p.radius) {
           ball.pocketed = true;
+          ball.pocketIndex = pi;
           ball.vx = 0; ball.vy = 0;
           ball.wx = 0; ball.wy = 0; ball.wz = 0;
           pocketedThisStep.push(ball);
