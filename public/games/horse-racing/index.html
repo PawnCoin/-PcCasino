@@ -295,19 +295,29 @@
                         var beforeCount = container.numChildren;
                         _OrigCChipPanel.call(this, x, y, container);
                         try {
+                            var foundStartBtn = false;
                             for (var i = beforeCount; i < container.numChildren; i++) {
                                 var panelContainer = container.getChildAt(i);
                                 if (!panelContainer || !panelContainer.numChildren) continue;
                                 for (var j = 0; j < panelContainer.numChildren; j++) {
                                     var inner = panelContainer.getChildAt(j);
                                     if (!inner) continue;
-                                    var isStartBtn = inner.y >= 280 && inner.y <= 340 && inner.numChildren !== undefined;
+                                    var isContainer = inner.numChildren !== undefined;
+                                    var isStartBtn = inner.y >= 280 && inner.y <= 340 && isContainer && inner.cursor === 'pointer';
+                                    if (!isStartBtn && inner.y >= 280 && isContainer) {
+                                        isStartBtn = true;
+                                    }
                                     if (!isStartBtn) {
                                         inner.alpha = 0;
                                         inner.mouseEnabled = false;
                                         if (inner.visible !== undefined) inner.visible = false;
+                                    } else {
+                                        foundStartBtn = true;
                                     }
                                 }
+                            }
+                            if (!foundStartBtn) {
+                                console.warn('[PC] No Start Race button candidate found in CChipPanel');
                             }
                         } catch (e) {}
                         return this;
