@@ -1093,7 +1093,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   background: '#050308',
                   animation: winFlash ? 'winPulse 2s ease-out' : loseFlash ? 'loseShake 0.5s ease-out' : undefined,
                   minHeight: '300px',
-                  overflow: 'hidden',
+                  overflow: 'visible',
                 }}
               >
                 {/* ══ ROUNDED SQUARE TABLE LAYERS ══ */}
@@ -1256,12 +1256,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </button>
                 </div>
 
-                {/* ── BOOK STACKS ON TABLE ── */}
+                {/* ── BOOK STACKS ON TABLE (positioned on the felt, near each player's side) ── */}
                 {gamePhase === 'playing' && (
                   <>
-                    {/* You (bottom) book stack */}
+                    {/* You (bottom) book stack — on felt near bottom-center */}
                     {bookStacks[0] > 0 && (
-                      <div className="absolute z-[5]" style={{ bottom: '18%', left: '50%', transform: 'translateX(-50%)' }}>
+                      <div className="absolute z-[5]" style={{ bottom: '28%', left: '50%', transform: 'translateX(-50%)' }}>
                         <div className="flex items-center gap-1">
                           <div style={{ position: 'relative', width: 24, height: 16 }}>
                             {[0,1,2].map(layer => (
@@ -1272,9 +1272,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                         </div>
                       </div>
                     )}
-                    {/* West (left) book stack */}
+                    {/* West (left) book stack — on felt near left-center */}
                     {bookStacks[1] > 0 && (
-                      <div className="absolute z-[5]" style={{ left: '18%', top: '50%', transform: 'translateY(-50%)' }}>
+                      <div className="absolute z-[5]" style={{ left: '26%', top: '50%', transform: 'translateY(-50%)' }}>
                         <div className="flex items-center gap-1">
                           <div style={{ position: 'relative', width: 24, height: 16 }}>
                             {[0,1,2].map(layer => (
@@ -1285,9 +1285,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                         </div>
                       </div>
                     )}
-                    {/* Partner (top) book stack */}
+                    {/* Partner (top) book stack — on felt near top-center */}
                     {bookStacks[2] > 0 && (
-                      <div className="absolute z-[5]" style={{ top: '18%', left: '50%', transform: 'translateX(-50%)' }}>
+                      <div className="absolute z-[5]" style={{ top: '28%', left: '50%', transform: 'translateX(-50%)' }}>
                         <div className="flex items-center gap-1">
                           <div style={{ position: 'relative', width: 24, height: 16 }}>
                             {[0,1,2].map(layer => (
@@ -1298,9 +1298,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                         </div>
                       </div>
                     )}
-                    {/* East (right) book stack */}
+                    {/* East (right) book stack — on felt near right-center */}
                     {bookStacks[3] > 0 && (
-                      <div className="absolute z-[5]" style={{ right: '18%', top: '50%', transform: 'translateY(-50%)' }}>
+                      <div className="absolute z-[5]" style={{ right: '26%', top: '50%', transform: 'translateY(-50%)' }}>
                         <div className="flex items-center gap-1">
                           <div style={{ position: 'relative', width: 24, height: 16 }}>
                             {[0,1,2].map(layer => (
@@ -1338,9 +1338,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
                 )}
 
-                {/* ── PARTNER (TOP) ── */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-10">
-                  {/* Partner card backs - arch fan */}
+                {/* ── PARTNER (TOP) — card fan on table, badge OUTSIDE above table ── */}
+                {/* Partner card backs - arch fan (stays on table) */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
                   {(() => {
                     const n = Math.min(players[2].hand.length || 8, 13);
                     const step = Math.min(8, 72 / Math.max(n - 1, 1));
@@ -1362,22 +1362,23 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       </div>
                     );
                   })()}
-                  {/* Player badge */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 border border-[#1565C0]/50 backdrop-blur-sm">
+                </div>
+                {/* Partner badge — positioned OUTSIDE the table, overlapping the top edge */}
+                <div className="absolute left-1/2 -translate-x-1/2 z-[15]" style={{ top: '-18px' }}>
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/85 border border-[#1565C0]/50 backdrop-blur-sm shadow-lg">
                     <div className="relative">
-                      <AvatarSprite avatar={SPADES_AVATARS[2]} size={38} active={currentPlayer === 2 && gamePhase === 'playing'} />
+                      <AvatarSprite avatar={SPADES_AVATARS[2]} size={32} active={currentPlayer === 2 && gamePhase === 'playing'} />
                       {currentPlayer === 2 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">{players[2].name}</div>
-                      <div className="text-xs text-white/60">{players[2].nilBid ? 'NIL' : `Bid: ${players[2].bid ?? '?'}`} {'·'} {players[2].tricks}{'✓'}</div>
+                      <div className="text-[10px] text-white/60">{players[2].nilBid ? 'NIL' : `Bid: ${players[2].bid ?? '?'}`} {'·'} {players[2].tricks}{'✓'}</div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── WEST (LEFT) ── */}
-                <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-row items-center gap-1.5 z-10">
-                  {/* West arch fan - fan opens RIGHT toward table center */}
+                {/* ── WEST (LEFT) — card fan on table, badge OUTSIDE left edge ── */}
+                <div className="absolute left-1 top-1/2 -translate-y-1/2 z-10">
                   {(() => {
                     const n = Math.min(players[1].hand.length || 8, 13);
                     const step = Math.min(8, 72 / Math.max(n - 1, 1));
@@ -1399,9 +1400,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       </div>
                     );
                   })()}
-                  <div className="flex flex-col items-center px-2 py-2 rounded-xl bg-black/75 border border-[#8B0000]/50 backdrop-blur-sm">
+                </div>
+                {/* West badge — positioned OUTSIDE the table, overlapping the left edge */}
+                <div className="absolute top-1/2 -translate-y-1/2 z-[15]" style={{ left: '-28px' }}>
+                  <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/85 border border-[#8B0000]/50 backdrop-blur-sm shadow-lg">
                     <div className="relative mb-1">
-                      <AvatarSprite avatar={SPADES_AVATARS[1]} size={50} active={currentPlayer === 1 && gamePhase === 'playing'} />
+                      <AvatarSprite avatar={SPADES_AVATARS[1]} size={40} active={currentPlayer === 1 && gamePhase === 'playing'} />
                       {currentPlayer === 1 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div className="text-xs font-bold text-white">{players[1].name}</div>
@@ -1410,9 +1414,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
                 </div>
 
-                {/* ── EAST (RIGHT) ── */}
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-row-reverse items-center gap-1.5 z-10">
-                  {/* East arch fan - fan opens LEFT toward table center */}
+                {/* ── EAST (RIGHT) — card fan on table, badge OUTSIDE right edge ── */}
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 z-10">
                   {(() => {
                     const n = Math.min(players[3].hand.length || 8, 13);
                     const step = Math.min(8, 72 / Math.max(n - 1, 1));
@@ -1434,9 +1437,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                       </div>
                     );
                   })()}
-                  <div className="flex flex-col items-center px-2 py-2 rounded-xl bg-black/75 border border-[#1b5020]/50 backdrop-blur-sm">
+                </div>
+                {/* East badge — positioned OUTSIDE the table, overlapping the right edge */}
+                <div className="absolute top-1/2 -translate-y-1/2 z-[15]" style={{ right: '-28px' }}>
+                  <div className="flex flex-col items-center px-2 py-1.5 rounded-xl bg-black/85 border border-[#1b5020]/50 backdrop-blur-sm shadow-lg">
                     <div className="relative mb-1">
-                      <AvatarSprite avatar={SPADES_AVATARS[3]} size={50} active={currentPlayer === 3 && gamePhase === 'playing'} />
+                      <AvatarSprite avatar={SPADES_AVATARS[3]} size={40} active={currentPlayer === 3 && gamePhase === 'playing'} />
                       {currentPlayer === 3 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
                     </div>
                     <div className="text-xs font-bold text-white">{players[3].name}</div>
@@ -1671,26 +1677,26 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-5xl font-casino font-black text-[#43A047]" style={{ animation: 'spadesBurst 2s ease-out forwards', textShadow: '0 0 40px rgba(67,160,71,0.9)' }}>WIN!</div>
                   </div>
                 )}
+
+                {/* YOUR BADGE — positioned on the bottom edge of the table, overlapping outward */}
+                {(gamePhase === 'bidding' || gamePhase === 'playing') && (
+                  <div className="absolute left-1/2 -translate-x-1/2 z-[15]" style={{ bottom: '-16px' }}>
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/85 border border-[#D4AF37]/30 backdrop-blur-sm shadow-lg">
+                      <div className="relative">
+                        <AvatarSprite avatar={SPADES_AVATARS[0]} size={32} active={currentPlayer === 0 && gamePhase === 'playing'} />
+                        {currentPlayer === 0 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white">You</div>
+                        <div className="text-[10px] text-white/60">{players[0].nilBid ? 'NIL' : players[0].blindNilBid ? 'BNIL' : `Bid: ${players[0].bid ?? '?'}`} {'·'} {players[0].tricks}{'✓'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* WOOD RAIL */}
               <div className="h-4 wood-rail" />
-
-              {/* YOUR BADGE — below table, above hand */}
-              {(gamePhase === 'bidding' || gamePhase === 'playing') && (
-                <div className="flex items-center justify-center gap-2 py-1" style={{ background: 'transparent' }}>
-                  <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-black/60 border border-[#D4AF37]/30 backdrop-blur-sm">
-                    <div className="relative">
-                      <AvatarSprite avatar={SPADES_AVATARS[0]} size={36} active={currentPlayer === 0 && gamePhase === 'playing'} />
-                      {currentPlayer === 0 && gamePhase === 'playing' && <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#D4AF37] animate-pulse" />}
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-white">You</div>
-                      <div className="text-xs text-white/60">{players[0].nilBid ? 'NIL' : players[0].blindNilBid ? 'BNIL' : `Bid: ${players[0].bid ?? '?'}`} {'·'} {players[0].tricks}{'✓'}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* MESSAGE BAR */}
               {message && (
@@ -1706,7 +1712,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
               {/* ── YOUR HAND ── shown during bidding AND playing */}
               {(gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
-                <div style={{ background: 'transparent', padding: '0 8px 4px', position: 'relative', zIndex: 20, marginTop: '-18px' }}>
+                <div style={{ background: 'transparent', padding: '4px 8px 4px', position: 'relative', zIndex: 20 }}>
                   {/* Reaction buttons + SMACK */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
                     <div className="flex gap-1 items-center">
