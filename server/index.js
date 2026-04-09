@@ -1687,8 +1687,6 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
         else if (len === 18) multiplier = 2;
         else multiplier = Math.floor(36 / len);
         totalPayout += amt * multiplier;
-      } else if (result === 0 && nums.length === 18) {
-        totalPayout += Math.floor(amt / 2);
       }
     }
     return totalPayout;
@@ -1734,7 +1732,9 @@ io.on('connection', (socket) => {
 
   socket.on('room:join', ({ roomId, username, balance, avatar, avatarUrl }, cb) => {
     if (roomId === 'roulette-main') {
-      const rp = { id: socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false };
+      const mainPlayer = players.get(socket.id);
+      const playerBalance = typeof balance === 'number' ? balance : ((mainPlayer && typeof mainPlayer.balance === 'number') ? mainPlayer.balance : 0);
+      const rp = { id: socket.id, socketId: socket.id, username: username || 'Guest', avatarUrl: avatarUrl || null, avatar: avatar || null, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
       rouletteRoom.players.set(socket.id, rp);
       socket.join('roulette-main');
       rouletteEnsureTimer();
