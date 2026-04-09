@@ -1928,19 +1928,26 @@ io.on('connection', (socket) => {
 
     socket.on('roulette:bet', ({ amount, numbers }) => {
       const rp = rouletteRoom.players.get(socket.id);
-      if (rp && rouletteRoom.phase === 'betting' && !rp.betsLocked && typeof amount === 'number' && amount > 0) {
+      if (rp && rouletteRoom.phase === 'betting' && !rp.betsLocked && typeof amount === 'number' && amount > 0 && amount <= 500000000) {
         if (!rp.bets) rp.bets = [];
-        rp.bets.push({ amount, numbers: Array.isArray(numbers) ? numbers : [] });
-        rp.betTotal += amount;
-        rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+        const validNums = (Array.isArray(numbers) ? numbers : []).filter(n => typeof n === 'number' && n >= 0 && n <= 36);
+        if (validNums.length > 0) {
+          rp.bets.push({ amount, numbers: validNums });
+          rp.betTotal = rp.bets.reduce((s, b) => s + b.amount, 0);
+          rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
+        }
       }
     });
 
     socket.on('roulette:betsSnapshot', ({ bets, betTotal }) => {
       const rp = rouletteRoom.players.get(socket.id);
-      if (rp && Array.isArray(bets)) {
-        rp.bets = bets.filter(b => b && typeof b.amount === 'number' && b.amount > 0 && Array.isArray(b.numbers));
-        rp.betTotal = typeof betTotal === 'number' ? betTotal : rp.bets.reduce((s, b) => s + b.amount, 0);
+      if (rp && rouletteRoom.phase === 'betting' && !rp.betsLocked && Array.isArray(bets)) {
+        rp.bets = bets.filter(b => b && typeof b.amount === 'number' && b.amount > 0 && Array.isArray(b.numbers)).map(b => ({
+          amount: Math.min(Math.max(0, b.amount), 500000000),
+          numbers: b.numbers.filter(n => typeof n === 'number' && n >= 0 && n <= 36),
+        }));
+        rp.betTotal = rp.bets.reduce((s, b) => s + b.amount, 0);
+        rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
       }
     });
 

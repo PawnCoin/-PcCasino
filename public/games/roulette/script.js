@@ -2159,6 +2159,8 @@ window.addEventListener('beforeunload', function(e) {
 
   
 
+  
+
   // ---- Multiplayer Roulette Bridge (appended) ----
   var mp_serverResult = null;
   var mp_phase = 'waiting';
@@ -2169,6 +2171,7 @@ window.addEventListener('beforeunload', function(e) {
   var mp_spinBlocked = false;
   var mp_isMultiplayer = false;
   var _mp_origMathRandom = Math.random;
+  var mp_betSyncTimer = null;
 
   function mp_collectBets() {
     var bets = [];
@@ -2192,17 +2195,52 @@ window.addEventListener('beforeunload', function(e) {
     return bets;
   }
 
+  function mp_syncBetsToServer() {
+    if (!mp_isMultiplayer) return;
+    if (mp_betSyncTimer) clearTimeout(mp_betSyncTimer);
+    mp_betSyncTimer = setTimeout(function() {
+      var snapshot = mp_collectBets();
+      window.parent.postMessage({
+        type: 'roulette:betsSnapshot',
+        bets: snapshot,
+        betTotal: betSize || 0
+      }, '*');
+    }, 50);
+  }
+
+  // Wrap betClick to sync bets to server after every chip placement
+  var _mp_origBetClick = betClick;
+  betClick = function() {
+    _mp_origBetClick.apply(this, arguments);
+    mp_syncBetsToServer();
+  };
+
+  // Wrap cancelLastBet to sync after undo
+  var _mp_origCancelLastBet = cancelLastBet;
+  cancelLastBet = function() {
+    _mp_origCancelLastBet.apply(this, arguments);
+    mp_syncBetsToServer();
+  };
+
+  // Wrap doubleBets to sync after double
+  var _mp_origDoubleBets = doubleBets;
+  doubleBets = function() {
+    _mp_origDoubleBets.apply(this, arguments);
+    mp_syncBetsToServer();
+  };
+
+  // Wrap reset to sync after cancel all
+  var _mp_origReset = reset;
+  reset = function() {
+    _mp_origReset.apply(this, arguments);
+    mp_syncBetsToServer();
+  };
+
   // Wrap start() to use server result via Math.random patch
   var _mp_origStart = start;
   start = function() {
     if (mp_spinBlocked) return;
     if (mp_isMultiplayer && typeof mp_serverResult === 'number' && mp_serverResult >= 0 && mp_serverResult <= 36) {
-      var betsSnapshot = mp_collectBets();
-      window.parent.postMessage({
-        type: 'roulette:betsSnapshot',
-        bets: betsSnapshot,
-        betTotal: betSize
-      }, '*');
       Math.random = function() { return (mp_serverResult + 0.5) / 37; };
     }
     _mp_origStart.apply(this, arguments);
