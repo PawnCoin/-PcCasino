@@ -81,11 +81,13 @@ export function IframeGameWrapper({
       const { type, amount } = event.data;
 
       if (type === 'bet' && typeof amount === 'number' && amount > 0) {
-        const success = onBet(amount);
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: 'bet:result', success, balance: success ? balanceRef.current : balanceRef.current },
-          '*'
-        );
+        if (!isRoulette) {
+          const success = onBet(amount);
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: 'bet:result', success, balance: success ? balanceRef.current : balanceRef.current },
+            '*'
+          );
+        }
       }
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
