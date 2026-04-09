@@ -134,7 +134,7 @@ function makeChipSVG(value, sizePx) {
     + '<circle cx="' + cx + '" cy="' + cy + '" r="' + rMed + '" fill="none" stroke="' + s.ring + '" stroke-width="1.0" opacity="0.4"/>'
     + '<text x="' + cx + '" y="' + (cy - rMed*0.44) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.10) + '" font-weight="900" fill="#111" font-family="Arial Black,Arial,sans-serif" letter-spacing="0.2">$Pc</text>'
     + '<text x="' + cx + '" y="' + (cy + rMed*0.12) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + numFS + '" font-weight="900" fill="#111" font-family="Arial Black,Arial,sans-serif" letter-spacing="-0.5">' + lbl + '</text>'
-    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">' + (val >= 1000000 ? '\u2014 M \u2014' : val >= 1000 ? '\u2014 K \u2014' : '\u2014 $ \u2014') + '</text>'
+    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">' + (value >= 1000000 ? '\u2014 M \u2014' : value >= 1000 ? '\u2014 K \u2014' : '\u2014 $ \u2014') + '</text>'
     + '<ellipse cx="' + (cx - r*0.08) + '" cy="' + (cy - r*0.38) + '" rx="' + (r*0.36) + '" ry="' + (r*0.15) + '" fill="rgba(255,255,255,0.20)"/>'
     + '</svg>';
 }
