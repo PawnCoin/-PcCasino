@@ -1609,7 +1609,7 @@ function start() {
   random = Math.floor(Math.random() * 37);
   haben = infoConstants.rollerInfo[random];
   setIntSpin();
-  setTimeout(() => dealerAnnounce("No more bets"), 5000);
+  setTimeout(() => dealerAnnounce("No more bets"), 7500);
   endrollTimer = setTimeout(() => {
     if (betStart) endroll();
   }, 9000);
