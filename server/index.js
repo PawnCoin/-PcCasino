@@ -1607,7 +1607,7 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
     });
   }
 
-  function rouletteTickTimer() {
+  async function rouletteTickTimer() {
     if (rouletteRoom.players.size === 0) {
       rouletteRoom.phase = 'waiting';
       if (rouletteRoom.intervalId) { clearInterval(rouletteRoom.intervalId); rouletteRoom.intervalId = null; }
@@ -1619,6 +1619,20 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
         rouletteRoom.phase = 'spinning';
         rouletteRoom.result = Math.floor(Math.random() * 37);
         for (const p of rouletteRoom.players.values()) { p.betsLocked = true; }
+        const balanceChecks = [];
+        for (const [sid, p] of rouletteRoom.players) {
+          if (p.betTotal > 0 && p.id && p.id !== sid) {
+            balanceChecks.push(
+              query('SELECT balance FROM users WHERE id = $1', [p.id])
+                .then(r => { if (r.rows[0]) p.balance = r.rows[0].balance; })
+                .catch(() => {})
+            );
+          }
+        }
+        if (balanceChecks.length > 0) await Promise.all(balanceChecks);
+        for (const [, p] of rouletteRoom.players) {
+          if (p.betTotal > p.balance) { p.bets = []; p.betTotal = 0; }
+        }
         rouletteRoom.history.unshift(rouletteRoom.result);
         if (rouletteRoom.history.length > 20) rouletteRoom.history.length = 20;
         const settlePromises = [];
@@ -1668,16 +1682,45 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
   const ROULETTE_RED = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
   const ROULETTE_BLACK = [2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35];
 
-  const VALID_ROULETTE_BET_LENGTHS = new Set([1, 2, 3, 4, 6, 12, 18]);
+  const VALID_ROULETTE_BETS = new Set();
+  (function buildCanonicalBets() {
+    const add = (arr) => VALID_ROULETTE_BETS.add(JSON.stringify([...arr].sort((a,b)=>a-b)));
+    for (let i = 0; i <= 36; i++) add([i]);
+    for (let r = 0; r < 12; r++) for (let c = 0; c < 3; c++) {
+      const n = r*3+c+1;
+      if (c < 2) add([n, n+1]);
+      if (r < 11) add([n, n+3]);
+    }
+    add([0,1]); add([0,2]); add([0,3]);
+    for (let r = 0; r < 12; r++) { const s = r*3+1; add([s,s+1,s+2]); }
+    add([0,1,2]); add([0,2,3]);
+    for (let r = 0; r < 11; r++) for (let c = 0; c < 2; c++) {
+      const n = r*3+c+1; add([n,n+1,n+3,n+4]);
+    }
+    add([0,1,2,3]);
+    for (let r = 0; r < 11; r++) { const s = r*3+1; add([s,s+1,s+2,s+3,s+4,s+5]); }
+    add(Array.from({length:12},(_,i)=>i+1));
+    add(Array.from({length:12},(_,i)=>i+13));
+    add(Array.from({length:12},(_,i)=>i+25));
+    add([1,4,7,10,13,16,19,22,25,28,31,34]);
+    add([2,5,8,11,14,17,20,23,26,29,32,35]);
+    add([3,6,9,12,15,18,21,24,27,30,33,36]);
+    add(ROULETTE_RED); add(ROULETTE_BLACK);
+    add(Array.from({length:18},(_,i)=>i+1));
+    add(Array.from({length:18},(_,i)=>i+19));
+    const odd = [], even = [];
+    for (let i = 1; i <= 36; i++) { if (i%2===1) odd.push(i); else even.push(i); }
+    add(odd); add(even);
+  })();
 
   function rouletteValidateBet(bet) {
     if (!bet || typeof bet.amount !== 'number' || bet.amount <= 0 || bet.amount > 500000000) return null;
     if (!Array.isArray(bet.numbers)) return null;
-    const nums = bet.numbers.filter(n => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 36);
-    if (nums.length === 0 || !VALID_ROULETTE_BET_LENGTHS.has(nums.length)) return null;
-    const unique = [...new Set(nums)];
-    if (unique.length !== nums.length) return null;
-    return { amount: bet.amount, numbers: unique };
+    const nums = [...new Set(bet.numbers.filter(n => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 36))].sort((a,b)=>a-b);
+    if (nums.length === 0) return null;
+    const key = JSON.stringify(nums);
+    if (!VALID_ROULETTE_BETS.has(key)) return null;
+    return { amount: bet.amount, numbers: nums };
   }
 
   function rouletteResolveBets(playerBets, result) {

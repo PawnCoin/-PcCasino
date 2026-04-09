@@ -14,6 +14,7 @@ interface IframeGameWrapperProps {
   onBack: () => void;
   onBet: (amount: number) => boolean;
   onWin: (amount: number) => void;
+  onBalanceSync?: (newBalance: number) => void;
   onShowWallet?: () => void;
   onGameStateChange?: (active: boolean) => void;
   username?: string;
@@ -39,6 +40,7 @@ export function IframeGameWrapper({
   onBack,
   onBet,
   onWin,
+  onBalanceSync,
   onShowWallet,
   onGameStateChange,
   username,
@@ -53,6 +55,12 @@ export function IframeGameWrapper({
   const balanceRef = useRef(balance);
   balanceRef.current = balance;
   const gameInProgressRef = useRef(false);
+  const onBetRef = useRef(onBet);
+  onBetRef.current = onBet;
+  const onWinRef = useRef(onWin);
+  onWinRef.current = onWin;
+  const onBalanceSyncRef = useRef(onBalanceSync);
+  onBalanceSyncRef.current = onBalanceSync;
 
   const [roulettePlayers, setRoulettePlayers] = useState<RoulettePlayer[]>([]);
   const [roulettePhase, setRoulettePhase] = useState<string>('waiting');
@@ -200,11 +208,13 @@ export function IframeGameWrapper({
         result: data.result,
         roundId: data.roundId,
       }, '*');
-      if (typeof data.netChange === 'number' && data.netChange !== 0) {
+      if (typeof data.newBalance === 'number' && onBalanceSyncRef.current) {
+        onBalanceSyncRef.current(data.newBalance);
+      } else if (typeof data.netChange === 'number' && data.netChange !== 0) {
         if (data.netChange > 0) {
-          onWin(data.netChange);
+          onWinRef.current(data.netChange);
         } else {
-          onBet(Math.abs(data.netChange));
+          onBetRef.current(Math.abs(data.netChange));
         }
       }
     };

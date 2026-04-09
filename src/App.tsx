@@ -847,6 +847,7 @@ function App() {
             onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
             onBet={handleBet}
             onWin={handleWin}
+            onBalanceSync={(newBal: number) => updateBalance(newBal)}
             onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
             username={user?.username || 'Player'}
             userId={user?.id}
