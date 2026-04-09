@@ -129,6 +129,7 @@ const _urlBalance = parseInt(new URLSearchParams(window.location.search).get("ba
 let money = isNaN(_urlBalance) ? 1000 : _urlBalance;
 let moneyInfo = document.querySelector('#money');
 let moneyTotal;
+function safeMoney(v) { return (typeof v === "number" && !isNaN(v)) ? v : 0; }
 let mouseChip = document.querySelector('#circle');
 let movable = document.querySelector('.menu');
 let music = new Audio(`src/sfx/music/music0.mp3`);
@@ -171,6 +172,19 @@ let xCord;
 let yCord;
 let zone = document.querySelector('#chipsSelector');
 let _currentDictor = null;
+
+function dealerAnnounce(text) {
+  try {
+    const el = document.getElementById("dictorVoice");
+    const vol = el ? Math.max(0, Math.min(1, Number(el.value) || 0)) : 0.5;
+    if (vol <= 0) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.9;
+    utter.pitch = 0.85;
+    utter.volume = vol;
+    speechSynthesis.cancel(); speechSynthesis.speak(utter);
+  } catch(e) {}
+}
 
 function animateChipToTargetPercent(chip, targetPercent, duration = 500) {
   return new Promise((resolve) => {
@@ -271,7 +285,7 @@ function betClick(splitNumbers, splitBets, split) {
   money -= allowedToAdd;
   betSize += allowedToAdd;
   syncGameState();
-  const fmt = (n) => n.toLocaleString('en-US');
+  const fmt = (n) => safeMoney(n).toLocaleString('en-US');
   moneyInfo.innerHTML = `${currentLang[0]} ${fmt(money)} $Pc`;
   totalBet.innerHTML = `${currentLang[1]} ${fmt(betSize)} $Pc`;
   const counter = betHistory.reduce(
@@ -354,8 +368,8 @@ function cancelLastBet() {
     number: numberBets,
   }[name];
   const updateUI = () => {
-    moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
-    totalBet.innerHTML = `${currentLang[1]} ${betSize.toLocaleString("en-US")} $Pc`;
+    moneyInfo.innerHTML = `${currentLang[0]} ${safeMoney(money).toLocaleString("en-US")} $Pc`;
+    totalBet.innerHTML = `${currentLang[1]} ${safeMoney(betSize).toLocaleString("en-US")} $Pc`;
   };
   if (history > 0 && betType && last.splitNumbers) {
     betType[last.splitNumbers] = last.oldValue;
@@ -406,7 +420,7 @@ function cancelLastBet() {
 
 function changeLang(lang) {
   currentLang = lang;
-  const fmt = (n) => n.toLocaleString('en-US');
+  const fmt = (n) => safeMoney(n).toLocaleString('en-US');
   const $ = (s) => document.querySelector(s);
   moneyInfo.innerHTML = `${currentLang[0]} ${fmt(money)} $Pc`;
   totalBet.innerHTML = `${currentLang[1]} ${fmt(betSize)} $Pc`;
@@ -452,7 +466,7 @@ function checkMoney() {
       }
     }
   }
-  if (money < 1000000) {
+  if (money < infoConstants.chipValues[0]) {
     chips.forEach((chip) => {
       chip.classList.remove('biggerBtn');
       chip.style.pointerEvents = 'none';
@@ -635,8 +649,8 @@ function doubleBets() {
   syncGameState();
   money -= betSize;
   window.parent.postMessage({ type: "bet", amount: betSize }, "*");
-  moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
-  totalBet.innerHTML = `${currentLang[1]} ${betSize.toLocaleString("en-US")} $Pc`;
+  moneyInfo.innerHTML = `${currentLang[0]} ${safeMoney(money).toLocaleString("en-US")} $Pc`;
+  totalBet.innerHTML = `${currentLang[1]} ${safeMoney(betSize).toLocaleString("en-US")} $Pc`;
   [
     'number',
     'split',
@@ -681,9 +695,9 @@ function endroll() {
     rollSound.currentTime = 0;
     rollSound.pause();
     endRollSound.play();
-    moneyInfo.innerHTML = currentLang[0] + money.toLocaleString('en-US') + ' $Pc';
+    moneyInfo.innerHTML = currentLang[0] + safeMoney(money).toLocaleString('en-US') + ' $Pc';
     totalWin.innerHTML =
-      currentLang[2] + moneyTotal.toLocaleString('en-US') + ' $Pc';
+      currentLang[2] + safeMoney(moneyTotal).toLocaleString('en-US') + ' $Pc';
     btns.betCompleteBtn.style.pointerEvents = 'none';
     startIcon.className = 'fa-solid fa-hourglass-start statusWait';
     btns.betCompleteBtn.classList.add('activeShadow');
@@ -752,14 +766,19 @@ function endroll() {
       });
       suppressChipAnim = prevSuppress2;
 
+      document.querySelector('#rollMoneyInfo').style.display = 'block';
       if (moneyTotal > 0) {
         rollEndWindowCircle.style.animation = 'spin 8s linear infinite';
         rollEndWindow.style.boxShadow = '#9a801c 0vh 0vh 4vh 1vh';
         rollEndWindow.style.animation = 'rotate-bg 1s linear infinite';
-        document.querySelector('#rollMoneyInfo').style.display = 'block';
         document.querySelector('#rollMoneyInfo').innerHTML = `\n    ${
           currentLang[25]
-        }<br />\n    ${moneyTotal.toLocaleString('en-US')} $Pc \n`;
+        }<br />\n    +${safeMoney(moneyTotal).toLocaleString('en-US')} $Pc \n`;
+      } else if (moneyTotal < 0) {
+        rollEndWindow.style.boxShadow = '#8b0000 0vh 0vh 4vh 1vh';
+        document.querySelector('#rollMoneyInfo').innerHTML = `\n    Lost<br />\n    ${safeMoney(moneyTotal).toLocaleString('en-US')} $Pc \n`;
+      } else {
+        document.querySelector('#rollMoneyInfo').innerHTML = `\n    Push<br />\n    0 $Pc \n`;
       }
     }, 1000);
     setTimeout(
@@ -872,7 +891,7 @@ function endroll() {
 
         if (money >= lastBetSize && lastBetSize > 0)
           btns.repeatBetBtn.classList.remove('disabledCircleBtns');
-        if (money < 1000000) {
+        if (money < infoConstants.chipValues[0]) {
           oddsInfoDisplay('block', 'blur(1vh)', 'none', 'restartGame', true);
           btns.closeBetInfo.style.display = 'none';
         }
@@ -884,7 +903,7 @@ function endroll() {
             syncGameState();
             document.querySelector('#chipsSelectorDisabled').style.display = 'none';
             checkMoney();
-            if (money >= 1000000 && !menuOpen) {
+            if (money >= infoConstants.chipValues[0] && !menuOpen) {
               btns.betCompleteBtn.style.pointerEvents = 'all';
               betSection.style.pointerEvents = 'all';
               document.querySelector('#chipsSelector').style.filter = 'grayscale(0)';
@@ -899,7 +918,7 @@ function endroll() {
       rollEndWindow.style.boxShadow = 'none';
       rollEndWindow.style.animation = 'none';
       document.querySelector('#rollMoneyInfo').style.display = 'none';
-    }, 4000);
+    }, 7000);
     clearInterval(rollingInterval);
   }, 1);
 }
@@ -1439,8 +1458,8 @@ function repeatLastBet() {
     repeatBet: 'active',
     bet: 0,
   });
-  moneyInfo.innerHTML = currentLang[0] + money.toLocaleString('en-US') + ' $Pc';
-  totalBet.innerHTML = currentLang[1] + betSize.toLocaleString('en-US') + ' $Pc';
+  moneyInfo.innerHTML = currentLang[0] + safeMoney(money).toLocaleString('en-US') + ' $Pc';
+  totalBet.innerHTML = currentLang[1] + safeMoney(betSize).toLocaleString('en-US') + ' $Pc';
   history += 1;
 
   betWindowInfo(btns.numberButtons, numberBets, 'number', 35);
@@ -1455,10 +1474,10 @@ function repeatLastBet() {
 function reset(checker, ...objects) {
   if (checker) {
     money += betSize;
-    moneyInfo.textContent = `Cash: ${money.toLocaleString('en-US')} $Pc`;
+    moneyInfo.textContent = `Cash: ${safeMoney(money).toLocaleString('en-US')} $Pc`;
     betSize = 0;
     syncGameState();
-    totalBet.textContent = `Bet: ${betSize.toLocaleString('en-US')} $Pc`;
+    totalBet.textContent = `Bet: ${safeMoney(betSize).toLocaleString('en-US')} $Pc`;
     savedChip2 = {};
     if (money >= lastBetSize && lastBetSize > 0) {
       btns.repeatBetBtn.classList.remove('disabledCircleBtns');
@@ -1504,8 +1523,8 @@ function restartGame() {
     sixainBets,
     sectionBets
   );
-  moneyInfo.innerHTML = `${currentLang[0]} ${money.toLocaleString("en-US")} $Pc`;
-  totalBet.innerHTML = `${currentLang[1]} ${betSize.toLocaleString("en-US")} $Pc`;
+  moneyInfo.innerHTML = `${currentLang[0]} ${safeMoney(money).toLocaleString("en-US")} $Pc`;
+  totalBet.innerHTML = `${currentLang[1]} ${safeMoney(betSize).toLocaleString("en-US")} $Pc`;
   totalWin.innerHTML = `${currentLang[2]}0 $Pc`;
   document.querySelector('#restartGame').style.display = 'none';
   historyMenu.innerHTML = '';
@@ -1551,6 +1570,7 @@ function spin(spinSpeed) {
 }
 
 function start() {
+  dealerAnnounce("Place your bets");
   winSum = 0;
   btns.repeatBetBtn.classList.add('disabledCircleBtns');
   [btns.doubleBet, btns.cancelLastBtn, btns.cancelAllbtn].forEach((el) =>
@@ -1570,8 +1590,8 @@ function start() {
   syncGameState();
   angle3 = 2;
   const interval = setInterval(
-    () => (angle3 > 0.4 ? (angle3 -= 0.1) : clearInterval(interval)),
-    500
+    () => (angle3 > 0.4 ? (angle3 -= 0.06) : clearInterval(interval)),
+    600
   );
   lastBetSize = betSize;
   rolls += 1;
@@ -1585,9 +1605,10 @@ function start() {
   random = Math.floor(Math.random() * 37);
   haben = infoConstants.rollerInfo[random];
   setIntSpin();
+  setTimeout(() => dealerAnnounce("No more bets"), 5000);
   endrollTimer = setTimeout(() => {
     if (betStart) endroll();
-  }, 6000);
+  }, 9000);
   const specialSectionFactors = {
     section3: 3,
     section4: 3,
@@ -2050,7 +2071,7 @@ window.addEventListener('message', function(e) {
   if (e.data.type === 'balance:update' && typeof e.data.balance === 'number') {
     money = e.data.balance;
     if (!betStart) preMoney = money;
-    if (moneyInfo) moneyInfo.innerHTML = (currentLang && currentLang[0] ? currentLang[0] : '') + money.toLocaleString('en-US') + ' $Pc';
+    if (moneyInfo) moneyInfo.innerHTML = (currentLang && currentLang[0] ? currentLang[0] : '') + safeMoney(money).toLocaleString('en-US') + ' $Pc';
   }
 });
 
