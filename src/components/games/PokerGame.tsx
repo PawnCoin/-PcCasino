@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info, RotateCcw, Mic, MicOff, Camera, History } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
@@ -1094,6 +1095,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 <div className="absolute inset-0 opacity-50 rounded-[50%/38%]" style={{
                   backgroundImage: 'repeating-linear-gradient(0deg,transparent 0px,rgba(255,255,255,0.015) 1px,transparent 2px,transparent 3px),repeating-linear-gradient(90deg,transparent 0px,rgba(255,255,255,0.01) 1px,transparent 2px,transparent 3px)',
                 }} />
+                <PremiumFeltOverlay borderRadius="50%/38%" goldBorderInset={0} showGoldBorder={false} showSpotlight={false} />
                 <div className="absolute inset-[5%] border-2 border-dashed border-[#D4AF37]/20 rounded-[50%/38%]" />
                 <div className="absolute inset-[4%] rounded-[50%/38%] pointer-events-none" style={{ border: '1.5px solid rgba(212,175,55,0.25)', boxShadow: 'inset 0 0 40px rgba(212,175,55,0.06)' }} />
 

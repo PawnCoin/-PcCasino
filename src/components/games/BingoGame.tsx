@@ -4,6 +4,7 @@ import {
   Plus, Minus, ChevronLeft, ChevronRight, Share2, PlusCircle,
 } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useBingoSkin, type BingoSkinId } from '@/hooks/useBingoSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
@@ -1055,7 +1056,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           <TableBrand style={{ opacity: 0.06 }} />
 
           {/* LEFT COLUMN: Ball machine + number board */}
-          <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: tableSkin.felt, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }} className="sm:!w-[300px] sm:!flex-shrink-0">
+          <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: tableSkin.felt, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', position: 'relative', boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)' }} className="sm:!w-[300px] sm:!flex-shrink-0">
+            <PremiumFeltOverlay borderRadius="0px" goldBorderInset={6} showSpotlight={false} />
 
             <BallMachine
               machineState={machineState}

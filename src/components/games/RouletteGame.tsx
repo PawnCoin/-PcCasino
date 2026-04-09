@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useRouletteSkin } from '@/hooks/useRouletteSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
@@ -826,22 +827,16 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         <div className="flex-1 overflow-auto px-1 sm:px-2 pb-1 min-h-0">
           <div className="max-w-3xl mx-auto min-w-0">
             <div
-              className="rounded-xl p-1.5 sm:p-3 relative"
+              className="rounded-xl p-1.5 sm:p-3 relative wood-rail overflow-hidden"
               style={{
-                background: `
-                  repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.006) 1px, transparent 2px, transparent 3px),
-                  repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.004) 1px, transparent 2px, transparent 3px),
-                  ${tableSkin.felt}
-                `,
+                background: tableSkin.felt,
                 boxShadow: `
                   0 10px 40px rgba(0,0,0,0.6),
-                  inset 0 1px 2px rgba(255,255,255,0.03),
-                  0 0 0 5px #5D4037,
-                  0 0 0 7px #3E2723,
-                  0 0 0 8px rgba(212,175,55,0.3)
+                  inset 0 0 60px rgba(0,0,0,0.4)
                 `,
               }}
             >
+              <PremiumFeltOverlay borderRadius="12px" goldBorderInset={4} />
               <TableBrand style={{ opacity: 0.08 }} />
               {/* Number grid */}
               <div className="flex gap-[2px]">

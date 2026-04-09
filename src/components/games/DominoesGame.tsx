@@ -11,6 +11,7 @@ import type { AvatarDef } from '@/components/AvatarSprite';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useTableSkin } from '@/hooks/useTableSkin';
 import type { TableSkinDef } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useDominoSkin } from '@/hooks/useDominoSkin';
 import { DOMINO_SKINS } from '@/data/dominoSkins';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
@@ -1114,7 +1115,8 @@ function PickingScreen({
 
         {/* CENTER TABLE with picking pool */}
         <div style={{ position: 'relative', minHeight: 0, minWidth: 0 }}>
-          <div style={{ width: '100%', height: '100%', borderRadius: 16, position: 'relative', overflow: 'hidden', background: table.felt, border: `3px solid ${table.border}`, boxShadow: `inset 0 2px 24px rgba(0,0,0,.55)` }}>
+          <div className="wood-rail" style={{ width: '100%', height: '100%', borderRadius: 16, position: 'relative', overflow: 'hidden', background: table.felt, boxShadow: `inset 0 2px 24px rgba(0,0,0,.55), inset 0 0 60px rgba(0,0,0,0.4)` }}>
+            <PremiumFeltOverlay borderRadius="16px" goldBorderInset={6} showSpotlight={true} />
             <div style={{ position: 'absolute', inset: 0, opacity: .05, pointerEvents: 'none', backgroundImage: `repeating-linear-gradient(0deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px),repeating-linear-gradient(90deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px)` }} />
 
             {/* Header */}
@@ -1770,7 +1772,8 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
 
             {/* CENTER TABLE */}
             <div style={{ position: 'relative', minHeight: 0, minWidth: 0 }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: 16, position: 'relative', overflow: 'hidden', background: table.felt, border: `3px solid ${table.border}`, boxShadow: `inset 0 2px 24px rgba(0,0,0,.55), 0 0 0 5px rgba(0,0,0,.3)` }}>
+              <div className="wood-rail" style={{ width: '100%', height: '100%', borderRadius: 16, position: 'relative', overflow: 'hidden', background: table.felt, boxShadow: `inset 0 2px 24px rgba(0,0,0,.55), inset 0 0 60px rgba(0,0,0,0.4), 0 0 0 5px rgba(0,0,0,.3)` }}>
+                <PremiumFeltOverlay borderRadius="16px" goldBorderInset={6} showSpotlight={true} />
                 <div style={{ position: 'absolute', inset: 0, opacity: .05, pointerEvents: 'none', backgroundImage: `repeating-linear-gradient(0deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px),repeating-linear-gradient(90deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px)` }} />
                 <TableBrand style={{ opacity: 0.08 }} />
                 <CrackOverlay active={cracking} />

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useCrapsDiceSkin } from '@/hooks/useCrapsDiceSkin';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
@@ -978,10 +979,12 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
             <TableBrand style={{ opacity: 0.09 }} />
 
             {/* Premium felt surface */}
-            <div className="absolute inset-[12px] rounded-xl premium-felt" style={{
+            <div className="absolute inset-[12px] rounded-xl premium-felt overflow-hidden" style={{
               boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
               background: tableSkin.felt,
-            }} />
+            }}>
+              <PremiumFeltOverlay borderRadius="12px" goldBorderInset={4} showGoldBorder={false} />
+            </div>
 
             {/* Gold stitching inner border */}
             <div className="absolute pointer-events-none" style={{

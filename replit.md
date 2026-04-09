@@ -10,7 +10,7 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 ### System Architecture
 
 #### UI/UX Decisions
-- **Design System**: Premium CSS classes for elements like `.premium-card`, `.premium-chip`, `.wood-rail`, `.premium-felt`, and `.neon-ring` are used across all games for a consistent high-end casino aesthetic.
+- **Design System**: Premium CSS classes for elements like `.premium-card`, `.premium-chip`, `.wood-rail`, `.premium-felt`, and `.neon-ring` are used across all games for a consistent high-end casino aesthetic. A shared `PremiumFeltOverlay` component (`src/components/PremiumFeltOverlay.tsx`) provides reusable cross-pattern SVG texture, felt weave, gold inner borders, and spotlight effects — applied uniformly to Poker, Roulette, Blackjack, Bingo, Darts, Dominoes, Spades, and Craps.
 - **3D Graphics**: Utilizes Three.js, @react-three/fiber, and @react-three/drei for immersive 3D elements like the Roulette wheel and the overall casino viewport.
 - **In-Game UI**: A unified `InGameTopBar` provides consistent navigation, balance display, quick-buy options, and settings accessible via `InGameOptionsPanel`.
 - **Game Skins**: Game-specific skins for Roulette, Craps, Slots, Bingo, and Darts are implemented, allowing visual customization.

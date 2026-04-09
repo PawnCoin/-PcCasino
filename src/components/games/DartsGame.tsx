@@ -5,6 +5,7 @@ import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useDartsSkin } from '@/hooks/useDartsSkin';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { AvatarSprite, parseAvatarDef } from '@/components/AvatarSprite';
@@ -410,7 +411,8 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       />
       <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
 
-      <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto', background: tableSkin.felt }}>
+      <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto', background: tableSkin.felt, position: 'relative', boxShadow: 'inset 0 0 80px rgba(0,0,0,0.5)' }}>
+        <PremiumFeltOverlay borderRadius="0px" goldBorderInset={10} />
         {/* Board */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 380 }}>
           <div style={{ position: 'relative', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.9), 0 0 0 8px #3E2723', width: '100%', maxWidth: 360, aspectRatio: '1' }}>

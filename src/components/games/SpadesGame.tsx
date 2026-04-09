@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Info, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, Flame, Zap, Volume2, VolumeX } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
@@ -1093,7 +1094,10 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   background: tableSkin.felt,
                   boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4)',
                   zIndex: 2,
-                }} />
+                  overflow: 'hidden',
+                }}>
+                  <PremiumFeltOverlay borderRadius="16px" goldBorderInset={12} />
+                </div>
 
                 {/* $Pc logo engraving in table center — realistic felt engraving */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[3]" style={{ textAlign: 'center' }}>
