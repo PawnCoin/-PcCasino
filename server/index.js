@@ -1786,19 +1786,7 @@ io.on('connection', (socket) => {
 
   socket.on('room:join', ({ roomId, username, balance, avatar, avatarUrl }, cb) => {
     if (roomId === 'roulette-main') {
-      const mainPlayer = players.get(socket.id);
-      const trustedId = (mainPlayer && mainPlayer.id) ? mainPlayer.id : socket.id;
-      const trustedUsername = (mainPlayer && mainPlayer.username) ? mainPlayer.username : (username || 'Guest');
-      const trustedAvatarUrl = mainPlayer ? mainPlayer.avatarUrl : (avatarUrl || null);
-      const trustedAvatar = mainPlayer ? mainPlayer.avatar : (avatar || null);
-      const playerBalance = (mainPlayer && typeof mainPlayer.balance === 'number') ? mainPlayer.balance : 0;
-      const rp = { id: trustedId, socketId: socket.id, username: trustedUsername, avatarUrl: trustedAvatarUrl, avatar: trustedAvatar, betTotal: 0, lastWin: 0, betsLocked: false, balance: playerBalance };
-      rouletteRoom.players.set(socket.id, rp);
-      socket.join('roulette-main');
-      rouletteEnsureTimer();
-      socket.emit('roulette:state', { phase: rouletteRoom.phase, timer: rouletteRoom.timer, roundId: rouletteRoom.roundId, players: rouletteGetPlayers(), history: rouletteRoom.history });
-      rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
-      broadcastLobby();
+      rouletteJoinPlayer();
       if (cb) cb({ success: true, roomId: 'roulette-main' });
       socket.emit('room:joined', { room: { id: 'roulette-main', game: 'roulette', name: 'Roulette Table', players: rouletteGetPlayers(), status: rouletteRoom.phase }, playerId: socket.id });
       return;
@@ -1973,7 +1961,7 @@ io.on('connection', (socket) => {
 
   
     // ---- Multiplayer Roulette Handlers ----
-    socket.on('roulette:join', () => {
+    function rouletteJoinPlayer() {
       const mainPlayer = players.get(socket.id);
       const trustedId = (mainPlayer && mainPlayer.id) ? mainPlayer.id : socket.id;
       const trustedUsername = (mainPlayer && mainPlayer.username) ? mainPlayer.username : 'Guest';
@@ -1990,8 +1978,11 @@ io.on('connection', (socket) => {
       });
       rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
       console.log('[Roulette] ' + rp.username + ' joined (' + rouletteRoom.players.size + ' players)');
-    broadcastLobby();
-    });
+      broadcastLobby();
+      return rp;
+    }
+
+    socket.on('roulette:join', () => { rouletteJoinPlayer(); });
 
     socket.on('roulette:leave', () => {
       const rp = rouletteRoom.players.get(socket.id);

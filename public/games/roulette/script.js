@@ -2294,35 +2294,7 @@ window.addEventListener('beforeunload', function(e) {
     }
   }
 
-  function mp_createPlayerOverlay() {
-    var existing = document.getElementById('mpPlayersOverlay');
-    if (existing) existing.remove();
-    if (!mp_players || mp_players.length <= 1) return;
-    var cont = document.createElement('div');
-    cont.id = 'mpPlayersOverlay';
-    cont.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:9998;display:flex;gap:4px;pointer-events:none;';
-    mp_players.forEach(function(p) {
-      var card = document.createElement('div');
-      card.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(0,0,0,0.8);border-radius:8px;padding:3px 6px;border:1px solid rgba(212,175,55,0.3);min-width:44px;';
-      var av = document.createElement('div');
-      av.style.cssText = 'width:24px;height:24px;border-radius:50%;border:2px solid #D4AF37;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;';
-      if (p.avatarUrl) { av.style.background = 'url(' + p.avatarUrl + ') center/cover'; }
-      else { av.style.background = 'linear-gradient(135deg,#D4AF37,#8B6914)'; av.textContent = (p.username || '?')[0]; }
-      card.appendChild(av);
-      var nm = document.createElement('span');
-      nm.style.cssText = 'font-size:8px;color:#D4AF37;font-weight:600;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-      nm.textContent = p.username || 'Guest';
-      card.appendChild(nm);
-      if (p.betTotal > 0) {
-        var bt = document.createElement('span');
-        bt.style.cssText = 'font-size:7px;color:#22c55e;font-weight:700;';
-        bt.textContent = p.betTotal.toLocaleString() + ' $Pc';
-        card.appendChild(bt);
-      }
-      cont.appendChild(card);
-    });
-    document.body.appendChild(cont);
-  }
+  
 
   window.addEventListener('message', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
@@ -2337,7 +2309,6 @@ window.addEventListener('beforeunload', function(e) {
         mp_spinBlocked = true;
       }
       mp_updateTimerOverlay();
-      mp_createPlayerOverlay();
     }
 
     if (e.data.type === 'roulette:spin') {
@@ -2356,7 +2327,6 @@ window.addEventListener('beforeunload', function(e) {
 
     if (e.data.type === 'roulette:players') {
       mp_players = e.data.players || [];
-      mp_createPlayerOverlay();
     }
   });
   
