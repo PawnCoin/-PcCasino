@@ -86,7 +86,7 @@ const BASE_DIMS: Record<TileSize, { long: number; short: number; pip: number }> 
 };
 const TILE_GAP = 5;
 const TARGET_SCORE = 150;
-const SPEED_DELAYS: Record<GameSpeed, number> = { 1: 2400, 2: 1800, 3: 700, 4: 200 };
+const SPEED_DELAYS: Record<GameSpeed, number> = { 1: 3600, 2: 3000, 3: 2400, 4: 2000 };
 
 const DOM_QUICK_TEXTS = ['Nice draw!', "Can't play!", 'Big score!', 'Good block!', 'Ouch!', 'My turn!', 'Watch this!'];
 const DOM_REACTIONS = ['fire', 'angry', 'party', 'clap', 'skull', 'wave', 'shocked'];
@@ -518,165 +518,152 @@ class DominoAudio {
     if (!this.ctx) this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     return this.ctx;
   }
-  // Soft thud on carpet — dominoes placed on a felt/carpeted surface
-  private carpetThud(loudness = 0.7) {
+  private boneClack(loudness = 0.7) {
     if (this.muted) return;
     try {
       const ctx = this.getCtx(); const sr = ctx.sampleRate;
-      const n = Math.floor(sr * 0.22);
+      const n = Math.floor(sr * 0.25);
       const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
       for (let i = 0; i < n; i++) {
         const t = i / sr;
-        const att = Math.min(t / 0.002, 1.0);
-        const env = Math.exp(-t * 18);
-        // Low thud from the impact
-        const thud = Math.sin(2 * Math.PI * 70 * t) * Math.exp(-t * 30) * 1.2;
-        // Mid crunch from the tile surface
-        const mid  = Math.sin(2 * Math.PI * 280 * t) * Math.exp(-t * 55) * 0.5;
-        // High-freq friction dampened by carpet
-        const fric = (Math.random() * 2 - 1) * Math.exp(-t * 90) * 0.3;
-        d[i] = att * env * (thud + mid + fric) * loudness;
+        const att = Math.min(t / 0.0005, 1.0);
+        const impact = (Math.random() * 2 - 1) * Math.exp(-t * 320) * 0.9;
+        const tableRes = Math.sin(2 * Math.PI * 180 * t) * Math.exp(-t * 60) * 0.7;
+        const bodyRes = Math.sin(2 * Math.PI * 420 * t) * Math.exp(-t * 90) * 0.35;
+        const highClick = Math.sin(2 * Math.PI * 2200 * t) * Math.exp(-t * 500) * 0.4;
+        d[i] = att * (impact + tableRes + bodyRes + highClick) * loudness;
       }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 1200; lp.Q.value = 0.8;
-      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -4; comp.ratio.value = 5; comp.knee.value = 6;
-      const g   = ctx.createGain(); g.gain.value = 1.1;
-      src.connect(lp); lp.connect(comp); comp.connect(g); g.connect(ctx.destination); src.start();
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 80;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4500;
+      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -6; comp.ratio.value = 4;
+      const g = ctx.createGain(); g.gain.value = 1.0;
+      src.connect(hp); hp.connect(lp); lp.connect(comp); comp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
   }
-  private slideNoise(loudness = 0.3) {
+  private boneSlide(loudness = 0.3) {
     if (this.muted) return;
     try {
-      const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.09);
+      const ctx = this.getCtx(); const sr = ctx.sampleRate;
+      const n = Math.floor(sr * 0.12);
       const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
       for (let i = 0; i < n; i++) {
         const t = i / sr;
-        d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 28) * loudness;
+        const env = Math.min(t / 0.003, 1.0) * Math.exp(-t * 22);
+        const scrape = (Math.random() * 2 - 1) * 0.5;
+        const rattle = Math.sin(2 * Math.PI * (600 + Math.random() * 200) * t) * 0.15;
+        d[i] = env * (scrape + rattle) * loudness;
       }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 5000;
-      const g  = ctx.createGain(); g.gain.value = 0.55;
-      src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(ctx.destination); src.start();
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.5;
+      const g = ctx.createGain(); g.gain.value = 0.6;
+      src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
   }
-  private chime(freq: number, delay: number, vol = 0.45) {
-    if (this.muted) return;
-    setTimeout(() => {
-      try {
-        const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.5);
-        const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
-        for (let i = 0; i < n; i++) {
-          const t = i / sr, att = Math.min(t / 0.004, 1);
-          d[i] = att * Math.exp(-t * 6) * (Math.sin(2 * Math.PI * freq * t) * 0.6 + Math.sin(2 * Math.PI * freq * 2.02 * t) * 0.2 + Math.sin(2 * Math.PI * freq * 3.01 * t) * 0.1) * vol;
-        }
-        const src = ctx.createBufferSource(); src.buffer = buf;
-        const g = ctx.createGain(); g.gain.value = 1.0;
-        src.connect(g); g.connect(ctx.destination); src.start();
-      } catch (_) {}
-    }, delay);
-  }
-  // Real knuckle rap on wood table — 3 distinct knocks
   knock() {
     if (this.muted) return;
-    const delays = [0, 95, 190];
+    const delays = [0, 250, 520];
     delays.forEach((delay, ki) => setTimeout(() => {
       try {
         const ctx = this.getCtx(); const sr = ctx.sampleRate;
-        const n = Math.floor(sr * 0.18);
+        const n = Math.floor(sr * 0.22);
         const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
-        const baseFreq = 310 - ki * 15; // slight pitch variation per knock
+        const baseFreq = 240 - ki * 12;
         for (let i = 0; i < n; i++) {
           const t = i / sr;
-          const att = Math.min(t / 0.0008, 1.0);
-          // Bone impact transient
-          const bone = (Math.random() * 2 - 1) * Math.exp(-t * 280) * 0.6;
-          // Table resonance
-          const res  = Math.sin(2 * Math.PI * baseFreq * t) * Math.exp(-t * 45) * 0.9;
-          // Sub thump from the table body
-          const sub  = Math.sin(2 * Math.PI * 120 * t) * Math.exp(-t * 22) * 0.7;
-          d[i] = att * (bone + res + sub) * 0.75;
+          const att = Math.min(t / 0.0006, 1.0);
+          const knuckle = (Math.random() * 2 - 1) * Math.exp(-t * 350) * 0.5;
+          const wood = Math.sin(2 * Math.PI * baseFreq * t) * Math.exp(-t * 35) * 0.8;
+          const sub = Math.sin(2 * Math.PI * 90 * t) * Math.exp(-t * 18) * 0.6;
+          d[i] = att * (knuckle + wood + sub) * 0.7;
         }
         const src = ctx.createBufferSource(); src.buffer = buf;
-        const bp  = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 400; bp.Q.value = 0.6;
-        const g   = ctx.createGain(); g.gain.value = 0.85;
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 350; bp.Q.value = 0.5;
+        const g = ctx.createGain(); g.gain.value = 0.8;
         src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
       } catch (_) {}
     }, delay));
   }
   washSound() {
     if (this.muted) return;
-    for (let k = 0; k < 16; k++) {
+    for (let k = 0; k < 20; k++) {
       setTimeout(() => {
         try {
-          const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.09);
+          const ctx = this.getCtx(); const sr = ctx.sampleRate;
+          const n = Math.floor(sr * 0.08);
           const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
-          for (let i = 0; i < n; i++) { const t = i / sr; d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 50) * 0.6; }
+          for (let i = 0; i < n; i++) {
+            const t = i / sr;
+            const click = (Math.random() * 2 - 1) * Math.exp(-t * 200) * 0.6;
+            const rattle = Math.sin(2 * Math.PI * (800 + Math.random() * 600) * t) * Math.exp(-t * 80) * 0.25;
+            d[i] = (click + rattle) * 0.5;
+          }
           const src = ctx.createBufferSource(); src.buffer = buf;
-          const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.6;
-          const g = ctx.createGain(); g.gain.value = 0.4;
-          src.connect(f); f.connect(g); g.connect(ctx.destination); src.start();
+          const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 0.4;
+          const g = ctx.createGain(); g.gain.value = 0.45;
+          src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
         } catch (_) {}
-      }, k * 145 + Math.random() * 60);
+      }, k * 120 + Math.random() * 80);
     }
   }
-  pickUp() { this.slideNoise(0.45); }
-  // Tile placed on carpeted surface — soft thud + brief friction
-  place()  { this.carpetThud(0.75); setTimeout(() => this.slideNoise(0.18), 30); }
-  draw()   { this.slideNoise(0.3); setTimeout(() => this.carpetThud(0.35), 40); }
+  pickUp() { this.boneSlide(0.4); }
+  place() { this.boneClack(0.8); setTimeout(() => this.boneSlide(0.12), 25); }
+  draw() { this.boneSlide(0.35); setTimeout(() => this.boneClack(0.3), 50); }
   win() {
     if (this.muted) return;
-    // Crowd-cheer swell: noise bursts filtered to simulate crowd + ambient celebration
-    try {
-      const ctx = this.getCtx(); const sr = ctx.sampleRate;
-      const dur = 1.8; const n = Math.floor(sr * dur);
-      const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
-      for (let i = 0; i < n; i++) {
-        const t = i / sr;
-        // Noise shaped with a swell envelope (attack 0.18s, hold, fade)
-        const env = t < 0.18 ? t / 0.18 : Math.exp(-(t - 0.18) * 1.4);
-        // Low crowd rumble with random modulation
-        d[i] = (Math.random() * 2 - 1) * env * (0.55 + 0.35 * Math.sin(2 * Math.PI * 3.5 * t));
-      }
-      const src = ctx.createBufferSource(); src.buffer = buf;
-      // Band-pass to keep crowd-like frequencies (250–2500 Hz)
-      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 250;
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2500;
-      const g = ctx.createGain(); g.gain.value = 0.65;
-      src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(ctx.destination); src.start();
-    } catch (_) {}
-    // A few physical tile-clack celebratory sounds staggered
-    [0, 220, 440].forEach(delay => setTimeout(() => this.carpetThud(0.45), delay));
+    [0, 180, 380, 560].forEach(delay => setTimeout(() => this.boneClack(0.5 + Math.random() * 0.3), delay));
+    setTimeout(() => {
+      try {
+        const ctx = this.getCtx(); const sr = ctx.sampleRate;
+        const dur = 1.2; const n = Math.floor(sr * dur);
+        const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) {
+          const t = i / sr;
+          const env = t < 0.15 ? t / 0.15 : Math.exp(-(t - 0.15) * 2.0);
+          d[i] = (Math.random() * 2 - 1) * env * 0.3;
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.3;
+        const g = ctx.createGain(); g.gain.value = 0.4;
+        src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
+      } catch (_) {}
+    }, 200);
   }
   slam() {
     if (this.muted) return;
+    this.boneClack(1.2);
     try {
-      const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.55);
+      const ctx = this.getCtx(); const sr = ctx.sampleRate;
+      const n = Math.floor(sr * 0.35);
       const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
       for (let i = 0; i < n; i++) {
         const t = i / sr;
-        d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 80) * 1.2 + Math.sin(2 * Math.PI * 48 * t) * Math.exp(-t * 8) * 1.5 + Math.sin(2 * Math.PI * 220 * t) * Math.exp(-t * 25) * 0.8;
+        const thump = Math.sin(2 * Math.PI * 55 * t) * Math.exp(-t * 12) * 1.2;
+        const rattle = (Math.random() * 2 - 1) * Math.exp(-t * 40) * 0.5;
+        d[i] = (thump + rattle);
       }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const g = ctx.createGain(); g.gain.value = 1.4;
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+      const g = ctx.createGain(); g.gain.value = 1.0;
       src.connect(lp); lp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
-    this.carpetThud(1.0);
   }
   crack() {
     if (this.muted) return;
     try {
-      const ctx = this.getCtx(); const sr = ctx.sampleRate, n = Math.floor(sr * 0.6);
+      const ctx = this.getCtx(); const sr = ctx.sampleRate;
+      const n = Math.floor(sr * 0.4);
       const buf = ctx.createBuffer(1, n, sr); const d = buf.getChannelData(0);
       for (let i = 0; i < n; i++) {
-        const t = i / sr, env = t < 0.03 ? t / 0.03 : Math.exp(-(t - 0.03) * 9);
-        d[i] = (Math.random() * 2 - 1) * env * 1.6;
+        const t = i / sr;
+        const snap = (Math.random() * 2 - 1) * Math.exp(-t * 250) * 1.0;
+        const resonance = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 60) * 0.5;
+        d[i] = (snap + resonance);
       }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.4;
-      const g = ctx.createGain(); g.gain.value = 1.8;
-      src.connect(f); f.connect(g); g.connect(ctx.destination); src.start();
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 0.4;
+      const g = ctx.createGain(); g.gain.value = 1.2;
+      src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start();
     } catch (_) {}
   }
 }
@@ -1411,6 +1398,59 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const canPlayTop    = !!activeTile && !chainEmpty && canPlayEnd(activeTile, 'top',    gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
   const canPlayBottom = !!activeTile && !chainEmpty && canPlayEnd(activeTile, 'bottom', gs.leftVal, gs.rightVal, gs.spinnerPlaced, gs.topVal, gs.bottomVal, topBottomOpen);
 
+  const ghostPositions = useMemo(() => {
+    if (!activeTile || chainEmpty) return {};
+    const result: Record<string, { x: number; y: number; w: number; h: number }> = {};
+    const isActiveDouble = activeTile.left === activeTile.right;
+    if (canPlayLeft && chainPositions.length > 0) {
+      const first = chainPositions[0];
+      if (first) {
+        const w = isActiveDouble ? dims.short : dims.long;
+        const h = isActiveDouble ? dims.long : dims.short;
+        result.left = { x: first.x - TILE_GAP - w, y: CANVAS_CY - h / 2, w, h };
+      }
+    }
+    if (canPlayRight && chainPositions.length > 0) {
+      const last = chainPositions[chainPositions.length - 1];
+      if (last) {
+        const w = isActiveDouble ? dims.short : dims.long;
+        const h = isActiveDouble ? dims.long : dims.short;
+        result.right = { x: last.x + last.w + TILE_GAP, y: CANVAS_CY - h / 2, w, h };
+      }
+    }
+    if (canPlayTop && gs.spinnerPlaced) {
+      const spinnerPos = chainPositions[chainCenterIdx];
+      if (spinnerPos) {
+        const spinnerCX = spinnerPos.x + spinnerPos.w / 2;
+        let curY = spinnerPos.y - TILE_GAP;
+        for (let i = 0; i < gs.topChain.length; i++) {
+          const pt = gs.topChain[i];
+          const visH = pt.isDouble ? dims.short : dims.long;
+          curY -= visH + TILE_GAP;
+        }
+        const visW = isActiveDouble ? dims.long : dims.short;
+        const visH = isActiveDouble ? dims.short : dims.long;
+        result.top = { x: spinnerCX - visW / 2, y: curY - visH, w: visW, h: visH };
+      }
+    }
+    if (canPlayBottom && gs.spinnerPlaced) {
+      const spinnerPos = chainPositions[chainCenterIdx];
+      if (spinnerPos) {
+        const spinnerCX = spinnerPos.x + spinnerPos.w / 2;
+        let curY = spinnerPos.y + spinnerPos.h + TILE_GAP;
+        for (let i = 0; i < gs.bottomChain.length; i++) {
+          const pt = gs.bottomChain[i];
+          const visH = pt.isDouble ? dims.short : dims.long;
+          curY += visH + TILE_GAP;
+        }
+        const visW = isActiveDouble ? dims.long : dims.short;
+        const visH = isActiveDouble ? dims.short : dims.long;
+        result.bottom = { x: spinnerCX - visW / 2, y: curY, w: visW, h: visH };
+      }
+    }
+    return result;
+  }, [activeTile, chainEmpty, canPlayLeft, canPlayRight, canPlayTop, canPlayBottom, chainPositions, chainCenterIdx, dims, gs.spinnerPlaced, gs.topChain, gs.bottomChain]);
+
   // AI turn — draws from boneyard if no playable tile before passing
   useEffect(() => {
     if (gs.phase !== 'playing') return;
@@ -1805,86 +1845,6 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                 )}
                 {!chainEmpty && (
                   <>
-                    {/* Left drop zone */}
-                    {activeTile && canPlayLeft && (
-                      <div
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('left'); }}
-                        onDragLeave={() => setDropZoneOver(null)}
-                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('left', id || undefined); setDropZoneOver(null); }}
-                        onClick={() => handlePlayEnd('left')}
-                        style={{
-                          position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-                          width: 54, height: 54, borderRadius: 12, zIndex: 10, cursor: 'pointer',
-                          border: `2px dashed ${dropZoneOver === 'left' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
-                          background: dropZoneOver === 'left' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
-                          animation: 'dropZonePulse 1.4s infinite',
-                          transition: 'all .15s',
-                        }}>
-                        ←<span style={{ fontSize: 10 }}>{gs.leftVal}</span>
-                      </div>
-                    )}
-                    {/* Right drop zone */}
-                    {activeTile && canPlayRight && (
-                      <div
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('right'); }}
-                        onDragLeave={() => setDropZoneOver(null)}
-                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('right', id || undefined); setDropZoneOver(null); }}
-                        onClick={() => handlePlayEnd('right')}
-                        style={{
-                          position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                          width: 54, height: 54, borderRadius: 12, zIndex: 10, cursor: 'pointer',
-                          border: `2px dashed ${dropZoneOver === 'right' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
-                          background: dropZoneOver === 'right' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
-                          animation: 'dropZonePulse 1.4s infinite',
-                          transition: 'all .15s',
-                        }}>
-                        →<span style={{ fontSize: 10 }}>{gs.rightVal}</span>
-                      </div>
-                    )}
-                    {/* Top drop zone */}
-                    {activeTile && canPlayTop && (
-                      <div
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('top'); }}
-                        onDragLeave={() => setDropZoneOver(null)}
-                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('top', id || undefined); setDropZoneOver(null); }}
-                        onClick={() => handlePlayEnd('top')}
-                        style={{
-                          position: 'absolute', left: '50%', top: 10, transform: 'translateX(-50%)',
-                          width: 54, height: 48, borderRadius: 12, zIndex: 10, cursor: 'pointer',
-                          border: `2px dashed ${dropZoneOver === 'top' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
-                          background: dropZoneOver === 'top' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
-                          animation: 'dropZonePulse 1.4s infinite',
-                          transition: 'all .15s',
-                        }}>
-                        ▲<span style={{ fontSize: 10 }}>{gs.topVal}</span>
-                      </div>
-                    )}
-                    {/* Bottom drop zone */}
-                    {activeTile && canPlayBottom && (
-                      <div
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver('bottom'); }}
-                        onDragLeave={() => setDropZoneOver(null)}
-                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd('bottom', id || undefined); setDropZoneOver(null); }}
-                        onClick={() => handlePlayEnd('bottom')}
-                        style={{
-                          position: 'absolute', left: '50%', bottom: 10, transform: 'translateX(-50%)',
-                          width: 54, height: 48, borderRadius: 12, zIndex: 10, cursor: 'pointer',
-                          border: `2px dashed ${dropZoneOver === 'bottom' ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
-                          background: dropZoneOver === 'bottom' ? 'rgba(212,175,55,0.3)' : 'rgba(212,175,55,0.1)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          color: '#D4AF37', fontWeight: 800, fontSize: 13, gap: 2,
-                          animation: 'dropZonePulse 1.4s infinite',
-                          transition: 'all .15s',
-                        }}>
-                        ▼<span style={{ fontSize: 10 }}>{gs.bottomVal}</span>
-                      </div>
-                    )}
                     <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.leftVal}</div>
                     <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 6, padding: '3px 9px', borderRadius: 12, background: 'rgba(0,0,0,.7)', border: '1px solid rgba(212,175,55,.45)', color: '#D4AF37', fontWeight: 800, fontSize: 14 }}>{gs.rightVal}</div>
                     {/* Ends counter — always at bottom-left so it is never blocked by other UI */}
@@ -1936,11 +1896,8 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                           const spinnerCX = spinnerPos.x + spinnerPos.w / 2;
                           const elements: React.ReactNode[] = [];
                           let curY = spinnerPos.y - TILE_GAP;
-                          for (let i = gs.topChain.length - 1; i >= 0; i--) {
+                          for (let i = 0; i < gs.topChain.length; i++) {
                             const pt = gs.topChain[i];
-                            // After 90° CW rotation, a horizontal tile's visual dimensions swap:
-                            // rendered width = original height (dims.short for non-double, dims.long for double)
-                            // rendered height = original width (dims.long for non-double, dims.short for double)
                             const visW = pt.isDouble ? dims.long  : dims.short;
                             const visH = pt.isDouble ? dims.short : dims.long;
                             curY -= visH;
@@ -1991,6 +1948,40 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
                           }
                           return elements;
                         })()}
+                        {/* Ghost domino-shaped placement outlines at exact board positions */}
+                        {activeTile && (['left', 'right', 'top', 'bottom'] as const).map(end => {
+                          const canPlayDir = end === 'left' ? canPlayLeft : end === 'right' ? canPlayRight : end === 'top' ? canPlayTop : canPlayBottom;
+                          const pos = ghostPositions[end];
+                          if (!canPlayDir || !pos) return null;
+                          const isVertical = end === 'top' || end === 'bottom';
+                          return (
+                            <div
+                              key={`ghost-${end}`}
+                              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropZoneOver(end); }}
+                              onDragLeave={() => setDropZoneOver(null)}
+                              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('tileId'); handlePlayEnd(end, id || undefined); setDropZoneOver(null); }}
+                              onClick={() => handlePlayEnd(end)}
+                              style={{
+                                position: 'absolute',
+                                left: pos.x,
+                                top: pos.y,
+                                width: pos.w,
+                                height: pos.h,
+                                borderRadius: 6,
+                                zIndex: 15,
+                                cursor: 'pointer',
+                                border: `2px dashed ${dropZoneOver === end ? '#D4AF37' : 'rgba(212,175,55,0.7)'}`,
+                                background: dropZoneOver === end ? 'rgba(212,175,55,0.25)' : 'rgba(212,175,55,0.08)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexDirection: isVertical ? 'column' : 'row',
+                                color: '#D4AF37', fontWeight: 800, fontSize: 11,
+                                animation: 'dropZonePulse 1.4s infinite',
+                                transition: 'all .15s',
+                              }}>
+                              {end === 'left' ? '←' : end === 'right' ? '→' : end === 'top' ? '▲' : '▼'}
+                            </div>
+                          );
+                        })}
                         {/* Open-end indicators for top/bottom arms — only shown when both sides are played */}
                         {gs.spinnerPlaced && (() => {
                           const spinnerPos = chainPositions[chainCenterIdx];
