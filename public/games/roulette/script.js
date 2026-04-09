@@ -3,7 +3,7 @@ import * as infoConstants from './modules/constants.js';
 import imageManifest from './modules/image-manifest.js';
 import * as btns from './modules/buttons.js';
 
-const DENOMS_DESC = [500000000, 250000000, 100000000, 50000000, 25000000, 10000000, 5000000, 2000000, 1000000];
+const DENOMS_DESC = [500000000, 250000000, 100000000, 50000000, 25000000, 10000000, 5000000, 2000000, 1000000, 500000, 100000, 50000, 25000, 10000, 5000, 1000, 500, 100, 50, 25, 10, 5, 1];
 const FPS = 60;
 const FRAME_DELAY = 1000 / FPS;
 const STACK_STEP = 0.4;
@@ -34,16 +34,30 @@ let buttonName = [];
 let chipsIndex = 0;
 let chipsMenuOpen = document.querySelector('.menu-open');
 const CHIP_COLOR_BY_VALUE = {
-  1000000:   '#ef4444',
-  2000000:   '#3b82f6',
-  5000000:   '#22c55e',
-  10000000:  '#f97316',
-  25000000:  '#374151',
-  50000000:  '#D4AF37',
-  100000000: '#8b5cf6',
-  250000000: '#ec4899',
-  500000000: '#06b6d4',
-};
+    1:         '#f5f5f5',
+    5:         '#ef4444',
+    10:        '#3b82f6',
+    25:        '#22c55e',
+    50:        '#f97316',
+    100:       '#111111',
+    500:       '#7c3aed',
+    1000:      '#eab308',
+    5000:      '#ec4899',
+    10000:     '#14b8a6',
+    25000:     '#84cc16',
+    50000:     '#f43f5e',
+    100000:    '#6366f1',
+    500000:    '#d97706',
+    1000000:   '#ef4444',
+    2000000:   '#3b82f6',
+    5000000:   '#22c55e',
+    10000000:  '#f97316',
+    25000000:  '#374151',
+    50000000:  '#D4AF37',
+    100000000: '#8b5cf6',
+    250000000: '#ec4899',
+    500000000: '#06b6d4',
+  };
 let chipsPutSfx = new Audio(`src/sfx/sfx/chipPut.mp3`);
 let chipsPutSfx2 = new Audio(`src/sfx/sfx/chipPut2.mp3`);
 
@@ -61,16 +75,30 @@ function formatChipLabel(n) {
 }
 
 const ROULETTE_CHIP_STYLES = {
-  1000000:   { body:'#7a0030', bodyL:'#d03055', bodyD:'#3a0010', notch:'#ff6080', notch2:'#900020', ring:'#ef4444', tierRing:'#00E5FF' },
-  2000000:   { body:'#1040a0', bodyL:'#3878f8', bodyD:'#002080', notch:'#6090ff', notch2:'#0030a0', ring:'#3b82f6', tierRing:'#00E5FF' },
-  5000000:   { body:'#0a6028', bodyL:'#20b050', bodyD:'#003810', notch:'#60e080', notch2:'#105020', ring:'#22c55e', tierRing:'#00E5FF' },
-  10000000:  { body:'#a04000', bodyL:'#f97040', bodyD:'#602000', notch:'#ffb060', notch2:'#a04000', ring:'#f97316', tierRing:'#00E5FF' },
-  25000000:  { body:'#2a3040', bodyL:'#485a70', bodyD:'#0a1020', notch:'#D4AF37', notch2:'#8a7020', ring:'#D4AF37', tierRing:'#FFD700' },
-  50000000:  { body:'#906000', bodyL:'#D4AF37', bodyD:'#503800', notch:'#ffe060', notch2:'#a07800', ring:'#D4AF37', tierRing:'#FFD700' },
-  100000000: { body:'#5020a0', bodyL:'#8b5cf6', bodyD:'#280060', notch:'#d0a0ff', notch2:'#6020a0', ring:'#8b5cf6', tierRing:'#E040FB' },
-  250000000: { body:'#a01060', bodyL:'#ec4899', bodyD:'#600030', notch:'#ffb0d8', notch2:'#901050', ring:'#ec4899', tierRing:'#E040FB' },
-  500000000: { body:'#007090', bodyL:'#06b6d4', bodyD:'#004060', notch:'#80f0ff', notch2:'#007090', ring:'#06b6d4', tierRing:'#00BCD4' },
-};
+    1:         { body:'#d0d0d0', bodyL:'#ffffff', bodyD:'#999999', notch:'#ffffff', notch2:'#aaaaaa', ring:'#f5f5f5', tierRing:'#22c55e' },
+    5:         { body:'#7a0030', bodyL:'#d03055', bodyD:'#3a0010', notch:'#ff6080', notch2:'#900020', ring:'#ef4444', tierRing:'#22c55e' },
+    10:        { body:'#1040a0', bodyL:'#3878f8', bodyD:'#002080', notch:'#6090ff', notch2:'#0030a0', ring:'#3b82f6', tierRing:'#22c55e' },
+    25:        { body:'#0a6028', bodyL:'#20b050', bodyD:'#003810', notch:'#60e080', notch2:'#105020', ring:'#22c55e', tierRing:'#22c55e' },
+    50:        { body:'#a04000', bodyL:'#f97040', bodyD:'#602000', notch:'#ffb060', notch2:'#a04000', ring:'#f97316', tierRing:'#22c55e' },
+    100:       { body:'#111111', bodyL:'#333333', bodyD:'#000000', notch:'#D4AF37', notch2:'#8a7020', ring:'#D4AF37', tierRing:'#22c55e' },
+    500:       { body:'#4c1d95', bodyL:'#7c3aed', bodyD:'#2e1065', notch:'#c4b5fd', notch2:'#5b21b6', ring:'#7c3aed', tierRing:'#22c55e' },
+    1000:      { body:'#854d0e', bodyL:'#eab308', bodyD:'#422006', notch:'#fde68a', notch2:'#a16207', ring:'#eab308', tierRing:'#f97316' },
+    5000:      { body:'#a01060', bodyL:'#ec4899', bodyD:'#600030', notch:'#ffb0d8', notch2:'#901050', ring:'#ec4899', tierRing:'#f97316' },
+    10000:     { body:'#0d6e6e', bodyL:'#14b8a6', bodyD:'#053e3e', notch:'#5eead4', notch2:'#0f766e', ring:'#14b8a6', tierRing:'#f97316' },
+    25000:     { body:'#3f6212', bodyL:'#84cc16', bodyD:'#1a2e05', notch:'#bef264', notch2:'#4d7c0f', ring:'#84cc16', tierRing:'#f97316' },
+    50000:     { body:'#9f1239', bodyL:'#f43f5e', bodyD:'#4c0519', notch:'#fda4af', notch2:'#be123c', ring:'#f43f5e', tierRing:'#f97316' },
+    100000:    { body:'#3730a3', bodyL:'#6366f1', bodyD:'#1e1b4b', notch:'#a5b4fc', notch2:'#4338ca', ring:'#6366f1', tierRing:'#f97316' },
+    500000:    { body:'#92400e', bodyL:'#d97706', bodyD:'#451a03', notch:'#fbbf24', notch2:'#b45309', ring:'#d97706', tierRing:'#f97316' },
+    1000000:   { body:'#7a0030', bodyL:'#d03055', bodyD:'#3a0010', notch:'#ff6080', notch2:'#900020', ring:'#ef4444', tierRing:'#00E5FF' },
+    2000000:   { body:'#1040a0', bodyL:'#3878f8', bodyD:'#002080', notch:'#6090ff', notch2:'#0030a0', ring:'#3b82f6', tierRing:'#00E5FF' },
+    5000000:   { body:'#0a6028', bodyL:'#20b050', bodyD:'#003810', notch:'#60e080', notch2:'#105020', ring:'#22c55e', tierRing:'#00E5FF' },
+    10000000:  { body:'#a04000', bodyL:'#f97040', bodyD:'#602000', notch:'#ffb060', notch2:'#a04000', ring:'#f97316', tierRing:'#00E5FF' },
+    25000000:  { body:'#2a3040', bodyL:'#485a70', bodyD:'#0a1020', notch:'#D4AF37', notch2:'#8a7020', ring:'#D4AF37', tierRing:'#FFD700' },
+    50000000:  { body:'#906000', bodyL:'#D4AF37', bodyD:'#503800', notch:'#ffe060', notch2:'#a07800', ring:'#D4AF37', tierRing:'#FFD700' },
+    100000000: { body:'#5020a0', bodyL:'#8b5cf6', bodyD:'#280060', notch:'#d0a0ff', notch2:'#6020a0', ring:'#8b5cf6', tierRing:'#E040FB' },
+    250000000: { body:'#a01060', bodyL:'#ec4899', bodyD:'#600030', notch:'#ffb0d8', notch2:'#901050', ring:'#ec4899', tierRing:'#E040FB' },
+    500000000: { body:'#007090', bodyL:'#06b6d4', bodyD:'#004060', notch:'#80f0ff', notch2:'#007090', ring:'#06b6d4', tierRing:'#00BCD4' },
+  };
 
 function makeChipSVG(value, sizePx) {
   const s = ROULETTE_CHIP_STYLES[value] || ROULETTE_CHIP_STYLES[1000000];
@@ -106,7 +134,7 @@ function makeChipSVG(value, sizePx) {
     + '<circle cx="' + cx + '" cy="' + cy + '" r="' + rMed + '" fill="none" stroke="' + s.ring + '" stroke-width="1.0" opacity="0.4"/>'
     + '<text x="' + cx + '" y="' + (cy - rMed*0.44) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.10) + '" font-weight="900" fill="#111" font-family="Arial Black,Arial,sans-serif" letter-spacing="0.2">$Pc</text>'
     + '<text x="' + cx + '" y="' + (cy + rMed*0.12) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + numFS + '" font-weight="900" fill="#111" font-family="Arial Black,Arial,sans-serif" letter-spacing="-0.5">' + lbl + '</text>'
-    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">— M —</text>'
+    + '<text x="' + cx + '" y="' + (cy + rMed*0.66) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + (size*0.068) + '" font-weight="800" fill="' + s.tierRing + '" font-family="Arial,sans-serif" letter-spacing="1.5" opacity="0.9">' + (val >= 1000000 ? '\u2014 M \u2014' : val >= 1000 ? '\u2014 K \u2014' : '\u2014 $ \u2014') + '</text>'
     + '<ellipse cx="' + (cx - r*0.08) + '" cy="' + (cy - r*0.38) + '" rx="' + (r*0.36) + '" ry="' + (r*0.15) + '" fill="rgba(255,255,255,0.20)"/>'
     + '</svg>';
 }
@@ -1939,62 +1967,57 @@ bindBetGroup(
   'sixain'
 );
 
-btns.allChips.forEach((chip, index) => {
-  chip.addEventListener('click', () =>
-    chipSelect([1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], index + 1, index)
-  );
-});
+btns.allChips.forEach(function(chip, index) {
+    chip.addEventListener('click', function() {
+      chipSelect(infoConstants.chipValues[index], index + 1, index);
+    });
+  });
 
 // ── Casino chip SVG initialization ──────────────────────────────────────────
 (function initChipSVGs() {
-  const chipValues = [1000000, 2000000, 5000000, 10000000, 25000000, 50000000, 100000000, 250000000, 500000000];
-  const selectorPx = Math.round(window.innerHeight * 0.0745);
-  btns.allChips.forEach((btn, i) => {
-    btn.innerHTML = makeChipSVG(chipValues[i], selectorPx);
-    btn.style.background = 'transparent';
-    btn.style.border = 'none';
-    btn.style.boxShadow = 'none';
-  });
-
-  // Init cursor chip
-  const cursorPx = Math.round(window.innerHeight * 0.03);
-  mouseChip.innerHTML = makeChipSVG(chipValues[0], cursorPx);
-  mouseChip.style.background = 'transparent';
-  mouseChip.style.border = 'none';
-  mouseChip.style.boxShadow = 'none';
-
-  // Tier filter tabs
-  const TIER_MAP = {
-    low:  [0, 1, 2, 3],
-    mid:  [4, 5, 6],
-    high: [7, 8],
-    all:  [0, 1, 2, 3, 4, 5, 6, 7, 8],
-  };
-
-  function applyTierFilter(tier) {
-    btns.allChips.forEach((btn, i) => {
-      const show = TIER_MAP[tier].includes(i);
-      btn.style.display = show ? 'inline-flex' : 'none';
+    var chipValues = infoConstants.chipValues;
+    var selectorPx = Math.round(window.innerHeight * 0.0745);
+    btns.allChips.forEach(function(btn, i) {
+      if (i < chipValues.length) {
+        btn.innerHTML = makeChipSVG(chipValues[i], selectorPx);
+        btn.style.background = 'transparent';
+        btn.style.border = 'none';
+        btn.style.boxShadow = 'none';
+      } else {
+        btn.style.display = 'none';
+      }
     });
-    // If currently selected chip is hidden, auto-select first visible chip in tier
-    const currentIdx = Array.from(btns.allChips).indexOf(lastSelectedChip);
-    if (!TIER_MAP[tier].includes(currentIdx)) {
-      const firstVisible = TIER_MAP[tier][0];
-      btns.allChips[firstVisible].click();
+    var cursorPx = Math.round(window.innerHeight * 0.03);
+    mouseChip.innerHTML = makeChipSVG(chipValues[0], cursorPx);
+    mouseChip.style.background = 'transparent';
+    mouseChip.style.border = 'none';
+    mouseChip.style.boxShadow = 'none';
+    var TIER_MAP = {
+      low:  [0, 1, 2, 3, 4, 5, 6],
+      mid:  [7, 8, 9, 10, 11, 12, 13],
+      high: [14, 15, 16, 17, 18, 19, 20, 21, 22],
+      all:  Array.from({length: chipValues.length}, function(_, i) { return i; }),
+    };
+    function applyTierFilter(tier) {
+      btns.allChips.forEach(function(btn, i) {
+        var show = TIER_MAP[tier].includes(i);
+        btn.style.display = show ? 'inline-flex' : 'none';
+      });
+      var currentIdx = Array.from(btns.allChips).indexOf(lastSelectedChip);
+      if (!TIER_MAP[tier].includes(currentIdx)) {
+        var firstVisible = TIER_MAP[tier][0];
+        btns.allChips[firstVisible].click();
+      }
     }
-  }
-
-  document.querySelectorAll('.chipTierTab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.chipTierTab').forEach(t => t.classList.remove('active-tier'));
-      tab.classList.add('active-tier');
-      applyTierFilter(tab.dataset.tier);
+    document.querySelectorAll('.chipTierTab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.chipTierTab').forEach(function(t) { t.classList.remove('active-tier'); });
+        tab.classList.add('active-tier');
+        applyTierFilter(tab.dataset.tier);
+      });
     });
-  });
-
-  // Start on low tier (1M-10M)
-  applyTierFilter('low');
-})();
+    applyTierFilter('low');
+  })();
 
 btns.betCompleteBtn.addEventListener('click', () => {
   if (betStart) {
@@ -2065,7 +2088,7 @@ btns.statisticBtn.addEventListener('click', () =>
 
 fastBet.forEach((btn, index) => {
   btn.addEventListener('click', () => {
-    fastChips([10000000, 25000000, 50000000, 100000000, 250000000, 500000000][index], [4, 5, 6, 7, 8, 9][index]);
+    fastChips(infoConstants.chipValues[[17,18,19,20,21,22][index]], [18,19,20,21,22,23][index]);
   });
 });
 
