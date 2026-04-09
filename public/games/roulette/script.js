@@ -512,12 +512,15 @@ function checkMoney() {
     'disabledCircleBtns',
     money < betSize || betSize == 0
   );
-  for (let j = 3; j < values.length; j++) {
-    const enabled = money >= values[j];
-    const el = fastBet[j - 3];
-    el.style.filter = enabled ? 'grayscale(0)' : 'grayscale(1)';
-    el.style.pointerEvents = enabled ? 'all' : 'none';
-  }
+  var fbChipIndices = [17,18,19,20,21,22];
+    for (var j = 0; j < fastBet.length; j++) {
+      var fbVal = values[fbChipIndices[j]] || 0;
+      var enabled = money >= fbVal;
+      var el = fastBet[j];
+      if (!el) continue;
+      el.style.filter = enabled ? 'grayscale(0)' : 'grayscale(1)';
+      el.style.pointerEvents = enabled ? 'all' : 'none';
+    }
 }
 
 function chipHandler(e) {
@@ -1030,14 +1033,14 @@ function handleScroll(e) {
   if (money <= 0 || betStart || menuOpen) return;
   const delta = e.deltaY ?? e.detail ?? e.wheelDelta ?? 0;
   const chips = Array.from(btns.allChips);
-  if (delta > 0 && bet !== 1000000) {
+  if (delta > 0 && bet !== infoConstants.chipValues[0]) {
     for (let i = chipsIndex - 1; i >= 0; i--) {
       if (chips[i] && chips[i].style.display !== 'none') {
         chips[i].click();
         break;
       }
     }
-  } else if (delta < 1 && bet !== 500000000) {
+  } else if (delta < 1 && bet !== infoConstants.chipValues[infoConstants.chipValues.length - 1]) {
     for (let i = chipsIndex + 1; i < chips.length; i++) {
       if (chips[i] && chips[i].style.display !== 'none' && chips[i].style.pointerEvents !== 'none') {
         chips[i].click();
