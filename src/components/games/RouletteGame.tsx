@@ -599,6 +599,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         reactions={reactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom' }}
       />
       <style>{`
         @keyframes rouletteChipDrop {

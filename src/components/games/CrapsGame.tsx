@@ -836,6 +836,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
         reactions={reactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom' }}
       />
     <div 
       className="h-screen flex flex-col overflow-hidden"

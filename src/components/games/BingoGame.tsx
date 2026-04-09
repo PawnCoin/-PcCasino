@@ -762,6 +762,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         reactions={reactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom' }}
       />
       <style>{`
         @keyframes hb0{0%{transform:translate(0,0) rotate(-5deg)}25%{transform:translate(42px,-32px) rotate(14deg)}50%{transform:translate(85px,-6px) rotate(-10deg)}75%{transform:translate(40px,30px) rotate(12deg)}100%{transform:translate(0,0) rotate(-5deg)}}

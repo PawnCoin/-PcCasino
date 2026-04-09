@@ -299,6 +299,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         reactions={reactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom' }}
       />
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
         <InGameTopBar

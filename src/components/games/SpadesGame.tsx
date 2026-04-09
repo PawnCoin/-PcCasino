@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Info, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, Flame, Zap } from 'lucide-react';
+import { Info, Settings, Trophy, RotateCcw, ChevronRight, Star, Shield, Crown, Flame, Zap, Volume2, VolumeX } from 'lucide-react';
 import { useTableSkin } from '@/hooks/useTableSkin';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -87,7 +87,7 @@ const PLAYER_TEXT_COLORS = ['text-[#D4AF37]', 'text-[#ef5350]', 'text-[#64b5f6]'
 
 export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWallet, cardBackStyle }: SpadesGameProps) {
   const { activeSkin: tableSkin } = useTableSkin();
-  const { playSound } = useSoundEffects();
+  const { playSound, isMuted, toggleMute } = useSoundEffects();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
 
@@ -152,6 +152,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [animatingBook, setAnimatingBook] = useState<string | null>(null);
   const [smackMode, setSmackMode] = useState(false);
   const [smackActive, setSmackActive] = useState(false);
+  const [trickAnnouncement, setTrickAnnouncement] = useState<{ winner: string; leadsNext: boolean } | null>(null);
 
   // Disarm smack if the player's turn ends before they play a card
   useEffect(() => {
@@ -326,7 +327,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     const rotation = (Math.random() - 0.5) * 28;
     setTossCard({ card, rotation, fromPlayer: true, playerIdx: 0 });
     if (smackMode) {
-      playSound('ballLand');
+      playSound('smack');
       setSmackMode(false);
       setSmackActive(true);
       setTimeout(() => setSmackActive(false), 700);
@@ -460,21 +461,23 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     setAnimatingBook(winner);
     setTimeout(() => setAnimatingBook(null), 1100);
     playSound('shuffle');
+    setTrickAnnouncement({ winner: wname, leadsNext: false });
+    setTimeout(() => setTrickAnnouncement({ winner: wname, leadsNext: true }), Math.round(800 / gameSpeed));
+    setTimeout(() => setTrickAnnouncement(null), Math.round(2200 / gameSpeed));
     setTimeout(() => setTrickWinner(null), Math.round(1300 / gameSpeed));
     const winnerIdx = newPlayers.findIndex(p => p.id === winner);
     setCurrentPlayer(winnerIdx);
     if (newCompleted.length >= 13) {
       setMessage(`${wname} won the last trick!`);
-      setTimeout(() => scoreRound(newPlayers), Math.round(1700 / gameSpeed));
+      setTimeout(() => scoreRound(newPlayers), Math.round(2400 / gameSpeed));
     } else if (winnerIdx === 0) {
-      // Player won — they lead next
       setTimeout(() => {
         setIsAIThinking(false);
         setMessage('You won the trick! Your lead — play a card!');
-      }, Math.round(1300 / gameSpeed));
+      }, Math.round(2200 / gameSpeed));
     } else {
       setMessage(`${wname} won the trick!`);
-      setTimeout(() => startNewTrick(winnerIdx, newPlayers, spadesBroken), Math.round(1600 / gameSpeed));
+      setTimeout(() => startNewTrick(winnerIdx, newPlayers, spadesBroken), Math.round(2400 / gameSpeed));
     }
   };
 
@@ -706,31 +709,31 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             35%  { transform: translate(-50%, -50%) scale(0.92) rotate(var(--tr)); opacity: 1; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.7)); }
             55%  { transform: translate(-50%, -50%) scale(1.04) rotate(var(--tr)); opacity: 1; }
             72%  { transform: translate(-50%, -50%) scale(1.0) rotate(var(--tr)); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(0.88) rotate(var(--tr)); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1.0) rotate(var(--tr)); opacity: 1; }
           }
           @keyframes cardSlideIn-0 {
             0%   { transform: translate(-50%,120px) rotate(calc(var(--tr) + 15deg)) scale(0.65); opacity: 0; }
-            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
-            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
-            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
           }
           @keyframes cardSlideIn-1 {
             0%   { transform: translate(-50%,-50%) translateX(-120px) rotate(calc(var(--tr) - 18deg)) scale(0.65); opacity: 0; }
-            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
-            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
-            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
           }
           @keyframes cardSlideIn-2 {
             0%   { transform: translate(-50%,-50%) translateY(-110px) rotate(calc(var(--tr) + 12deg)) scale(0.65); opacity: 0; }
-            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
-            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
-            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
           }
           @keyframes cardSlideIn-3 {
             0%   { transform: translate(-50%,-50%) translateX(120px) rotate(calc(var(--tr) - 14deg)) scale(0.65); opacity: 0; }
-            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.12); opacity: 1; }
-            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.02); opacity: 1; }
-            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(0.9); opacity: 0; }
+            42%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.05); opacity: 1; }
+            70%  { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%,-50%) rotate(var(--tr)) scale(1.0); opacity: 1; }
           }
           @keyframes slideToCenter-0 {
             0%  { transform: translateY(80px) scale(0.8) rotate(var(--tr)); opacity: 0; }
@@ -1027,7 +1030,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </div>
                   </div>
                 </div>
-                {/* Speed control strip */}
+                {/* Speed control strip + Sound toggle */}
                 <div className="flex items-center gap-2 px-3 pb-1.5">
                   <span className="text-[10px] text-gray-600 shrink-0">Speed:</span>
                   {[0.5, 1, 1.5, 2, 3].map(s => (
@@ -1038,6 +1041,18 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     </button>
                   ))}
                   <span className="text-[10px] text-gray-600 ml-auto shrink-0">{gameSpeed === 0.5 ? 'Slow' : gameSpeed >= 3 ? 'Turbo' : gameSpeed >= 2 ? 'Fast' : gameSpeed >= 1.5 ? 'Quick' : 'Normal'}</span>
+                  <button
+                    onClick={toggleMute}
+                    title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
+                    className="ml-2 p-1 rounded-full transition-all"
+                    style={{
+                      background: isMuted ? 'rgba(239,83,80,0.2)' : 'rgba(212,175,55,0.15)',
+                      border: `1px solid ${isMuted ? 'rgba(239,83,80,0.4)' : 'rgba(212,175,55,0.3)'}`,
+                      color: isMuted ? '#ef5350' : '#D4AF37',
+                    }}
+                  >
+                    {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               </div>
 
@@ -1051,12 +1066,12 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   overflow: 'hidden',
                 }}
               >
-                {/* ══ OVAL TABLE LAYERS ══ */}
+                {/* ══ ROUNDED SQUARE TABLE LAYERS ══ */}
                 {/* Leather outer ring */}
                 <div className="absolute pointer-events-none" style={{
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  width: '90%', height: '94%', minHeight: 260, minWidth: 260,
-                  borderRadius: '50%',
+                  width: '82%', height: '88%', minHeight: 240, minWidth: 240, maxWidth: 520, maxHeight: 420,
+                  borderRadius: '28px',
                   background: 'radial-gradient(ellipse at 38% 30%, #4a2208 0%, #2a1205 45%, #1a0902 100%)',
                   boxShadow: '0 8px 60px rgba(0,0,0,0.85), 0 2px 8px rgba(0,0,0,0.6), inset 0 2px 6px rgba(255,255,255,0.05)',
                   zIndex: 0,
@@ -1064,8 +1079,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* Wood-grain rail */}
                 <div className="absolute pointer-events-none" style={{
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  width: 'calc(90% - 16px)', height: 'calc(94% - 12px)', minHeight: 248, minWidth: 248,
-                  borderRadius: '50%',
+                  width: 'calc(82% - 16px)', height: 'calc(88% - 12px)', minHeight: 228, minWidth: 228, maxWidth: 504, maxHeight: 408,
+                  borderRadius: '22px',
                   background: 'conic-gradient(from 0deg, #8B5E3C 0%, #6B4226 8%, #9a6a44 16%, #5a3418 24%, #8B5E3C 32%, #7a5230 40%, #9a6742 48%, #6B4226 56%, #8B5E3C 64%, #5a3418 72%, #9a6a44 80%, #7a5230 88%, #8B5E3C 100%)',
                   boxShadow: 'inset 0 3px 10px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(255,255,255,0.06)',
                   zIndex: 1,
@@ -1073,15 +1088,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 {/* Felt surface */}
                 <div className="absolute pointer-events-none" style={{
                   top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  width: 'calc(90% - 48px)', height: 'calc(94% - 38px)', minHeight: 222, minWidth: 212,
-                  borderRadius: '50%',
+                  width: 'calc(82% - 48px)', height: 'calc(88% - 38px)', minHeight: 202, minWidth: 192, maxWidth: 472, maxHeight: 382,
+                  borderRadius: '16px',
                   background: tableSkin.felt,
                   boxShadow: 'inset 0 0 40px rgba(0,0,0,0.4)',
                   zIndex: 2,
                 }} />
 
                 {/* $Pc logo engraving in table center — realistic felt engraving */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[1]" style={{ textAlign: 'center' }}>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-[3]" style={{ textAlign: 'center' }}>
                   <div style={{
                     fontFamily: "'Cinzel',serif", fontSize: 52, lineHeight: 1,
                     color: 'transparent',
@@ -1110,6 +1125,88 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
                 {/* $Pc watermark */}
                 <TableBrand style={{ opacity: 0.09 }} />
+
+                {/* ── BOOK STACKS ON TABLE ── */}
+                {gamePhase === 'playing' && (
+                  <>
+                    {/* You (bottom) book stack */}
+                    {bookStacks[0] > 0 && (
+                      <div className="absolute z-[5]" style={{ bottom: '18%', left: '50%', transform: 'translateX(-50%)' }}>
+                        <div className="flex items-center gap-1">
+                          <div style={{ position: 'relative', width: 24, height: 16 }}>
+                            {[0,1,2].map(layer => (
+                              <div key={layer} style={{ position: 'absolute', width: 16, height: 20, borderRadius: 2, background: animatingBook === 'you' ? '#FFD700' : '#43A047', border: '1px solid rgba(255,255,255,0.3)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 4px rgba(0,0,0,0.5)', transition: 'background 0.3s' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 900, color: animatingBook === 'you' ? '#FFD700' : '#43A047', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>×{bookStacks[0]}</span>
+                        </div>
+                      </div>
+                    )}
+                    {/* West (left) book stack */}
+                    {bookStacks[1] > 0 && (
+                      <div className="absolute z-[5]" style={{ left: '18%', top: '50%', transform: 'translateY(-50%)' }}>
+                        <div className="flex items-center gap-1">
+                          <div style={{ position: 'relative', width: 24, height: 16 }}>
+                            {[0,1,2].map(layer => (
+                              <div key={layer} style={{ position: 'absolute', width: 16, height: 20, borderRadius: 2, background: animatingBook === 'p2' ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.3)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 4px rgba(0,0,0,0.5)', transition: 'background 0.3s' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 900, color: animatingBook === 'p2' ? '#D4AF37' : '#ef5350', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>×{bookStacks[1]}</span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Partner (top) book stack */}
+                    {bookStacks[2] > 0 && (
+                      <div className="absolute z-[5]" style={{ top: '18%', left: '50%', transform: 'translateX(-50%)' }}>
+                        <div className="flex items-center gap-1">
+                          <div style={{ position: 'relative', width: 24, height: 16 }}>
+                            {[0,1,2].map(layer => (
+                              <div key={layer} style={{ position: 'absolute', width: 16, height: 20, borderRadius: 2, background: animatingBook === 'p3' ? '#D4AF37' : '#4CAF50', border: '1px solid rgba(255,255,255,0.3)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 4px rgba(0,0,0,0.5)', transition: 'background 0.3s' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 900, color: animatingBook === 'p3' ? '#D4AF37' : '#4CAF50', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>×{bookStacks[2]}</span>
+                        </div>
+                      </div>
+                    )}
+                    {/* East (right) book stack */}
+                    {bookStacks[3] > 0 && (
+                      <div className="absolute z-[5]" style={{ right: '18%', top: '50%', transform: 'translateY(-50%)' }}>
+                        <div className="flex items-center gap-1">
+                          <div style={{ position: 'relative', width: 24, height: 16 }}>
+                            {[0,1,2].map(layer => (
+                              <div key={layer} style={{ position: 'absolute', width: 16, height: 20, borderRadius: 2, background: animatingBook === 'p4' ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.3)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 4px rgba(0,0,0,0.5)', transition: 'background 0.3s' }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 900, color: animatingBook === 'p4' ? '#D4AF37' : '#ef5350', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>×{bookStacks[3]}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ── TRICK WINNER ANNOUNCEMENT ── */}
+                {trickAnnouncement && (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 z-40 pointer-events-none" style={{ transform: 'translate(-50%, -120%)' }}>
+                    <div style={{
+                      background: 'rgba(0,0,0,0.9)',
+                      border: '2px solid #D4AF37',
+                      borderRadius: 14,
+                      padding: '10px 24px',
+                      textAlign: 'center',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.8), 0 0 20px rgba(212,175,55,0.3)',
+                      animation: 'thoughtBubblePop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+                    }}>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: '#D4AF37', letterSpacing: '0.03em' }}>
+                        {trickAnnouncement.winner === 'You' ? '🏆 You won the trick!' : `🏆 ${trickAnnouncement.winner} won the trick!`}
+                      </div>
+                      {trickAnnouncement.leadsNext && (
+                        <div style={{ fontSize: 12, color: '#C0C0C0', marginTop: 4, fontWeight: 600 }}>
+                          {trickAnnouncement.winner === 'You' ? 'Your lead next' : `${trickAnnouncement.winner} leads next`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* ── PARTNER (TOP) ── */}
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-10">
@@ -1144,16 +1241,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div>
                       <div className="text-xs font-bold text-white">{players[2].name}</div>
                       <div className="text-xs text-white/60">{players[2].nilBid ? '🚫NIL' : `Bid: ${players[2].bid ?? '?'}`} · {players[2].tricks}✓</div>
-                      {gamePhase === 'playing' && bookStacks[2] > 0 && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <div style={{ position: 'relative', width: 20, height: 14 }}>
-                            {[0,1,2].map(layer => (
-                              <div key={layer} style={{ position: 'absolute', width: 12, height: 16, borderRadius: 2, background: animatingBook === 'p3' ? '#D4AF37' : '#4CAF50', border: '1px solid rgba(255,255,255,0.25)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'background 0.3s' }} />
-                            ))}
-                          </div>
-                          <span style={{ fontSize: 9, fontWeight: 800, color: '#43A047', letterSpacing: '0.02em' }}>×{bookStacks[2]}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -1190,16 +1277,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-xs font-bold text-white">{players[1].name}</div>
                     <div className="text-[10px] text-white/60">{players[1].nilBid ? '🚫NIL' : `Bid: ${players[1].bid ?? '?'}`}</div>
                     <div className="text-[10px] text-white/60">{players[1].tricks}✓</div>
-                    {gamePhase === 'playing' && bookStacks[1] > 0 && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <div style={{ position: 'relative', width: 20, height: 14 }}>
-                          {[0,1,2].map(layer => (
-                            <div key={layer} style={{ position: 'absolute', width: 12, height: 16, borderRadius: 2, background: animatingBook === 'p2' ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.25)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'background 0.3s' }} />
-                          ))}
-                        </div>
-                        <span style={{ fontSize: 9, fontWeight: 800, color: '#ef5350', letterSpacing: '0.02em' }}>×{bookStacks[1]}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1235,16 +1312,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                     <div className="text-xs font-bold text-white">{players[3].name}</div>
                     <div className="text-[10px] text-white/60">{players[3].nilBid ? '🚫NIL' : `Bid: ${players[3].bid ?? '?'}`}</div>
                     <div className="text-[10px] text-white/60">{players[3].tricks}✓</div>
-                    {gamePhase === 'playing' && bookStacks[3] > 0 && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <div style={{ position: 'relative', width: 20, height: 14 }}>
-                          {[0,1,2].map(layer => (
-                            <div key={layer} style={{ position: 'absolute', width: 12, height: 16, borderRadius: 2, background: animatingBook === 'p4' ? '#D4AF37' : '#ef5350', border: '1px solid rgba(255,255,255,0.25)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 3px rgba(0,0,0,0.4)', transition: 'background 0.3s' }} />
-                          ))}
-                        </div>
-                        <span style={{ fontSize: 9, fontWeight: 800, color: '#ef5350', letterSpacing: '0.02em' }}>×{bookStacks[3]}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1273,16 +1340,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   <div>
                     <div className="text-sm font-bold text-white">You</div>
                     <div className="text-xs text-white/60">{players[0].nilBid ? '🚫NIL' : players[0].blindNilBid ? '🔮BNIL' : `Bid: ${players[0].bid ?? '?'}`} · {players[0].tricks}✓</div>
-                    {gamePhase === 'playing' && bookStacks[0] > 0 && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <div style={{ position: 'relative', width: 22, height: 14 }}>
-                          {[0,1,2].map(layer => (
-                            <div key={layer} style={{ position: 'absolute', width: 14, height: 18, borderRadius: 2, background: animatingBook === 'you' ? '#FFD700' : '#43A047', border: '1px solid rgba(255,255,255,0.3)', left: layer * 3, top: layer * -2, boxShadow: '0 1px 4px rgba(0,0,0,0.5)', transition: 'background 0.3s' }} />
-                          ))}
-                        </div>
-                        <span style={{ fontSize: 10, fontWeight: 900, color: animatingBook === 'you' ? '#FFD700' : '#43A047', letterSpacing: '0.02em', transition: 'color 0.3s' }}>×{bookStacks[0]}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1515,7 +1572,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
 
               {/* ── YOUR HAND ── shown during bidding AND playing */}
               {(gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
-                <div style={{ background: 'linear-gradient(180deg, rgba(8,8,14,0.95) 0%, rgba(5,5,10,1) 100%)', borderTop: '2px solid rgba(93,64,55,0.5)', padding: '10px 8px 12px', position: 'relative' }}>
+                <div style={{ background: 'linear-gradient(180deg, rgba(8,8,14,0.95) 0%, rgba(5,5,10,1) 100%)', borderTop: '2px solid rgba(93,64,55,0.5)', padding: '10px 8px 12px', position: 'relative', zIndex: 20 }}>
                   {/* Reaction buttons + SMACK */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
                     <div className="flex gap-1 items-center">

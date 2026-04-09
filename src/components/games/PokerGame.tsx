@@ -929,6 +929,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         reactions={reactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom', ai1: 'left', ai2: 'top', ai3: 'right' }}
       />
       <div className="h-screen bg-[#0a0a0a] relative flex flex-col overflow-hidden">
         <style>{`

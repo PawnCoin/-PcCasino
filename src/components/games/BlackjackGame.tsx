@@ -464,6 +464,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
         reactions={reactions}
         winBursts={winBursts}
         onBurstComplete={removeBurst}
+        playerPositions={{ you: 'bottom', dealer: 'top' }}
       />
       <div className="h-screen bg-[#0a0a0a] flex flex-col overflow-hidden">
         <InGameTopBar

@@ -353,7 +353,7 @@ export function TableBrand({ className, style }: TableBrandProps) {
         left: '50%',
         transform: 'translate(-50%, 50%)',
         pointerEvents: 'none',
-        zIndex: 1,
+        zIndex: 3,
         userSelect: 'none',
         display: 'flex',
         flexDirection: 'column',
