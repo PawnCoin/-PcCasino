@@ -122,7 +122,108 @@
 
                 _pcPatchContinuousPlay();
                 _pcPatchChipSystem();
+                _pcReplaceChipSprites();
             });
+
+            function _pcDrawGoldChip(size, ringColor, accentColor) {
+                var c = document.createElement('canvas');
+                c.width = size; c.height = size;
+                var ctx = c.getContext('2d');
+                var cx = size / 2, cy = size / 2, r = size / 2 - 1;
+
+                ctx.save();
+                var grad = ctx.createRadialGradient(cx - r * 0.25, cy - r * 0.3, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#FFE066');
+                grad.addColorStop(0.35, '#D4AF37');
+                grad.addColorStop(0.7, '#B8860B');
+                grad.addColorStop(1, '#8B6914');
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255,240,180,0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r - 3, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.strokeStyle = ringColor || 'rgba(255,255,255,0.35)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r - 6, 0, Math.PI * 2);
+                ctx.stroke();
+
+                var notches = 12;
+                for (var ni = 0; ni < notches; ni++) {
+                    var ang = (ni / notches) * Math.PI * 2;
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(ang);
+                    ctx.fillStyle = accentColor || 'rgba(255,220,120,0.5)';
+                    ctx.fillRect(r - 4, -1.2, 3, 2.4);
+                    ctx.restore();
+                }
+
+                ctx.font = 'bold ' + Math.round(size * 0.2) + 'px Impact, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillText('$Pc', cx + 0.5, cy + 0.5);
+                ctx.fillStyle = '#FFF8DC';
+                ctx.fillText('$Pc', cx, cy);
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(139,105,20,0.7)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.restore();
+                return c;
+            }
+
+            function _pcReplaceChipSprites() {
+                var chipStyles = [
+                    { ring: 'rgba(255,180,40,0.6)', accent: 'rgba(255,200,80,0.6)' },
+                    { ring: 'rgba(255,255,255,0.45)', accent: 'rgba(255,255,200,0.5)' },
+                    { ring: 'rgba(30,30,30,0.7)', accent: 'rgba(80,80,80,0.5)' },
+                    { ring: 'rgba(40,180,40,0.5)', accent: 'rgba(100,220,100,0.5)' },
+                    { ring: 'rgba(200,40,40,0.5)', accent: 'rgba(255,100,100,0.5)' },
+                    { ring: 'rgba(100,100,100,0.5)', accent: 'rgba(180,180,180,0.5)' }
+                ];
+
+                var _checkLib = setInterval(function () {
+                    if (typeof s_oSpriteLibrary === 'undefined' || !s_oSpriteLibrary) return;
+                    var test = s_oSpriteLibrary.getSprite('fiche_0');
+                    if (!test || !test.width) return;
+                    clearInterval(_checkLib);
+
+                    for (var i = 0; i < chipStyles.length; i++) {
+                        var key = 'fiche_' + i;
+                        var orig = s_oSpriteLibrary.getSprite(key);
+                        if (!orig) continue;
+                        var w = orig.width || 43, h = orig.height || 44;
+                        var chipCanvas = _pcDrawGoldChip(Math.max(w, h), chipStyles[i].ring, chipStyles[i].accent);
+                        var img = new Image();
+                        img.width = w;
+                        img.height = h;
+                        (function(k, imgRef) {
+                            imgRef.onload = function () {
+                                try {
+                                    var entry = s_oSpriteLibrary.getSprite(k);
+                                    if (entry) {
+                                        entry.src = imgRef.src;
+                                        entry.width = imgRef.width;
+                                        entry.height = imgRef.height;
+                                    }
+                                } catch(e) {}
+                            };
+                            imgRef.src = chipCanvas.toDataURL('image/png');
+                        })(key, img);
+                    }
+                }, 200);
+            }
 
             function _pcAutoReturnToBetting() {
                 if (_pcGamePhase !== 'result') return;
@@ -159,7 +260,6 @@
                         _origGotoBetPanel();
                         _pcGamePhase = 'betting';
                         window.parent.postMessage({ type: 'hr:phase', phase: 'betting' }, '*');
-                        setTimeout(_pcHideNativeChips, 200);
                     };
                 }, 100);
             }
@@ -196,11 +296,17 @@
                         _OrigCChipPanel.call(this, x, y, container);
                         try {
                             for (var i = beforeCount; i < container.numChildren; i++) {
-                                var child = container.getChildAt(i);
-                                if (child) {
-                                    child.alpha = 0;
-                                    child.mouseEnabled = false;
-                                    if (child.visible !== undefined) child.visible = false;
+                                var panelContainer = container.getChildAt(i);
+                                if (!panelContainer || !panelContainer.numChildren) continue;
+                                for (var j = 0; j < panelContainer.numChildren; j++) {
+                                    var inner = panelContainer.getChildAt(j);
+                                    if (!inner) continue;
+                                    var isStartBtn = inner.y >= 280 && inner.y <= 340 && inner.numChildren !== undefined;
+                                    if (!isStartBtn) {
+                                        inner.alpha = 0;
+                                        inner.mouseEnabled = false;
+                                        if (inner.visible !== undefined) inner.visible = false;
+                                    }
                                 }
                             }
                         } catch (e) {}
@@ -208,28 +314,6 @@
                     };
                     CChipPanel.prototype = _OrigCChipPanel.prototype;
                 }, 50);
-            }
-
-            function _pcHideNativeChips() {
-                try {
-                    if (typeof s_oStage === 'undefined' || !s_oStage) return;
-                    var stage = s_oStage;
-                    for (var ci = 0; ci < stage.numChildren; ci++) {
-                        var child = stage.getChildAt(ci);
-                        if (!child || !child.numChildren) continue;
-                        for (var gi = 0; gi < child.numChildren; gi++) {
-                            var gc = child.getChildAt(gi);
-                            if (!gc) continue;
-                            var isFiche = gc.x >= 980 && gc.x <= 1080 && gc.y >= 280 && gc.y <= 620;
-                            var hasInteract = gc.cursor === 'pointer' || typeof gc._listeners !== 'undefined';
-                            if (isFiche && hasInteract) {
-                                gc.alpha = 0;
-                                gc.mouseEnabled = false;
-                                if (gc.visible !== undefined) gc.visible = false;
-                            }
-                        }
-                    }
-                } catch (e) {}
             }
 
             function _pcApplyScenery(filter) {
