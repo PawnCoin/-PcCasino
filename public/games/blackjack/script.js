@@ -17,7 +17,7 @@ const pairs = document.querySelectorAll('.pairs');
 const plus = document.querySelectorAll('.plus23');
 const superSevens = document.querySelectorAll('.superSevens');
 const royal = document.querySelectorAll('.royal');
-const chips = document.querySelectorAll('.chips');
+let chips = document.querySelectorAll('.chips');
 const cardScore = document.querySelectorAll('.cardScore');
 const insuranceBtn = document.querySelector('#insuranceBtn');
 const undoBtn = document.querySelector('#undoBtn');
@@ -52,9 +52,20 @@ const zoneInsuranceChips = [[], [], []];
 const zoneSurrenderChips = [[], [], [], [], [], []];
 const betHistory = [];
 const BASE_ZONES = ['betZone1', 'betZone2', 'betZone3'];
-const chipValues = [1000000, 5000000, 10000000, 25000000, 100000000, 500000000];
-const CHIP_IMG_MAP = {1000000: 1, 5000000: 5, 10000000: 10, 25000000: 25, 100000000: 100, 500000000: 1000};
-function chipImg(v) { return 'src/images/chips/chip' + (CHIP_IMG_MAP[v] || v) + '.png'; }
+const CHIP_TIER_STANDARD  = [1, 5, 10, 25, 50, 100, 500];
+const CHIP_TIER_THOUSANDS = [1000, 5000, 10000, 25000, 50000, 100000, 500000];
+const CHIP_TIER_MILLIONS  = [1000000, 5000000, 10000000, 25000000, 100000000, 250000000, 500000000, 1000000000];
+const CHIP_TIERS = [CHIP_TIER_STANDARD, CHIP_TIER_THOUSANDS, CHIP_TIER_MILLIONS];
+let currentTier = 2;
+let chipValues = CHIP_TIERS[currentTier];
+const ALL_DENOMS = [].concat(CHIP_TIER_MILLIONS, CHIP_TIER_THOUSANDS, CHIP_TIER_STANDARD).sort(function(a,b){return b-a;});
+function chipImg(v) {
+  var base = v;
+  while (base >= 1000) base = base / 1000;
+  var map = {1:'chip1',5:'chip5',10:'chip10',25:'chip25',50:'chip100',100:'chip100',250:'chip100',500:'chip1000'};
+  var name = map[base] || 'chip' + base;
+  return 'src/images/chips/' + name + '.png';
+}
 const REBET_CHECK_BY = 'amount';
 const songName = [
   'Velvet Groove',
@@ -67,11 +78,26 @@ const songName = [
   'Moonlight',
 ];
 const upgradeRules = {
+  1: { count: 5, next: 5 },
+  5: { count: 2, next: 10 },
+  10: { count: 5, next: 50 },
+  25: { count: 2, next: 50 },
+  50: { count: 2, next: 100 },
+  100: { count: 5, next: 500 },
+  1000: { count: 5, next: 5000 },
+  5000: { count: 2, next: 10000 },
+  10000: { count: 5, next: 50000 },
+  25000: { count: 2, next: 50000 },
+  50000: { count: 2, next: 100000 },
+  100000: { count: 5, next: 500000 },
   1000000: { count: 5, next: 5000000 },
   5000000: { count: 2, next: 10000000 },
-  10000000: { count: 10, next: 100000000 },
-  25000000: { count: 4, next: 100000000 },
-  100000000: { count: 10, next: 500000000 },
+  10000000: { count: 5, next: 50000000 },
+  25000000: { count: 2, next: 50000000 },
+  50000000: { count: 2, next: 100000000 },
+  100000000: { count: 5, next: 500000000 },
+  250000000: { count: 2, next: 500000000 },
+  500000000: { count: 2, next: 1000000000 },
 };
 
 const groups = [
@@ -81,14 +107,15 @@ const groups = [
   { arr: superSevens, type: 'super7' },
   { arr: betZones, type: 'main' },
 ];
-const chipSelectPositions = [
-  { top: 67, right: 94 },
-  { top: 71.8, right: 90.7 },
-  { top: 76, right: 87.2 },
-  { top: 79.6, right: 83.45 },
-  { top: 82.7, right: 79.6 },
-  { top: 85.3, right: 75.6 },
-];
+function generateChipPositions(count) {
+  var pos = [];
+  for (var i = 0; i < count; i++) {
+    var t = i / Math.max(count - 1, 1);
+    pos.push({ top: 67 + t * 18.3, right: 94 - t * 18.4 });
+  }
+  return pos;
+}
+let chipSelectPositions = generateChipPositions(chipValues.length);
 const betZoneInfo = {
   betZone1: {
     insuranceChipPositions: [55, 80.9],
@@ -683,6 +710,7 @@ function clearBets() {
 }
 
 function checkChipAvailable() {
+  chips = document.querySelectorAll('.chips');
   const bal = Number(playerInfo.balance) || 0;
   let activeIdx = -1;
   for (let i = 0; i < chips.length; i++) {
@@ -733,6 +761,7 @@ function checkChipAvailable() {
 }
 
 function chipSelect(bet, index) {
+  chips = document.querySelectorAll('.chips');
   for (let i = 0; i < chips.length; i++) {
     const isActive = i === index;
     const affordable = Number(playerInfo.balance) >= chipValues[i];
@@ -1465,7 +1494,7 @@ function normalizeZone(index, type = 'main', customTotal = null) {
       : zone.reduce((sum, chip) => sum + Number(chip.dataset.value), 0);
   zone.forEach((chip) => chip.remove());
   zone.length = 0;
-  const denoms = [1000, 100, 25, 10, 5, 1];
+  const denoms = ALL_DENOMS;
   const betName =
     index === 0 ? 'betZone1' : index === 1 ? 'betZone2' : 'betZone3';
   let [chipTop, chipRight] =
@@ -1588,7 +1617,7 @@ function double() {
   syncBJGameState();
   betTarget.bet *= 2;
   let total = betTarget.bet;
-  const denoms = [1000, 100, 25, 10, 5, 1];
+  const denoms = ALL_DENOMS;
   const newChips = denoms.flatMap((d) => {
     const count = Math.floor(total / d);
     total -= count * d;
@@ -2079,7 +2108,7 @@ function surrender() {
   originals.length = 0;
 
   let total = surrenderAmount;
-  const denoms = [1000, 100, 25, 10, 5, 1],
+  const denoms = ALL_DENOMS,
     newValues = [];
   for (const d of denoms) {
     const count = Math.floor(total / d);
@@ -2186,7 +2215,7 @@ function insurance() {
     '$Pc ' + playerInfo.balance.toLocaleString('de-DE');
 
   let total = insuranceAmount;
-  const denoms = [1000, 100, 25, 10, 5, 1],
+  const denoms = ALL_DENOMS,
     newValues = [];
   for (const d of denoms) {
     const count = Math.floor(total / d);
@@ -2430,7 +2459,7 @@ function replaceZoneChips(zoneId, newTotal, typeHint = null) {
   if (splitZoneName && betZoneInfo[splitZoneName])
     betZoneInfo[splitZoneName].bet = newTotal;
   let total = Math.max(0, Math.floor(Number(newTotal) || 0)),
-    denoms = [1000, 100, 25, 10, 5, 1],
+    denoms = ALL_DENOMS,
     pieces = [];
   for (const d of denoms) {
     const cnt = Math.floor(total / d);
@@ -2867,9 +2896,50 @@ declineEvenMoneyBtn.addEventListener('click', () => {
   declineEvenMoneyBtn.style.display = 'none';
   stand();
 });
-chips.forEach((chip, i) => {
-  chip.addEventListener('click', () => chipSelect(chipValues[i], i));
+function formatChipLabel(v) {
+  if (v >= 1000000000) return (v/1000000000) + 'B';
+  if (v >= 1000000) return (v/1000000) + 'M';
+  if (v >= 1000) return (v/1000) + 'K';
+  return v;
+}
+
+function buildChipButtons() {
+  var area = document.getElementById('game');
+  document.querySelectorAll('.chips').forEach(function(el) { el.remove(); });
+  chipSelectPositions = generateChipPositions(chipValues.length);
+  chipValues.forEach(function(val, i) {
+    var btn = document.createElement('button');
+    btn.className = 'chips';
+    btn.style.backgroundImage = 'url(' + chipImg(val) + ')';
+    btn.style.position = 'absolute';
+    btn.style.top = chipSelectPositions[i].top + '%';
+    btn.style.right = chipSelectPositions[i].right + '%';
+    var lbl = document.createElement('span');
+    lbl.className = 'chipLabel';
+    lbl.textContent = formatChipLabel(val);
+    btn.appendChild(lbl);
+    btn.addEventListener('click', function() { chipSelect(val, i); });
+    area.appendChild(btn);
+  });
+  checkChipAvailable();
+}
+
+function switchChipTier(tierIdx) {
+  currentTier = tierIdx;
+  chipValues = CHIP_TIERS[currentTier];
+  document.querySelectorAll('.chipTierTab').forEach(function(tab) {
+    tab.classList.toggle('chipTierActive', Number(tab.dataset.tier) === tierIdx);
+  });
+  buildChipButtons();
+}
+
+document.querySelectorAll('.chipTierTab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    switchChipTier(Number(tab.dataset.tier));
+  });
 });
+
+buildChipButtons();
 
 groups.forEach(({ arr, type }) => {
   arr.forEach((el, i) => {

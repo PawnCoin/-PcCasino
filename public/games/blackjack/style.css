@@ -10,7 +10,7 @@ body {
 
 #loadingScreen {
   z-index: 9999;
-  overflow: hidden;
+  overflow: visible;
   aspect-ratio: 16 / 9;
   background-image: url(src/images/misc/loadingBack.png);
   background-size: 100% 100%;
@@ -113,7 +113,7 @@ body {
 #game {
   position: absolute;
   background-color: white;
-  overflow: hidden;
+  overflow: visible;
   aspect-ratio: 16 / 9;
   background-image: url(src/images/misc/table.png);
   background-size: 100% 100%;
@@ -130,9 +130,9 @@ body {
 
 #playerMenu {
   width: 100%;
-  height: 12vh;
+  height: 12%;
   position: absolute;
-  top: 88%;
+  bottom: 0;
   display: flex;
   justify-content: flex-end;
   align-items: flex-end;
@@ -195,7 +195,7 @@ body {
 }
 
 #royal1 {
-  left: 16.2%;
+  left: 16.6%;
   top: 56.6%;
 }
 
@@ -205,12 +205,12 @@ body {
 }
 
 #royal3 {
-  left: 74.2%;
+  left: 74.6%;
   top: 56.6%;
 }
 
 #royalInfo1 {
-  left: 10.1%;
+  left: 10.5%;
   top: 59.5%;
 }
 
@@ -220,7 +220,7 @@ body {
 }
 
 #royalInfo3 {
-  left: 68.26%;
+  left: 68.66%;
   top: 59.5%;
 }
 .pairs {
@@ -244,7 +244,7 @@ body {
   margin-bottom: 1vh;
 }
 #pair1 {
-  left: 21.3%;
+  left: 21.7%;
   top: 56.6%;
 }
 #pair2 {
@@ -252,12 +252,12 @@ body {
   top: 71.1%;
 }
 #pair3 {
-  left: 79.3%;
+  left: 79.7%;
   top: 56.6%;
 }
 
 #pairInfo1 {
-  left: 26.2%;
+  left: 26.6%;
   top: 59.5%;
 }
 
@@ -272,12 +272,12 @@ body {
 }
 
 #betZone1 {
-  left: 18.4%;
+  left: 18.8%;
   top: 51.6%;
   transform: perspective(32.4vh) rotateX(42deg);
 }
 #betZone3 {
-  left: 76.4%;
+  left: 76.8%;
   top: 51.6%;
   transform: perspective(32.4vh) rotateX(42deg);
 }
@@ -306,7 +306,7 @@ body {
 }
 
 #plus231 {
-  left: 21.3%;
+  left: 21.7%;
   top: 49.4%;
 }
 #plus232 {
@@ -315,17 +315,17 @@ body {
 }
 
 #plus233 {
-  left: 79.3%;
+  left: 79.7%;
   top: 49.4%;
 }
 
 #plus23Info1 {
-  left: 26.2%;
+  left: 26.6%;
   top: 50.5%;
 }
 
 #plus23Info3 {
-  left: 84.1%;
+  left: 84.5%;
   top: 50.5%;
 }
 #plus23Info2 {
@@ -351,7 +351,7 @@ body {
 }
 
 #superSevens1 {
-  left: 16.2%;
+  left: 16.6%;
   top: 49.4%;
 }
 
@@ -361,12 +361,12 @@ body {
 }
 
 #superSevens3 {
-  left: 74.2%;
+  left: 74.6%;
   top: 49.4%;
 }
 
 #superSevenInfo1 {
-  left: 10.1%;
+  left: 10.5%;
   top: 50.5%;
 }
 
@@ -376,7 +376,7 @@ body {
 }
 
 #superSevenInfo3 {
-  left: 68.26%;
+  left: 68.66%;
   top: 50.1%;
 }
 
@@ -414,7 +414,7 @@ body {
 }
 #scoreInfo1,
 #splitInfo1 {
-  left: 18.1%;
+  left: 18.5%;
   top: 65.7%;
 }
 #scoreInfo2,
@@ -424,7 +424,7 @@ body {
 }
 #scoreInfo3,
 #splitInfo3 {
-  left: 76.1%;
+  left: 76.5%;
   top: 65.7%;
 }
 
@@ -477,7 +477,7 @@ body {
 
 #cardScore1,
 #cardScore1Split {
-  left: 19.56%;
+  left: 20%;
   top: 29%;
 }
 #cardScore2,
@@ -488,7 +488,7 @@ body {
 #cardScore3,
 #cardScore3Split {
   top: 29%;
-  left: 76.6%;
+  left: 77%;
 }
 
 #dealerScore {
@@ -677,42 +677,6 @@ body {
   100% {
     transform: rotate(45deg) translateX(-150%);
   }
-}
-
-#chip1 {
-  top: 67%;
-  right: 94%;
-  background-image: url(src/images/chips/chip1.png);
-}
-
-#chip5 {
-  top: 71.8%;
-  right: 90.7%;
-  background-image: url(src/images/chips/chip5.png);
-}
-
-#chip10 {
-  top: 76%;
-  right: 87.2%;
-  background-image: url(src/images/chips/chip10.png);
-}
-
-#chip25 {
-  top: 79.6%;
-  right: 83.45%;
-  background-image: url(src/images/chips/chip25.png);
-}
-
-#chip100 {
-  top: 82.7%;
-  right: 79.6%;
-  background-image: url(src/images/chips/chip100.png);
-}
-
-#chip1000 {
-  top: 85.3%;
-  right: 75.6%;
-  background-image: url(src/images/chips/chip1000.png);
 }
 
 .chipActive {
@@ -1366,4 +1330,70 @@ input[type='range']::-webkit-slider-thumb {
   display: flex;
   justify-content: flex-start;
   align-items: flex-end;
+}
+
+
+#chipTierSwitcher {
+  position: absolute;
+  top: 62%;
+  right: 76%;
+  display: flex;
+  gap: 0.5vh;
+  z-index: 9999;
+}
+
+.chipTierTab {
+  background: #00000080;
+  color: #aaa;
+  border: 0.2vh solid #55555580;
+  border-radius: 0.8vh;
+  padding: 0.4vh 1vh;
+  font-size: 1.4vh;
+  font-family: impact;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.chipTierTab:hover {
+  background: #ffffff30;
+  color: white;
+}
+
+.chipTierActive {
+  background: #1a6b1a90;
+  color: #ffd700;
+  border-color: #ffd70060;
+  text-shadow: 0 0 0.5vh rgba(255,215,0,0.5);
+}
+
+.chipLabel {
+  position: absolute;
+  bottom: -2.2vh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.3vh;
+  color: #ffd700;
+  font-family: impact;
+  text-shadow: 0 0 0.3vh black, 0 0 0.3vh black;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#tableLogo {
+  position: absolute;
+  width: 18vh;
+  height: 18vh;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  background-image: url(/logos/pc-logo.png);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.12;
+  mix-blend-mode: luminosity;
+  filter: contrast(1.2) brightness(0.8) saturate(0);
+  pointer-events: none;
+  z-index: 1;
 }
