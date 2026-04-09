@@ -648,7 +648,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             boxShadow: `0 0 8px ${skin.glowColor}`,
                           }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: skin.pipGradient }} />
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: skin.pipGradient, boxShadow: skin.pipStroke || 'none' }} />
                           </div>
                           {isSelected && (
                             <div style={{ position: 'absolute', top: 3, right: 3, width: 16, height: 16, borderRadius: '50%', background: '#D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

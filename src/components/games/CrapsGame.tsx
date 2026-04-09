@@ -89,12 +89,14 @@ interface RealisticDice3DProps {
   glowColor?: string;
   skinFaceBg?: string;
   skinPipBg?: string;
+  skinPipStroke?: string;
   skinBorder?: string;
 }
 
-function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skinFaceBg, skinPipBg, skinBorder }: RealisticDice3DProps) {
+function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skinFaceBg, skinPipBg, skinPipStroke, skinBorder }: RealisticDice3DProps) {
   const faceBg = skinFaceBg || `linear-gradient(145deg, #ffffff 0%, #f0f0f0 40%, #e0e0e0 100%)`;
   const pipBg = skinPipBg || `radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)`;
+  const pipShadow = skinPipStroke || 'none';
   const borderStyle = `1px solid ${skinBorder || 'rgba(0,0,0,0.08)'}`;
 
   const getFaceRotation = (faceValue: number): { x: number; y: number } => {
@@ -160,7 +162,7 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skin
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
         </div>
@@ -189,7 +191,7 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skin
                 left: `${left * 100}%`, 
                 transform: 'translate(-50%, -50%)',
                 background: pipBg,
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+                boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
               }}
             />
           ))}
@@ -214,14 +216,14 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skin
             className="absolute top-3 left-3 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute bottom-3 right-3 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
         </div>
@@ -245,35 +247,35 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skin
             className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute bottom-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute bottom-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
         </div>
@@ -297,21 +299,21 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skin
             className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute bottom-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
         </div>
@@ -335,28 +337,28 @@ function RealisticDice3D({ value, rotation, position, isRolling, glowColor, skin
             className="absolute top-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute bottom-2.5 left-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
           <div 
             className="absolute bottom-2.5 right-2.5 w-3 h-3 rounded-full"
             style={{
               background: pipBg,
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)',
+              boxShadow: `inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(255,255,255,0.5)${pipShadow !== 'none' ? ', ' + pipShadow : ''}`,
             }}
           />
         </div>
@@ -460,7 +462,12 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
   const [bets, setBets] = useState<Bet[]>([]);
-  const [selectedChip, setSelectedChip] = useState(10);
+  const [selectedChip, setSelectedChip] = useState(() => {
+    const standards = [500, 100, 50, 25, 10, 5, 1];
+    return standards.find(c => c <= balance) || 1;
+  });
+  const accent = diceSkin.accentColor;
+  const accentRgb = diceSkin.accentColorRgb;
   const [showRules, setShowRules] = useState(false);
   const [message, setMessage] = useState('Place your bets and roll!');
   const [rollHistory, setRollHistory] = useState<number[]>([]);
@@ -899,12 +906,13 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
       )}
       {loseFlash && (
         <div className="fixed inset-0 z-[100] pointer-events-none" style={{
-          background: 'radial-gradient(circle, rgba(183,28,28,0.3) 0%, transparent 70%)',
+          background: `radial-gradient(circle, rgba(${accentRgb},0.3) 0%, transparent 70%)`,
           animation: 'craps-lose-flash 1.5s ease-out forwards',
         }}>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-4xl font-bold font-casino text-[#EF5350]" style={{
-              textShadow: '0 0 20px rgba(239,83,80,0.8)',
+            <div className="text-4xl font-bold font-casino" style={{
+              color: accent,
+              textShadow: `0 0 20px rgba(${accentRgb},0.8)`,
               animation: 'craps-shake 0.5s ease-out',
             }}>
               SEVEN OUT!
@@ -969,7 +977,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                 0 0 0 3px rgba(212,175,55,0.6),
                 0 0 20px rgba(212,175,55,0.15)
                 ${winFlash ? ', 0 0 40px rgba(67,160,71,0.5), 0 0 80px rgba(67,160,71,0.3)' : ''}
-                ${loseFlash ? ', 0 0 40px rgba(183,28,28,0.5)' : ''}
+                ${loseFlash ? `, 0 0 40px rgba(${accentRgb},0.5)` : ''}
               `,
               perspective: '1000px',
               transition: 'box-shadow 0.3s ease',
@@ -1052,11 +1060,11 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               </div>
             </div>
             <div className="absolute bottom-[16px] left-[16px] right-[16px] h-[24px] rounded-b-lg pointer-events-none" style={{
-              background: 'rgba(183,28,28,0.2)',
-              border: '1px solid rgba(183,28,28,0.4)',
+              background: `rgba(${accentRgb},0.2)`,
+              border: `1px solid rgba(${accentRgb},0.4)`,
               zIndex: 3,
             }}>
-              <div className="text-center text-[#EF5350] text-[10px] font-bold tracking-[3px] leading-[24px]">
+              <div className="text-center text-[10px] font-bold tracking-[3px] leading-[24px]" style={{ color: accent }}>
                 DON'T PASS BAR
               </div>
             </div>
@@ -1068,9 +1076,10 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               position={dice1Position}
               isRolling={isRolling}
               diceId={1}
-              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? 'rgba(183,28,28,0.5)' : undefined}
+              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? `rgba(${accentRgb},0.5)` : undefined}
               skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
               skinPipBg={diceSkin.pipGradient}
+              skinPipStroke={diceSkin.pipStroke}
               skinBorder={diceSkin.borderColor}
             />
             <RealisticDice3D
@@ -1079,9 +1088,10 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               position={dice2Position}
               isRolling={isRolling}
               diceId={2}
-              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? 'rgba(183,28,28,0.5)' : undefined}
+              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? `rgba(${accentRgb},0.5)` : undefined}
               skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
               skinPipBg={diceSkin.pipGradient}
+              skinPipStroke={diceSkin.pipStroke}
               skinBorder={diceSkin.borderColor}
             />
 
@@ -1102,10 +1112,14 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
                 <div 
                   key={i} 
                   className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${
-                    roll === 7 ? 'bg-[#B71C1C]/30 text-[#EF5350] border-[#B71C1C]/50' :
                     roll === point ? 'bg-[#43A047]/30 text-[#66BB6A] border-[#43A047]/50' :
                     'bg-black/50 text-[#C0C0C0] border-[#5D4037]/30'
                   }`}
+                  style={roll === 7 ? {
+                    background: `rgba(${accentRgb},0.3)`,
+                    color: accent,
+                    borderColor: `rgba(${accentRgb},0.5)`,
+                  } : undefined}
                 >
                   {roll}
                 </div>
@@ -1163,7 +1177,13 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               onClick={clearBets}
               disabled={isRolling || bets.length === 0}
               variant="outline"
-              className="border-[#B71C1C]/50 text-[#B71C1C] hover:bg-[#B71C1C]/20 min-h-[56px] px-3 sm:px-4"
+              className="min-h-[56px] px-3 sm:px-4"
+              style={{
+                borderColor: `rgba(${accentRgb},0.5)`,
+                color: accent,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.2)`; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
             >
               <RotateCcw className="w-5 h-5 sm:mr-2" />
               <span className="hidden sm:inline">Clear</span>
@@ -1197,7 +1217,13 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               <button
                 onClick={() => placeBet('dontpass', 1)}
                 disabled={gamePhase === 'point'}
-                className="relative p-4 rounded-xl bg-[#B71C1C]/30 border-2 border-[#B71C1C]/50 hover:bg-[#B71C1C]/50 transition-all disabled:opacity-50"
+                className="relative p-4 rounded-xl transition-all disabled:opacity-50"
+                style={{
+                  background: `rgba(${accentRgb},0.3)`,
+                  border: `2px solid rgba(${accentRgb},0.5)`,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.5)`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.3)`; }}
               >
                 <div className="font-bold text-lg text-[#D4AF37]">DON'T PASS</div>
                 <div className="text-xs text-[#C0C0C0]">Win on 2/3</div>
@@ -1307,7 +1333,13 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               </button>
               <button
                 onClick={() => placeBet('anycraps', 7)}
-                className="relative p-3 rounded-xl bg-[#C2185B]/30 border border-[#C2185B]/50 hover:bg-[#C2185B]/50 transition-all"
+                className="relative p-3 rounded-xl transition-all"
+                style={{
+                  background: `rgba(${accentRgb},0.25)`,
+                  border: `1px solid rgba(${accentRgb},0.5)`,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.5)`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.25)`; }}
               >
                 <div className="font-bold text-[#D4AF37]">ANY CRAPS</div>
                 <div className="text-xs text-[#C0C0C0]">7:1</div>

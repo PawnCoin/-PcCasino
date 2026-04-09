@@ -9,8 +9,11 @@ export interface DiceSkinDef {
   faceGradientEnd: string;
   pipColor: string;
   pipGradient: string;
+  pipStroke?: string;
   borderColor: string;
   glowColor: string;
+  accentColor: string;
+  accentColorRgb: string;
 }
 
 export const DICE_SKINS: DiceSkinDef[] = [
@@ -25,6 +28,8 @@ export const DICE_SKINS: DiceSkinDef[] = [
     pipGradient: 'radial-gradient(circle at 30% 30%, #F4D03F, #D4AF37, #B8860B)',
     borderColor: 'rgba(0,0,0,0.08)',
     glowColor: 'rgba(212,175,55,0.3)',
+    accentColor: '#B71C1C',
+    accentColorRgb: '183,28,28',
   },
   {
     id: 'obsidian',
@@ -37,6 +42,8 @@ export const DICE_SKINS: DiceSkinDef[] = [
     pipGradient: 'radial-gradient(circle at 30% 30%, #ffffff, #d0d0d0, #a0a0a0)',
     borderColor: 'rgba(255,255,255,0.1)',
     glowColor: 'rgba(200,200,200,0.3)',
+    accentColor: '#9E9E9E',
+    accentColorRgb: '158,158,158',
   },
   {
     id: 'ruby',
@@ -49,6 +56,8 @@ export const DICE_SKINS: DiceSkinDef[] = [
     pipGradient: 'radial-gradient(circle at 30% 30%, #FFD700, #D4AF37, #B8860B)',
     borderColor: 'rgba(255,100,100,0.2)',
     glowColor: 'rgba(220,38,38,0.4)',
+    accentColor: '#EF5350',
+    accentColorRgb: '239,83,80',
   },
   {
     id: 'emerald',
@@ -61,6 +70,8 @@ export const DICE_SKINS: DiceSkinDef[] = [
     pipGradient: 'radial-gradient(circle at 30% 30%, #a0ffd0, #50cc80, #20aa60)',
     borderColor: 'rgba(20,180,90,0.3)',
     glowColor: 'rgba(20,180,90,0.5)',
+    accentColor: '#14B45A',
+    accentColorRgb: '20,180,90',
   },
   {
     id: 'gold',
@@ -71,8 +82,11 @@ export const DICE_SKINS: DiceSkinDef[] = [
     faceGradientEnd: '#8B6914',
     pipColor: '#1a0800',
     pipGradient: 'radial-gradient(circle at 30% 30%, #2a1800, #1a0800, #0a0400)',
+    pipStroke: '0 0 2px rgba(255,255,255,0.6), 0 0 4px rgba(255,255,255,0.3)',
     borderColor: 'rgba(212,175,55,0.4)',
     glowColor: 'rgba(255,215,0,0.5)',
+    accentColor: '#FFD700',
+    accentColorRgb: '255,215,0',
   },
   {
     id: 'crystal',
@@ -81,10 +95,13 @@ export const DICE_SKINS: DiceSkinDef[] = [
     faceGradientStart: 'rgba(180,220,255,0.9)',
     faceGradientMid: 'rgba(140,190,240,0.85)',
     faceGradientEnd: 'rgba(100,160,220,0.8)',
-    pipColor: '#ffffff',
-    pipGradient: 'radial-gradient(circle at 30% 30%, #ffffff, #d0e8ff, #a0c8ff)',
+    pipColor: '#1a3a5c',
+    pipGradient: 'radial-gradient(circle at 30% 30%, #1a3a5c, #0d2640, #081a30)',
+    pipStroke: '0 0 2px rgba(255,255,255,0.5)',
     borderColor: 'rgba(100,180,255,0.4)',
     glowColor: 'rgba(100,180,255,0.6)',
+    accentColor: '#64B5F6',
+    accentColorRgb: '100,181,246',
   },
 ];
 
