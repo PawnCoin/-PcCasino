@@ -13,6 +13,8 @@ import type { Card } from '@/types';
 import { useProvablyFair } from '@/hooks/useProvablyFair';
 import { VerifyRoundModal } from '@/components/VerifyRoundModal';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { useTableSkin } from '@/hooks/useTableSkin';
 
@@ -66,6 +68,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Blackjack', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Betting', 'Playing', 'Standing'] });
   const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealer' | 'finished'>('betting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHands, setPlayerHands] = useState<Card[][]>([[]]);
@@ -474,16 +477,19 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           onAddBalance={onAddBalance}
           showShare
           rightSlot={
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-                    <Info className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>View Blackjack rules & payouts</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                      <Info className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>View Blackjack rules & payouts</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           }
         />
 

@@ -8,6 +8,8 @@ import { LobbyChat } from '@/components/LobbyChat';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { useTableSkin } from '@/hooks/useTableSkin';
 import type { TableSkinDef } from '@/hooks/useTableSkin';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 import { CasinoIcon } from '@/components/CasinoIcons';
 import { usePoolBallSkin, getDefaultPoolBallPreset } from '@/hooks/usePoolBallSkin';
 import type { BallMaterial } from '@/hooks/usePoolBallSkin';
@@ -1001,6 +1003,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const aiAvatarDef: AvatarDef = { sheet: 2, row: 1, col: 2, name: 'AI Opponent' };
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Pool', minBots: 2, maxBots: 6, statusMessages: ['Spectating', 'Next game', 'Watching', 'Chalking up'] });
   const poolVoice = usePoolVoice();
   const { playSound } = useSoundEffects();
   const poolSounds = usePoolSounds();
@@ -1741,6 +1744,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         onShowWallet={onShowWallet}
         showShare={phase === 'won'}
         winAmount={phase === 'won' ? betAmount * 2 : undefined}
+        rightSlot={<GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />}
       />
 
       <InGameOptionsPanel isOpen={showOptions} onClose={() => setShowOptions(false)} isMember={membership.isMember} activeGame="Pool Table" />

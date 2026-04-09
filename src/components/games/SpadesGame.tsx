@@ -8,6 +8,8 @@ import { createDeck, shuffleDeck } from '@/hooks/useGameEngine';
 import { PokerChip, ChipStack, ChipSelector, formatChipLabel, ALL_CHIP_DENOMS } from '@/components/PokerChip';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 import { CasinoIcon } from '@/components/CasinoIcons';
 import { chooseAICard, calculateAIBid } from '@/hooks/useSpadesAI';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -92,6 +94,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const { playSound, isMuted, toggleMute } = useSoundEffects();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Spades', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'In queue', 'Spectating', 'Next round'] });
 
   const mkPlayer = (idx: number): SpadesPlayer => ({
     id: idx === 0 ? 'you' : `p${idx + 1}`,
@@ -887,6 +890,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           showShare
           rightSlot={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
               {rankedMode && (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold"
                   style={{ borderColor: tier.color, color: tier.color }}>

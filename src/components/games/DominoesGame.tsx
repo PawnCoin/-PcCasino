@@ -5,6 +5,8 @@ import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { CasinoIcon } from '@/components/CasinoIcons';
 import { AvatarSprite } from '@/components/AvatarSprite';
@@ -1232,6 +1234,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const { reactions: emojiReactions, winBursts, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const { isMuted, playSound } = useSoundEffects();
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Dominoes', minBots: 2, maxBots: 6, statusMessages: ['Watching', 'Waiting', 'Next game', 'Spectating'] });
   const [muted, setMuted] = useState(false);
   const [slamOn, setSlamOn] = useState(true);
   const [selectedTargetScore, setSelectedTargetScore] = useState<number>(150);
@@ -1596,6 +1599,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       <InGameTopBar gameName="Dominoes" balance={balance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} showShare
         rightSlot={
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
             {gs.mode === 'practice' && gs.phase !== 'setup' && <span style={{ padding: '2px 10px', borderRadius: 20, background: 'rgba(30,136,229,.18)', border: '1px solid rgba(30,136,229,.4)', color: '#42A5F5', fontSize: 11, fontWeight: 700 }}>PRACTICE</span>}
             <button onClick={() => setShowSettings(s => !s)} style={{ background: 'none', border: 'none', color: showSettings ? '#D4AF37' : '#666', cursor: 'pointer' }}><Settings size={20} /></button>
           </div>

@@ -13,6 +13,8 @@ import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 
 interface CrapsGameProps {
   balance: number;
@@ -457,6 +459,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
   const { activeSkin: diceSkin } = useCrapsDiceSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Craps', minBots: 4, maxBots: 10, statusMessages: ['Betting', 'Watching', 'Rolling', 'At table'] });
   const [gamePhase, setGamePhase] = useState<'comeout' | 'point'>('comeout');
   const [point, setPoint] = useState<number | null>(null);
   const [dice, setDice] = useState<[number, number]>([1, 1]);
@@ -862,16 +865,19 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
         onAddBalance={onAddBalance}
         showShare
         rightSlot={
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-                  <Info className="w-5 h-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>View Craps rules & payouts</p></TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                    <Info className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>View Craps rules & payouts</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         }
       />
 

@@ -17,6 +17,8 @@ import { PokerHandAnalyzer } from '@/components/PokerHandAnalyzer';
 import { PlayingCard } from '@/components/PlayingCard';
 import { CasinoEnvironment } from '@/components/games/CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 import { PokerHandHistory } from '@/components/PokerHandHistory';
 import { gameApi } from '@/lib/api';
 import { getToken } from '@/lib/api';
@@ -499,6 +501,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Poker', minBots: 4, maxBots: 10, statusMessages: ['At table', 'Watching', 'In hand', 'Waiting'] });
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -1004,7 +1007,8 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           onShowWallet={onShowWallet}
           showShare
           rightSlot={
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
               {voiceSupported && (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>

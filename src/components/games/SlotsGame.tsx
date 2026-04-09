@@ -14,6 +14,8 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { useProvablyFair } from '@/hooks/useProvablyFair';
 import { VerifyRoundModal } from '@/components/VerifyRoundModal';
 import { CasinoIcon } from '@/components/CasinoIcons';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 
 interface SlotsGameProps {
   balance: number;
@@ -132,6 +134,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { settings } = useGlobalGame();
   const { activeSkin: slotsSkin } = useSlotsSkin();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Slots', minBots: 3, maxBots: 7, statusMessages: ['Spinning', 'Watching', 'Betting', 'On a streak'] });
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
   const [currentBet, setCurrentBet] = useState(0);
@@ -311,16 +314,19 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           onShowWallet={onShowWallet}
           showShare
           rightSlot={
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
-                    <Info className="w-5 h-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>View Slots rules & payouts</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setShowRules(true)}>
+                      <Info className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>View Slots rules & payouts</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           }
         />
 

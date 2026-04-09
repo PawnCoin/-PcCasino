@@ -6,6 +6,8 @@ import { getSoundMuted, getSoundVolume, getSoundAmbient, getSoundTrackTitle, sub
 import { getDefaultRouletteSkin, ROULETTE_SKINS } from '@/hooks/useRouletteSkin';
 import { getSocket } from '@/lib/socket';
 import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 
 interface IframeGameWrapperProps {
   gameId: string;
@@ -64,6 +66,7 @@ export function IframeGameWrapper({
   userId,
   avatarUrl,
 }: IframeGameWrapperProps) {
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName, minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Playing', 'Betting', 'At table'] });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -346,6 +349,7 @@ export function IframeGameWrapper({
 
   const rightSlot = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
       {isRoulette && roulettePlayers.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px',

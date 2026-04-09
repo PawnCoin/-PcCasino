@@ -10,6 +10,8 @@ import { useDartsSkin } from '@/hooks/useDartsSkin';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { AvatarSprite, parseAvatarDef } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 
 const DARTS_AI_AVATAR: AvatarDef = { sheet: 2, row: 2, col: 0, name: 'AI' };
 
@@ -196,6 +198,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { settings } = useGlobalGame();
   const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Darts', minBots: 2, maxBots: 6, statusMessages: ['Watching', 'Warming up', 'Next match', 'Spectating'] });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerScore, setPlayerScore] = useState(501);
   const [aiScore, setAiScore] = useState(501);
@@ -409,7 +412,9 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         onBurstComplete={removeBurst}
         playerPositions={{ you: 'bottom', ai: 'top' }}
       />
-      <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet} />
+      <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet}
+        rightSlot={<GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />}
+      />
 
       <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto', background: tableSkin.felt, position: 'relative', boxShadow: 'inset 0 0 80px rgba(0,0,0,0.5)' }}>
         <PremiumFeltOverlay borderRadius="0px" goldBorderInset={10} />

@@ -16,6 +16,7 @@ import { useBingoVoice } from '@/hooks/useGameVoice';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { ChipSelector } from '@/components/PokerChip';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
+import { useBingoBots } from '@/hooks/useBingoBots';
 
 interface BingoGameProps {
   balance: number;
@@ -559,7 +560,6 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const [showRules, setShowRules] = useState(false);
   const [bingoFeedback, setBingoFeedback] = useState<'none' | 'valid' | 'invalid'>('none');
   const [confetti, setConfetti] = useState<{ x: number; y: number; color: string; delay: number; shape: string; id: number }[]>([]);
-  const [onlinePlayers, setOnlinePlayers] = useState(() => 52 + Math.floor(Math.random() * 148));
   const [calledTicker, setCalledTicker] = useState<number[]>([]);
   const [message, setMessage] = useState('');
   const [isMuted, setIsMuted] = useState(false);
@@ -574,12 +574,36 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
   const { callNumber, announceWin: announceWinVoice, announceNotYet, isSupported: voiceSupported } = useBingoVoice();
   const { playSound } = useSoundEffects();
+  const {
+    activeBots, onlinePlayerCount, botBingoEvent,
+    startGame: startBotGame, endGame: endBotGame,
+    advanceBotProgress, triggerBotReaction, tryBotBingo,
+  } = useBingoBots();
 
-  // Fluctuating online players
+  const botReactionTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    const t = setInterval(() => setOnlinePlayers(p => Math.max(30, p + Math.floor(Math.random() * 11) - 5)), 7000);
-    return () => clearInterval(t);
-  }, []);
+    if (phase === 'playing') {
+      botReactionTimer.current = setInterval(() => {
+        if (Math.random() < 0.4) {
+          triggerBotReaction((emoji, player) => addReaction(emoji, player));
+        }
+      }, 8000 + Math.random() * 7000);
+      return () => {
+        if (botReactionTimer.current) clearInterval(botReactionTimer.current);
+      };
+    }
+    return () => {
+      if (botReactionTimer.current) clearInterval(botReactionTimer.current);
+    };
+  }, [phase, triggerBotReaction, addReaction]);
+
+  useEffect(() => {
+    if (phase === 'playing' && calledNumbers.length > 0) {
+      advanceBotProgress(calledNumbers.length);
+      tryBotBingo(calledNumbers.length);
+    }
+  }, [calledNumbers.length, phase, advanceBotProgress, tryBotBingo]);
 
   const startGame = useCallback(() => {
     const totalCost = betAmount * numCards;
@@ -611,7 +635,8 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     setMessage('Click DRAW BALL or enable auto to start calling numbers!');
     setAutoPlay(false);
     isDrawing.current = false;
-  }, [betAmount, numCards, onBet, playSound]);
+    startBotGame();
+  }, [betAmount, numCards, onBet, playSound, startBotGame]);
 
   const drawBall = useCallback(() => {
     if (isDrawing.current) return;
@@ -619,6 +644,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       if (prev.length === 0) {
         setPhase('gameover');
         setMessage('All 75 balls called! Game over.');
+        endBotGame();
         return prev;
       }
 
@@ -665,7 +691,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       return rest;
     });
-  }, [voiceOn, voiceSupported, callNumber]);
+  }, [voiceOn, voiceSupported, callNumber, endBotGame]);
 
   // Auto-play
   useEffect(() => {
@@ -733,6 +759,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setWinnerDisplayName(winnerName);
       setMessage(`BINGO! ${bestPattern} — You win ${fmtPc(prize)} $Pc (${mult}×)!`);
       if (voiceOn && voiceSupported) announceWinVoice(winnerName, bestPattern, prize);
+      endBotGame();
 
       const colors = ['#D4AF37', '#FFD700', '#43A047', '#1E88E5', '#E53935', '#9C27B0', '#FF9800', '#fff', '#00BCD4'];
       const pieces = Array.from({ length: 90 }, (_, i) => ({
@@ -886,6 +913,22 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         );
       })()}
 
+      {/* Bot bingo claim event */}
+      {botBingoEvent && phase === 'playing' && (
+        <div style={{
+          position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 350,
+          background: 'rgba(0,0,0,0.92)', border: '2px solid #EF5350', borderRadius: 16,
+          padding: '14px 28px', display: 'flex', alignItems: 'center', gap: 12,
+          animation: 'winOverlayIn 0.3s ease-out', boxShadow: '0 8px 40px rgba(239,83,80,0.4)',
+        }}>
+          <img src={botBingoEvent.botPhoto} alt={botBingoEvent.botName} style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #EF5350', objectFit: 'cover' }} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#EF5350' }}>{botBingoEvent.botName} claims BINGO!</div>
+            <div style={{ fontSize: 11, color: '#d1d5db' }}>Verifying... <span style={{ color: '#FFA726' }}>Not valid!</span></div>
+          </div>
+        </div>
+      )}
+
       {/* NAV */}
       <InGameTopBar
         gameName="Bingo 75-Ball"
@@ -900,7 +943,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 14, background: 'rgba(67,160,71,0.1)', border: '1px solid rgba(67,160,71,0.25)' }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
               <Users style={{ width: 11, height: 11, color: '#66BB6A' }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayers.toLocaleString()}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayerCount.toLocaleString()}</span>
             </div>
             {voiceSupported && (
               <button onClick={() => setVoiceOn(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: voiceOn ? '#D4AF37' : 'rgba(255,255,255,0.55)', padding: 4, borderRadius: 6 }} title="Voice caller">
@@ -1043,9 +1086,24 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               boxShadow: '0 4px 20px rgba(212,175,55,0.4)', letterSpacing: '0.05em', fontFamily: "'Cinzel',serif",
             }}>BUY CARDS & PLAY</button>
 
-            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
-              <span style={{ fontSize: 11, color: '#d1d5db' }}><strong style={{ color: '#66BB6A' }}>{onlinePlayers}</strong> players in lobby</span>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
+                <span style={{ fontSize: 11, color: '#d1d5db' }}><strong style={{ color: '#66BB6A' }}>{onlinePlayerCount}</strong> players in lobby</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {activeBots.slice(0, 8).map(bot => (
+                  <div key={bot.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <div style={{ position: 'relative' }}>
+                      <img src={bot.photoUrl} alt={bot.name} style={{ width: 28, height: 28, borderRadius: '50%', border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`, objectFit: 'cover' }} />
+                      <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63', border: '1.5px solid #111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 5, fontWeight: 900, color: '#000' }}>
+                        {bot.vipTier === 'gold' ? 'G' : bot.vipTier === 'silver' ? 'S' : 'B'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 8, color: '#d1d5db', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bot.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1175,17 +1233,35 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             </div>
 
             {/* Online social bar */}
-            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(67,160,71,0.2)', borderRadius: 10, padding: '10px 10px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 6 }}>
+            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(67,160,71,0.2)', borderRadius: 10, padding: '10px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayers} players online</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayerCount} players online</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-                {['Alex', 'Liz', 'Sam', 'Mia', 'Jon'].map((name, i) => (
-                  <img key={i} src={`https://api.dicebear.com/7.x/personas/svg?seed=${name}`} alt={name} style={{ width: 22, height: 22, borderRadius: '50%', border: '1px solid rgba(67,160,71,0.4)', background: '#1a1a1a' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {activeBots.slice(0, 6).map(bot => (
+                  <div key={bot.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 6px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <img src={bot.photoUrl} alt={bot.name} style={{ width: 22, height: 22, borderRadius: '50%', border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`, objectFit: 'cover' }} />
+                      <div style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderRadius: '50%', background: bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63', border: '1px solid #111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 4, fontWeight: 900, color: '#000' }}>
+                        {bot.vipTier === 'gold' ? 'G' : bot.vipTier === 'silver' ? 'S' : 'B'}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#e5e7eb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bot.name}</div>
+                      {phase === 'playing' && (
+                        <div style={{ fontSize: 8, color: bot.numbersAway <= 3 ? '#EF5350' : bot.numbersAway <= 6 ? '#FFA726' : '#66BB6A', fontWeight: 600 }}>
+                          {bot.numbersAway <= 1 ? '1 away!' : `${bot.numbersAway} away`}
+                        </div>
+                      )}
+                    </div>
+                    {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                      <span style={{ fontSize: 12, animation: 'daubAppear 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                    )}
+                  </div>
                 ))}
               </div>
-              <div style={{ fontSize: 9, color: '#d1d5db' }}>Multiplayer lobby</div>
+              <div style={{ fontSize: 9, color: '#d1d5db', textAlign: 'center', marginTop: 6 }}>Multiplayer lobby</div>
             </div>
           </div>
 

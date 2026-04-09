@@ -18,6 +18,8 @@ import RouletteWheel3D from '@/components/games/RouletteWheel3D';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { useProvablyFair } from '@/hooks/useProvablyFair';
 import { VerifyRoundModal } from '@/components/VerifyRoundModal';
+import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 
 interface RouletteGameProps {
   balance: number;
@@ -226,6 +228,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
   const { activeSkin: rouletteSkin } = useRouletteSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Roulette', minBots: 4, maxBots: 10, statusMessages: ['Betting', 'Watching wheel', 'Placing chips', 'At table'] });
   const [selectedChip, setSelectedChip] = useState(1_000_000);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
@@ -698,7 +701,8 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         onAddBalance={onAddBalance}
         showShare
         rightSlot={
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>

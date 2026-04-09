@@ -41,6 +41,11 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
     - **Poker Hand History & Replay**: Stores and allows replay of poker hands, with public sharing capabilities.
 
 #### Feature Specifications
+- **Casino-Wide Bot Players**: Frontend-only bot system with 28 bot profiles using real randomuser.me photos, VIP tiers, and names. Bots are purely cosmetic — no database entries, no leaderboard/admin presence.
+  - **Bingo-specific**: `src/hooks/useBingoBots.ts` — 5-12 bots with daub progress, emoji reactions, false bingo claims.
+  - **All other games**: `src/hooks/useCasinoBots.ts` — lightweight, game-agnostic hook with configurable bot counts and status messages. Integrated into Blackjack, Roulette, Craps, Slots, Darts, Pool, Spades, Dominoes, Poker, and IframeGameWrapper (French Roulette, Horse Racing, etc.).
+  - **UI**: `src/components/GameBotBar.tsx` — compact pill (green online dot + player count + stacked avatars) shown in each game's `InGameTopBar` rightSlot. Also has full sidebar and lobby row variants.
+  - **Data**: `src/data/bingoBotProfiles.ts` — shared bot profile pool used by both hooks.
 - **Games**: Texas Hold'em Poker, Blackjack, Roulette (3D), French Roulette (iframe), Craps, Spades (Elite Edition), Slots, Bingo 75-Ball, Dominoes, Horse Racing (iframe), Pool Table (8-ball canvas physics), Darts 501 (canvas dartboard vs AI), Spanish 21.
 - **Navigation**: Includes WeParlay.io external link and an 18+ VIP area.
 - **Admin**: Admin panel directly accessible for users with `isAdmin: true` flag (password gate removed).
