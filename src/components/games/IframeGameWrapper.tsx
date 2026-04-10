@@ -94,8 +94,7 @@ export function IframeGameWrapper({
   const [hrScenery, setHrScenery] = useState('classic');
   const [hrShowChips, setHrShowChips] = useState(true);
 
-  const [initialBalance] = useState(() => balance);
-  const iframeSrc = `${gamePath}?balance=${initialBalance}`;
+  const [iframeSrc] = useState(() => `${gamePath}?balance=${balance}`);
 
   const sendMusicState = useCallback(() => {
     const win = iframeRef.current?.contentWindow;
@@ -185,6 +184,13 @@ export function IframeGameWrapper({
         { type: 'balance:update', balance },
         '*'
       );
+      const t = setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'balance:update', balance: balanceRef.current },
+          '*'
+        );
+      }, 500);
+      return () => clearTimeout(t);
     }
   }, [balance, isLoaded]);
 
@@ -578,26 +584,44 @@ export function IframeGameWrapper({
         {hrChipOverlay}
         {hrRacingOverlay}
 
-        {isRoulette && otherPlayers.length > 0 && (
+        {isRoulette && (
           <div style={{
-            position: 'absolute', bottom: 8, left: 8, display: 'flex', gap: 6,
+            position: 'absolute', bottom: 60, left: 12, display: 'flex', flexDirection: 'column', gap: 6,
             pointerEvents: 'none', zIndex: 20,
           }}>
-            {otherPlayers.slice(0, 6).map((p, i) => (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              background: 'rgba(0,0,0,0.82)', borderRadius: 12, padding: '6px 10px',
+              border: '1.5px solid rgba(212,175,55,0.5)', minWidth: 60,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: avatarUrl ? `url(${avatarUrl}) center/cover` : 'linear-gradient(135deg, #D4AF37, #8B6914)',
+                border: '2.5px solid #D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, fontWeight: 700, color: '#fff', boxShadow: '0 0 8px rgba(212,175,55,0.4)',
+              }}>
+                {!avatarUrl && (username?.[0]?.toUpperCase() || '?')}
+              </div>
+              <span style={{ fontSize: 10, color: '#D4AF37', fontWeight: 700, maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {username || 'You'}
+              </span>
+              <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 600 }}>YOU</span>
+            </div>
+            {otherPlayers.slice(0, 5).map((p, i) => (
               <div key={p.socketId || i} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                background: 'rgba(0,0,0,0.75)', borderRadius: 10, padding: '4px 8px',
-                border: '1px solid rgba(212,175,55,0.3)', minWidth: 52,
+                background: 'rgba(0,0,0,0.75)', borderRadius: 12, padding: '5px 10px',
+                border: '1px solid rgba(212,175,55,0.25)', minWidth: 60,
               }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: p.avatarUrl ? `url(${p.avatarUrl}) center/cover` : 'linear-gradient(135deg, #D4AF37, #8B6914)',
-                  border: '2px solid #D4AF37', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: p.avatarUrl ? `url(${p.avatarUrl}) center/cover` : 'linear-gradient(135deg, #666, #444)',
+                  border: '2px solid rgba(212,175,55,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 14, color: '#fff',
                 }}>
                   {!p.avatarUrl && (p.username?.[0]?.toUpperCase() || '?')}
                 </div>
-                <span style={{ fontSize: 9, color: '#D4AF37', fontWeight: 600, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 9, color: '#ccc', fontWeight: 600, maxWidth: 65, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {p.username}
                 </span>
                 <span style={{ fontSize: 8, color: p.betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>

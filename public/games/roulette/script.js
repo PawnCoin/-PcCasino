@@ -2101,6 +2101,7 @@ window.addEventListener('message', function(e) {
     money = e.data.balance;
     if (!betStart) preMoney = money;
     if (moneyInfo) moneyInfo.innerHTML = (currentLang && currentLang[0] ? currentLang[0] : '') + safeMoney(money).toLocaleString('en-US') + ' $Pc';
+    try { checkMoney(); } catch(e) {}
   }
 });
 
@@ -2335,4 +2336,166 @@ window.addEventListener('beforeunload', function(e) {
       mp_players = e.data.players || [];
     }
   });
+
+(function addTableTooltips() {
+  var tooltipEl = document.createElement('div');
+  tooltipEl.id = 'pcTooltip';
+  tooltipEl.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.18s;' +
+    'background:rgba(0,0,0,0.92);color:#fff;font-family:oswald,sans-serif;font-size:1.5vh;padding:0.6vh 1.2vh;' +
+    'border-radius:0.6vh;border:1px solid rgba(212,175,55,0.5);white-space:nowrap;box-shadow:0 0.4vh 1.2vh rgba(0,0,0,0.6);';
+  document.body.appendChild(tooltipEl);
+
+  var sectionTipsById = {
+    manqueBtn: {t:'MANQUE (Low)', d:'Numbers 1–18', p:'Pays 1:1'},
+    impairBtn: {t:'IMPAIR (Odd)', d:'All odd numbers', p:'Pays 1:1'},
+    redBtn:    {t:'RED', d:'All red numbers', p:'Pays 1:1'},
+    column1:   {t:'1st Column', d:'3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36', p:'Pays 2:1'},
+    column2:   {t:'2nd Column', d:'2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35', p:'Pays 2:1'},
+    column3:   {t:'3rd Column', d:'1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34', p:'Pays 2:1'},
+    passeBtn:  {t:'PASSE (High)', d:'Numbers 19–36', p:'Pays 1:1'},
+    pairBtn:   {t:'PAIR (Even)', d:'All even numbers', p:'Pays 1:1'},
+    blackBtn:  {t:'BLACK', d:'All black numbers', p:'Pays 1:1'},
+    d12:       {t:'P12 (1st Dozen)', d:'Numbers 1–12', p:'Pays 2:1'},
+    m12:       {t:'M12 (2nd Dozen)', d:'Numbers 13–24', p:'Pays 2:1'},
+    p12:       {t:'D12 (3rd Dozen)', d:'Numbers 25–36', p:'Pays 2:1'}
+  };
+
+  var numLabels = [
+    'Zero (0)', '1','2','3','4','5','6','7','8','9','10',
+    '11','12','13','14','15','16','17','18','19','20',
+    '21','22','23','24','25','26','27','28','29','30',
+    '31','32','33','34','35','36'
+  ];
+  var reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+
+  function showTip(ev, html) {
+    tooltipEl.innerHTML = html;
+    tooltipEl.style.opacity = '1';
+    moveTip(ev);
+  }
+  function moveTip(ev) {
+    tooltipEl.style.left = (ev.clientX + 12) + 'px';
+    tooltipEl.style.top = (ev.clientY - 36) + 'px';
+  }
+  function hideTip() { tooltipEl.style.opacity = '0'; }
+
+  Array.from(btns.outsideButtons).forEach(function(btn) {
+    var info = sectionTipsById[btn.id];
+    if (!info) return;
+    var html = '<span style="color:#D4AF37;font-weight:700;">' + info.t + '</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">' + info.d + '</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">' + info.p + '</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  var numOrder = [0,3,6,9,12,15,18,21,24,27,30,33,36,
+                  2,5,8,11,14,17,20,23,26,29,32,35,
+                  1,4,7,10,13,16,19,22,25,28,31,34];
+  Array.from(btns.numberButtons).forEach(function(btn, i) {
+    var num = numOrder[i];
+    if (num === null || num === undefined) return;
+    var label = numLabels[num] || ('Number ' + num);
+    var col = num === 0 ? '#22c55e' : (reds.indexOf(num) >= 0 ? '#ef4444' : '#333');
+    var colName = num === 0 ? 'Green' : (reds.indexOf(num) >= 0 ? 'Red' : 'Black');
+    var html = '<span style="color:#D4AF37;font-weight:700;">Number ' + num + '</span>' +
+      ' <span style="display:inline-block;width:1vh;height:1vh;border-radius:50%;background:' + col + ';vertical-align:middle;"></span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">' + colName + ' · Straight Up</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">Pays 35:1</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  Array.from(btns.splitBtnsX).forEach(function(btn) {
+    var html = '<span style="color:#D4AF37;font-weight:700;">Split Bet</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">Bet on 2 adjacent numbers</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">Pays 17:1</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  Array.from(btns.splitBtnsY).forEach(function(btn) {
+    var html = '<span style="color:#D4AF37;font-weight:700;">Split Bet</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">Bet on 2 adjacent numbers</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">Pays 17:1</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  Array.from(btns.cornerBtns).forEach(function(btn) {
+    var html = '<span style="color:#D4AF37;font-weight:700;">Corner Bet</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">Bet on 4 numbers in a square</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">Pays 8:1</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  Array.from(btns.streetBtns).forEach(function(btn) {
+    var html = '<span style="color:#D4AF37;font-weight:700;">Street Bet</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">Bet on a row of 3 numbers</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">Pays 11:1</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  Array.from(btns.sixainBtns).forEach(function(btn) {
+    var html = '<span style="color:#D4AF37;font-weight:700;">Six Line (Sixain)</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">Bet on 2 rows of 3 numbers (6 total)</span><br>' +
+      '<span style="color:#22c55e;font-weight:600;">Pays 5:1</span>';
+    btn.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    btn.addEventListener('mousemove', moveTip);
+    btn.addEventListener('mouseleave', hideTip);
+  });
+
+  var cv = infoConstants.chipValues;
+  function fmtChip(v) {
+    if (v >= 1000000000) return (v/1000000000) + 'B';
+    if (v >= 1000000) return (v/1000000) + 'M';
+    if (v >= 1000) return (v/1000) + 'K';
+    return '' + v;
+  }
+  Array.from(btns.allChips).forEach(function(chip, i) {
+    if (i >= cv.length) return;
+    var val = fmtChip(cv[i]) + ' $Pc';
+    var html = '<span style="color:#D4AF37;font-weight:700;">Chip: ' + val + '</span><br>' +
+      '<span style="color:#ccc;font-size:1.2vh;">Click to select this chip denomination</span>';
+    chip.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    chip.addEventListener('mousemove', moveTip);
+    chip.addEventListener('mouseleave', hideTip);
+  });
+
+  var actionTips = {
+    betInfoBtn: 'Paytable — View all bet types and payouts',
+    soundBtn: 'Sound Settings — Adjust sound effects & music',
+    statisticBtn: 'Bet History — View your recent bets and results',
+    fullscreenBtn: 'Fullscreen — Toggle fullscreen mode',
+    x2btn: 'Double Bets — Double all current bets on the table',
+    cancelLastBtn: 'Undo — Remove the last chip placed',
+    cancelAllBtn: 'Clear All — Remove all bets from the table',
+    repeatBetBtn: 'Repeat — Place the same bets as last round'
+  };
+  Object.keys(actionTips).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var html = '<span style="color:#D4AF37;font-weight:700;">' + actionTips[id] + '</span>';
+    el.addEventListener('mouseenter', function(ev) { showTip(ev, html); });
+    el.addEventListener('mousemove', moveTip);
+    el.addEventListener('mouseleave', hideTip);
+  });
+
+  var spinBtn = document.querySelector('.betComplete');
+  if (spinBtn) {
+    spinBtn.addEventListener('mouseenter', function(ev) {
+      showTip(ev, '<span style="color:#D4AF37;font-weight:700;">SPIN</span><br><span style="color:#ccc;font-size:1.2vh;">Spin the wheel to play your bets</span>');
+    });
+    spinBtn.addEventListener('mousemove', moveTip);
+    spinBtn.addEventListener('mouseleave', hideTip);
+  }
+})();
   
