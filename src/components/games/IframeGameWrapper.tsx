@@ -633,7 +633,7 @@ export function IframeGameWrapper({
         {hrChipOverlay}
         {hrRacingOverlay}
 
-        {isRoulette && (
+        {isLoaded && (
           <>
             <div style={{
               position: 'absolute', bottom: 60, left: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
@@ -726,6 +726,12 @@ export function IframeGameWrapper({
                   <span style={{ fontSize: 8, color: '#ccc', fontWeight: 600, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {bot.name}
                   </span>
+                  {(gameId === 'blackjack' || gameId === 'craps') && betTotal > 0 && (
+                    <div style={{ display: 'flex', gap: 1 }}>
+                      <div style={{ width: 10, height: 14, borderRadius: 1, background: 'linear-gradient(135deg, #2a5c94, #1a3d66)', border: '0.5px solid rgba(255,255,255,0.2)' }} />
+                      <div style={{ width: 10, height: 14, borderRadius: 1, background: 'linear-gradient(135deg, #2a5c94, #1a3d66)', border: '0.5px solid rgba(255,255,255,0.2)' }} />
+                    </div>
+                  )}
                   <span style={{ fontSize: 7, color: betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>
                     {betTotal > 0 ? `${betTotal.toLocaleString()} $Pc` : bot.status}
                   </span>
