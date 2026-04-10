@@ -2337,32 +2337,37 @@ window.addEventListener('beforeunload', function(e) {
     }
 
     if (e.data.type === 'bots:update' && Array.isArray(e.data.bots)) {
-      var botsOverlay = document.getElementById('botChipsOverlay');
-      if (!botsOverlay) {
-        botsOverlay = document.createElement('div');
-        botsOverlay.id = 'botChipsOverlay';
-        botsOverlay.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:9990;display:flex;gap:6px;pointer-events:none;';
-        document.body.appendChild(botsOverlay);
-      }
-      while (botsOverlay.firstChild) botsOverlay.removeChild(botsOverlay.firstChild);
+      var oldBotChips = document.querySelectorAll('.botChipMarker');
+      for (var bc = 0; bc < oldBotChips.length; bc++) oldBotChips[bc].remove();
+      var numButtons = btns.numberButtons;
+      var secButtons = btns.outsideButtons;
       e.data.bots.forEach(function(bot) {
         if (!bot.betPositions || !bot.betPositions.length) return;
-        var totalBet = 0;
-        bot.betPositions.forEach(function(bp) { totalBet += bp.amount; });
-        if (totalBet <= 0) return;
-        var betLabel = totalBet >= 1000 ? Math.round(totalBet / 1000) + 'K' : String(totalBet);
-        var wrap = document.createElement('div');
-        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;';
-        var img = document.createElement('img');
-        var photoSrc = String(bot.photoUrl || '').replace(/[^a-zA-Z0-9_.:\-\/]/g, '');
-        img.src = photoSrc;
-        img.style.cssText = 'width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(212,175,55,0.6);';
-        var lbl = document.createElement('span');
-        lbl.style.cssText = 'font-size:8px;color:#D4AF37;font-weight:700;';
-        lbl.textContent = betLabel;
-        wrap.appendChild(img);
-        wrap.appendChild(lbl);
-        botsOverlay.appendChild(wrap);
+        bot.betPositions.forEach(function(bp) {
+          if (bp.amount <= 0) return;
+          var pos = bp.position;
+          var targetBtn = null;
+          if (pos.indexOf('number') === 0) {
+            var idx = parseInt(pos.replace('number', ''), 10);
+            if (numButtons && numButtons[idx]) targetBtn = numButtons[idx];
+          } else if (pos.indexOf('section') === 0) {
+            var sIdx = parseInt(pos.replace('section', ''), 10);
+            if (secButtons && secButtons[sIdx]) targetBtn = secButtons[sIdx];
+          }
+          if (targetBtn && typeof getCoordsForButton === 'function') {
+            var coords = getCoordsForButton(targetBtn);
+            if (coords) {
+              var marker = document.createElement('div');
+              marker.className = 'botChipMarker chipsPut';
+              marker.style.cssText = 'pointer-events:none;opacity:0.7;z-index:15;';
+              marker.style.top = coords.top + '%';
+              marker.style.left = coords.left + '%';
+              var chipPx = Math.round(window.innerHeight * 0.025);
+              marker.innerHTML = makeChipSVG(bp.amount, chipPx);
+              if (typeof game !== 'undefined') game.appendChild(marker);
+            }
+          }
+        });
       });
     }
   });
