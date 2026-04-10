@@ -2344,19 +2344,26 @@ window.addEventListener('beforeunload', function(e) {
         botsOverlay.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:9990;display:flex;gap:6px;pointer-events:none;';
         document.body.appendChild(botsOverlay);
       }
-      var html = '';
+      while (botsOverlay.firstChild) botsOverlay.removeChild(botsOverlay.firstChild);
       e.data.bots.forEach(function(bot) {
         if (!bot.betPositions || !bot.betPositions.length) return;
         var totalBet = 0;
         bot.betPositions.forEach(function(bp) { totalBet += bp.amount; });
         if (totalBet <= 0) return;
-        var betLabel = totalBet >= 1000 ? Math.round(totalBet / 1000) + 'K' : totalBet;
-        html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
-          '<img src="' + (bot.photo || '') + '" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(212,175,55,0.6);" />' +
-          '<span style="font-size:8px;color:#D4AF37;font-weight:700;">' + betLabel + '</span>' +
-          '</div>';
+        var betLabel = totalBet >= 1000 ? Math.round(totalBet / 1000) + 'K' : String(totalBet);
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;';
+        var img = document.createElement('img');
+        var photoSrc = String(bot.photoUrl || '').replace(/[^a-zA-Z0-9_.:\-\/]/g, '');
+        img.src = photoSrc;
+        img.style.cssText = 'width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(212,175,55,0.6);';
+        var lbl = document.createElement('span');
+        lbl.style.cssText = 'font-size:8px;color:#D4AF37;font-weight:700;';
+        lbl.textContent = betLabel;
+        wrap.appendChild(img);
+        wrap.appendChild(lbl);
+        botsOverlay.appendChild(wrap);
       });
-      botsOverlay.innerHTML = html;
     }
   });
 
