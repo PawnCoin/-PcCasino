@@ -105,7 +105,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     nilBid: false, blindNilBid: false,
   });
 
-  const [gamePhase, setGamePhase] = useState<'menu' | 'betting' | 'dealing' | 'bidding' | 'playing' | 'scoring'>('menu');
+  const [gamePhase, setGamePhase] = useState<'menu' | 'betting' | 'dealing' | 'blindNilPrompt' | 'bidding' | 'playing' | 'scoring'>('menu');
   const [players, setPlayers] = useState<SpadesPlayer[]>([0, 1, 2, 3].map(mkPlayer));
   const [currentPlayer, setCurrentPlayer] = useState(0);
   const [currentTrick, setCurrentTrick] = useState<TrickCard[]>([]);
@@ -270,10 +270,16 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         if (step >= 13) {
           clearInterval(dealInterval);
           setTimeout(() => {
-            setGamePhase('bidding');
-            setCurrentPlayer(0);
-            setMessage('Look at your cards, then place your bid!');
-            showTip('Count your spades and high cards to estimate your tricks.');
+            if (houseRules.blindNilAllowed) {
+              setGamePhase('blindNilPrompt');
+              setCurrentPlayer(0);
+              setMessage('Cards are face down — do you want to bid Blind Nil?');
+            } else {
+              setGamePhase('bidding');
+              setCurrentPlayer(0);
+              setMessage('Look at your cards, then place your bid!');
+              showTip('Count your spades and high cards to estimate your tricks.');
+            }
           }, 400);
         }
       }, 80);
@@ -1603,7 +1609,39 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
                 )}
 
-                {/* ── BIDDING OVERLAY (on the table center) ── */}
+                {/* ── BLIND NIL PROMPT (cards face down, ask before revealing) ── */}
+                {gamePhase === 'blindNilPrompt' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 25 }}>
+                    <div className="pointer-events-auto bg-black/90 backdrop-blur-md rounded-2xl px-6 py-5 border border-purple-500/50 shadow-2xl text-center"
+                      style={{ animation: 'bidPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both', minWidth: 260 }}>
+                      <div className="text-purple-300 font-bold text-lg mb-2">♠ Blind Nil?</div>
+                      <div className="text-white/70 text-sm mb-1">Your cards are face down.</div>
+                      <div className="text-white/50 text-xs mb-4">Bid Nil without seeing your hand for ±200 points.</div>
+                      <div className="flex gap-3 justify-center">
+                        <button
+                          onClick={() => {
+                            setGamePhase('bidding');
+                            setMessage('Cards revealed — place your bid!');
+                            showTip('Count your spades and high cards to estimate your tricks.');
+                          }}
+                          className="px-5 py-2.5 rounded-full text-sm font-bold border border-white/20 text-white/70 hover:bg-white/10 transition-all">
+                          No, show my cards
+                        </button>
+                        <button
+                          onClick={() => {
+                            playSound('click');
+                            setPendingBid({ amount: 0, isNil: false, isBlindNil: true });
+                          }}
+                          className="px-5 py-2.5 rounded-full text-sm font-black transition-all hover:scale-105 border-2 border-purple-400"
+                          style={{ background: 'linear-gradient(135deg, #6a1b9a, #4a148c)', color: '#e1bee7' }}>
+                          Yes, Blind Nil!
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── BIDDING OVERLAY (cards revealed, choose your bid) ── */}
                 {gamePhase === 'bidding' && !pendingBid && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 25 }}>
                     <div className="pointer-events-auto bg-black/85 backdrop-blur-md rounded-2xl px-5 py-4 border border-[#D4AF37]/30 shadow-2xl"
@@ -1626,14 +1664,6 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                           </button>
                         ))}
                       </div>
-                      {houseRules.blindNilAllowed && (
-                        <div className="mt-2">
-                          <button onClick={() => setPendingBid({ amount: 0, isNil: false, isBlindNil: true })}
-                            className="w-full py-1.5 rounded-full font-bold text-xs border-2 border-purple-500 text-purple-300 bg-purple-900/30 hover:bg-purple-800/50 transition-all hover:scale-105">
-                            Blind NIL (\u00b1200)
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -1682,7 +1712,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 )}
 
                 {/* YOUR BADGE — positioned on the bottom edge of the table, overlapping outward */}
-                {(gamePhase === 'bidding' || gamePhase === 'playing') && (
+                {(gamePhase === 'blindNilPrompt' || gamePhase === 'bidding' || gamePhase === 'playing') && (
                   <div className="absolute left-1/2 -translate-x-1/2 z-[15]" style={{ bottom: '-16px' }}>
                     <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/85 border border-[#D4AF37]/30 backdrop-blur-sm shadow-lg">
                       <div className="relative">
@@ -1713,8 +1743,8 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                 </div>
               )}
 
-              {/* ── YOUR HAND ── shown during bidding AND playing */}
-              {(gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
+              {/* ── YOUR HAND ── shown during blindNilPrompt (face down), bidding AND playing (face up) */}
+              {(gamePhase === 'blindNilPrompt' || gamePhase === 'bidding' || gamePhase === 'playing') && players[0].hand.length > 0 && (
                 <div style={{ background: 'transparent', padding: '4px 8px 4px', position: 'relative', zIndex: 20 }}>
                   {/* Reaction buttons + SMACK */}
                   <div className="absolute right-2 top-1 flex flex-col gap-1 items-end">
@@ -1747,24 +1777,36 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   </div>
 
                   <div className="flex justify-center items-end" style={{ minHeight: '120px', gap: '-8px' }}>
-                    {players[0].hand.map((card, i) => {
-                      const isLegal = legalIndices.includes(i);
-                      const canPlay = gamePhase === 'playing' && currentPlayer === 0;
-                      return (
-                        <div key={`hand-${card.suit}-${card.rank}`}
-                          style={{ marginLeft: i === 0 ? 0 : '-18px', position: 'relative', zIndex: hoveredCard === i ? 50 : i }}>
-                          {renderCardFace(card, canPlay && isLegal ? () => playCard(i) : undefined, {
-                            size: 'lg',
-                            playable: !canPlay || isLegal,
-                            highlight: canPlay && isLegal,
-                            fanIdx: i,
-                            fanTotal: players[0].hand.length,
-                          })}
+                    {gamePhase === 'blindNilPrompt' ? (
+                      players[0].hand.map((_, i) => (
+                        <div key={`back-${i}`}
+                          style={{ marginLeft: i === 0 ? 0 : '-18px', position: 'relative', zIndex: i }}>
+                          {renderCardBack(72, 100, 0, i)}
                         </div>
-                      );
-                    })}
+                      ))
+                    ) : (
+                      players[0].hand.map((card, i) => {
+                        const isLegal = legalIndices.includes(i);
+                        const canPlay = gamePhase === 'playing' && currentPlayer === 0;
+                        return (
+                          <div key={`hand-${card.suit}-${card.rank}`}
+                            style={{ marginLeft: i === 0 ? 0 : '-18px', position: 'relative', zIndex: hoveredCard === i ? 50 : i }}>
+                            {renderCardFace(card, canPlay && isLegal ? () => playCard(i) : undefined, {
+                              size: 'lg',
+                              playable: !canPlay || isLegal,
+                              highlight: canPlay && isLegal,
+                              fanIdx: i,
+                              fanTotal: players[0].hand.length,
+                            })}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
 
+                  {gamePhase === 'blindNilPrompt' && (
+                    <div className="text-center text-xs text-purple-400 mt-2">Cards are face down — decide above ↑</div>
+                  )}
                   {gamePhase === 'bidding' && (
                     <div className="text-center text-xs text-gray-600 mt-2">Review your hand above, then place your bid ↑</div>
                   )}
