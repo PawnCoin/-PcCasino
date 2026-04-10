@@ -327,8 +327,12 @@ export function IframeGameWrapper({
     };
   }, [isRoulette, isLoaded, username, avatarUrl, userId]);
 
+  const lastBotsUpdateRef = useRef(0);
   useEffect(() => {
     if (!isLoaded || !iframeRef.current?.contentWindow) return;
+    const now = Date.now();
+    if (now - lastBotsUpdateRef.current < 2000) return;
+    lastBotsUpdateRef.current = now;
     iframeRef.current.contentWindow.postMessage({
       type: 'bots:update',
       bots: activeBots.map(b => ({
