@@ -336,7 +336,7 @@ function betClick(splitNumbers, splitBets, split) {
 
 function betWindowInfo(buttons, bets, keyPrefix, multiplier) {
   const updateBetWindow = (index) => {
-    const betKey = `${keyPrefix} ${index}`;
+    const betKey = `${keyPrefix}${index}`;
     const currentMultiplier = [
       'section3',
       'section4',
@@ -377,7 +377,7 @@ function bindBetGroup(buttons, numbersMap, betsObj, prefix) {
       const sfx = hadStack ? chipsPutSfx2 : chipsPutSfx;
       sfx.currentTime = 0;
       sfx.play();
-      const key = `${prefix} ${i}`;
+      const key = `${prefix}${i}`;
       betClick(numbersMap, betsObj, key);
       updateChipsForButton(btn, betsObj[key]);
     });
@@ -418,7 +418,7 @@ function cancelLastBet() {
     money += betSize;
     updateUI();
     const halve = (obj, prefix) =>
-      Object.keys(obj).forEach((_, i) => (obj[`${prefix} ${i}`] /= 2));
+      Object.keys(obj).forEach((_, i) => (obj[`${prefix}${i}`] /= 2));
     [
       ['number', numberBets],
       ['split', splitBetsX],
@@ -984,7 +984,7 @@ function getCoordsForButton(btn) {
   const check = (cls, prefix, next = true) => {
     if (!btn.classList.contains(cls)) return;
     const num = parseInt(id.replace(prefix, ''), 10);
-    return get(`${prefix} ${next ? num + 1 : num}`);
+    return get(`${prefix}${next ? num + 1 : num}`);
   };
 
   if (btn.classList.contains('numbers')) {
@@ -1229,7 +1229,7 @@ function historyList() {
 function initializeBets(buttons, prefix) {
   const bets = {};
   for (let i = 0; i < buttons.length; i++) {
-    bets[`${prefix} ${i}`] = 0;
+    bets[`${prefix}${i}`] = 0;
   }
   return bets;
 }
@@ -1443,7 +1443,7 @@ function refreshAllZonesWithPositiveBets() {
   refreshMap.forEach(({ obj, prefix, buttons }) => {
     const count = buttons.length;
     for (let i = 0; i < count; i++) {
-      const key = `${prefix} ${i}`;
+      const key = `${prefix}${i}`;
       const amount = obj[key] || 0;
       if (amount > 0 || getZoneStack(buttons[i]).length) {
         updateChipsForButton(buttons[i], amount);
