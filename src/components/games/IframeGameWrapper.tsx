@@ -66,7 +66,7 @@ export function IframeGameWrapper({
   userId,
   avatarUrl,
 }: IframeGameWrapperProps) {
-  const { activeBots, onlinePlayerCount, chatMessages, triggerReaction, triggerGameEvent } = useCasinoBots({ gameName, minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Playing', 'Betting', 'At table'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName, minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Playing', 'Betting', 'At table'] });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -148,11 +148,19 @@ export function IframeGameWrapper({
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
         onWin(amount);
-        triggerGameEvent('win');
+        triggerGameEvent(amount > 5000 ? 'bigWin' : 'win');
         iframeRef.current?.contentWindow?.postMessage(
           { type: 'win:confirmed', amount, balance: balanceRef.current },
           '*'
         );
+      }
+
+      if (type === 'lose') {
+        triggerGameEvent('lose');
+      }
+
+      if (type === 'newRound') {
+        triggerGameEvent('newRound');
       }
 
       if (isRoulette && type === 'roulette:betsSnapshot') {
@@ -253,6 +261,7 @@ export function IframeGameWrapper({
     });
 
     const onState = (data: { phase: string; timer: number; roundId: number; players: RoulettePlayer[]; history?: number[] }) => {
+      const prevPhase = roulettePhase;
       setRoulettePhase(data.phase);
       setRouletteTimer(data.timer);
       setRoulettePlayers(data.players);
@@ -265,6 +274,9 @@ export function IframeGameWrapper({
         players: data.players,
         history: data.history,
       }, '*');
+      if (data.phase === 'betting' && prevPhase === 'spinning') {
+        triggerGameEvent('newRound');
+      }
     };
 
     const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[]; netChange?: number; newBalance?: number }) => {
@@ -283,8 +295,10 @@ export function IframeGameWrapper({
         } else if (typeof data.netChange === 'number' && data.netChange !== 0) {
           if (data.netChange > 0) {
             onWinRef.current(data.netChange);
+            triggerGameEvent('win');
           } else {
             onBetRef.current(Math.abs(data.netChange));
+            triggerGameEvent('lose');
           }
         }
       }
@@ -309,6 +323,21 @@ export function IframeGameWrapper({
       socket.off('roulette:players', onPlayers);
     };
   }, [isRoulette, isLoaded, username, avatarUrl, userId]);
+
+  useEffect(() => {
+    if (!isLoaded || !iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage({
+      type: 'bots:update',
+      bots: activeBots.map(b => ({
+        id: b.id, name: b.name, photoUrl: b.photoUrl,
+        vipTier: b.vipTier, currentBet: b.currentBet,
+        betPositions: b.betPositions, status: b.status,
+      })),
+      chatMessages: chatMessages.slice(-5).map(m => ({
+        botName: m.botName, message: m.message, timestamp: m.timestamp,
+      })),
+    }, '*');
+  }, [isLoaded, activeBots, chatMessages]);
 
   useEffect(() => {
     if (!isHorseRacing || !isLoaded) return;

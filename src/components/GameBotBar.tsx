@@ -1,6 +1,6 @@
 import { type CasinoBot, type BotChatMessage } from '@/hooks/useCasinoBots';
 import { Users, MessageCircle } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 interface GameBotBarProps {
   bots: CasinoBot[];
