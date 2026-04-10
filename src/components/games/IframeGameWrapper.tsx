@@ -94,7 +94,23 @@ export function IframeGameWrapper({
   const [hrScenery, setHrScenery] = useState('classic');
   const [hrShowChips, setHrShowChips] = useState(true);
 
-  const [iframeSrc] = useState(() => `${gamePath}?balance=${balance}`);
+  const [iframeSrc, setIframeSrc] = useState('');
+  const iframeSrcSet = useRef(false);
+  useEffect(() => {
+    if (iframeSrcSet.current) return;
+    if (balance > 0) {
+      setIframeSrc(`${gamePath}?balance=${balance}`);
+      iframeSrcSet.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (!iframeSrcSet.current) {
+        setIframeSrc(`${gamePath}?balance=${balance}`);
+        iframeSrcSet.current = true;
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [balance, gamePath]);
 
   const sendMusicState = useCallback(() => {
     const win = iframeRef.current?.contentWindow;
@@ -570,7 +586,7 @@ export function IframeGameWrapper({
           </div>
         )}
 
-        <iframe
+        {iframeSrc && <iframe
           ref={iframeRef}
           src={iframeSrc}
           className="w-full h-full border-0"
@@ -579,18 +595,16 @@ export function IframeGameWrapper({
           onLoad={() => setIsLoaded(true)}
           onError={() => { setLoadError(true); setIsLoaded(true); }}
           title={gameName}
-        />
+        />}
 
         {hrChipOverlay}
         {hrRacingOverlay}
 
         {isRoulette && (
-          <div style={{
-            position: 'absolute', bottom: 60, left: 12, display: 'flex', flexDirection: 'column', gap: 6,
-            pointerEvents: 'none', zIndex: 20,
-          }}>
+          <>
             <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              position: 'absolute', bottom: 60, left: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              pointerEvents: 'none', zIndex: 20,
               background: 'rgba(0,0,0,0.82)', borderRadius: 12, padding: '6px 10px',
               border: '1.5px solid rgba(212,175,55,0.5)', minWidth: 60,
             }}>
@@ -607,29 +621,42 @@ export function IframeGameWrapper({
               </span>
               <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 600 }}>YOU</span>
             </div>
-            {otherPlayers.slice(0, 5).map((p, i) => (
-              <div key={p.socketId || i} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                background: 'rgba(0,0,0,0.75)', borderRadius: 12, padding: '5px 10px',
-                border: '1px solid rgba(212,175,55,0.25)', minWidth: 60,
-              }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: '50%',
-                  background: p.avatarUrl ? `url(${p.avatarUrl}) center/cover` : 'linear-gradient(135deg, #666, #444)',
-                  border: '2px solid rgba(212,175,55,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, color: '#fff',
+            {otherPlayers.slice(0, 6).map((p, i) => {
+              const positions = [
+                { top: '15%', right: 12 },
+                { top: '30%', right: 12 },
+                { top: '45%', right: 12 },
+                { bottom: 120, right: 12 },
+                { bottom: 60, right: 12 },
+                { bottom: 60, right: 90 },
+              ];
+              const pos = positions[i];
+              return (
+                <div key={p.socketId || i} style={{
+                  position: 'absolute', ...pos,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                  background: 'rgba(0,0,0,0.75)', borderRadius: 12, padding: '5px 8px',
+                  border: '1px solid rgba(212,175,55,0.25)', minWidth: 54,
+                  pointerEvents: 'none', zIndex: 20,
                 }}>
-                  {!p.avatarUrl && (p.username?.[0]?.toUpperCase() || '?')}
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: p.avatarUrl ? `url(${p.avatarUrl}) center/cover` : 'linear-gradient(135deg, #666, #444)',
+                    border: '2px solid rgba(212,175,55,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, color: '#fff',
+                  }}>
+                    {!p.avatarUrl && (p.username?.[0]?.toUpperCase() || '?')}
+                  </div>
+                  <span style={{ fontSize: 8, color: '#ccc', fontWeight: 600, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.username}
+                  </span>
+                  <span style={{ fontSize: 7, color: p.betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>
+                    {p.betTotal > 0 ? `${p.betTotal.toLocaleString()} $Pc` : 'Watching'}
+                  </span>
                 </div>
-                <span style={{ fontSize: 9, color: '#ccc', fontWeight: 600, maxWidth: 65, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.username}
-                </span>
-                <span style={{ fontSize: 8, color: p.betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>
-                  {p.betTotal > 0 ? `${p.betTotal.toLocaleString()} $Pc` : 'Watching'}
-                </span>
-              </div>
-            ))}
-          </div>
+              );
+            })}
+          </>
         )}
       </div>
 

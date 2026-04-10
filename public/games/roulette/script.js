@@ -2101,7 +2101,7 @@ window.addEventListener('message', function(e) {
     money = e.data.balance;
     if (!betStart) preMoney = money;
     if (moneyInfo) moneyInfo.innerHTML = (currentLang && currentLang[0] ? currentLang[0] : '') + safeMoney(money).toLocaleString('en-US') + ' $Pc';
-    try { checkMoney(); } catch(e) {}
+    if (typeof checkMoney === 'function') checkMoney();
   }
 });
 
