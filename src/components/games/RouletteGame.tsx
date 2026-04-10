@@ -910,6 +910,16 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
                       >
                         {num}
                         {betAmt > 0 && <BetChipStack amount={betAmt} chipCount={betHistoryCountMap[num.toString()] || 1} />}
+                        {(() => {
+                          const botOnPos = activeBots.find(b => b.betPositions.some(bp => bp.position === `number${num}`));
+                          if (!botOnPos) return null;
+                          const bp = botOnPos.betPositions.find(p => p.position === `number${num}`)!;
+                          return (
+                            <div className="absolute -top-1 -right-1 z-10 pointer-events-none" style={{ animation: 'botChipPlace 0.3s ease-out' }}>
+                              <img src={botOnPos.photoUrl} alt="" style={{ width: 12, height: 12, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.4)' }} />
+                            </div>
+                          );
+                        })()}
                       </button>
                     );
                   })}

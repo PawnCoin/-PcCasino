@@ -84,6 +84,7 @@ export function IframeGameWrapper({
 
   const [roulettePlayers, setRoulettePlayers] = useState<RoulettePlayer[]>([]);
   const [roulettePhase, setRoulettePhase] = useState<string>('waiting');
+  const roulettePhaseRef = useRef<string>('waiting');
   const [rouletteTimer, setRouletteTimer] = useState(0);
   const rouletteRoundIdRef = useRef(0);
   const isRoulette = gameId === 'roulette';
@@ -261,8 +262,9 @@ export function IframeGameWrapper({
     });
 
     const onState = (data: { phase: string; timer: number; roundId: number; players: RoulettePlayer[]; history?: number[] }) => {
-      const prevPhase = roulettePhase;
+      const prevPhase = roulettePhaseRef.current;
       setRoulettePhase(data.phase);
+      roulettePhaseRef.current = data.phase;
       setRouletteTimer(data.timer);
       setRoulettePlayers(data.players);
       rouletteRoundIdRef.current = data.roundId;
@@ -281,6 +283,7 @@ export function IframeGameWrapper({
 
     const onSpin = (data: { result: number; roundId: number; players: RoulettePlayer[]; netChange?: number; newBalance?: number }) => {
       setRoulettePhase('spinning');
+      roulettePhaseRef.current = 'spinning';
       rouletteRoundIdRef.current = data.roundId;
       if (data.players) setRoulettePlayers(data.players);
       iframeRef.current?.contentWindow?.postMessage({

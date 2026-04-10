@@ -2335,6 +2335,29 @@ window.addEventListener('beforeunload', function(e) {
     if (e.data.type === 'roulette:players') {
       mp_players = e.data.players || [];
     }
+
+    if (e.data.type === 'bots:update' && Array.isArray(e.data.bots)) {
+      var botsOverlay = document.getElementById('botChipsOverlay');
+      if (!botsOverlay) {
+        botsOverlay = document.createElement('div');
+        botsOverlay.id = 'botChipsOverlay';
+        botsOverlay.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:9990;display:flex;gap:6px;pointer-events:none;';
+        document.body.appendChild(botsOverlay);
+      }
+      var html = '';
+      e.data.bots.forEach(function(bot) {
+        if (!bot.betPositions || !bot.betPositions.length) return;
+        var totalBet = 0;
+        bot.betPositions.forEach(function(bp) { totalBet += bp.amount; });
+        if (totalBet <= 0) return;
+        var betLabel = totalBet >= 1000 ? Math.round(totalBet / 1000) + 'K' : totalBet;
+        html += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+          '<img src="' + (bot.photo || '') + '" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(212,175,55,0.6);" />' +
+          '<span style="font-size:8px;color:#D4AF37;font-weight:700;">' + betLabel + '</span>' +
+          '</div>';
+      });
+      botsOverlay.innerHTML = html;
+    }
   });
 
 (function addTableTooltips() {

@@ -538,9 +538,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
               <div className="absolute bottom-24 flex gap-8 items-end">
                 {activeBots.slice(0, 2).map((bot) => (
                   <div key={bot.id} className="flex flex-col items-center gap-1 opacity-80">
-                    <div className="w-16 h-10 border border-dashed border-white/15 rounded-lg flex items-center justify-center">
+                    <div className="w-16 h-10 border border-dashed border-white/15 rounded-lg flex items-center justify-center relative overflow-hidden">
+                      {gameState !== 'betting' && (
+                        <div className="flex gap-0.5">
+                          <div className="w-5 h-7 rounded-sm" style={{ background: 'linear-gradient(135deg, #2a5c94, #1a3d66)', border: '0.5px solid rgba(255,255,255,0.2)' }} />
+                          <div className="w-5 h-7 rounded-sm" style={{ background: 'linear-gradient(135deg, #2a5c94, #1a3d66)', border: '0.5px solid rgba(255,255,255,0.2)' }} />
+                        </div>
+                      )}
                       {bot.currentBet > 0 && (
-                        <span style={{ fontSize: 8, color: '#D4AF37', fontWeight: 700 }}>{bot.currentBet >= 1000 ? `${(bot.currentBet / 1000).toFixed(0)}K` : bot.currentBet}</span>
+                        <span className="absolute bottom-0.5 right-0.5" style={{ fontSize: 7, color: '#D4AF37', fontWeight: 700, background: 'rgba(0,0,0,0.6)', borderRadius: 2, padding: '0 2px' }}>{bot.currentBet >= 1000 ? `${(bot.currentBet / 1000).toFixed(0)}K` : bot.currentBet}</span>
                       )}
                     </div>
                     <div className="relative">
@@ -589,9 +595,15 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
 
                 {activeBots.slice(2, 4).map((bot) => (
                   <div key={bot.id} className="flex flex-col items-center gap-1 opacity-80">
-                    <div className="w-16 h-10 border border-dashed border-white/15 rounded-lg flex items-center justify-center">
+                    <div className="w-16 h-10 border border-dashed border-white/15 rounded-lg flex items-center justify-center relative overflow-hidden">
+                      {gameState !== 'betting' && (
+                        <div className="flex gap-0.5">
+                          <div className="w-5 h-7 rounded-sm" style={{ background: 'linear-gradient(135deg, #2a5c94, #1a3d66)', border: '0.5px solid rgba(255,255,255,0.2)' }} />
+                          <div className="w-5 h-7 rounded-sm" style={{ background: 'linear-gradient(135deg, #2a5c94, #1a3d66)', border: '0.5px solid rgba(255,255,255,0.2)' }} />
+                        </div>
+                      )}
                       {bot.currentBet > 0 && (
-                        <span style={{ fontSize: 8, color: '#D4AF37', fontWeight: 700 }}>{bot.currentBet >= 1000 ? `${(bot.currentBet / 1000).toFixed(0)}K` : bot.currentBet}</span>
+                        <span className="absolute bottom-0.5 right-0.5" style={{ fontSize: 7, color: '#D4AF37', fontWeight: 700, background: 'rgba(0,0,0,0.6)', borderRadius: 2, padding: '0 2px' }}>{bot.currentBet >= 1000 ? `${(bot.currentBet / 1000).toFixed(0)}K` : bot.currentBet}</span>
                       )}
                     </div>
                     <div className="relative">
