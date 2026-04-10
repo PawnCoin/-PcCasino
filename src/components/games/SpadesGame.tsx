@@ -573,7 +573,17 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             step++; playSound('card'); setDealStep(step);
             if (step >= 13) {
               clearInterval(di);
-              setTimeout(() => { setGamePhase('bidding'); setCurrentPlayer(0); setMessage('New round! Place your bid.'); }, 400);
+              setTimeout(() => {
+                if (houseRules.blindNilAllowed) {
+                  setGamePhase('blindNilPrompt');
+                  setCurrentPlayer(0);
+                  setMessage('Cards are face down — do you want to bid Blind Nil?');
+                } else {
+                  setGamePhase('bidding');
+                  setCurrentPlayer(0);
+                  setMessage('New round! Place your bid.');
+                }
+              }, 400);
             }
           }, 80);
         }, 1600);
@@ -1039,7 +1049,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           )}
 
           {/* ═══════════ TABLE (DEALING / BIDDING / PLAYING) ═══════════ */}
-          {(gamePhase === 'dealing' || gamePhase === 'bidding' || gamePhase === 'playing') && (
+          {(gamePhase === 'dealing' || gamePhase === 'blindNilPrompt' || gamePhase === 'bidding' || gamePhase === 'playing') && (
             <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
 
               {/* SCORE BAR */}
