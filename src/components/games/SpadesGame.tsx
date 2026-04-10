@@ -158,6 +158,10 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [smackMode, setSmackMode] = useState(false);
   const [smackActive, setSmackActive] = useState(false);
   const [trickAnnouncement, setTrickAnnouncement] = useState<{ winner: string; leadsNext: boolean } | null>(null);
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [afkStrikes, setAfkStrikes] = useState(0);
+  const [aiTakeover, setAiTakeover] = useState(false);
+  const [afkWarning, setAfkWarning] = useState<string | null>(null);
   const [activeProps, setActiveProps] = useState<Record<string, boolean>>({});
   const propTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   useEffect(() => {
@@ -171,6 +175,15 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     }
   }, [currentPlayer, gamePhase]);
 
+  useEffect(() => {
+    const isInGame = gamePhase === 'dealing' || gamePhase === 'blindNilPrompt' || gamePhase === 'bidding' || gamePhase === 'playing' || gamePhase === 'scoring';
+    if (isInGame && currentBet > 0) {
+      const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+      window.addEventListener('beforeunload', handler);
+      return () => window.removeEventListener('beforeunload', handler);
+    }
+  }, [gamePhase, currentBet]);
+
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -182,12 +195,24 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   }, []);
 
   useEffect(() => {
+    if (showQuitConfirm) {
+      if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+      turnTimerRef.current = null;
+      return;
+    }
     if (gamePhase === 'playing' && currentPlayer === 0 && !isAIThinking) {
+      if (aiTakeover) {
+        const t = setTimeout(() => {
+          const legal = getLegalIndices(players[0].hand, currentTrick);
+          if (legal.length > 0) playCard(legal[0]);
+        }, Math.round(800 / gameSpeed));
+        return () => clearTimeout(t);
+      }
       setTurnTimeLeft(20);
       if (turnTimerRef.current) clearInterval(turnTimerRef.current);
       turnTimerRef.current = setInterval(() => {
         setTurnTimeLeft(prev => {
-          if (prev === null || prev <= 1) {
+          if (prev === null || prev <= 0) {
             clearInterval(turnTimerRef.current!);
             turnTimerRef.current = null;
             return null;
@@ -203,10 +228,22 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
     return () => {
       if (turnTimerRef.current) clearInterval(turnTimerRef.current);
     };
-  }, [gamePhase, currentPlayer, isAIThinking]);
+  }, [gamePhase, currentPlayer, isAIThinking, aiTakeover, showQuitConfirm]);
 
   useEffect(() => {
-    if (turnTimeLeft === 0 && gamePhase === 'playing' && currentPlayer === 0) {
+    if (turnTimeLeft === 0 && gamePhase === 'playing' && currentPlayer === 0 && !aiTakeover) {
+      setAfkStrikes(prev => {
+        const next = prev + 1;
+        if (next >= 2) {
+          setAiTakeover(true);
+          setAfkWarning('You were AFK too many times. Computer is playing for you now.');
+          setTimeout(() => setAfkWarning(null), 4000);
+        } else {
+          setAfkWarning(`AFK warning ${next}/2 — Computer played for you. One more and AI takes over.`);
+          setTimeout(() => setAfkWarning(null), 3500);
+        }
+        return next;
+      });
       const legal = getLegalIndices(players[0].hand, currentTrick);
       if (legal.length > 0) playCard(legal[0]);
     }
@@ -245,6 +282,9 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const startGame = () => {
     if (currentBet === 0) { setMessage('Place a bet first!'); return; }
     if (!onBet(currentBet)) return;
+    setAfkStrikes(0);
+    setAiTakeover(false);
+    setAfkWarning(null);
     setIsShuffling(true);
     setGamePhase('dealing');
     setDealStep(0);
@@ -901,7 +941,14 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
         <InGameTopBar
           gameName="Spades"
           balance={balance}
-          onBack={onBack}
+          onBack={() => {
+            const isInGame = gamePhase === 'dealing' || gamePhase === 'blindNilPrompt' || gamePhase === 'bidding' || gamePhase === 'playing' || gamePhase === 'scoring';
+            if (isInGame && currentBet > 0) {
+              setShowQuitConfirm(true);
+            } else {
+              onBack();
+            }
+          }}
           onAddBalance={onAddBalance}
           onShowWallet={onShowWallet}
           showShare
@@ -2093,6 +2140,69 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* ═══ QUIT CONFIRMATION MODAL ═══ */}
+        {showQuitConfirm && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}>
+            <div className="rounded-2xl px-7 py-6 border shadow-2xl text-center" style={{ background: 'rgba(15,15,15,0.97)', borderColor: 'rgba(220,50,50,0.5)', maxWidth: 360, animation: 'bidPop 0.25s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+              <div className="text-2xl mb-2">⚠️</div>
+              <div className="text-white font-bold text-lg mb-2">Quit Game?</div>
+              <div className="text-gray-400 text-sm mb-1">Your bet of <span className="text-[#D4AF37] font-bold">{currentBet.toLocaleString()} $Pc</span> will be lost.</div>
+              <div className="text-gray-500 text-xs mb-1">This game will not be saved.</div>
+              <div className="text-gray-500 text-xs mb-5">Only you lose money — your partner keeps theirs.</div>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowQuitConfirm(false)}
+                  className="px-5 py-2.5 rounded-full text-sm font-bold border border-white/20 text-white/70 hover:bg-white/10 transition-all">
+                  Keep Playing
+                </button>
+                <button
+                  onClick={() => {
+                    setShowQuitConfirm(false);
+                    setGamePhase('menu');
+                    setCurrentBet(0);
+                    setTableChips([]);
+                    setTeamScore({ you: 0, opponent: 0 });
+                    setBags({ you: 0, opponent: 0 });
+                    setRound(1);
+                    setAfkStrikes(0);
+                    setAiTakeover(false);
+                    setPlayers([0, 1, 2, 3].map(mkPlayer));
+                    setMessage('');
+                    onBack();
+                  }}
+                  className="px-5 py-2.5 rounded-full text-sm font-black transition-all hover:scale-105"
+                  style={{ background: 'linear-gradient(135deg, #dc3545, #a71d2a)', color: '#fff' }}>
+                  Quit & Forfeit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ AFK WARNING TOAST ═══ */}
+        {afkWarning && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9998] px-5 py-3 rounded-xl border shadow-2xl text-center"
+            style={{
+              background: aiTakeover ? 'rgba(220,50,50,0.95)' : 'rgba(255,152,0,0.95)',
+              borderColor: aiTakeover ? 'rgba(255,80,80,0.6)' : 'rgba(255,180,0,0.6)',
+              animation: 'bidPop 0.3s cubic-bezier(0.34,1.56,0.64,1) both',
+              maxWidth: 400,
+            }}>
+            <div className="text-white font-bold text-sm">{afkWarning}</div>
+          </div>
+        )}
+
+        {/* ═══ AI TAKEOVER BADGE (persistent during takeover) ═══ */}
+        {aiTakeover && gamePhase === 'playing' && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 rounded-full border shadow-lg"
+            style={{ background: 'rgba(220,50,50,0.85)', borderColor: 'rgba(255,80,80,0.4)' }}>
+            <div className="text-white font-bold text-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-300 animate-pulse" />
+              COMPUTER IS PLAYING FOR YOU
+            </div>
+          </div>
+        )}
       </div>
     </CasinoEnvironment>
   );
