@@ -94,7 +94,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const { playSound, isMuted, toggleMute } = useSoundEffects();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Spades', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'In queue', 'Spectating', 'Next round'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Spades', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'In queue', 'Spectating', 'Next round'] });
 
   const mkPlayer = (idx: number): SpadesPlayer => ({
     id: idx === 0 ? 'you' : `p${idx + 1}`,
@@ -585,11 +585,13 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           setMessage(`You won! +${currentBet * 2} $Pc`);
           setWinFlash(true); setTimeout(() => setWinFlash(false), 2500);
           playSound('win');
+          triggerGameEvent('win');
           if (rankedMode) setPlayerStats(p => ({ ...p, wins: p.wins + 1, mmr: p.mmr + 25 }));
         } else {
           setMessage('Opponents won. Better luck next time!');
           setLoseFlash(true); setTimeout(() => setLoseFlash(false), 1500);
           playSound('lose');
+          triggerGameEvent('lose');
           if (rankedMode) setPlayerStats(p => ({ ...p, losses: p.losses + 1, mmr: Math.max(0, p.mmr - 20) }));
         }
         setGamePhase('menu');
@@ -954,7 +956,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
           showShare
           rightSlot={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
               {rankedMode && (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold"
                   style={{ borderColor: tier.color, color: tier.color }}>

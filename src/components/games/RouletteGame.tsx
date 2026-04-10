@@ -228,7 +228,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
   const { activeSkin: rouletteSkin } = useRouletteSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Roulette', minBots: 4, maxBots: 10, statusMessages: ['Betting', 'Watching wheel', 'Placing chips', 'At table'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Roulette', minBots: 4, maxBots: 10, statusMessages: ['Betting', 'Watching wheel', 'Placing chips', 'At table'] });
   const [selectedChip, setSelectedChip] = useState(1_000_000);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [betHistory, setBetHistory] = useState<BetHistoryEntry[]>([]);
@@ -430,11 +430,13 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         playSound('win');
         announceWin(totalWinAmount);
         setResultOverlay({ type: 'win', amount: totalWinAmount, number });
+        triggerGameEvent(totalWinAmount > totalBetAmount * 5 ? 'bigWin' : 'win');
       } else {
         setMessage(`Number ${number}. Better luck next time!`);
         playSound('lose');
         announceLoss();
         setResultOverlay({ type: 'loss', amount: totalBetAmount, number });
+        triggerGameEvent('lose');
       }
 
       setPlacedBets([]);
@@ -702,7 +704,7 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
         showShare
         rightSlot={
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>

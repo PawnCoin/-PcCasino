@@ -198,7 +198,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { settings } = useGlobalGame();
   const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Darts', minBots: 2, maxBots: 6, statusMessages: ['Watching', 'Warming up', 'Next match', 'Spectating'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Darts', minBots: 2, maxBots: 6, statusMessages: ['Watching', 'Warming up', 'Next match', 'Spectating'] });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerScore, setPlayerScore] = useState(501);
   const [aiScore, setAiScore] = useState(501);
@@ -284,6 +284,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       if (betPlaced) onWin(betAmount * 2);
       triggerWinBurst();
       addReaction('target', 'you');
+      triggerGameEvent('win');
       return;
     } else if (newScore < 0) {
       setMessage('Bust! Score went below 0. Turn forfeited.');
@@ -353,6 +354,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           setGamePhase('lost');
           setMessage('AI wins! Game over.');
           addAIReaction('ai');
+          triggerGameEvent('lose');
           return;
         }
         // AI bust
@@ -413,7 +415,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         playerPositions={{ you: 'bottom', ai: 'top' }}
       />
       <InGameTopBar gameName="Darts 501" balance={displayBalance} onBack={onBack} onAddBalance={onAddBalance} onShowWallet={onShowWallet}
-        rightSlot={<GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />}
+        rightSlot={<GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />}
       />
 
       <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto', background: tableSkin.felt, position: 'relative', boxShadow: 'inset 0 0 80px rgba(0,0,0,0.5)' }}>

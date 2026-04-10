@@ -66,7 +66,7 @@ export function IframeGameWrapper({
   userId,
   avatarUrl,
 }: IframeGameWrapperProps) {
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName, minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Playing', 'Betting', 'At table'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerReaction, triggerGameEvent } = useCasinoBots({ gameName, minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Playing', 'Betting', 'At table'] });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -148,6 +148,7 @@ export function IframeGameWrapper({
 
       if (type === 'win' && typeof amount === 'number' && amount > 0) {
         onWin(amount);
+        triggerGameEvent('win');
         iframeRef.current?.contentWindow?.postMessage(
           { type: 'win:confirmed', amount, balance: balanceRef.current },
           '*'
@@ -371,7 +372,7 @@ export function IframeGameWrapper({
 
   const rightSlot = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+      <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
       {isRoulette && roulettePlayers.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px',
@@ -656,6 +657,69 @@ export function IframeGameWrapper({
                 </div>
               );
             })}
+            {activeBots.slice(0, 5).map((bot, i) => {
+              const VIP_C: Record<string, string> = { gold: '#D4AF37', silver: '#9E9E9E', bronze: '#8D6E63' };
+              const leftPositions = [
+                { bottom: 130, left: 12 },
+                { bottom: 200, left: 12 },
+                { bottom: 270, left: 12 },
+                { top: '15%', left: 12 },
+                { top: '30%', left: 12 },
+              ];
+              const pos = leftPositions[i];
+              const betTotal = bot.betPositions.reduce((s, b) => s + b.amount, 0);
+              return (
+                <div key={bot.id} style={{
+                  position: 'absolute', ...pos,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                  background: 'rgba(0,0,0,0.75)', borderRadius: 12, padding: '5px 8px',
+                  border: `1px solid ${VIP_C[bot.vipTier]}33`, minWidth: 54,
+                  pointerEvents: 'none', zIndex: 20,
+                  animation: 'botChatIn 0.5s ease-out',
+                }}>
+                  <div style={{ position: 'relative' }}>
+                    <img src={bot.photoUrl} alt={bot.name} style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      border: `2px solid ${VIP_C[bot.vipTier]}`,
+                      objectFit: 'cover',
+                      boxShadow: bot.vipTier === 'gold' ? '0 0 6px rgba(212,175,55,0.5)' : 'none',
+                    }} />
+                    {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                      <span style={{
+                        position: 'absolute', top: -10, right: -8, fontSize: 14,
+                        animation: 'reactionPop 0.3s ease-out',
+                      }}>{bot.lastReactionEmoji}</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 8, color: '#ccc', fontWeight: 600, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {bot.name}
+                  </span>
+                  <span style={{ fontSize: 7, color: betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>
+                    {betTotal > 0 ? `${betTotal.toLocaleString()} $Pc` : bot.status}
+                  </span>
+                </div>
+              );
+            })}
+            {chatMessages.length > 0 && (() => {
+              const latest = chatMessages[chatMessages.length - 1];
+              if (Date.now() - latest.timestamp > 10000) return null;
+              return (
+                <div style={{
+                  position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(0,0,0,0.85)', borderRadius: 16, padding: '5px 14px',
+                  border: '1px solid rgba(212,175,55,0.2)',
+                  pointerEvents: 'none', zIndex: 20,
+                  animation: 'botChatIn 0.3s ease-out',
+                  maxWidth: 300,
+                }}>
+                  <img src={latest.botPhoto} alt="" style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} />
+                  <span style={{ fontSize: 10, color: '#d1d5db' }}>
+                    <strong style={{ color: '#D4AF37' }}>{latest.botName}:</strong> {latest.message}
+                  </span>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

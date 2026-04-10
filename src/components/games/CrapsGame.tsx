@@ -459,7 +459,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
   const { activeSkin: diceSkin } = useCrapsDiceSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Craps', minBots: 4, maxBots: 10, statusMessages: ['Betting', 'Watching', 'Rolling', 'At table'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Craps', minBots: 4, maxBots: 10, statusMessages: ['Betting', 'Watching', 'Rolling', 'At table'] });
   const [gamePhase, setGamePhase] = useState<'comeout' | 'point'>('comeout');
   const [point, setPoint] = useState<number | null>(null);
   const [dice, setDice] = useState<[number, number]>([1, 1]);
@@ -822,9 +822,11 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
       setWinFlash(true);
       setWinText(`+${totalWin} $Pc`);
       setTimeout(() => { setWinFlash(false); setWinText(''); }, 2000);
+      triggerGameEvent('win');
     } else if (total === 7 && gamePhase === 'point') {
       setLoseFlash(true);
       setTimeout(() => setLoseFlash(false), 1500);
+      triggerGameEvent('lose');
     }
 
     setIsRolling(false);
@@ -866,7 +868,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
         showShare
         rightSlot={
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>

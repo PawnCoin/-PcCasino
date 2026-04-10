@@ -1003,7 +1003,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const aiAvatarDef: AvatarDef = { sheet: 2, row: 1, col: 2, name: 'AI Opponent' };
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Pool', minBots: 2, maxBots: 6, statusMessages: ['Spectating', 'Next game', 'Watching', 'Chalking up'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Pool', minBots: 2, maxBots: 6, statusMessages: ['Spectating', 'Next game', 'Watching', 'Chalking up'] });
   const poolVoice = usePoolVoice();
   const { playSound } = useSoundEffects();
   const poolSounds = usePoolSounds();
@@ -1488,7 +1488,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     phaseLockRef.current = 'won'; setPhase('won');
     setMessage(`You win! +${winAmt.toLocaleString()} $Pc`);
     setCanShoot(false);
-  }, [onWin, triggerWinBurst, addReaction, playSound]);
+    triggerGameEvent('win');
+  }, [onWin, triggerWinBurst, addReaction, playSound, triggerGameEvent]);
 
   const handleGameLoss = useCallback(() => {
     addAIReaction('ai');
@@ -1496,7 +1497,8 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     phaseLockRef.current = 'lost'; setPhase('lost');
     setMessage(`You lose! -${betAmountRef.current.toLocaleString()} $Pc`);
     setCanShoot(false);
-  }, [addAIReaction, playSound]);
+    triggerGameEvent('lose');
+  }, [addAIReaction, playSound, triggerGameEvent]);
 
   const triggerAiShot = useCallback(() => {
     const balls = ballsRef.current;
@@ -1744,7 +1746,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
         onShowWallet={onShowWallet}
         showShare={phase === 'won'}
         winAmount={phase === 'won' ? betAmount * 2 : undefined}
-        rightSlot={<GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />}
+        rightSlot={<GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />}
       />
 
       <InGameOptionsPanel isOpen={showOptions} onClose={() => setShowOptions(false)} isMember={membership.isMember} activeGame="Pool Table" />

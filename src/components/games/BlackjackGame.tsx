@@ -68,7 +68,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Blackjack', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Betting', 'Playing', 'Standing'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Blackjack', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Betting', 'Playing', 'Standing'] });
   const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealer' | 'finished'>('betting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHands, setPlayerHands] = useState<Card[][]>([[]]);
@@ -373,9 +373,11 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
       triggerWin(playerBlackjack);
       triggerWinBurst();
       addReaction(playerBlackjack ? 'party' : 'money-face', 'you');
+      triggerGameEvent(playerBlackjack ? 'bigWin' : 'win');
     } else {
       setMessage('Dealer wins.');
       triggerBust();
+      triggerGameEvent('lose');
     }
 
     if (currentPfRoundIdRef.current) {
@@ -401,7 +403,8 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
     setResultOverlay(null);
     setShowWinRings(false);
     setTableShake(false);
-    actionLockRef.current = false; // reset action lock for new hand
+    actionLockRef.current = false;
+    triggerGameEvent('newRound'); // reset action lock for new hand
   };
 
   useEffect(() => {
@@ -478,7 +481,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
           showShare
           rightSlot={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>

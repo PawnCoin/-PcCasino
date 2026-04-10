@@ -134,7 +134,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { settings } = useGlobalGame();
   const { activeSkin: slotsSkin } = useSlotsSkin();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Slots', minBots: 3, maxBots: 7, statusMessages: ['Spinning', 'Watching', 'Betting', 'On a streak'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Slots', minBots: 3, maxBots: 7, statusMessages: ['Spinning', 'Watching', 'Betting', 'On a streak'] });
   const [grid, setGrid] = useState<ReelSymbol[][]>(generateGrid);
   const [spinning, setSpinning] = useState(false);
   const [currentBet, setCurrentBet] = useState(0);
@@ -271,6 +271,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               addReaction(lines.some(l => l.symbol === 'slot-machine' && l.count === 5) ? 'crown' : 'celebrate', 'you');
 
               const hasJackpot = lines.some(l => l.symbol === 'slot-machine' && l.count === 5);
+              triggerGameEvent(hasJackpot ? 'bigWin' : 'win');
               if (hasJackpot) {
                 setIsJackpot(true);
                 setMessage(`JACKPOT! +${totalWin.toFixed(2)} $Pc!`);
@@ -282,6 +283,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             } else {
               setMessage('No win. Try again!');
               playSound('lose');
+              triggerGameEvent('lose');
             }
           }, 300);
         }
@@ -315,7 +317,7 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           showShare
           rightSlot={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>

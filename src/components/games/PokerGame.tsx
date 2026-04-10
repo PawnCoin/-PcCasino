@@ -501,7 +501,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
-  const { activeBots, onlinePlayerCount } = useCasinoBots({ gameName: 'Poker', minBots: 4, maxBots: 10, statusMessages: ['At table', 'Watching', 'In hand', 'Waiting'] });
+  const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Poker', minBots: 4, maxBots: 10, statusMessages: ['At table', 'Watching', 'In hand', 'Waiting'] });
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -843,6 +843,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       onWin(winAmount);
       triggerWinBurst();
       addReaction('fire', 'you');
+      triggerGameEvent(winAmount > 1000 ? 'bigWin' : 'win');
       setWinEffect(true);
       setPotSweepToUser(true);
       setTimeout(() => setPotSweepToUser(false), 1200);
@@ -868,6 +869,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       setLoseEffect(true);
       setMessage(`${bestOppName} wins with ${bestOppHandName}`);
       playSound('lose');
+      triggerGameEvent('lose');
       if (showVoice) announceEvent(`${bestOppName} wins with ${bestOppHandName}.`);
       setShowdownData({ winner: 'opponent', handName: bestOppHandName, winAmount: capturedPot, opponentName: bestOppName, opponentCards: bestOppCards });
 
@@ -1008,7 +1010,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
           showShare
           rightSlot={
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact />
+              <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
               {voiceSupported && (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
