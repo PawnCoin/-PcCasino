@@ -1108,6 +1108,17 @@ function PickingScreen({
           <div className="wood-rail" style={{ width: '100%', height: '100%', borderRadius: 16, position: 'relative', overflow: 'hidden', background: table.felt, boxShadow: `inset 0 2px 24px rgba(0,0,0,.55), inset 0 0 60px rgba(0,0,0,0.4)` }}>
             <PremiumFeltOverlay borderRadius="16px" goldBorderInset={6} showSpotlight={true} />
             <div style={{ position: 'absolute', inset: 0, opacity: .05, pointerEvents: 'none', backgroundImage: `repeating-linear-gradient(0deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px),repeating-linear-gradient(90deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px)` }} />
+            <div style={{ position: 'absolute', bottom: 4, left: 6, display: 'flex', gap: 4, zIndex: 10, opacity: 0.75, pointerEvents: 'none' }}>
+              {activeBots.slice(0, 3).map((bot) => (
+                <div key={bot.id} style={{ position: 'relative' }}>
+                  <img src={bot.photoUrl} alt={bot.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover',
+                    border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}` }} />
+                  {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                    <span style={{ position: 'absolute', top: -5, right: -3, fontSize: 7, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                  )}
+                </div>
+              ))}
+            </div>
 
             {/* Header */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '8px 12px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>

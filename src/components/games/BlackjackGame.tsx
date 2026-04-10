@@ -535,7 +535,26 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                 <img src="/logos/pc-logo.png" alt="$Pc" className="w-32 h-32" />
               </div>
               
-              <div className="absolute bottom-24 flex gap-8">
+              <div className="absolute bottom-24 flex gap-8 items-end">
+                {activeBots.slice(0, 2).map((bot) => (
+                  <div key={bot.id} className="flex flex-col items-center gap-1 opacity-80">
+                    <div className="w-16 h-10 border border-dashed border-white/15 rounded-lg flex items-center justify-center">
+                      {bot.currentBet > 0 && (
+                        <span style={{ fontSize: 8, color: '#D4AF37', fontWeight: 700 }}>{bot.currentBet >= 1000 ? `${(bot.currentBet / 1000).toFixed(0)}K` : bot.currentBet}</span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <img src={bot.photoUrl} alt={bot.name} className="w-7 h-7 rounded-full object-cover"
+                        style={{ border: `2px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`,
+                          boxShadow: bot.vipTier === 'gold' ? '0 0 6px rgba(212,175,55,0.5)' : 'none' }} />
+                      {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                        <span className="absolute -top-3 -right-2 text-xs" style={{ animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 8, color: '#aaa', maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bot.name}</span>
+                  </div>
+                ))}
+
                 {playerHands.map((_, idx) => (
                   <div key={idx} className="relative">
                     {(idx === currentHandIndex && gameState === 'playing') && (
@@ -565,6 +584,25 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
                         <PcTokenLabel amount={handBets[idx]} size={12} />
                       </div>
                     )}
+                  </div>
+                ))}
+
+                {activeBots.slice(2, 4).map((bot) => (
+                  <div key={bot.id} className="flex flex-col items-center gap-1 opacity-80">
+                    <div className="w-16 h-10 border border-dashed border-white/15 rounded-lg flex items-center justify-center">
+                      {bot.currentBet > 0 && (
+                        <span style={{ fontSize: 8, color: '#D4AF37', fontWeight: 700 }}>{bot.currentBet >= 1000 ? `${(bot.currentBet / 1000).toFixed(0)}K` : bot.currentBet}</span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <img src={bot.photoUrl} alt={bot.name} className="w-7 h-7 rounded-full object-cover"
+                        style={{ border: `2px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`,
+                          boxShadow: bot.vipTier === 'gold' ? '0 0 6px rgba(212,175,55,0.5)' : 'none' }} />
+                      {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                        <span className="absolute -top-3 -right-2 text-xs" style={{ animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 8, color: '#aaa', maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bot.name}</span>
                   </div>
                 ))}
               </div>

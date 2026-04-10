@@ -420,6 +420,20 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
 
       <div style={{ flex: 1, display: 'flex', gap: 20, padding: 16, justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap', overflowY: 'auto', background: tableSkin.felt, position: 'relative', boxShadow: 'inset 0 0 80px rgba(0,0,0,0.5)' }}>
         <PremiumFeltOverlay borderRadius="0px" goldBorderInset={10} />
+        <div style={{ position: 'absolute', bottom: 8, left: 12, display: 'flex', alignItems: 'center', gap: 6, zIndex: 10, opacity: 0.8, pointerEvents: 'none' }}>
+          {activeBots.slice(0, 3).map((bot) => (
+            <div key={bot.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ position: 'relative' }}>
+                <img src={bot.photoUrl} alt={bot.name} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover',
+                  border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}` }} />
+                {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                  <span style={{ position: 'absolute', top: -6, right: -4, fontSize: 8, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                )}
+              </div>
+              <span style={{ fontSize: 7, color: '#aaa' }}>{bot.name.split(' ')[0]}</span>
+            </div>
+          ))}
+        </div>
         {/* Board */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 380 }}>
           <div style={{ position: 'relative', borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 40px rgba(0,0,0,0.9), 0 0 0 8px #3E2723', width: '100%', maxWidth: 360, aspectRatio: '1' }}>

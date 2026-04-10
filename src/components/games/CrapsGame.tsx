@@ -1000,6 +1000,22 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
               background: tableSkin.felt,
             }}>
               <PremiumFeltOverlay borderRadius="12px" goldBorderInset={4} showGoldBorder={false} />
+              <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-2 pointer-events-none" style={{ opacity: 0.85 }}>
+                {activeBots.slice(0, 4).map((bot) => (
+                  <div key={bot.id} className="flex flex-col items-center gap-0.5">
+                    <div className="relative">
+                      <img src={bot.photoUrl} alt={bot.name} className="rounded-full object-cover"
+                        style={{ width: 20, height: 20,
+                          border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`,
+                          boxShadow: bot.vipTier === 'gold' ? '0 0 5px rgba(212,175,55,0.4)' : 'none' }} />
+                      {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                        <span className="absolute -top-2 -right-1" style={{ fontSize: 8, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 6, color: '#bbb', maxWidth: 32, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bot.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Gold stitching inner border */}

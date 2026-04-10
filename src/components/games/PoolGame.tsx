@@ -1948,6 +1948,18 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
                 onTouchEnd={e => { e.preventDefault(); shoot(); }}
               />
 
+              <div style={{ position: 'absolute', bottom: 6, left: 8, display: 'flex', gap: 5, zIndex: 10, opacity: 0.75, pointerEvents: 'none' }}>
+                {activeBots.slice(0, 3).map((bot) => (
+                  <div key={bot.id} style={{ position: 'relative' }}>
+                    <img src={bot.photoUrl} alt={bot.name} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover',
+                      border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}` }} />
+                    {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                      <span style={{ position: 'absolute', top: -5, right: -3, fontSize: 8, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               {pocketNotifications.length > 0 && (
                 <div style={{ position: 'absolute', top: 8, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, pointerEvents: 'none', zIndex: 10 }}>
                   <style>{`@keyframes pocketNotifFade { 0% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-8px); } }`}</style>

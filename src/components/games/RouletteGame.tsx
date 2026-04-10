@@ -844,6 +844,25 @@ export function RouletteGame({ balance, onBack, onBet, onWin, onAddBalance, onOp
             >
               <PremiumFeltOverlay borderRadius="12px" goldBorderInset={4} />
               <TableBrand style={{ opacity: 0.08 }} />
+              <div className="absolute bottom-1 left-2 right-2 z-20 flex items-center gap-2 pointer-events-none" style={{ opacity: 0.85 }}>
+                {activeBots.slice(0, 5).map((bot) => (
+                  <div key={bot.id} className="flex flex-col items-center gap-0.5">
+                    <div className="relative">
+                      <img src={bot.photoUrl} alt={bot.name} className="rounded-full object-cover"
+                        style={{ width: 22, height: 22,
+                          border: `2px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`,
+                          boxShadow: bot.vipTier === 'gold' ? '0 0 6px rgba(212,175,55,0.5)' : 'none' }} />
+                      {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                        <span className="absolute -top-2 -right-1" style={{ fontSize: 9, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 7, color: '#ccc', maxWidth: 36, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bot.name}</span>
+                    {bot.currentBet > 0 && (
+                      <span style={{ fontSize: 7, color: '#D4AF37', fontWeight: 700 }}>{bot.currentBet >= 1000 ? `${(bot.currentBet/1000).toFixed(0)}K` : bot.currentBet}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
               {/* Number grid */}
               <div className="flex gap-[2px]">
                 {/* Zero */}

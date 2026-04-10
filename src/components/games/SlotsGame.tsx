@@ -797,6 +797,22 @@ export function SlotsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
               ))}
             </div>
 
+            <div className="flex items-center justify-center gap-3 mb-2 px-2" style={{ opacity: 0.8 }}>
+              {activeBots.slice(0, 4).map((bot) => (
+                <div key={bot.id} className="flex items-center gap-1.5">
+                  <div className="relative">
+                    <img src={bot.photoUrl} alt={bot.name} className="rounded-full object-cover"
+                      style={{ width: 18, height: 18,
+                        border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}` }} />
+                    {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                      <span className="absolute -top-2 -right-1" style={{ fontSize: 8, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 8, color: '#aaa' }}>{bot.name.split(' ')[0]}</span>
+                </div>
+              ))}
+            </div>
+
             <Button
               onClick={spin}
               className="w-full py-4 sm:py-5 text-lg sm:text-xl font-bold transition-all min-h-[56px]"

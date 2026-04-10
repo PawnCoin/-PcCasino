@@ -1192,6 +1192,20 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
                   overflow: 'hidden',
                 }}>
                   <PremiumFeltOverlay borderRadius="16px" goldBorderInset={12} />
+                  <div style={{ position: 'absolute', bottom: 4, left: 8, display: 'flex', gap: 5, zIndex: 10, opacity: 0.75, pointerEvents: 'none' }}>
+                    {activeBots.slice(0, 3).map((bot) => (
+                      <div key={bot.id} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <div style={{ position: 'relative' }}>
+                          <img src={bot.photoUrl} alt={bot.name} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover',
+                            border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}` }} />
+                          {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                            <span style={{ position: 'absolute', top: -5, right: -3, fontSize: 7, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 7, color: '#aaa' }}>{bot.name.split(' ')[0]}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* $Pc logo engraving in table center — realistic felt engraving */}
