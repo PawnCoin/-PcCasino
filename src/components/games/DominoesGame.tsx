@@ -895,9 +895,8 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
         <div style={{ color: '#aaa', fontSize: 9 }}>{tileCount} tile{tileCount !== 1 ? 's' : ''}</div>
         <div style={{ color: player.color, fontSize: 11, fontWeight: 800 }}>{player.score} pts</div>
       </div>
-      {/* Standing tiles — one row, side by side, portrait orientation */}
       {!isHuman && tileCount > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: 3, alignItems: 'center', overflowX: 'auto', maxWidth: isVertical ? 90 : 240 }}>
+        <div style={{ display: 'flex', flexDirection: isVertical ? 'column' : 'row', flexWrap: 'wrap', gap: 3, alignItems: 'center', justifyContent: 'center', maxWidth: isVertical ? 120 : 240 }}>
           {Array.from({ length: tileCount }, (_, i) => (
             <StandingTile key={i} skinKey={skinKey} w={tileW} h={tileH} />
           ))}
@@ -1051,15 +1050,18 @@ function PickingScreen({
         clearInterval(iv);
         return;
       }
+      const currentUnclaimed = pickingPool.filter(t => !pickingClaims[t.id]);
+      const shuffledUnclaimed = [...currentUnclaimed].sort(() => Math.random() - 0.5);
+      let pickIdx = 0;
       for (const aiId of aiIds) {
         const aiCount = Object.values(pickingClaims).filter(pid => pid === aiId).length;
-        if (aiCount < 7) {
-          const pick = unclaimed[Math.floor(Math.random() * unclaimed.length)];
+        if (aiCount < 7 && pickIdx < shuffledUnclaimed.length) {
+          const pick = shuffledUnclaimed[pickIdx];
           if (pick && !pickingClaims[pick.id]) {
             onClaim(pick.id, aiId);
             audio.pickUp();
+            pickIdx++;
           }
-          break;
         }
       }
     }, delay);
@@ -1082,8 +1084,7 @@ function PickingScreen({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '6px 10px 0' }}>
-      {/* Same grid layout as playing */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr auto', gridTemplateColumns: 'auto 1fr auto', gap: 6, minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr auto', gridTemplateColumns: 'minmax(100px, auto) 1fr minmax(100px, auto)', gap: 6, minHeight: 0 }}>
 
         {/* TOP */}
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
@@ -1110,8 +1111,19 @@ function PickingScreen({
             <div style={{ position: 'absolute', inset: 0, opacity: .05, pointerEvents: 'none', backgroundImage: `repeating-linear-gradient(0deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px),repeating-linear-gradient(90deg,${table.line} 0,${table.line} 1px,transparent 1px,transparent 38px)` }} />
             {/* Header */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '8px 12px', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div style={{ background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '4px 10px', color: '#D4AF37', fontWeight: 700, fontSize: 12 }}>
-                {humanDone ? '7 Bones \u2014 Ready!' : `Pick ${7 - humanClaims} more`}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '4px 10px', color: '#D4AF37', fontWeight: 700, fontSize: 12 }}>
+                  {humanDone ? '7 Bones — Ready!' : `Pick ${7 - humanClaims} more`}
+                </div>
+                {players.map(p => {
+                  const count = Object.values(pickingClaims).filter(pid => pid === p.id).length;
+                  return (
+                    <div key={p.id} style={{ background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4, border: `1px solid ${count >= 7 ? 'rgba(67,160,71,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
+                      <span style={{ fontSize: 9, color: p.color, fontWeight: 700 }}>{p.name}</span>
+                      <span style={{ fontSize: 10, color: count >= 7 ? '#66BB6A' : '#888', fontWeight: 800 }}>{count}/7</span>
+                    </div>
+                  );
+                })}
               </div>
               {!humanDone && (
                 <div style={{
@@ -1124,15 +1136,20 @@ function PickingScreen({
                   Auto-pick in {pickTimeLeft}s
                 </div>
               )}
-              {humanDone && (
-                <button onClick={onStart} style={{ padding: '5px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#43A047,#1B5E20)', color: '#fff', fontWeight: 700, fontSize: 12 }}>
-                  Start Game →
-                </button>
+              {allDone && (
+                <div style={{ padding: '5px 16px', borderRadius: 8, background: 'rgba(67,160,71,0.2)', border: '1px solid rgba(67,160,71,0.5)', color: '#66BB6A', fontWeight: 700, fontSize: 12 }}>
+                  Starting…
+                </div>
+              )}
+              {humanDone && !allDone && (
+                <div style={{ padding: '5px 16px', borderRadius: 8, background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.15)', color: '#aaa', fontWeight: 700, fontSize: 12 }}>
+                  Waiting for others…
+                </div>
               )}
             </div>
 
             {/* All 28 tiles scrambled on the table */}
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexWrap: 'wrap', gap: 6, padding: '40px 16px 12px', alignContent: 'center', justifyContent: 'center', overflow: 'auto' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexWrap: 'wrap', gap: 8, padding: '40px 16px 12px', alignContent: 'center', justifyContent: 'center', overflow: 'auto' }}>
               {pickingPool.map((tile, i) => {
                 const claimer = getPlayerForTile(tile.id);
                 const isClaimedByHuman = pickingClaims[tile.id] === 'human';
@@ -1142,20 +1159,20 @@ function PickingScreen({
                   <div key={tile.id}
                     onClick={canClaim ? () => { onClaim(tile.id, 'human'); audio.pickUp(); } : undefined}
                     style={{
-                      width: 20, height: 42, borderRadius: 4,
+                      width: 30, height: 58, borderRadius: 5,
                       background: isClaimed ? (claimer?.color ? `${claimer.color}` : skin.faceDownBg) : skin.faceDownBg,
                       border: `2px solid ${isClaimed ? (claimer?.color ?? skin.border) : skin.border}`,
                       cursor: canClaim ? 'pointer' : 'default',
-                      opacity: isClaimed ? 0.55 : 1,
+                      opacity: isClaimed ? 0.5 : 1,
                       transform: `rotate(${(i * 7) % 9 - 4}deg) ${isClaimedByHuman ? 'scale(0.85)' : canClaim ? 'scale(1)' : 'scale(0.9)'}`,
-                      transition: 'all .15s',
-                      boxShadow: canClaim ? `0 0 8px rgba(212,175,55,0.4), 0 2px 4px rgba(0,0,0,0.5)` : '0 2px 4px rgba(0,0,0,0.4)',
+                      transition: 'all .2s',
+                      boxShadow: canClaim ? `0 0 10px rgba(212,175,55,0.5), 0 3px 6px rgba(0,0,0,0.6)` : '0 2px 4px rgba(0,0,0,0.4)',
                       position: 'relative', overflow: 'hidden',
                       animation: !isClaimed && i % 4 === 0 ? 'pulse 2s infinite' : 'none',
                     }}>
                     {skin.gloss && !isClaimed && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,rgba(255,255,255,0.25) 0%,transparent 55%)', pointerEvents: 'none' }} />}
                     {isClaimed && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                         {claimer?.name?.[0] ?? ''}
                       </div>
                     )}
@@ -1790,7 +1807,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
       {gs.phase === 'playing' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: shaking ? 'shake .8s ease' : 'none', minHeight: 0 }}>
           <ScoreBoard players={gs.players} currentPlayer={gs.currentPlayer} lastScorer={gs.lastScorer} lastScoreAmount={gs.lastScoreAmount} roundNumber={gs.roundNumber} targetScore={gs.targetScore} />
-          <div style={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr auto', gridTemplateColumns: 'auto 1fr auto', gap: 6, padding: '6px 10px 0', minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'grid', gridTemplateRows: 'auto 1fr auto', gridTemplateColumns: 'minmax(100px, auto) 1fr minmax(100px, auto)', gap: 6, padding: '6px 10px 0', minHeight: 0 }}>
 
             {/* TOP */}
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '2px 0' }}>
