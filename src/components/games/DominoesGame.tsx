@@ -896,7 +896,7 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
         <div style={{ color: player.color, fontSize: 11, fontWeight: 800 }}>{player.score} pts</div>
       </div>
       {!isHuman && tileCount > 0 && (
-        <div style={{ display: 'flex', flexDirection: isVertical ? 'column' : 'row', flexWrap: 'wrap', gap: 3, alignItems: 'center', justifyContent: 'center', maxWidth: isVertical ? 120 : 240 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 3, alignItems: 'center', justifyContent: 'center', maxWidth: 240 }}>
           {Array.from({ length: tileCount }, (_, i) => (
             <StandingTile key={i} skinKey={skinKey} w={tileW} h={tileH} />
           ))}
