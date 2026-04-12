@@ -18,6 +18,7 @@ import { PremiumFeltOverlay } from '@/components/PremiumFeltOverlay';
 import { useDominoSkin } from '@/hooks/useDominoSkin';
 import { DOMINO_SKINS } from '@/data/dominoSkins';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
+import { useServerGame } from '@/hooks/useServerGame';
 import type { SkinKey as DominoSkinKey } from '@/data/dominoSkins';
 
 type CardBackStyle = { type: 'css'; style: React.CSSProperties } | { type: 'image'; image: string };
@@ -1251,6 +1252,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const [gs, dispatch] = useReducer(gsReducer, undefined, initGS);
   const { isMuted, playSound } = useSoundEffects();
   const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Dominoes', minBots: 2, maxBots: 6, statusMessages: ['Watching', 'Waiting', 'Next game', 'Spectating'] });
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected, socketId: mySocketId } = useServerGame({ gameType: 'dominoes' });
   const [muted, setMuted] = useState(false);
   const [slamOn, setSlamOn] = useState(true);
   const [selectedTargetScore, setSelectedTargetScore] = useState<number>(150);
@@ -1279,6 +1281,27 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { audio.muted = muted || isMuted; }, [muted, isMuted]);
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (Array.isArray(s.hand)) setHumanHand(s.hand as Tile[]);
+    if (Array.isArray(s.chain)) setChain(s.chain as PlacedTile[]);
+    if (typeof s.leftVal === 'number') setLeftEnd(s.leftVal);
+    if (typeof s.rightVal === 'number') setRightEnd(s.rightVal);
+    if (s.scores && typeof s.scores === 'object') {
+      const sc = s.scores as Record<string, number>;
+      if (mySocketId && sc[mySocketId] !== undefined) {
+        const opponentSid = Object.keys(sc).find(sid => sid !== mySocketId);
+        setScores({ human: sc[mySocketId] ?? 0, ai: opponentSid ? (sc[opponentSid] ?? 0) : 0 });
+      } else {
+        const playerOrder = (s.playerOrder || []) as string[];
+        if (playerOrder.length >= 2) {
+          setScores({ human: sc[playerOrder[0]] ?? 0, ai: sc[playerOrder[1]] ?? 0 });
+        }
+      }
+    }
+  }, [serverState, serverConnected, mySocketId]);
 
   const addReaction = useCallback((emoji: string, pid: string = 'human') => {
     const r: DomReaction = { id: `${Date.now()}-${Math.random()}`, player: pid, emoji };
@@ -1541,17 +1564,19 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const handlePlayEnd = (end: 'left' | 'right' | 'top' | 'bottom', tileIdOverride?: string) => {
     const tileId = tileIdOverride ?? selectedTileId;
     if (!tileId) return;
+    if (serverConnected) { serverSendAction('playTile', { tileId, end }); setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null); return; }
     audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId, end });
     setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null);
   };
   const handlePlayFirst = (tileIdOverride?: string) => {
     const tileId = tileIdOverride ?? selectedTileId;
     if (!tileId) return;
+    if (serverConnected) { serverSendAction('playTile', { tileId, end: 'right' }); setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null); return; }
     audio.place(); dispatch({ type: 'PLAY_TILE', playerId: 'human', tileId, end: 'right' });
     setSelectedTileId(null); setDraggingTileId(null); setDropZoneOver(null);
   };
-  const handleDraw = () => { if (!canDraw) return; audio.draw(); dispatch({ type: 'DRAW' }); toast.info('Drew a tile'); };
-  const handlePass = () => { if (!canPass) return; audio.knock(); dispatch({ type: 'PASS' }); toast.info('You knocked \u2014 passing'); };
+  const handleDraw = () => { if (!canDraw) return; if (serverConnected) { serverSendAction('draw'); return; } audio.draw(); dispatch({ type: 'DRAW' }); toast.info('Drew a tile'); };
+  const handlePass = () => { if (!canPass) return; if (serverConnected) { serverSendAction('pass'); return; } audio.knock(); dispatch({ type: 'PASS' }); toast.info('You knocked \u2014 passing'); };
 
   const confirmBet = () => {
     if (balance < gs.bet) { toast.error('Insufficient balance!'); return; }

@@ -143,3 +143,43 @@ export function endGame(winners: Array<{ id: string; username: string; amount: n
 export function updateBalance(balance: number) {
   getSocket().emit('player:balanceUpdate', { balance });
 }
+
+export function joinMatchmaking(gameType: string, betAmount: number) {
+  getSocket().emit('matchmaking:join', { gameType, betAmount });
+}
+
+export function leaveMatchmaking() {
+  getSocket().emit('matchmaking:leave');
+}
+
+export function getMatchmakingStatus() {
+  getSocket().emit('matchmaking:status');
+}
+
+export function sendEngineAction(gameType: string, action: string, data: unknown) {
+  getSocket().emit(`${gameType}:action`, { action, data });
+}
+
+export function setEngineReady(gameType: string) {
+  getSocket().emit(`${gameType}:ready`);
+}
+
+export function getEngineState(gameType: string) {
+  getSocket().emit(`${gameType}:getState`);
+}
+
+export function createEngineRoom(gameType: string, betAmount: number) {
+  getSocket().emit('engine:createRoom', { gameType, betAmount });
+}
+
+export function joinEngineRoom(roomId: string, gameType: string, betAmount: number) {
+  getSocket().emit('engine:joinRoom', { roomId, gameType, betAmount });
+}
+
+export function leaveEngineRoom(gameType: string) {
+  getSocket().emit('engine:leaveRoom', { gameType });
+}
+
+export function addBotsToRoom(gameType: string, count: number) {
+  getSocket().emit('engine:addBots', { gameType, count });
+}

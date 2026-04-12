@@ -17,6 +17,7 @@ import { useCasinoBots } from '@/hooks/useCasinoBots';
 import { GameBotBar } from '@/components/GameBotBar';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
 import { useTableSkin } from '@/hooks/useTableSkin';
+import { useServerGame } from '@/hooks/useServerGame';
 
 interface BlackjackGameProps {
   balance: number;
@@ -69,6 +70,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Blackjack', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'Betting', 'Playing', 'Standing'] });
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected, socketId: mySocketId } = useServerGame({ gameType: 'blackjack' });
   const [gameState, setGameState] = useState<'betting' | 'playing' | 'dealer' | 'finished'>('betting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHands, setPlayerHands] = useState<Card[][]>([[]]);
@@ -95,6 +97,29 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const actionLockRef = useRef(false);
 
   const currentHand = playerHands[currentHandIndex];
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (Array.isArray(s.dealerHand)) setDealerHand(s.dealerHand as Card[]);
+    if (s.playerStates && typeof s.playerStates === 'object') {
+      const ps = s.playerStates as Record<string, { hands?: { cards: Card[] }[] }>;
+      const myState = mySocketId ? ps[mySocketId] : Object.values(ps)[0];
+      if (myState?.hands) {
+        setPlayerHands(myState.hands.map(h => h.cards));
+      }
+    }
+    if (s.phase === 'finished') setGameState('finished');
+    if (typeof s.showDealer === 'boolean') setShowDealerCard(s.showDealer as boolean);
+    if (s.results && typeof s.results === 'object') {
+      const results = s.results as Record<string, { result: string; payout: number; handValue: number }[]>;
+      const myHandResults = mySocketId ? results[mySocketId] : Object.values(results)[0];
+      if (Array.isArray(myHandResults) && myHandResults.length > 0) {
+        const primary = myHandResults[0];
+        setMessage(primary.result === 'win' ? 'You win!' : primary.result === 'bust' ? 'Bust!' : primary.result === 'blackjack' ? 'Blackjack!' : primary.result === 'push' ? 'Push' : 'Dealer wins');
+      }
+    }
+  }, [serverState, serverConnected, mySocketId]);
 
   const initDeck = useCallback(() => {
     setDeck(shuffleDeck(createDeck()));
@@ -213,6 +238,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   const releaseAction = () => { actionLockRef.current = false; };
 
   const handleHit = async () => {
+    if (serverConnected) { serverSendAction('hit'); return; }
     if (!acquireAction()) return; // prevent concurrent requests
     const newCard = await drawNextCard();
     releaseAction();
@@ -236,6 +262,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   };
 
   const handleStand = () => {
+    if (serverConnected) { serverSendAction('stand'); return; }
     if (currentHandIndex < playerHands.length - 1) {
       setCurrentHandIndex(prev => prev + 1);
       setMessage(`Hand ${currentHandIndex + 2}. Hit or Stand?`);
@@ -245,6 +272,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   };
 
   const handleDoubleDown = async () => {
+    if (serverConnected) { serverSendAction('double'); return; }
     if (!acquireAction()) return;
     const handBet = handBets[currentHandIndex];
     if (!onBet(handBet)) { releaseAction(); return; }
@@ -273,6 +301,7 @@ export function BlackjackGame({ balance, onBack, onBet, onWin, onAddBalance, car
   };
 
   const handleSplit = async () => {
+    if (serverConnected) { serverSendAction('split'); return; }
     if (!acquireAction()) return;
     if (currentHand.length !== 2 || currentHand[0].value !== currentHand[1].value) { releaseAction(); return; }
     const handBet = handBets[currentHandIndex];

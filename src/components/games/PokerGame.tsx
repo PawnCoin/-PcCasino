@@ -22,6 +22,7 @@ import { GameBotBar } from '@/components/GameBotBar';
 import { PokerHandHistory } from '@/components/PokerHandHistory';
 import { gameApi } from '@/lib/api';
 import { getToken } from '@/lib/api';
+import { useServerGame } from '@/hooks/useServerGame';
 import type { Card } from '@/types';
 
 interface PokerGameProps {
@@ -502,6 +503,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Poker', minBots: 4, maxBots: 10, statusMessages: ['At table', 'Watching', 'In hand', 'Waiting'] });
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected, error: serverError } = useServerGame({ gameType: 'poker' });
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [deck, setDeck] = useState<Card[]>([]);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
@@ -557,6 +559,16 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { isMuted, toggleMute, playSound } = useSoundEffects();
   const { announceEvent, stop, isSupported: voiceSupported } = usePokerVoice();
   const chipAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (s.phase) setGamePhase(s.phase as typeof gamePhase);
+    if (Array.isArray(s.communityCards)) setCommunityCards(s.communityCards as Card[]);
+    if (typeof s.pot === 'number') setPot(s.pot);
+    if (typeof s.currentBet === 'number') setCurrentBet(s.currentBet);
+    if (Array.isArray(s.holeCards)) setPlayerHand(s.holeCards as Card[]);
+  }, [serverState, serverConnected]);
 
   const simulateOpponentActions = useCallback((callback: () => void) => {
     const activeOpps = opponents
@@ -702,6 +714,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   }, []);
 
   const handleFold = () => {
+    if (serverConnected) { serverSendAction('fold'); return; }
     setMessage('You folded. Starting new hand...');
     playSound('clear');
     if (showVoice) announceEvent('You folded.');
@@ -735,6 +748,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   };
 
   const handleCheck = () => {
+    if (serverConnected) { serverSendAction('check'); return; }
     setMessage('You checked.');
     playSound('click');
     if (showVoice) announceEvent('You checked.');
@@ -743,6 +757,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   };
 
   const handleCall = () => {
+    if (serverConnected) { serverSendAction('call'); return; }
     const callAmount = currentBet - playerBet;
     if (placeBet(callAmount)) {
       setMessage(`You called ${callAmount} $Pc`);
@@ -753,6 +768,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   };
 
   const handleRaise = () => {
+    if (serverConnected) { serverSendAction('raise', { amount: selectedChip }); return; }
     const raiseAmount = selectedChip;
     const totalNeeded = (currentBet - playerBet) + raiseAmount;
     if (placeBet(totalNeeded)) {
@@ -765,6 +781,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   };
 
   const handleAllIn = () => {
+    if (serverConnected) { serverSendAction('allIn'); return; }
     const allInAmount = balance;
     if (placeBet(allInAmount)) {
       setCurrentBet(playerBet);

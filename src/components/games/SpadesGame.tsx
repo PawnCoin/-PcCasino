@@ -16,6 +16,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { AvatarSprite, SPADES_AVATARS } from '@/components/AvatarSprite';
 import { CelebrationSystem, EmojiReactionPicker, useReactions, TableBrand } from '@/components/CelebrationSystem';
 import { useGlobalGame } from '@/contexts/GlobalGameContext';
+import { useServerGame } from '@/hooks/useServerGame';
 import type { AIDifficulty } from '@/hooks/useSpadesAI';
 import type { Card } from '@/types';
 
@@ -95,6 +96,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Spades', minBots: 3, maxBots: 8, statusMessages: ['Watching', 'In queue', 'Spectating', 'Next round'] });
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected, socketId: mySocketId } = useServerGame({ gameType: 'spades' });
 
   const mkPlayer = (idx: number): SpadesPlayer => ({
     id: idx === 0 ? 'you' : `p${idx + 1}`,
@@ -164,6 +166,27 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   const [afkWarning, setAfkWarning] = useState<string | null>(null);
   const [activeProps, setActiveProps] = useState<Record<string, boolean>>({});
   const propTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (Array.isArray(s.hand)) {
+      setPlayers(prev => {
+        const next = [...prev];
+        next[0] = { ...next[0], hand: s.hand as Card[] };
+        return next;
+      });
+    }
+    if (Array.isArray(s.currentTrick)) setCurrentTrick(s.currentTrick as TrickCard[]);
+    if (s.teamScores && typeof s.teamScores === 'object') {
+      const raw = s.teamScores as { team1?: number; team2?: number };
+      const playerOrder = (s.playerOrder || []) as string[];
+      const myIdx = playerOrder.indexOf(mySocketId || '');
+      const myTeam = myIdx === 0 || myIdx === 2 ? 'team1' : 'team2';
+      const oppTeam = myTeam === 'team1' ? 'team2' : 'team1';
+      setTeamScore({ you: raw[myTeam] ?? 0, opponent: raw[oppTeam] ?? 0 });
+    }
+  }, [serverState, serverConnected, mySocketId]);
   useEffect(() => {
     return () => { Object.values(propTimers.current).forEach(t => clearTimeout(t)); };
   }, []);
@@ -327,6 +350,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   };
 
   const placeBid = (bidAmount: number, isNil = false, isBlindNil = false) => {
+    if (serverConnected) { serverSendAction('bid', { bid: bidAmount }); return; }
     playSound('click');
     const newPlayers = [...players];
     newPlayers[0] = { ...newPlayers[0], bid: bidAmount, nilBid: isNil, blindNilBid: isBlindNil };
@@ -369,6 +393,7 @@ export function SpadesGame({ balance, onBack, onBet, onWin, onAddBalance, onShow
   };
 
   const playCard = (cardIndex: number) => {
+    if (serverConnected) { serverSendAction('playCard', { cardIndex }); return; }
     if (currentPlayer !== 0 || isAIThinking) return;
     const card = players[0].hand[cardIndex];
     const legal = getLegalIndices(players[0].hand, currentTrick);

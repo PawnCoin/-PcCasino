@@ -17,6 +17,7 @@ import { initDatabase, query, pool } from './db.js';
 import { cleanupExpiredSessions } from './auth-routes.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
 import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
+import { createGameEngines } from './game-engines/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -55,6 +56,9 @@ const io = new Server(httpServer, {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// ---- Server-Authoritative Game Engines ----
+const gameEngineSystem = createGameEngines(io, query);
 
 // ---- In-memory data stores ----
 const rooms = new Map();
@@ -1792,6 +1796,9 @@ io.on('connection', (socket) => {
     socket.emit('winners:list', { winners: recentWinners.slice(0, 10) });
     socket.emit('jackpot:update', { amount: getJackpot(), lastWon: getJackpotLastWon() });
     io.emit('lobby:stats', { playersOnline: players.size });
+
+    // Register server-authoritative game engine handlers
+    gameEngineSystem.registerSocketHandlers(socket, players);
   });
 
   socket.on('lobby:get', async () => {
@@ -2107,6 +2114,9 @@ io.on('connection', (socket) => {
     });
 
   socket.on('disconnect', () => {
+      // Handle server-authoritative game engine disconnects
+      gameEngineSystem.handleDisconnect(socket.id);
+
       const hrPlayer = horseRacingRoom.players.get(socket.id);
       if (hrPlayer) {
         horseRacingRoom.players.delete(socket.id);

@@ -17,6 +17,7 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { ChipSelector } from '@/components/PokerChip';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
 import { useBingoBots } from '@/hooks/useBingoBots';
+import { useServerGame } from '@/hooks/useServerGame';
 
 interface BingoGameProps {
   balance: number;
@@ -541,6 +542,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const { activeSkin: tableSkin } = useTableSkin();
   const { settings } = useGlobalGame();
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected } = useServerGame({ gameType: 'bingo' });
   const [phase, setPhase] = useState<GamePhase>('setup');
   const [numCards, setNumCards] = useState(1);
   const [betAmount, setBetAmount] = useState(5_000_000);
@@ -571,6 +573,18 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const confId = useRef(0);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDrawing = useRef(false);
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (Array.isArray(s.calledNumbers)) {
+      setCalledNumbers(s.calledNumbers as number[]);
+      const last = (s.calledNumbers as number[]).at(-1);
+      if (typeof last === 'number') setCurrentBall(last);
+    }
+    if (Array.isArray(s.card)) setCards([s.card as (number | 'FREE')[][]]);
+    if (Array.isArray(s.daubed)) setDaubed([s.daubed as boolean[][]]);
+  }, [serverState, serverConnected]);
 
   const { callNumber, announceWin: announceWinVoice, announceNotYet, isSupported: voiceSupported } = useBingoVoice();
   const { playSound } = useSoundEffects();
@@ -712,6 +726,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   }, [autoPlay, phase, autoSpeed, drawBall]);
 
   const daubCell = useCallback((cardIdx: number, col: number, row: number) => {
+    if (serverConnected) { serverSendAction('daub', { row, col }); return; }
     const key = `${cardIdx},${col},${row}`;
     if (!hinted.has(key)) return;
 
@@ -725,6 +740,7 @@ export function BingoGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   }, [hinted, playSound]);
 
   const claimBingo = useCallback(() => {
+    if (serverConnected) { serverSendAction('callBingo'); return; }
     if (phase !== 'playing') return;
 
     let foundWin = false;

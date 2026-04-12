@@ -22,6 +22,7 @@ import { parseAvatarDef } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { usePoolSounds } from '@/hooks/usePoolSounds';
 import { PcTokenLabel } from '@/components/PcTokenLabel';
+import { useServerGame } from '@/hooks/useServerGame';
 import {
   ClassicBackend,
   RealisticBackend,
@@ -1004,6 +1005,7 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const aiAvatarDef: AvatarDef = { sheet: 2, row: 1, col: 2, name: 'AI Opponent' };
   const { reactions, winBursts, addReaction, addAIReaction, triggerWinBurst, removeBurst } = useReactions(settings.celebrationsEnabled);
   const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Pool', minBots: 2, maxBots: 6, statusMessages: ['Spectating', 'Next game', 'Watching', 'Chalking up'] });
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected, socketId: mySocketId } = useServerGame({ gameType: 'pool' });
   const poolVoice = usePoolVoice();
   const { playSound } = useSoundEffects();
   const poolSounds = usePoolSounds();
@@ -1082,6 +1084,24 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
   const shotBetRef = useRef(shotBet);
   const rakeRef = useRef(rake);
   const turnRef = useRef<TurnPlayer>('player');
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (typeof s.turnPlayerId === 'string') {
+      const isMyTurn = s.turnPlayerId === mySocketId;
+      setTurn(isMyTurn ? 'player' : 'ai');
+    }
+    if (s.playerStates && typeof s.playerStates === 'object') {
+      const ps = s.playerStates as Record<string, { group?: string }>;
+      const myState = mySocketId ? ps[mySocketId] : Object.values(ps)[0];
+      if (myState?.group) setPlayerGroup(myState.group as Group);
+    }
+    if (typeof s.winner === 'string') {
+      const isMe = s.winner === mySocketId || (Array.isArray(s.playerOrder) && (s.playerOrder as string[])[0] === s.winner);
+      setMessage(isMe ? 'You win!' : 'AI wins!');
+    }
+  }, [serverState, serverConnected, mySocketId]);
 
   // Keep refs in sync
   useEffect(() => { betAmountRef.current = betAmount; }, [betAmount]);
@@ -1558,6 +1578,12 @@ export function PoolGame({ balance, onBack, onBet, onWin, onAddBalance, onShowWa
     const end = aimEndRef.current;
     const dx = start.x - end.x;
     const dy = start.y - end.y;
+    if (serverConnected) {
+      const angle = Math.atan2(dy, dx);
+      const power = Math.min(Math.sqrt(dx*dx + dy*dy) / 3, 100);
+      serverSendAction('shoot', { angle, power });
+      return;
+    }
     const len = Math.hypot(dx, dy);
     if (len < 5) return;
     const power = Math.min(len / 150, 1);

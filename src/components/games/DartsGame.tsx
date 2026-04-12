@@ -12,6 +12,7 @@ import { AvatarSprite, parseAvatarDef } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { useCasinoBots } from '@/hooks/useCasinoBots';
 import { GameBotBar } from '@/components/GameBotBar';
+import { useServerGame } from '@/hooks/useServerGame';
 
 const DARTS_AI_AVATAR: AvatarDef = { sheet: 2, row: 2, col: 0, name: 'AI' };
 
@@ -199,6 +200,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const playerAvatarDef = parseAvatarDef(settings.avatarDef);
   const { reactions, winBursts, addReaction, triggerWinBurst, removeBurst, addAIReaction } = useReactions(settings.celebrationsEnabled);
   const { activeBots, onlinePlayerCount, chatMessages, triggerGameEvent } = useCasinoBots({ gameName: 'Darts', minBots: 2, maxBots: 6, statusMessages: ['Watching', 'Warming up', 'Next match', 'Spectating'] });
+  const { sendAction: serverSendAction, createRoom: serverCreateRoom, addBots: serverAddBots, gameState: serverState, connected: serverConnected, socketId: mySocketId } = useServerGame({ gameType: 'darts' });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerScore, setPlayerScore] = useState(501);
   const [aiScore, setAiScore] = useState(501);
@@ -215,6 +217,28 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setDisplayBalance(balance); }, [balance]);
+
+  useEffect(() => {
+    if (!serverState || !serverConnected) return;
+    const s = serverState as Record<string, unknown>;
+    if (s.scores && typeof s.scores === 'object' && Array.isArray(s.playerOrder)) {
+      const scores = s.scores as Record<string, number>;
+      const playerOrder = s.playerOrder as string[];
+      if (mySocketId && playerOrder.includes(mySocketId)) {
+        setPlayerScore(scores[mySocketId] ?? 501);
+        const opponentSid = playerOrder.find(sid => sid !== mySocketId);
+        if (opponentSid) setAiScore(scores[opponentSid] ?? 501);
+      } else if (playerOrder.length >= 2) {
+        setPlayerScore(scores[playerOrder[0]] ?? 501);
+        setAiScore(scores[playerOrder[1]] ?? 501);
+      }
+    }
+    if (typeof s.throwsThisTurn === 'number') setThrowCount(s.throwsThisTurn);
+    if (typeof s.turnPlayerId === 'string') {
+      const isMyTurn = s.turnPlayerId === mySocketId;
+      setTurn(isMyTurn ? 'player' : 'ai');
+    }
+  }, [serverState, serverConnected, mySocketId]);
 
   const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current!;
@@ -254,6 +278,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const addNoise = (val: number, spread: number) => val + (Math.random() - 0.5) * spread;
 
   const throwDart = useCallback((x: number, y: number, isPlayer: boolean) => {
+    if (isPlayer && serverConnected) { serverSendAction('throw', { x, y }); return; }
     const result = getScore(x, y);
     const dart: DartThrow = { x, y, score: result.score, label: result.label };
 
