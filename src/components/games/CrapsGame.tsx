@@ -14,6 +14,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { CasinoEnvironment } from './CasinoEnvironment';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { useCasinoBots } from '@/hooks/useCasinoBots';
+import { GameBotBar } from '@/components/GameBotBar';
 
 interface CrapsGameProps {
   balance: number;
@@ -841,44 +842,6 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
     return bet?.chips || [];
   };
 
-  const VIP_COLORS: Record<string, string> = { gold: '#D4AF37', silver: '#9E9E9E', bronze: '#8D6E63' };
-
-  const feltZoneStyle = (bg: string, borderColor: string, hasBet: boolean): React.CSSProperties => ({
-    background: bg,
-    border: `2px solid ${borderColor}`,
-    cursor: 'pointer',
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    boxShadow: hasBet ? `inset 0 0 20px rgba(212,175,55,0.25), 0 0 8px rgba(212,175,55,0.15)` : 'inset 0 0 12px rgba(0,0,0,0.3)',
-  });
-
-  const renderZoneChip = (betType: string) => {
-    const chips = getBetChips(betType);
-    const amount = getBetAmount(betType);
-    if (chips.length === 0 || amount === 0) return null;
-    return (
-      <div className="absolute z-20" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}>
-        <ChipStack amount={chips[0]?.amount || 10} count={Math.min(chips[0]?.count || 1, 4)} size="sm" />
-        <div style={{ fontSize: 9, fontWeight: 800, color: '#fff', textAlign: 'center', marginTop: 1, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
-          <PcTokenLabel amount={amount} size={9} />
-        </div>
-      </div>
-    );
-  };
-
-  const tablePlayerPositions: React.CSSProperties[] = [
-    { top: '-52px', left: '8%' },
-    { top: '-52px', left: '28%' },
-    { top: '-52px', right: '28%' },
-    { top: '-52px', right: '8%' },
-    { bottom: '-52px', left: '15%' },
-    { bottom: '-52px', right: '15%' },
-  ];
-
   return (
     <CasinoEnvironment gameType="craps">
       <CelebrationSystem
@@ -888,10 +851,15 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
         onBurstComplete={removeBurst}
         playerPositions={{ you: 'bottom' }}
       />
-    <div
+    <div 
       className="h-screen flex flex-col overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0a 50%, #000000 100%)' }}
+      style={{
+        background: `
+          radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0a 50%, #000000 100%)
+        `,
+      }}
     >
+      {/* Header */}
       <InGameTopBar
         gameName="Craps"
         balance={balance}
@@ -900,6 +868,7 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
         showShare
         rightSlot={
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <GameBotBar bots={activeBots} onlineCount={onlinePlayerCount} compact chatMessages={chatMessages} />
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -914,395 +883,578 @@ export function CrapsGame({ balance, onBack, onBet, onWin, onAddBalance }: Craps
         }
       />
 
+      {/* Dealer side Vegas props */}
+      <div className="flex justify-center py-1 pointer-events-none select-none" style={{ borderBottom: '1px solid rgba(212,175,55,0.1)' }}>
+        <DealerVegasProps />
+      </div>
+
+      {/* Win/Loss Flash Overlays */}
       {winFlash && (
-        <div className="fixed inset-0 z-[100] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(67,160,71,0.3) 0%, transparent 70%)', animation: 'craps-win-flash 2s ease-out forwards' }}>
+        <div className="fixed inset-0 z-[100] pointer-events-none" style={{
+          background: 'radial-gradient(circle, rgba(67,160,71,0.3) 0%, transparent 70%)',
+          animation: 'craps-win-flash 2s ease-out forwards',
+        }}>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-5xl font-bold font-casino text-[#D4AF37] animate-bounce" style={{ textShadow: '0 0 30px rgba(212,175,55,0.8), 0 0 60px rgba(212,175,55,0.4)' }}>{winText}</div>
+            <div className="text-5xl font-bold font-casino text-[#D4AF37] animate-bounce" style={{
+              textShadow: '0 0 30px rgba(212,175,55,0.8), 0 0 60px rgba(212,175,55,0.4)',
+            }}>
+              {winText}
+            </div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div style={{
+              width: '200px',
+              height: '200px',
+              border: '3px solid rgba(212,175,55,0.6)',
+              borderRadius: '50%',
+              animation: 'craps-ring-expand 1.5s ease-out forwards',
+            }} />
           </div>
         </div>
       )}
       {loseFlash && (
-        <div className="fixed inset-0 z-[100] pointer-events-none" style={{ background: `radial-gradient(circle, rgba(${accentRgb},0.3) 0%, transparent 70%)`, animation: 'craps-lose-flash 1.5s ease-out forwards' }}>
+        <div className="fixed inset-0 z-[100] pointer-events-none" style={{
+          background: `radial-gradient(circle, rgba(${accentRgb},0.3) 0%, transparent 70%)`,
+          animation: 'craps-lose-flash 1.5s ease-out forwards',
+        }}>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-4xl font-bold font-casino" style={{ color: accent, textShadow: `0 0 20px rgba(${accentRgb},0.8)`, animation: 'craps-shake 0.5s ease-out' }}>SEVEN OUT!</div>
+            <div className="text-4xl font-bold font-casino" style={{
+              color: accent,
+              textShadow: `0 0 20px rgba(${accentRgb},0.8)`,
+              animation: 'craps-shake 0.5s ease-out',
+            }}>
+              SEVEN OUT!
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-3 py-4 sm:px-6">
-
-          <div className="flex items-center justify-center gap-5 mb-4">
-            <div className="text-center">
-              <div className="text-xs text-[#C0C0C0] tracking-[3px] font-bold">{gamePhase === 'comeout' ? 'COME OUT ROLL' : 'POINT PHASE'}</div>
-              {point && <div className="text-2xl font-bold text-[#D4AF37] mt-1" style={{ textShadow: '0 0 15px rgba(212,175,55,0.5)' }}>POINT: {point}</div>}
+      {/* Game Area */}
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* Left Side - 3D Dice Table */}
+        <div className="flex-1 p-3 sm:p-6 flex flex-col items-center justify-center">
+          {/* Phase Indicator + Point Marker Puck */}
+          <div className="mb-4 text-center flex items-center gap-4 justify-center">
+            <div>
+              <div className="text-sm text-[#C0C0C0] mb-1 tracking-wider">
+                {gamePhase === 'comeout' ? 'COME OUT ROLL' : 'POINT PHASE'}
+              </div>
+              {point && (
+                <div 
+                  className="text-4xl font-bold text-[#D4AF37]"
+                  style={{ textShadow: '0 0 20px rgba(212,175,55,0.5)' }}
+                >
+                  POINT: {point}
+                </div>
+              )}
             </div>
+            {/* ON/OFF Point Puck */}
             <div style={{
-              width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: point ? 'radial-gradient(circle at 35% 35%, #fff 0%, #e0e0e0 40%, #b0b0b0 100%)' : 'radial-gradient(circle at 35% 35%, #444 0%, #222 40%, #111 100%)',
-              boxShadow: point ? '0 4px 12px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.6), 0 0 12px rgba(255,255,255,0.2)' : '0 4px 12px rgba(0,0,0,0.5), inset 0 2px 4px rgba(100,100,100,0.3)',
+              width: '52px',
+              height: '52px',
+              borderRadius: '50%',
+              background: point
+                ? 'radial-gradient(circle at 35% 35%, #ffffff 0%, #e0e0e0 40%, #b0b0b0 100%)'
+                : 'radial-gradient(circle at 35% 35%, #444 0%, #222 40%, #111 100%)',
+              boxShadow: point
+                ? '0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.2), 0 0 15px rgba(255,255,255,0.2)'
+                : '0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(100,100,100,0.3), inset 0 -2px 4px rgba(0,0,0,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 900,
+              fontSize: '14px',
+              color: point ? '#111' : '#666',
+              fontFamily: "'Orbitron', sans-serif",
+              letterSpacing: '1px',
               border: point ? '3px solid rgba(212,175,55,0.5)' : '3px solid rgba(80,80,80,0.5)',
-              fontWeight: 900, fontSize: 12, color: point ? '#111' : '#666', fontFamily: "'Orbitron', sans-serif", letterSpacing: 1, transition: 'all 0.4s',
-            }}>{point ? 'ON' : 'OFF'}</div>
-            {message && (
-              <div className="px-5 py-2 rounded-full bg-black/80 text-[#D4AF37] border border-[#D4AF37]/30 text-xs font-bold max-w-xs text-center">{message}</div>
-            )}
+              transition: 'all 0.4s ease',
+            }}>
+              {point ? 'ON' : 'OFF'}
+            </div>
           </div>
 
-          <div className="relative" style={{ marginTop: 56, marginBottom: 56 }}>
+          {/* 3D Craps Table with Rolling Dice */}
+          <div 
+            ref={tableRef}
+            className="relative w-full max-w-md h-80 mb-6 rounded-2xl overflow-hidden wood-rail"
+            style={{
+              boxShadow: `
+                0 20px 60px rgba(0,0,0,0.8),
+                inset 0 0 0 12px transparent,
+                0 0 0 3px rgba(212,175,55,0.6),
+                0 0 20px rgba(212,175,55,0.15)
+                ${winFlash ? ', 0 0 40px rgba(67,160,71,0.5), 0 0 80px rgba(67,160,71,0.3)' : ''}
+                ${loseFlash ? `, 0 0 40px rgba(${accentRgb},0.5)` : ''}
+              `,
+              perspective: '1000px',
+              transition: 'box-shadow 0.3s ease',
+            }}
+          >
+            {/* $Pc watermark */}
+            <TableBrand style={{ opacity: 0.09 }} />
 
-            {activeBots.slice(0, 6).map((bot, i) => {
-              const pos = tablePlayerPositions[i] || tablePlayerPositions[0];
-              const vipColor = VIP_COLORS[bot.vipTier] || '#8D6E63';
-              return (
-                <div key={bot.id} className="absolute z-30 flex flex-col items-center gap-0.5" style={pos}>
-                  <div className="relative">
-                    <img src={bot.photoUrl} alt={bot.name} className="rounded-full object-cover"
-                      style={{ width: 36, height: 36, border: `2.5px solid ${vipColor}`, boxShadow: `0 0 8px ${vipColor}40, 0 4px 12px rgba(0,0,0,0.6)` }} />
-                    <div style={{
-                      position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: '50%',
-                      background: vipColor, border: '2px solid #111', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 6, fontWeight: 900, color: '#000',
-                    }}>{bot.vipTier === 'gold' ? '★' : bot.vipTier === 'silver' ? 'S' : 'B'}</div>
-                    {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
-                      <span className="absolute -top-3 -right-2" style={{ fontSize: 14, animation: 'reactionPop 0.3s ease-out', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>{bot.lastReactionEmoji}</span>
-                    )}
+            {/* Premium felt surface */}
+            <div className="absolute inset-[12px] rounded-xl premium-felt overflow-hidden" style={{
+              boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+              background: tableSkin.felt,
+            }}>
+              <PremiumFeltOverlay borderRadius="12px" goldBorderInset={4} showGoldBorder={false} />
+              <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-2 pointer-events-none" style={{ opacity: 0.85 }}>
+                {activeBots.slice(0, 4).map((bot) => (
+                  <div key={bot.id} className="flex flex-col items-center gap-0.5">
+                    <div className="relative">
+                      <img src={bot.photoUrl} alt={bot.name} className="rounded-full object-cover"
+                        style={{ width: 20, height: 20,
+                          border: `1.5px solid ${bot.vipTier === 'gold' ? '#D4AF37' : bot.vipTier === 'silver' ? '#9E9E9E' : '#8D6E63'}`,
+                          boxShadow: bot.vipTier === 'gold' ? '0 0 5px rgba(212,175,55,0.4)' : 'none' }} />
+                      {bot.lastReactionEmoji && Date.now() - bot.lastReactionTime < 5000 && (
+                        <span className="absolute -top-2 -right-1" style={{ fontSize: 8, animation: 'reactionPop 0.3s ease-out' }}>{bot.lastReactionEmoji}</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 6, color: '#bbb', maxWidth: 32, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bot.name}</span>
                   </div>
-                  <span style={{ fontSize: 8, color: '#d1d5db', maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>{bot.name}</span>
-                  {bot.currentBet > 0 && (
-                    <span style={{ fontSize: 7, fontWeight: 700, color: '#D4AF37', background: 'rgba(212,175,55,0.12)', padding: '1px 4px', borderRadius: 3 }}>
-                      {bot.currentBet >= 1000000 ? `${(bot.currentBet/1000000).toFixed(1)}M` : bot.currentBet >= 1000 ? `${(bot.currentBet/1000).toFixed(0)}K` : bot.currentBet}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-
-            <div
-              ref={tableRef}
-              className="relative rounded-2xl overflow-hidden"
-              style={{
-                boxShadow: `0 20px 60px rgba(0,0,0,0.8), 0 0 0 3px rgba(212,175,55,0.6), 0 0 20px rgba(212,175,55,0.15)${winFlash ? ', 0 0 40px rgba(67,160,71,0.5)' : ''}${loseFlash ? `, 0 0 40px rgba(${accentRgb},0.5)` : ''}`,
-                transition: 'box-shadow 0.3s',
-              }}
-            >
-              <div className="absolute top-0 left-0 right-0 h-[14px] pointer-events-none" style={{ background: 'linear-gradient(180deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)', borderBottom: '1px solid rgba(212,175,55,0.4)', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -1px 3px rgba(0,0,0,0.3)', borderRadius: '16px 16px 0 0', zIndex: 20 }} />
-              <div className="absolute bottom-0 left-0 right-0 h-[14px] pointer-events-none" style={{ background: 'linear-gradient(0deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)', borderTop: '1px solid rgba(212,175,55,0.4)', boxShadow: 'inset 0 -2px 4px rgba(255,255,255,0.15), inset 0 1px 3px rgba(0,0,0,0.3)', borderRadius: '0 0 16px 16px', zIndex: 20 }} />
-              <div className="absolute top-[14px] bottom-[14px] left-0 w-[14px] pointer-events-none" style={{ background: 'linear-gradient(90deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)', borderRight: '1px solid rgba(212,175,55,0.4)', boxShadow: 'inset 2px 0 4px rgba(255,255,255,0.15), inset -1px 0 3px rgba(0,0,0,0.3)', zIndex: 20 }} />
-              <div className="absolute top-[14px] bottom-[14px] right-0 w-[14px] pointer-events-none" style={{ background: 'linear-gradient(270deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)', borderLeft: '1px solid rgba(212,175,55,0.4)', boxShadow: 'inset -2px 0 4px rgba(255,255,255,0.15), inset 1px 0 3px rgba(0,0,0,0.3)', zIndex: 20 }} />
-
-              <div className="absolute pointer-events-none" style={{ inset: '16px', border: '1.5px dashed rgba(212,175,55,0.3)', borderRadius: '10px', zIndex: 15 }} />
-
-              <div style={{ background: tableSkin.felt, padding: '14px' }}>
-                <PremiumFeltOverlay borderRadius="12px" goldBorderInset={4} showGoldBorder={false} />
-                <TableBrand style={{ opacity: 0.07 }} />
-
-                <div className="relative z-10" style={{ padding: '6px' }}>
-
-                  <button
-                    onClick={() => placeBet('dontpass', 1)}
-                    disabled={gamePhase === 'point'}
-                    className="w-full rounded-t-xl disabled:opacity-50"
-                    style={feltZoneStyle(`rgba(${accentRgb},0.18)`, `rgba(${accentRgb},0.45)`, getBetAmount('dontpass') > 0)}
-                    onMouseEnter={(e) => { if (gamePhase !== 'point') e.currentTarget.style.background = `rgba(${accentRgb},0.3)`; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = `rgba(${accentRgb},0.18)`; }}
-                  >
-                    <div style={{ padding: '8px 12px', textAlign: 'center', minHeight: 42 }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: accent, letterSpacing: 4, textTransform: 'uppercase' }}>DON'T PASS BAR</div>
-                      <div style={{ fontSize: 8, color: '#bbb', marginTop: 1 }}>Wins on 2 or 3 · 12 is a push</div>
-                    </div>
-                    {renderZoneChip('dontpass')}
-                  </button>
-
-                  <div className="grid grid-cols-7 gap-0 mt-px">
-                    <div
-                      className="col-span-1 row-span-2"
-                      style={{ ...feltZoneStyle('rgba(30,136,229,0.15)', 'rgba(30,136,229,0.35)', false), minHeight: 90, borderRadius: '0 0 0 8px', cursor: 'default', opacity: 0.7 }}
-                    >
-                      <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)', padding: '6px 0' }}>
-                        <div style={{ fontSize: 11, fontWeight: 800, color: '#64B5F6', letterSpacing: 2 }}>COME</div>
-                      </div>
-                    </div>
-
-                    {[
-                      { num: 4, payout: 1.8, label: '9:5' },
-                      { num: 5, payout: 1.4, label: '7:5' },
-                      { num: 6, payout: 1.17, label: '7:6' },
-                      { num: 8, payout: 1.17, label: '7:6' },
-                      { num: 9, payout: 1.4, label: '7:5' },
-                      { num: 10, payout: 1.8, label: '9:5' },
-                    ].map(({ num, payout, label }) => (
-                      <button
-                        key={num}
-                        onClick={() => placeBet(`place${num}`, payout)}
-                        className="col-span-1"
-                        style={feltZoneStyle('rgba(93,64,55,0.3)', 'rgba(212,175,55,0.3)', getBetAmount(`place${num}`) > 0)}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(93,64,55,0.5)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(93,64,55,0.3)'; }}
-                      >
-                        <div style={{ padding: '6px 2px', textAlign: 'center' }}>
-                          <div style={{ fontSize: num === 6 || num === 9 ? 10 : 18, fontWeight: 900, color: '#D4AF37', fontFamily: "'Cinzel', serif" }}>
-                            {num === 6 ? 'SIX' : num === 9 ? 'NINE' : num}
-                          </div>
-                          <div style={{ fontSize: 7, color: '#aaa', fontWeight: 600 }}>{label}</div>
-                          {point === num && (
-                            <div style={{
-                              width: 16, height: 16, borderRadius: '50%', margin: '3px auto 0',
-                              background: 'radial-gradient(circle at 35% 35%, #fff, #ccc)', border: '2px solid rgba(212,175,55,0.6)',
-                              fontSize: 6, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111',
-                            }}>ON</div>
-                          )}
-                        </div>
-                        {renderZoneChip(`place${num}`)}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => placeBet('field', 1)}
-                    className="w-full mt-px"
-                    style={feltZoneStyle('rgba(30,136,229,0.12)', 'rgba(30,136,229,0.35)', getBetAmount('field') > 0)}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(30,136,229,0.22)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,136,229,0.12)'; }}
-                  >
-                    <div style={{ padding: '6px 12px', textAlign: 'center', minHeight: 36 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#64B5F6', letterSpacing: 3 }}>FIELD</span>
-                        <span style={{ fontSize: 9, color: '#aaa' }}>2 · 3 · 4 · 9 · 10 · 11 · 12</span>
-                      </div>
-                      <div style={{ fontSize: 7, color: '#888', marginTop: 1 }}>2 pays double · 12 pays triple</div>
-                    </div>
-                    {renderZoneChip('field')}
-                  </button>
-
-                  <div className="grid grid-cols-6 gap-0 mt-px">
-                    {[
-                      { num: 4, payout: 7, dice: '2-2' },
-                      { num: 6, payout: 9, dice: '3-3' },
-                      { num: 8, payout: 9, dice: '4-4' },
-                      { num: 10, payout: 7, dice: '5-5' },
-                    ].map(({ num, payout, dice }) => (
-                      <button
-                        key={num}
-                        onClick={() => placeBet(`hard${num}`, payout)}
-                        className="col-span-1"
-                        style={feltZoneStyle('rgba(139,69,19,0.25)', 'rgba(212,175,55,0.25)', getBetAmount(`hard${num}`) > 0)}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(139,69,19,0.4)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(139,69,19,0.25)'; }}
-                      >
-                        <div style={{ padding: '5px 2px', textAlign: 'center' }}>
-                          <div style={{ fontSize: 8, fontWeight: 800, color: '#D4AF37', letterSpacing: 1 }}>HARD {num}</div>
-                          <div style={{ fontSize: 7, color: '#999' }}>{dice}</div>
-                          <div style={{ fontSize: 7, color: '#aaa', fontWeight: 700 }}>{payout}:1</div>
-                        </div>
-                        {renderZoneChip(`hard${num}`)}
-                      </button>
-                    ))}
-
-                    <button
-                      onClick={() => placeBet('any7', 4)}
-                      className="col-span-1"
-                      style={feltZoneStyle('rgba(255,111,0,0.2)', 'rgba(255,111,0,0.4)', getBetAmount('any7') > 0)}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,111,0,0.35)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,111,0,0.2)'; }}
-                    >
-                      <div style={{ padding: '5px 2px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 9, fontWeight: 800, color: '#FFB74D', letterSpacing: 1 }}>ANY 7</div>
-                        <div style={{ fontSize: 8, color: '#aaa', fontWeight: 700 }}>4:1</div>
-                      </div>
-                      {renderZoneChip('any7')}
-                    </button>
-
-                    <button
-                      onClick={() => placeBet('anycraps', 7)}
-                      className="col-span-1"
-                      style={feltZoneStyle(`rgba(${accentRgb},0.18)`, `rgba(${accentRgb},0.4)`, getBetAmount('anycraps') > 0)}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = `rgba(${accentRgb},0.3)`; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = `rgba(${accentRgb},0.18)`; }}
-                    >
-                      <div style={{ padding: '5px 2px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 8, fontWeight: 800, color: accent, letterSpacing: 0.5 }}>ANY CRAPS</div>
-                        <div style={{ fontSize: 7, color: '#999' }}>2,3,12</div>
-                        <div style={{ fontSize: 8, color: '#aaa', fontWeight: 700 }}>7:1</div>
-                      </div>
-                      {renderZoneChip('anycraps')}
-                    </button>
-                  </div>
-
-                  <div className="relative mt-px rounded-b-lg overflow-hidden" style={{
-                    background: 'rgba(20,60,20,0.25)',
-                    border: '2px solid rgba(67,160,71,0.35)',
-                    minHeight: 200,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <div
-                      className="absolute pointer-events-none"
-                      style={{
-                        width: '220px', height: '220px',
-                        left: `${spotlightPos.x}%`, top: `${spotlightPos.y}%`,
-                        transform: 'translate(-50%, -50%)',
-                        background: `radial-gradient(circle, rgba(255,255,220,${isRolling ? 0.18 : 0.08}) 0%, rgba(212,175,55,${isRolling ? 0.1 : 0.03}) 40%, transparent 70%)`,
-                        transition: isRolling ? 'left 0.05s linear, top 0.05s linear' : 'all 0.5s ease-out',
-                        zIndex: 2, filter: 'blur(2px)',
-                      }}
-                    />
-
-                    <button
-                      onClick={() => placeBet('pass', 1)}
-                      disabled={gamePhase === 'point'}
-                      className="absolute inset-0 z-[1] disabled:cursor-default"
-                      style={{ background: 'transparent', border: 'none', cursor: gamePhase === 'point' ? 'default' : 'pointer' }}
-                      onMouseEnter={(e) => { if (gamePhase !== 'point') e.currentTarget.parentElement!.style.background = 'rgba(20,60,20,0.4)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.parentElement!.style.background = 'rgba(20,60,20,0.25)'; }}
-                    />
-
-                    <div className="absolute top-2 left-0 right-0 text-center pointer-events-none z-[3]">
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#66BB6A', letterSpacing: 6, textTransform: 'uppercase' }}>
-                        P A S S &nbsp; L I N E
-                      </span>
-                      <div style={{ fontSize: 8, color: '#aaa', marginTop: 2 }}>Win on 7 or 11 · Lose on 2, 3, or 12 · Pays 1:1</div>
-                    </div>
-
-                    {getBetAmount('pass') > 0 && (
-                      <div className="absolute z-20 pointer-events-none" style={{ bottom: 8, left: 24 }}>
-                        <ChipStack amount={getBetChips('pass')[0]?.amount || 10} count={Math.min(getBetChips('pass')[0]?.count || 1, 4)} size="sm" />
-                        <div style={{ fontSize: 9, fontWeight: 800, color: '#fff', textAlign: 'center', marginTop: 1, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
-                          <PcTokenLabel amount={getBetAmount('pass')} size={9} />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="relative z-[5]" style={{ pointerEvents: 'none' }}>
-                      <RealisticDice3D
-                        value={dice[0]}
-                        rotation={dice1Rotation}
-                        position={dice1Position}
-                        isRolling={isRolling}
-                        diceId={1}
-                        glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? `rgba(${accentRgb},0.5)` : undefined}
-                        skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
-                        skinPipBg={diceSkin.pipGradient}
-                        skinPipStroke={diceSkin.pipStroke}
-                        skinBorder={diceSkin.borderColor}
-                      />
-                      <RealisticDice3D
-                        value={dice[1]}
-                        rotation={dice2Rotation}
-                        position={dice2Position}
-                        isRolling={isRolling}
-                        diceId={2}
-                        glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? `rgba(${accentRgb},0.5)` : undefined}
-                        skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
-                        skinPipBg={diceSkin.pipGradient}
-                        skinPipStroke={diceSkin.pipStroke}
-                        skinBorder={diceSkin.borderColor}
-                      />
-                    </div>
-
-                    <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-black/60 border border-[#D4AF37]/30 z-10 pointer-events-none">
-                      <div className="text-[9px] text-[#C0C0C0]">TOTAL</div>
-                      <div className="text-2xl font-bold text-[#D4AF37]">{diceTotal}</div>
-                    </div>
-                  </div>
-
-                </div>
+                ))}
               </div>
             </div>
+
+            {/* Gold stitching inner border */}
+            <div className="absolute pointer-events-none" style={{
+              inset: '14px',
+              border: '1.5px dashed rgba(212,175,55,0.35)',
+              borderRadius: '10px',
+              zIndex: 3,
+            }} />
+
+            {/* Padded rail top edge */}
+            <div className="absolute top-0 left-0 right-0 h-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(180deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderBottom: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -1px 3px rgba(0,0,0,0.3)',
+              borderRadius: '16px 16px 0 0',
+              zIndex: 20,
+            }} />
+            {/* Padded rail bottom edge */}
+            <div className="absolute bottom-0 left-0 right-0 h-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(0deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderTop: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset 0 -2px 4px rgba(255,255,255,0.15), inset 0 1px 3px rgba(0,0,0,0.3)',
+              borderRadius: '0 0 16px 16px',
+              zIndex: 20,
+            }} />
+            {/* Padded rail left edge */}
+            <div className="absolute top-[12px] bottom-[12px] left-0 w-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(90deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderRight: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset 2px 0 4px rgba(255,255,255,0.15), inset -1px 0 3px rgba(0,0,0,0.3)',
+              zIndex: 20,
+            }} />
+            {/* Padded rail right edge */}
+            <div className="absolute top-[12px] bottom-[12px] right-0 w-[12px] pointer-events-none" style={{
+              background: 'linear-gradient(270deg, #6D4C2E 0%, #5D4037 50%, #4E342E 100%)',
+              borderLeft: '1px solid rgba(212,175,55,0.4)',
+              boxShadow: 'inset -2px 0 4px rgba(255,255,255,0.15), inset 1px 0 3px rgba(0,0,0,0.3)',
+              zIndex: 20,
+            }} />
+
+            {/* Spotlight tracking animation that follows dice */}
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                width: '220px',
+                height: '220px',
+                left: `${spotlightPos.x}%`,
+                top: `${spotlightPos.y}%`,
+                transform: 'translate(-50%, -50%)',
+                background: `radial-gradient(circle, rgba(255,255,220,${isRolling ? 0.18 : 0.1}) 0%, rgba(212,175,55,${isRolling ? 0.1 : 0.04}) 40%, transparent 70%)`,
+                transition: isRolling ? 'left 0.05s linear, top 0.05s linear' : 'all 0.5s ease-out',
+                zIndex: 2,
+                filter: 'blur(2px)',
+              }}
+            />
+
+            {/* Color-coded table markings */}
+            <div className="absolute top-[16px] left-[16px] right-[16px] h-[24px] rounded-t-lg pointer-events-none" style={{
+              background: 'rgba(46,125,50,0.3)',
+              border: '1px solid rgba(67,160,71,0.4)',
+              zIndex: 3,
+            }}>
+              <div className="text-center text-[#66BB6A] text-[10px] font-bold tracking-[3px] leading-[24px]">
+                PASS LINE
+              </div>
+            </div>
+            <div className="absolute bottom-[16px] left-[16px] right-[16px] h-[24px] rounded-b-lg pointer-events-none" style={{
+              background: `rgba(${accentRgb},0.2)`,
+              border: `1px solid rgba(${accentRgb},0.4)`,
+              zIndex: 3,
+            }}>
+              <div className="text-center text-[10px] font-bold tracking-[3px] leading-[24px]" style={{ color: accent }}>
+                DON'T PASS BAR
+              </div>
+            </div>
+
+            {/* 3D Dice */}
+            <RealisticDice3D
+              value={dice[0]}
+              rotation={dice1Rotation}
+              position={dice1Position}
+              isRolling={isRolling}
+              diceId={1}
+              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? `rgba(${accentRgb},0.5)` : undefined}
+              skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
+              skinPipBg={diceSkin.pipGradient}
+              skinPipStroke={diceSkin.pipStroke}
+              skinBorder={diceSkin.borderColor}
+            />
+            <RealisticDice3D
+              value={dice[1]}
+              rotation={dice2Rotation}
+              position={dice2Position}
+              isRolling={isRolling}
+              diceId={2}
+              glowColor={winFlash ? 'rgba(67,160,71,0.6)' : loseFlash ? `rgba(${accentRgb},0.5)` : undefined}
+              skinFaceBg={`linear-gradient(145deg, ${diceSkin.faceGradientStart} 0%, ${diceSkin.faceGradientMid} 40%, ${diceSkin.faceGradientEnd} 100%)`}
+              skinPipBg={diceSkin.pipGradient}
+              skinPipStroke={diceSkin.pipStroke}
+              skinBorder={diceSkin.borderColor}
+            />
+
+            {/* Dice total display */}
+            <div 
+              className="absolute bottom-4 right-4 px-4 py-2 rounded-lg bg-black/60 border border-[#D4AF37]/30"
+            >
+              <div className="text-xs text-[#C0C0C0]">TOTAL</div>
+              <div className="text-3xl font-bold text-[#D4AF37]">{diceTotal}</div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 mt-4 mb-3 flex-wrap">
-            <div className="text-[10px] text-[#C0C0C0] tracking-[2px] font-bold">RECENT ROLLS</div>
-            <div className="flex gap-1.5">
+          {/* Roll History */}
+          <div className="mb-4">
+            <div className="text-sm text-[#C0C0C0] mb-2 tracking-wider">RECENT ROLLS</div>
+            <div className="flex gap-2">
               {rollHistory.map((roll, i) => (
-                <div
-                  key={i}
-                  className="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold border"
-                  style={roll === 7 ? { background: `rgba(${accentRgb},0.3)`, color: accent, borderColor: `rgba(${accentRgb},0.5)` }
-                    : roll === point ? { background: 'rgba(67,160,71,0.3)', color: '#66BB6A', borderColor: 'rgba(67,160,71,0.5)' }
-                    : { background: 'rgba(0,0,0,0.5)', color: '#C0C0C0', borderColor: 'rgba(93,64,55,0.3)' }}
-                >{roll}</div>
+                <div 
+                  key={i} 
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${
+                    roll === point ? 'bg-[#43A047]/30 text-[#66BB6A] border-[#43A047]/50' :
+                    'bg-black/50 text-[#C0C0C0] border-[#5D4037]/30'
+                  }`}
+                  style={roll === 7 ? {
+                    background: `rgba(${accentRgb},0.3)`,
+                    color: accent,
+                    borderColor: `rgba(${accentRgb},0.5)`,
+                  } : undefined}
+                >
+                  {roll}
+                </div>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 mb-3">
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
-              <div>
-                <div className="text-[8px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
-                <div className="text-sm font-bold"><PcTokenLabel amount={formatChipLabel(balance)} size={14} /></div>
-              </div>
-              <div style={{ width: 1, height: 20, background: 'rgba(212,175,55,0.15)' }} />
-              <div>
-                <div className="text-[8px] text-gray-600 tracking-widest font-bold uppercase">Total Bet</div>
-                <div className="text-sm font-bold"><PcTokenLabel amount={totalBet} size={14} /></div>
-              </div>
-              {onAddBalance && (
-                <>
-                  <div style={{ width: 1, height: 20, background: 'rgba(212,175,55,0.15)' }} />
-                  <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>+ Get $Pc</button>
-                </>
-              )}
+          {/* Message */}
+          {message && (
+            <div className="mb-4 px-8 py-3 rounded-full bg-black/80 text-[#D4AF37] border border-[#D4AF37]/40 text-center font-bold">
+              {message}
             </div>
+          )}
 
-            <div className="flex-1 flex justify-center">
-              <ChipSelector selectedChip={selectedChip} onSelect={setSelectedChip} balance={balance} compact />
+          {/* Balance + Get More */}
+          <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.15)' }}>
+            <div>
+              <div className="text-[9px] text-gray-600 tracking-widest font-bold uppercase">Balance</div>
+              <div className="text-base font-bold"><PcTokenLabel amount={formatChipLabel(balance)} size={16} /></div>
             </div>
+            {onAddBalance && (
+              <button onClick={() => onAddBalance(10_000)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-green-400" style={{ border: '1px solid rgba(67,160,71,0.5)', background: 'rgba(67,160,71,0.12)' }}>
+                + Get $Pc
+              </button>
+            )}
+          </div>
+          {/* Chip Selection */}
+          <div className="mb-4">
+            <div className="text-center text-[#C0C0C0] text-xs mb-2 tracking-wider">SELECT CHIP</div>
+            <ChipSelector
+              selectedChip={selectedChip}
+              onSelect={setSelectedChip}
+              balance={balance}
+              compact
+            />
           </div>
 
-          <div className="flex gap-3 max-w-lg mx-auto">
-            <Button onClick={rollDice} disabled={isRolling || bets.length === 0} className="btn-primary flex-1 py-4 text-lg font-bold min-h-[50px]">
+          {/* Total Bet */}
+          <div className="text-center mb-4">
+            <span className="text-[#C0C0C0]">Total Bet: </span>
+            <PcTokenLabel amount={totalBet} size={20} />
+          </div>
+
+          {/* Roll Button */}
+          <div className="flex gap-3">
+            <Button
+              onClick={rollDice}
+              disabled={isRolling || bets.length === 0}
+              className="btn-primary flex-1 py-4 sm:py-6 text-lg sm:text-xl font-bold min-h-[56px]"
+            >
               {isRolling ? 'ROLLING...' : 'ROLL DICE'}
             </Button>
             <EmojiReactionPicker onReact={(emoji) => addReaction(emoji, 'you')} enabled={settings.celebrationsEnabled} />
-            <Button onClick={clearBets} disabled={isRolling || bets.length === 0} variant="outline" className="min-h-[50px] px-3"
-              style={{ borderColor: `rgba(${accentRgb},0.5)`, color: accent }}
+            <Button
+              onClick={clearBets}
+              disabled={isRolling || bets.length === 0}
+              variant="outline"
+              className="min-h-[56px] px-3 sm:px-4"
+              style={{
+                borderColor: `rgba(${accentRgb},0.5)`,
+                color: accent,
+              }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.2)`; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}>
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
+            >
               <RotateCcw className="w-5 h-5 sm:mr-2" />
               <span className="hidden sm:inline">Clear</span>
             </Button>
           </div>
+        </div>
 
-          <div className="flex items-center justify-center gap-4 mt-4 mb-2">
-            <div className="flex items-center gap-2">
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#43A047', animation: 'onlinePulse 2s ease-in-out infinite' }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#66BB6A' }}>{onlinePlayerCount} players online</span>
+        {/* Right Side - Betting Table */}
+        <div className="flex-1 p-3 sm:p-6 border-t lg:border-t-0 lg:border-l border-[#5D4037]/30 overflow-y-auto" style={{
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(13,51,18,0.3) 50%, rgba(0,0,0,0.7) 100%)',
+        }}>
+          <div className="max-w-lg mx-auto">
+            {/* Pass/Don't Pass */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <button
+                onClick={() => placeBet('pass', 1)}
+                disabled={gamePhase === 'point'}
+                className="relative p-4 rounded-xl bg-[#1B5E20]/50 border-2 border-[#43A047]/50 hover:bg-[#1B5E20]/70 transition-all disabled:opacity-50"
+              >
+                <div className="font-bold text-lg text-[#D4AF37]">PASS LINE</div>
+                <div className="text-xs text-[#C0C0C0]">Win on 7/11</div>
+                {getBetChips('pass').length > 0 && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <ChipStack amount={getBetChips('pass')[0]?.amount || 10} count={getBetChips('pass')[0]?.count || 1} size="sm" />
+                  </div>
+                )}
+                {getBetAmount('pass') > 0 && (
+                  <div className="mt-1 font-bold"><PcTokenLabel amount={getBetAmount('pass')} size={13} /></div>
+                )}
+              </button>
+              <button
+                onClick={() => placeBet('dontpass', 1)}
+                disabled={gamePhase === 'point'}
+                className="relative p-4 rounded-xl transition-all disabled:opacity-50"
+                style={{
+                  background: `rgba(${accentRgb},0.3)`,
+                  border: `2px solid rgba(${accentRgb},0.5)`,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.5)`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.3)`; }}
+              >
+                <div className="font-bold text-lg text-[#D4AF37]">DON'T PASS</div>
+                <div className="text-xs text-[#C0C0C0]">Win on 2/3</div>
+                {getBetChips('dontpass').length > 0 && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <ChipStack amount={getBetChips('dontpass')[0]?.amount || 10} count={getBetChips('dontpass')[0]?.count || 1} size="sm" />
+                  </div>
+                )}
+                {getBetAmount('dontpass') > 0 && (
+                  <div className="mt-1 font-bold"><PcTokenLabel amount={getBetAmount('dontpass')} size={13} /></div>
+                )}
+              </button>
             </div>
-            <DealerVegasProps />
-          </div>
 
+            {/* Field Bet */}
+            <button
+              onClick={() => placeBet('field', 1)}
+              className="w-full relative p-4 rounded-xl bg-[#1E88E5]/30 border-2 border-[#1E88E5]/50 hover:bg-[#1E88E5]/50 transition-all mb-4"
+            >
+              <div className="font-bold text-lg text-[#D4AF37]">FIELD</div>
+              <div className="text-xs text-[#C0C0C0]">2,3,4,9,10,11,12 (2=2x, 12=3x)</div>
+              {getBetChips('field').length > 0 && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <ChipStack amount={getBetChips('field')[0]?.amount || 10} count={getBetChips('field')[0]?.count || 1} size="sm" />
+                </div>
+              )}
+              {getBetAmount('field') > 0 && (
+                <div className="mt-1 font-bold"><PcTokenLabel amount={getBetAmount('field')} size={13} /></div>
+              )}
+            </button>
+
+            {/* Place Bets */}
+            <div className="text-sm text-[#C0C0C0] mb-2 tracking-wider">PLACE BETS</div>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { num: 4, payout: 1.8 },
+                { num: 5, payout: 1.4 },
+                { num: 6, payout: 1.17 },
+                { num: 8, payout: 1.17 },
+                { num: 9, payout: 1.4 },
+                { num: 10, payout: 1.8 },
+              ].map(({ num, payout }) => (
+                <button
+                  key={num}
+                  onClick={() => placeBet(`place${num}`, payout)}
+                  className="relative p-3 rounded-xl bg-[#5D4037]/50 border border-[#D4AF37]/30 hover:bg-[#5D4037]/70 transition-all"
+                >
+                  <div className="font-bold text-[#D4AF37]">{num}</div>
+                  <div className="text-xs text-[#C0C0C0]">{payout}:1</div>
+                  {getBetChips(`place${num}`).length > 0 && (
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                      <ChipStack amount={getBetChips(`place${num}`)[0]?.amount || 10} count={1} size="sm" />
+                    </div>
+                  )}
+                  {getBetAmount(`place${num}`) > 0 && (
+                    <div className="text-[#D4AF37] text-sm font-bold">{getBetAmount(`place${num}`)}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Hardways */}
+            <div className="text-sm text-[#C0C0C0] mb-2 tracking-wider">HARDWAYS</div>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[
+                { num: 4, payout: 7 },
+                { num: 6, payout: 9 },
+                { num: 8, payout: 9 },
+                { num: 10, payout: 7 },
+              ].map(({ num, payout }) => (
+                <button
+                  key={num}
+                  onClick={() => placeBet(`hard${num}`, payout)}
+                  className="relative p-3 rounded-xl bg-[#8B4513]/50 border border-[#D4AF37]/30 hover:bg-[#8B4513]/70 transition-all"
+                >
+                  <div className="font-bold text-[#D4AF37]">HARD {num}</div>
+                  <div className="text-xs text-[#C0C0C0]">{payout}:1</div>
+                  {getBetChips(`hard${num}`).length > 0 && (
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                      <ChipStack amount={getBetChips(`hard${num}`)[0]?.amount || 10} count={1} size="sm" />
+                    </div>
+                  )}
+                  {getBetAmount(`hard${num}`) > 0 && (
+                    <div className="text-[#D4AF37] text-sm font-bold">{getBetAmount(`hard${num}`)}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Proposition Bets */}
+            <div className="text-sm text-[#C0C0C0] mb-2 tracking-wider">ONE ROLL BETS</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => placeBet('any7', 4)}
+                className="relative p-3 rounded-xl bg-[#FF6F00]/30 border border-[#FF6F00]/50 hover:bg-[#FF6F00]/50 transition-all"
+              >
+                <div className="font-bold text-[#D4AF37]">ANY 7</div>
+                <div className="text-xs text-[#C0C0C0]">4:1</div>
+                {getBetChips('any7').length > 0 && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                    <ChipStack amount={getBetChips('any7')[0]?.amount || 10} count={1} size="sm" />
+                  </div>
+                )}
+                {getBetAmount('any7') > 0 && (
+                  <div className="font-bold"><PcTokenLabel amount={getBetAmount('any7')} size={12} /></div>
+                )}
+              </button>
+              <button
+                onClick={() => placeBet('anycraps', 7)}
+                className="relative p-3 rounded-xl transition-all"
+                style={{
+                  background: `rgba(${accentRgb},0.25)`,
+                  border: `1px solid rgba(${accentRgb},0.5)`,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.5)`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `rgba(${accentRgb},0.25)`; }}
+              >
+                <div className="font-bold text-[#D4AF37]">ANY CRAPS</div>
+                <div className="text-xs text-[#C0C0C0]">7:1</div>
+                {getBetChips('anycraps').length > 0 && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                    <ChipStack amount={getBetChips('anycraps')[0]?.amount || 10} count={1} size="sm" />
+                  </div>
+                )}
+                {getBetAmount('anycraps') > 0 && (
+                  <div className="font-bold"><PcTokenLabel amount={getBetAmount('anycraps')} size={12} /></div>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Rules Dialog */}
       <Dialog open={showRules} onOpenChange={setShowRules}>
         <DialogContent className="max-w-2xl glass-panel-strong max-h-[80vh] overflow-y-auto border-[#5D4037]/30">
           <DialogHeader>
-            <DialogTitle className="font-casino text-2xl text-gradient-gold">Craps Rules</DialogTitle>
+            <DialogTitle className="font-casino text-2xl text-gradient-gold">
+              Craps Rules
+            </DialogTitle>
           </DialogHeader>
+          
           <div className="space-y-6 text-sm">
             <div>
               <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Objective</h3>
               <p className="text-gray-300">{crapsRules.objective}</p>
             </div>
-            {[
-              { title: 'Game Phases', items: crapsRules.phases },
-              { title: 'Pass Line Bet', items: crapsRules.passLine },
-              { title: "Don't Pass Bet", items: crapsRules.dontPass },
-              { title: 'Place Bets', items: crapsRules.placeBets },
-              { title: 'Hardways', items: crapsRules.hardways },
-              { title: 'Proposition Bets', items: crapsRules.proposition },
-            ].map(({ title, items }) => (
-              <div key={title}>
-                <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">{title}</h3>
-                <ul className="space-y-1 text-gray-300">
-                  {items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2"><span className="text-[#D4AF37]">•</span>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            
+            <div>
+              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Game Phases</h3>
+              <ul className="space-y-1 text-gray-300">
+                {crapsRules.phases.map((phase, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-[#D4AF37]">•</span>
+                    {phase}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Pass Line Bet</h3>
+              <ul className="space-y-1 text-gray-300">
+                {crapsRules.passLine.map((rule, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-[#D4AF37]">•</span>
+                    {rule}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Don't Pass Bet</h3>
+              <ul className="space-y-1 text-gray-300">
+                {crapsRules.dontPass.map((rule, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-[#D4AF37]">•</span>
+                    {rule}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Place Bets</h3>
+              <ul className="space-y-1 text-gray-300">
+                {crapsRules.placeBets.map((rule, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-[#D4AF37]">•</span>
+                    {rule}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-lg mb-2 text-[#D4AF37]">Hardways</h3>
+              <ul className="space-y-1 text-gray-300">
+                {crapsRules.hardways.map((rule, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-[#D4AF37]">•</span>
+                    {rule}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
