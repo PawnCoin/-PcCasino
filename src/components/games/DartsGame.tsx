@@ -299,6 +299,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
     const finalY = addNoise(pos.y, 6);
     const result = throwDart(finalX, finalY, true);
 
+    if (!result) return;
     setRoundHistory(prev => [`You: ${result.label} (${result.score})`, ...prev.slice(0, 9)]);
 
     const newScore = playerScore - result.score;
@@ -333,7 +334,7 @@ export function DartsGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
       }, 800);
     } else {
       setThrowCount(nextThrow);
-      setMessage(`${result.label}! Score: ${newScore}. Throw ${nextThrow + 1}/3`);
+      setMessage(`${result?.label}! Score: ${newScore}. Throw ${nextThrow + 1}/3`);
     }
   };
 

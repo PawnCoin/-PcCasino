@@ -72,7 +72,10 @@ type Action =
   | { type: 'DRAW'; playerId?: string } | { type: 'PASS' } | { type: 'RESET' }
   | { type: 'NEXT_ROUND' }
   | { type: 'SET_BET'; bet: number }
-  | { type: 'REPLACE_HUMAN' };
+  | { type: 'REPLACE_HUMAN' }
+  | { type: 'SET_HAND'; hand: Tile[] }
+  | { type: 'SET_CHAIN'; chain: PlacedTile[]; leftVal: number; rightVal: number }
+  | { type: 'SET_SCORES'; scores: number[] };
 
 // ─── Player colors (used in picking phase) ────────────────────────────────────
 const PLAYER_COLORS: Record<string, string> = {
@@ -509,6 +512,15 @@ function gsReducer(state: GS, action: Action): GS {
     }
     case 'NEXT_ROUND': return { ...state, phase: 'setup' };
     case 'RESET': return { ...initGS(), practiceGamesLeft: state.practiceGamesLeft };
+    case 'SET_HAND': {
+      const updatedPlayers = state.players.map(p => p.isHuman ? { ...p, hand: action.hand } : p);
+      return { ...state, players: updatedPlayers };
+    }
+    case 'SET_CHAIN': return { ...state, chain: action.chain, leftVal: action.leftVal, rightVal: action.rightVal };
+    case 'SET_SCORES': {
+      const updatedPlayers = state.players.map((p, i) => ({ ...p, score: action.scores[i] ?? p.score }));
+      return { ...state, players: updatedPlayers };
+    }
     default: return state;
   }
 }
@@ -1285,19 +1297,17 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   useEffect(() => {
     if (!serverState || !serverConnected) return;
     const s = serverState as Record<string, unknown>;
-    if (Array.isArray(s.hand)) setHumanHand(s.hand as Tile[]);
-    if (Array.isArray(s.chain)) setChain(s.chain as PlacedTile[]);
-    if (typeof s.leftVal === 'number') setLeftEnd(s.leftVal);
-    if (typeof s.rightVal === 'number') setRightEnd(s.rightVal);
+    if (Array.isArray(s.hand)) dispatch({ type: 'SET_HAND', hand: s.hand as Tile[] });
+    if (Array.isArray(s.chain)) dispatch({ type: 'SET_CHAIN', chain: s.chain as PlacedTile[], leftVal: (s.leftVal as number) ?? -1, rightVal: (s.rightVal as number) ?? -1 });
     if (s.scores && typeof s.scores === 'object') {
       const sc = s.scores as Record<string, number>;
       if (mySocketId && sc[mySocketId] !== undefined) {
         const opponentSid = Object.keys(sc).find(sid => sid !== mySocketId);
-        setScores({ human: sc[mySocketId] ?? 0, ai: opponentSid ? (sc[opponentSid] ?? 0) : 0 });
+        dispatch({ type: 'SET_SCORES', scores: [sc[mySocketId] ?? 0, opponentSid ? (sc[opponentSid] ?? 0) : 0, 0, 0] });
       } else {
         const playerOrder = (s.playerOrder || []) as string[];
         if (playerOrder.length >= 2) {
-          setScores({ human: sc[playerOrder[0]] ?? 0, ai: sc[playerOrder[1]] ?? 0 });
+          dispatch({ type: 'SET_SCORES', scores: [sc[playerOrder[0]] ?? 0, sc[playerOrder[1]] ?? 0, 0, 0] });
         }
       }
     }
