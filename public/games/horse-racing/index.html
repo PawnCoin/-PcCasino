@@ -29,6 +29,10 @@
             var _pcMenuShown = false;
             var _pcCustomChipValue = null;
             var _pcSceneryFilter = 'none';
+            var _pcCommentaryEnabled = true;
+            var _pcCommentaryVolume = 0.8;
+            var _pcCommentaryInterval = null;
+            var _pcGunshot = null;
 
             $(document).ready(function () {
                 var oMain = new CMain({
@@ -70,15 +74,27 @@
                 });
 
                 $(oMain).on("bet_placed", function (evt, iTotBet) {
-                    _pcGamePhase = 'racing';
-                    window.parent.postMessage({ type: 'hr:phase', phase: 'racing' }, '*');
-                    if (window._pcCrowdChants) window._pcCrowdChants.start();
+                    _pcGamePhase = 'countdown';
+                    window.parent.postMessage({ type: 'hr:phase', phase: 'countdown' }, '*');
+                    window.parent.postMessage({ type: 'hr:countdown', totalBet: iTotBet }, '*');
+                    if (typeof createjs !== 'undefined' && createjs.Ticker) {
+                        createjs.Ticker.paused = true;
+                    }
                 });
 
                 $(oMain).on("save_score", function (evt, iScore) {
                     _pcGamePhase = 'result';
                     window.parent.postMessage({ type: 'hr:phase', phase: 'result' }, '*');
                     if (window._pcCrowdChants) window._pcCrowdChants.stop();
+
+                    var positions = _pcGetHorsePositions();
+                    if (positions && positions.length > 0) {
+                        var winner = positions[0];
+                        var winLine = 'And ' + winner.name + ' wins the race!';
+                        _pcSpeakCommentary(winLine);
+                    }
+                    setTimeout(function () { _pcStopCommentary(); }, 3000);
+
                     if (getParamValue('ctl-arcade') === "true") {
                         parent.__ctlArcadeSaveScore({ score: iScore });
                     }
@@ -88,11 +104,12 @@
                     } else if (netChange < 0) {
                         window.parent.postMessage({ type: 'bet', amount: Math.abs(netChange) }, '*');
                     }
+                    window.parent.postMessage({ type: 'hr:result', netChange: netChange, newBalance: iScore }, '*');
                     _pcPrevBalance = iScore;
 
                     setTimeout(function () {
                         _pcAutoReturnToBetting();
-                    }, 3000);
+                    }, 4500);
                 });
 
                 $(oMain).on("show_interlevel_ad", function (evt) {
@@ -335,6 +352,155 @@
                 }
             }
 
+            function _pcLoadGunshot() {
+                if (_pcGunshot || typeof Howl === 'undefined') return;
+                _pcGunshot = new Howl({ src: ['./sounds/gunshot.mp3'], volume: 0.7, preload: true });
+            }
+
+            function _pcPlayGunshot() {
+                _pcLoadGunshot();
+                if (_pcGunshot) _pcGunshot.play();
+            }
+
+            function _pcStartRaceAfterCountdown() {
+                _pcGamePhase = 'racing';
+                if (typeof createjs !== 'undefined' && createjs.Ticker) {
+                    createjs.Ticker.paused = false;
+                }
+                window.parent.postMessage({ type: 'hr:phase', phase: 'racing' }, '*');
+                if (window._pcCrowdChants) window._pcCrowdChants.start();
+                _pcStartCommentary();
+            }
+
+            function _pcGetHorsePositions() {
+                try {
+                    if (typeof s_oGame !== 'undefined' && s_oGame && s_oGame._aHorseContainer) {
+                        var horses = s_oGame._aHorseContainer;
+                        var positions = [];
+                        for (var i = 0; i < horses.length; i++) {
+                            var h = horses[i];
+                            positions.push({ index: i + 1, x: h.x || 0, name: 'Horse ' + (i + 1) });
+                        }
+                        positions.sort(function(a, b) { return b.x - a.x; });
+                        return positions;
+                    }
+                } catch (e) {}
+                return null;
+            }
+
+            function _pcGenerateCommentary(positions) {
+                if (!positions || positions.length < 2) return null;
+                var lines = [
+                    positions[0].name + ' is in the lead!',
+                    positions[0].name + ' charges ahead!',
+                    'And ' + positions[0].name + ' takes the front!',
+                    positions[positions.length - 1].name + ' is falling behind!',
+                    positions[1].name + ' is closing in from behind!',
+                    'What a race! ' + positions[0].name + ' leads, ' + positions[1].name + ' right behind!',
+                    positions[Math.floor(Math.random() * positions.length)].name + ' makes a move!',
+                    'The crowd goes wild!',
+                    'They\'re neck and neck!',
+                    'Down the stretch they come!'
+                ];
+                var gap = positions[0].x - positions[1].x;
+                if (gap < 30) {
+                    lines.push('It\'s incredibly close at the front!');
+                    lines.push(positions[0].name + ' and ' + positions[1].name + ', side by side!');
+                }
+                return lines[Math.floor(Math.random() * lines.length)];
+            }
+
+            function _pcSpeakCommentary(text) {
+                if (!_pcCommentaryEnabled || !text) return;
+                if (!window.speechSynthesis) return;
+                window.speechSynthesis.cancel();
+                var utter = new SpeechSynthesisUtterance(text);
+                utter.rate = 1.1;
+                utter.pitch = 0.9;
+                utter.volume = _pcCommentaryVolume;
+                window.speechSynthesis.speak(utter);
+                window.parent.postMessage({ type: 'hr:commentary', text: text }, '*');
+            }
+
+            function _pcStartCommentary() {
+                _pcStopCommentary();
+                _pcCommentaryInterval = setInterval(function () {
+                    if (_pcGamePhase !== 'racing') { _pcStopCommentary(); return; }
+                    var positions = _pcGetHorsePositions();
+                    var line = _pcGenerateCommentary(positions);
+                    if (line) _pcSpeakCommentary(line);
+                    if (positions) {
+                        window.parent.postMessage({ type: 'hr:positions', positions: positions }, '*');
+                    }
+                }, 4000);
+            }
+
+            function _pcStopCommentary() {
+                if (_pcCommentaryInterval) {
+                    clearInterval(_pcCommentaryInterval);
+                    _pcCommentaryInterval = null;
+                }
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+            }
+
+            function _pcGetBetTicket() {
+                var ticket = [];
+                try {
+                    if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel && s_oBetPanel._aBetOnCell) {
+                        for (var i = 0; i < s_oBetPanel._aBetOnCell.length; i++) {
+                            if (s_oBetPanel._aBetOnCell[i] > 0) {
+                                ticket.push({ horse: i + 1, amount: s_oBetPanel._aBetOnCell[i] });
+                            }
+                        }
+                    }
+                } catch (e) {}
+                return ticket;
+            }
+
+            function _pcReportBetTicket() {
+                var ticket = _pcGetBetTicket();
+                var total = 0;
+                for (var i = 0; i < ticket.length; i++) total += ticket[i].amount;
+                window.parent.postMessage({ type: 'hr:betTicket', ticket: ticket, total: total }, '*');
+            }
+
+            function _pcRemoveBet(horseIndex) {
+                try {
+                    if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel && s_oBetPanel._aBetOnCell) {
+                        var cellIdx = horseIndex - 1;
+                        if (cellIdx >= 0 && cellIdx < s_oBetPanel._aBetOnCell.length) {
+                            var refund = s_oBetPanel._aBetOnCell[cellIdx];
+                            s_oBetPanel._aBetOnCell[cellIdx] = 0;
+                            if (typeof s_oBetPanel._iTotBet !== 'undefined') {
+                                s_oBetPanel._iTotBet = Math.max(0, s_oBetPanel._iTotBet - refund);
+                            }
+                            if (typeof s_oBetPanel._updateTotalBet === 'function') s_oBetPanel._updateTotalBet();
+                            if (typeof s_oBetPanel.refreshBets === 'function') s_oBetPanel.refreshBets();
+                        }
+                    }
+                } catch (e) {}
+                _pcReportBetTicket();
+            }
+
+            function _pcClearAllBets() {
+                try {
+                    if (typeof s_oBetPanel !== 'undefined' && s_oBetPanel) {
+                        if (typeof s_oBetPanel._aBetOnCell !== 'undefined') {
+                            for (var i = 0; i < s_oBetPanel._aBetOnCell.length; i++) {
+                                s_oBetPanel._aBetOnCell[i] = 0;
+                            }
+                        }
+                        if (typeof s_oBetPanel._iTotBet !== 'undefined') {
+                            s_oBetPanel._iTotBet = 0;
+                        }
+                        if (typeof s_oBetPanel.refreshBets === 'function') s_oBetPanel.refreshBets();
+                        if (typeof s_oBetPanel._updateTotalBet === 'function') s_oBetPanel._updateTotalBet();
+                    }
+                } catch (e) {}
+                window.parent.postMessage({ type: 'hr:betsCleared' }, '*');
+                _pcReportBetTicket();
+            }
+
             window.addEventListener('message', function (e) {
                 if (!e.data || typeof e.data !== 'object') return;
                 if (e.source !== window.parent && e.source !== window) return;
@@ -373,6 +539,26 @@
                 }
                 if (e.data.type === 'hr:getPhase') {
                     window.parent.postMessage({ type: 'hr:phase', phase: _pcGamePhase }, '*');
+                }
+                if (e.data.type === 'hr:clearBets') {
+                    _pcClearAllBets();
+                }
+                if (e.data.type === 'hr:removeBet' && typeof e.data.horse === 'number') {
+                    _pcRemoveBet(e.data.horse);
+                }
+                if (e.data.type === 'hr:getBetTicket') {
+                    _pcReportBetTicket();
+                }
+                if (e.data.type === 'hr:countdownDone') {
+                    _pcPlayGunshot();
+                    _pcStartRaceAfterCountdown();
+                }
+                if (e.data.type === 'hr:commentaryMute' && typeof e.data.muted === 'boolean') {
+                    _pcCommentaryEnabled = !e.data.muted;
+                    if (e.data.muted && window.speechSynthesis) window.speechSynthesis.cancel();
+                }
+                if (e.data.type === 'hr:commentaryVolume' && typeof e.data.volume === 'number') {
+                    _pcCommentaryVolume = Math.max(0, Math.min(1, e.data.volume));
                 }
             });
 

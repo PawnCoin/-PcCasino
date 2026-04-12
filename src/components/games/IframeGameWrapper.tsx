@@ -35,7 +35,20 @@ interface RoulettePlayer {
   betTotal: number;
 }
 
-type HorseRacePhase = 'loading' | 'menu' | 'betting' | 'racing' | 'result';
+interface HorseRacingPlayer {
+  id: string | number;
+  socketId: string;
+  username: string;
+  avatarUrl: string | null;
+  avatar: string | null;
+  betTotal: number;
+  betHorse: number | null;
+  betHorses: number[];
+  phase: string;
+  visitorId: string | null;
+}
+
+type HorseRacePhase = 'loading' | 'menu' | 'betting' | 'countdown' | 'racing' | 'result';
 
 interface SceneryOption {
   id: string;
@@ -94,6 +107,13 @@ export function IframeGameWrapper({
   const [hrSelectedChip, setHrSelectedChip] = useState(5);
   const [hrScenery, setHrScenery] = useState('classic');
   const [hrShowChips, setHrShowChips] = useState(true);
+  const [hrCountdown, setHrCountdown] = useState<number | null>(null);
+  const [hrCommentary, setHrCommentary] = useState<string | null>(null);
+  const [hrResult, setHrResult] = useState<{ netChange: number; newBalance: number } | null>(null);
+  const [hrPlayers, setHrPlayers] = useState<HorseRacingPlayer[]>([]);
+  const [hrBetTicket, setHrBetTicket] = useState<{ horse: number; amount: number }[]>([]);
+  const hrCountdownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hrCommentaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [iframeSrc, setIframeSrc] = useState('');
   const iframeSrcSet = useRef(false);
@@ -129,8 +149,12 @@ export function IframeGameWrapper({
     if (!isHorseRacing) return;
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
-    win.postMessage({ type: 'hr:chantMute', muted: getSoundMuted() }, '*');
-    win.postMessage({ type: 'hr:chantVolume', volume: getSoundVolume() }, '*');
+    const muted = getSoundMuted();
+    const volume = getSoundVolume();
+    win.postMessage({ type: 'hr:chantMute', muted }, '*');
+    win.postMessage({ type: 'hr:chantVolume', volume }, '*');
+    win.postMessage({ type: 'hr:commentaryMute', muted }, '*');
+    win.postMessage({ type: 'hr:commentaryVolume', volume }, '*');
   }, [isHorseRacing]);
 
   useEffect(() => {
@@ -190,18 +214,69 @@ export function IframeGameWrapper({
       if (isHorseRacing && type === 'hr:phase' && typeof event.data.phase === 'string') {
         const phase = event.data.phase as HorseRacePhase;
         setHrPhase(phase);
-        if (phase === 'racing') {
+        if (phase === 'racing' || phase === 'countdown') {
           gameInProgressRef.current = true;
           onGameStateChange?.(true);
+          getSocket().emit('horseRacing:betUpdate', { phase });
         } else if (phase === 'betting' || phase === 'result') {
           gameInProgressRef.current = false;
           onGameStateChange?.(false);
+          getSocket().emit('horseRacing:betUpdate', { phase, betTotal: 0, betHorse: null });
+          if (phase === 'betting') {
+            setHrResult(null);
+            setHrCommentary(null);
+          }
         }
+      }
+
+      if (isHorseRacing && type === 'hr:countdown') {
+        setHrResult(null);
+        const totalBet = typeof event.data.totalBet === 'number' ? event.data.totalBet : 0;
+        getSocket().emit('horseRacing:betUpdate', { betTotal: totalBet, phase: 'countdown' });
+        setHrCountdown(3);
+        if (hrCountdownRef.current) clearTimeout(hrCountdownRef.current);
+        const runCountdown = (n: number) => {
+          if (n > 0) {
+            setHrCountdown(n);
+            hrCountdownRef.current = setTimeout(() => runCountdown(n - 1), 1000);
+          } else {
+            setHrCountdown(null);
+            iframeRef.current?.contentWindow?.postMessage({ type: 'hr:countdownDone' }, '*');
+          }
+        };
+        runCountdown(3);
+      }
+
+      if (isHorseRacing && type === 'hr:commentary' && typeof event.data.text === 'string') {
+        setHrCommentary(event.data.text);
+        if (hrCommentaryTimerRef.current) clearTimeout(hrCommentaryTimerRef.current);
+        hrCommentaryTimerRef.current = setTimeout(() => setHrCommentary(null), 3500);
+      }
+
+      if (isHorseRacing && type === 'hr:betTicket' && Array.isArray(event.data.ticket)) {
+        setHrBetTicket(event.data.ticket);
+        const total = typeof event.data.total === 'number' ? event.data.total : 0;
+        const horses = event.data.ticket.map((b: { horse: number }) => b.horse);
+        getSocket().emit('horseRacing:betUpdate', { betTotal: total, betHorse: horses.length === 1 ? horses[0] : null, betHorses: horses, phase: total > 0 ? 'betting' : 'watching' });
+      }
+
+      if (isHorseRacing && type === 'hr:result') {
+        const nc = typeof event.data.netChange === 'number' ? event.data.netChange : 0;
+        const nb = typeof event.data.newBalance === 'number' ? event.data.newBalance : 0;
+        setHrResult({ netChange: nc, newBalance: nb });
+      }
+
+      if (isHorseRacing && type === 'hr:betsCleared') {
+        getSocket().emit('horseRacing:betUpdate', { betTotal: 0, betHorse: null, phase: 'watching' });
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (hrCountdownRef.current) clearTimeout(hrCountdownRef.current);
+      if (hrCommentaryTimerRef.current) clearTimeout(hrCommentaryTimerRef.current);
+    };
   }, [onBet, onWin, isRoulette, isHorseRacing]);
 
   useEffect(() => {
@@ -327,6 +402,35 @@ export function IframeGameWrapper({
     };
   }, [isRoulette, isLoaded, username, avatarUrl, userId]);
 
+  useEffect(() => {
+    if (!isHorseRacing || !isLoaded) return;
+    const socket = getSocket();
+
+    socket.emit('horseRacing:join', {
+      username: username || 'Guest',
+      avatarUrl: avatarUrl || null,
+      avatar: null,
+      userId: userId || null,
+    });
+
+    const onState = (data: { players: HorseRacingPlayer[] }) => {
+      setHrPlayers(data.players);
+    };
+
+    const onPlayers = (data: { players: HorseRacingPlayer[] }) => {
+      setHrPlayers(data.players);
+    };
+
+    socket.on('horseRacing:state', onState);
+    socket.on('horseRacing:players', onPlayers);
+
+    return () => {
+      socket.emit('horseRacing:leave');
+      socket.off('horseRacing:state', onState);
+      socket.off('horseRacing:players', onPlayers);
+    };
+  }, [isHorseRacing, isLoaded, username, avatarUrl, userId]);
+
   const lastBotsUpdateRef = useRef(0);
   useEffect(() => {
     if (!isLoaded || !iframeRef.current?.contentWindow) return;
@@ -350,6 +454,15 @@ export function IframeGameWrapper({
     if (!isHorseRacing || !isLoaded) return;
     iframeRef.current?.contentWindow?.postMessage({ type: 'hr:chipSelect', value: hrSelectedChip }, '*');
   }, [hrSelectedChip, isHorseRacing, isLoaded]);
+
+  useEffect(() => {
+    if (!isHorseRacing || !isLoaded || (hrPhase !== 'betting' && hrPhase !== 'menu')) return;
+    const poll = setInterval(() => {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'hr:getBetTicket' }, '*');
+    }, 2000);
+    iframeRef.current?.contentWindow?.postMessage({ type: 'hr:getBetTicket' }, '*');
+    return () => clearInterval(poll);
+  }, [isHorseRacing, isLoaded, hrPhase]);
 
   const handleHrChipSelect = useCallback((amount: number) => {
     setHrSelectedChip(amount);
@@ -432,18 +545,28 @@ export function IframeGameWrapper({
         </div>
       )}
 
+      {isHorseRacing && hrPlayers.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px',
+          borderRadius: 8, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)',
+          fontSize: 12, color: '#D4AF37', fontWeight: 600,
+        }}>
+          <Users size={12} />
+          <span>{hrPlayers.length}</span>
+        </div>
+      )}
       {isHorseRacing && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px',
           borderRadius: 8,
-          background: hrPhase === 'racing' ? 'rgba(239,68,68,0.15)' : hrPhase === 'betting' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
-          border: `1px solid ${hrPhase === 'racing' ? 'rgba(239,68,68,0.3)' : hrPhase === 'betting' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+          background: hrPhase === 'racing' || hrPhase === 'countdown' ? 'rgba(239,68,68,0.15)' : hrPhase === 'betting' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+          border: `1px solid ${hrPhase === 'racing' || hrPhase === 'countdown' ? 'rgba(239,68,68,0.3)' : hrPhase === 'betting' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
           fontSize: 11, fontWeight: 700,
-          color: hrPhase === 'racing' ? '#ef4444' : hrPhase === 'betting' ? '#22c55e' : '#888',
+          color: hrPhase === 'racing' || hrPhase === 'countdown' ? '#ef4444' : hrPhase === 'betting' ? '#22c55e' : '#888',
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
         }}>
-          {hrPhase === 'racing' ? 'RACING' : hrPhase === 'betting' ? 'PLACE BETS' : hrPhase === 'result' ? 'RESULTS' : hrPhase === 'menu' ? 'READY' : 'LOADING'}
+          {hrPhase === 'countdown' ? 'GET READY' : hrPhase === 'racing' ? 'RACING' : hrPhase === 'betting' ? 'PLACE BETS' : hrPhase === 'result' ? 'RESULTS' : hrPhase === 'menu' ? 'READY' : 'LOADING'}
         </div>
       )}
 
@@ -469,6 +592,127 @@ export function IframeGameWrapper({
     </div>
   );
 
+  const handleClearBets = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'hr:clearBets' }, '*');
+  }, []);
+
+  const handleRemoveBet = useCallback((horse: number) => {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'hr:removeBet', horse }, '*');
+  }, []);
+
+  const hrOtherPlayers = hrPlayers.filter(p => {
+    if (userId) return p.id !== userId;
+    return p.socketId !== getSocket().id;
+  });
+
+  const hrCountdownOverlay = isHorseRacing && isLoaded && hrCountdown !== null && (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      background: 'rgba(0,0,0,0.75)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        fontSize: 120, fontWeight: 900, color: '#D4AF37',
+        textShadow: '0 0 40px rgba(212,175,55,0.6), 0 4px 20px rgba(0,0,0,0.8)',
+        animation: 'countdownPop 0.5s ease-out',
+        fontFamily: 'Impact, sans-serif',
+      }}>
+        {hrCountdown}
+      </div>
+      <div style={{
+        fontSize: 18, color: '#fff', fontWeight: 700, letterSpacing: 3,
+        textTransform: 'uppercase', marginTop: 8,
+      }}>
+        GET READY
+      </div>
+    </div>
+  );
+
+  const hrCommentaryOverlay = isHorseRacing && isLoaded && hrCommentary && hrPhase === 'racing' && (
+    <div style={{
+      position: 'absolute', top: 50, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 30, pointerEvents: 'none',
+      background: 'rgba(0,0,0,0.85)', borderRadius: 16, padding: '8px 20px',
+      border: '1.5px solid rgba(212,175,55,0.4)',
+      maxWidth: 400,
+      animation: 'commentarySlide 0.3s ease-out',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 16 }}>🎙️</span>
+        <span style={{ fontSize: 13, color: '#f0e68c', fontWeight: 600, fontStyle: 'italic' }}>
+          {hrCommentary}
+        </span>
+      </div>
+    </div>
+  );
+
+  const hrResultOverlay = isHorseRacing && isLoaded && hrPhase === 'result' && hrResult && (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 40,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        background: 'rgba(0,0,0,0.9)', borderRadius: 24, padding: '24px 40px',
+        border: `2px solid ${hrResult.netChange >= 0 ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'}`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        boxShadow: `0 0 30px ${hrResult.netChange >= 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+      }}>
+        <span style={{ fontSize: 40 }}>{hrResult.netChange >= 0 ? '🏆' : '💸'}</span>
+        <div style={{
+          fontSize: 28, fontWeight: 900,
+          color: hrResult.netChange >= 0 ? '#22c55e' : '#ef4444',
+          fontFamily: 'Impact, sans-serif',
+        }}>
+          {hrResult.netChange >= 0 ? '+' : ''}{hrResult.netChange.toLocaleString()} $Pc
+        </div>
+        <div style={{ fontSize: 14, color: '#888', fontWeight: 600 }}>
+          {hrResult.netChange >= 0 ? 'You Won!' : 'Better luck next time'}
+        </div>
+        <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+          Balance: {hrResult.newBalance.toLocaleString()} $Pc
+        </div>
+      </div>
+    </div>
+  );
+
+  const hrAvatarStrip = isHorseRacing && isLoaded && hrOtherPlayers.length > 0 && (
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 22,
+      background: 'linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 80%, transparent 100%)',
+      padding: '8px 12px 6px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+      flexWrap: 'wrap',
+    }}>
+      {hrOtherPlayers.map((p) => (
+        <div key={p.socketId} style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          minWidth: 50,
+        }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: p.avatarUrl ? `url(${p.avatarUrl}) center/cover` : 'linear-gradient(135deg, #666, #444)',
+            border: `2px solid ${p.betTotal > 0 ? '#22c55e' : 'rgba(212,175,55,0.4)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, color: '#fff',
+          }}>
+            {!p.avatarUrl && (p.username?.[0]?.toUpperCase() || '?')}
+          </div>
+          <span style={{ fontSize: 8, color: '#ccc', fontWeight: 600, maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
+            {p.username}
+          </span>
+          <span style={{ fontSize: 7, color: p.betTotal > 0 ? '#22c55e' : '#666', fontWeight: 700 }}>
+            {p.betTotal > 0
+              ? `${p.betTotal.toLocaleString()} $Pc${p.betHorses?.length ? ` H${p.betHorses.join(',')}` : p.betHorse ? ` H${p.betHorse}` : ''}`
+              : p.phase === 'betting' || p.phase === 'countdown' ? 'Betting' : 'Watching'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
   const hrChipOverlay = isHorseRacing && isLoaded && (hrPhase === 'betting' || hrPhase === 'menu') && (
     <div style={{
       position: 'absolute',
@@ -491,6 +735,22 @@ export function IframeGameWrapper({
           Bet Chip: {formatChipLabel(hrSelectedChip)} $Pc
         </div>
         <button
+          onClick={handleClearBets}
+          style={{
+            padding: '3px 10px',
+            borderRadius: 12,
+            border: '1px solid rgba(239,68,68,0.4)',
+            background: 'rgba(239,68,68,0.12)',
+            color: '#ef4444',
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          ✕ CLEAR BETS
+        </button>
+        <button
           onClick={() => setHrShowChips(v => !v)}
           style={{
             padding: '3px 10px',
@@ -507,6 +767,36 @@ export function IframeGameWrapper({
           {hrShowChips ? '▴ HIDE CHIPS' : '▾ SHOW ALL CHIPS'}
         </button>
       </div>
+
+      {hrBetTicket.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.6)', borderRadius: 10, padding: '6px 10px',
+          border: '1px solid rgba(212,175,55,0.15)', maxWidth: 500, width: '100%',
+        }}>
+          {hrBetTicket.map(bet => (
+            <div key={bet.horse} style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'rgba(34,197,94,0.12)', borderRadius: 8, padding: '3px 8px',
+              border: '1px solid rgba(34,197,94,0.3)',
+            }}>
+              <span style={{ fontSize: 10, color: '#22c55e', fontWeight: 700 }}>
+                Horse {bet.horse}: {bet.amount.toLocaleString()} $Pc
+              </span>
+              <button
+                onClick={() => handleRemoveBet(bet.horse)}
+                style={{
+                  background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)',
+                  borderRadius: 6, padding: '1px 5px', cursor: 'pointer',
+                  color: '#ef4444', fontSize: 9, fontWeight: 700, lineHeight: '14px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {hrShowChips && (
         <div style={{
@@ -636,6 +926,10 @@ export function IframeGameWrapper({
 
         {hrChipOverlay}
         {hrRacingOverlay}
+        {hrCountdownOverlay}
+        {hrCommentaryOverlay}
+        {hrResultOverlay}
+        {hrAvatarStrip}
 
         {isLoaded && (
           <>
@@ -812,6 +1106,15 @@ export function IframeGameWrapper({
           @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
+          }
+          @keyframes countdownPop {
+            0% { transform: scale(2); opacity: 0; }
+            50% { transform: scale(0.9); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes commentarySlide {
+            0% { transform: translateX(-50%) translateY(-10px); opacity: 0; }
+            100% { transform: translateX(-50%) translateY(0); opacity: 1; }
           }
         `}</style>
       )}

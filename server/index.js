@@ -1564,6 +1564,29 @@ app.get('/api/auth/oauth/twitter/callback', (req, res) => {
 });
 
 
+  // ---- Multiplayer Horse Racing Room Engine ----
+  const horseRacingRoom = {
+    id: 'horse-racing-main',
+    players: new Map(),
+  };
+
+  function hrGetPlayers() {
+    return Array.from(horseRacingRoom.players.values()).map(p => ({
+      id: p.id, socketId: p.socketId, username: p.username,
+      avatarUrl: p.avatarUrl, avatar: p.avatar,
+      betTotal: p.betTotal || 0, betHorse: p.betHorse || null,
+      betHorses: p.betHorses || [],
+      phase: p.phase || 'watching',
+      visitorId: p.visitorId || null,
+    }));
+  }
+
+  function hrBroadcast(event, data) {
+    for (const [sid] of horseRacingRoom.players) {
+      io.to(sid).emit(event, data);
+    }
+  }
+
   // ---- Multiplayer Roulette Room Engine ----
   const rouletteRoom = {
     id: 'roulette-main',
@@ -2047,8 +2070,48 @@ io.on('connection', (socket) => {
       rouletteBroadcast('roulette:players', { players: rouletteGetPlayers() });
     });
 
+    // ---- Horse Racing Multiplayer Handlers ----
+    socket.on('horseRacing:join', () => {
+      const mainPlayer = players.get(socket.id);
+      const trustedId = (mainPlayer && mainPlayer.id) ? mainPlayer.id : socket.id;
+      const trustedUsername = (mainPlayer && mainPlayer.username) ? mainPlayer.username : 'Guest';
+      const trustedAvatarUrl = mainPlayer ? mainPlayer.avatarUrl : null;
+      const trustedAvatar = mainPlayer ? mainPlayer.avatar : null;
+      const trustedVisitorId = mainPlayer ? mainPlayer.visitorId : null;
+      const hrp = { id: trustedId, socketId: socket.id, username: trustedUsername, avatarUrl: trustedAvatarUrl, avatar: trustedAvatar, betTotal: 0, betHorse: null, betHorses: [], phase: 'watching', visitorId: trustedVisitorId };
+      horseRacingRoom.players.set(socket.id, hrp);
+      socket.join('horse-racing-main');
+      socket.emit('horseRacing:state', { players: hrGetPlayers() });
+      hrBroadcast('horseRacing:players', { players: hrGetPlayers() });
+      console.log('[HorseRacing] ' + hrp.username + ' joined (' + horseRacingRoom.players.size + ' players)');
+      broadcastLobby();
+    });
+
+    socket.on('horseRacing:leave', () => {
+      const hrp = horseRacingRoom.players.get(socket.id);
+      horseRacingRoom.players.delete(socket.id);
+      socket.leave('horse-racing-main');
+      hrBroadcast('horseRacing:players', { players: hrGetPlayers() });
+      if (hrp) console.log('[HorseRacing] ' + hrp.username + ' left (' + horseRacingRoom.players.size + ' players)');
+      broadcastLobby();
+    });
+
+    socket.on('horseRacing:betUpdate', ({ betTotal, betHorse, betHorses, phase }) => {
+      const hrp = horseRacingRoom.players.get(socket.id);
+      if (!hrp) return;
+      if (typeof betTotal === 'number') hrp.betTotal = betTotal;
+      if (typeof betHorse === 'number' || betHorse === null) hrp.betHorse = betHorse;
+      if (Array.isArray(betHorses)) hrp.betHorses = betHorses;
+      if (typeof phase === 'string') hrp.phase = phase;
+      hrBroadcast('horseRacing:players', { players: hrGetPlayers() });
+    });
+
   socket.on('disconnect', () => {
-    // Cleanup roulette room on disconnect
+      const hrPlayer = horseRacingRoom.players.get(socket.id);
+      if (hrPlayer) {
+        horseRacingRoom.players.delete(socket.id);
+        hrBroadcast('horseRacing:players', { players: hrGetPlayers() });
+      }
       const roulettePlayer = rouletteRoom.players.get(socket.id);
       if (roulettePlayer) {
         rouletteRoom.players.delete(socket.id);
