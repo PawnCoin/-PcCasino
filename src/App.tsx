@@ -27,6 +27,7 @@ import { DominoesGame } from '@/components/games/DominoesGame';
 import { PoolGame } from '@/components/games/PoolGame';
 import { DartsGame } from '@/components/games/DartsGame';
 import { IframeGameWrapper } from '@/components/games/IframeGameWrapper';
+import { CrapsGame } from '@/components/games/CrapsGame';
 import { InGameTopBar } from '@/components/InGameTopBar';
 import { MultiplayerLobby } from '@/components/MultiplayerLobby';
 import { GameRoom } from '@/components/GameRoom';
@@ -855,17 +856,12 @@ function App() {
         );
       case 'craps':
         return (
-          <IframeGameWrapper
-            gameId="craps"
-            gameName="Craps & Dice"
-            gameEmoji="dice"
-            gamePath="/games/craps/index.html"
+          <CrapsGame
             balance={user?.balance || 0}
-            onBack={() => { iframeGameActiveRef.current = false; setCurrentView('lobby'); }}
+            onBack={() => setCurrentView('lobby')}
             onBet={handleBet}
             onWin={handleWin}
-            onShowWallet={() => setShowDeposit(true)}
-            onGameStateChange={(active) => { iframeGameActiveRef.current = active; }}
+            onAddBalance={handleAddBalance}
           />
         );
       case 'spades':
