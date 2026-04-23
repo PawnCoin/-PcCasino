@@ -72,3 +72,26 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 - **PcPay Webhook**: External service for payment processing and confirmations.
 - **WeParlay Inc.**: External platform for sports gambling, linked from the casino.
 - **CodeCanyon**: Source for several iframe-integrated games (French Roulette, Blackjack, Craps, Horse Racing).
+
+### Testing
+
+End-to-end tests live in `tests/e2e/` as Playwright TypeScript specs
+(`*.spec.ts`) and run via `npm test` (alias `npm run test:e2e`). The
+`playwright.config.ts` bootstraps the dev server (`npm run dev`) on
+http://localhost:5000 with `reuseExistingServer`, so the same `npm test`
+command works locally and in CI.
+
+Helpers under `tests/e2e/helpers/` cover auth bootstrap (registers a fresh
+user via `/api/auth/register` and seeds the JWT into `localStorage`) and lobby
+navigation (the SPA uses in-memory routing, so games are entered by clicking
+the lobby card rather than navigating by URL).
+
+Current coverage:
+- `poker-profile-popup.spec.ts` — clicks an AI seat (Taylor/Morgan/Jordan/
+  Riley/Casey), asserts the PublicProfileCard heading, AI Opponent badge,
+  Live · Poker header, Action / Wager / Stack columns, numeric stack value,
+  and the AI Add-Friend gating message; closes via Escape.
+- `dominoes-profile-popup.spec.ts` — starts a free practice game from the
+  Dominoes setup screen so the AI seats render, then asserts the equivalent
+  popup contract for Carlos/Maya/Zara with Action / Score / Tiles columns
+  and PLAYING/KNOCKED/— action chip.
