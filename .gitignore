@@ -3,6 +3,11 @@ dist/
 .env
 .env.local
 
+# Playwright outputs
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # Extracted game archives - not tracked, served from public directly
 public/games/craps/extracted/
 public/games/roulette/extracted/
