@@ -2236,11 +2236,20 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
         const lastAction = popupPlayer && gs.lastPassedBy === popupPlayer.name
           ? 'KNOCKED'
           : (popupPlayer && gs.players[gs.currentPlayer]?.id === popupPlayer.id ? 'PLAYING' : null);
+        const sps = (serverState as { playerStates?: Record<string, { userId?: number | null; isBot?: boolean; username?: string }> } | null)?.playerStates;
+        let serverPlayer: { userId?: number | null; isBot?: boolean; username?: string } | null = null;
+        if (popupPlayer && sps) {
+          for (const sid of Object.keys(sps)) {
+            if (sps[sid]?.username === popupPlayer.name) { serverPlayer = sps[sid]; break; }
+          }
+        }
+        const realUserId = serverPlayer && !serverPlayer.isBot ? (serverPlayer.userId ?? null) : null;
         return (
           <PublicProfileCard
-            username={popupPlayer ? popupPlayer.name : null}
+            username={popupPlayer ? (serverPlayer?.username || popupPlayer.name) : null}
+            userId={realUserId}
             onClose={() => setProfilePopupPlayerId(null)}
-            fallbackPlayer={popupPlayer ? {
+            fallbackPlayer={popupPlayer && !realUserId ? {
               displayName: popupPlayer.name,
               isBot: true,
               avatarDef: popupPlayer.avatarDef,

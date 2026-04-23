@@ -535,6 +535,7 @@ export class PokerEngine extends BaseGameEngine {
     const playerStates = {};
     for (const [sid, player] of room.players) {
       playerStates[sid] = {
+        userId: !player.isBot && typeof player.id === 'number' ? player.id : null,
         username: player.username,
         avatar: player.avatar,
         avatarUrl: player.avatarUrl,

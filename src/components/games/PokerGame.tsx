@@ -1477,22 +1477,37 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
         </Dialog>
 
         {/* In-game public profile popup for opponent seats */}
-        <PublicProfileCard
-          username={profilePopupIdx != null ? (opponents[profilePopupIdx]?.name || null) : null}
-          onClose={() => setProfilePopupIdx(null)}
-          fallbackPlayer={profilePopupIdx != null && opponents[profilePopupIdx] ? {
-            displayName: opponents[profilePopupIdx].name,
-            isBot: true,
-            avatarDef: ALL_AVATARS[opponents[profilePopupIdx].avatarIdx % ALL_AVATARS.length],
-          } : undefined}
-          inGameContext={profilePopupIdx != null && opponents[profilePopupIdx] ? {
-            action: oppAction?.idx === profilePopupIdx && !oppAction.thinking ? oppAction.label : (opponents[profilePopupIdx].folded ? 'FOLD' : null),
-            currentBet: opponents[profilePopupIdx].bet,
-            cashAtTable: opponents[profilePopupIdx].balance,
-            cashLabel: 'Stack',
-            gameLabel: 'Poker',
-          } : undefined}
-        />
+        {(() => {
+          const popupOpp = profilePopupIdx != null ? opponents[profilePopupIdx] : null;
+          const sps = (serverState as { playerStates?: Record<string, { userId?: number | null; isBot?: boolean; username?: string; seat?: number }> } | null)?.playerStates;
+          let serverPlayer: { userId?: number | null; isBot?: boolean; username?: string; seat?: number } | null = null;
+          if (popupOpp && sps) {
+            for (const sid of Object.keys(sps)) {
+              if (sps[sid]?.seat === popupOpp.id) { serverPlayer = sps[sid]; break; }
+            }
+          }
+          const realUserId = serverPlayer && !serverPlayer.isBot ? (serverPlayer.userId ?? null) : null;
+          const realUsername = serverPlayer && !serverPlayer.isBot ? (serverPlayer.username || popupOpp?.name || null) : null;
+          return (
+            <PublicProfileCard
+              username={realUsername || (popupOpp?.name || null)}
+              userId={realUserId}
+              onClose={() => setProfilePopupIdx(null)}
+              fallbackPlayer={popupOpp && !realUserId ? {
+                displayName: popupOpp.name,
+                isBot: true,
+                avatarDef: ALL_AVATARS[popupOpp.avatarIdx % ALL_AVATARS.length],
+              } : undefined}
+              inGameContext={popupOpp ? {
+                action: oppAction?.idx === profilePopupIdx && !oppAction.thinking ? oppAction.label : (popupOpp.folded ? 'FOLD' : null),
+                currentBet: popupOpp.bet,
+                cashAtTable: popupOpp.balance,
+                cashLabel: 'Stack',
+                gameLabel: 'Poker',
+              } : undefined}
+            />
+          );
+        })()}
       </div>
     </CasinoEnvironment>
   );

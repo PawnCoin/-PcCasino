@@ -87,6 +87,8 @@ export const authApi = {
 
   getPublicProfile: (username: string) => apiFetch(`/auth/profile/public/${encodeURIComponent(username)}`),
 
+  getPublicProfileById: (userId: number) => apiFetch(`/auth/profile/public/by-id/${userId}`),
+
   selfExclude: (days?: number) =>
     apiFetch('/auth/self-exclude', { method: 'POST', body: JSON.stringify({ days }) }),
 };

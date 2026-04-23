@@ -296,6 +296,7 @@ export class DominoesEngine extends BaseGameEngine {
     for (const sid of (gs.playerOrder || [])) {
       const player = room.players.get(sid);
       playerStates[sid] = {
+        userId: player && !player.isBot && typeof player.id === 'number' ? player.id : null,
         username: player?.username || 'Unknown',
         avatar: player?.avatar,
         avatarUrl: player?.avatarUrl,

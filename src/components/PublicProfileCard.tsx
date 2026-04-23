@@ -11,6 +11,7 @@ import { useAccessControl } from '@/hooks/useAccessControl';
 
 interface PublicProfile {
   id?: number;
+  userId?: number;
   username: string;
   displayName: string | null;
   bio: string | null;
@@ -60,6 +61,8 @@ export interface FallbackPlayer {
 
 interface PublicProfileCardProps {
   username: string | null;
+  /** Optional numeric user id — used to look up the profile by id instead of username (real multiplayer opponents). */
+  userId?: number | null;
   onClose: () => void;
   onNavigateToGame?: (game: string) => void;
   /** Optional live in-game context shown when opened from a multiplayer game */
@@ -89,8 +92,21 @@ const ACTION_COLORS: Record<string, { bg: string; border: string; text: string }
   THINKING:{ bg: 'rgba(59,130,246,0.18)', border: 'rgba(59,130,246,0.5)',  text: '#93c5fd' },
 };
 
+function getCurrentUserIdFromStorage(): number | null {
+  try {
+    const raw = localStorage.getItem('pcasino_user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const id = parseInt(parsed?.id);
+    return Number.isFinite(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export function PublicProfileCard({
   username,
+  userId,
   onClose,
   inGameContext,
   fallbackPlayer,
@@ -121,19 +137,25 @@ export function PublicProfileCard({
     setProfile(null);
     setError(null);
     setFriendRequestSent(false);
-    if (!username) return;
     if (isBot) return; // skip API lookup for AI opponents
+    const promise = (typeof userId === 'number' && userId > 0)
+      ? authApi.getPublicProfileById(userId)
+      : (username ? authApi.getPublicProfile(username) : null);
+    if (!promise) return;
     setLoading(true);
-    authApi.getPublicProfile(username)
+    promise
       .then(data => {
         if (data.profile) setProfile(data.profile);
         else setError('Profile not found');
       })
       .catch(err => setError(err?.message || 'Failed to load profile'))
       .finally(() => setLoading(false));
-  }, [username, isBot]);
+  }, [username, userId, isBot]);
 
-  const isOpen = !!username || !!fallbackPlayer;
+  const isOpen = !!username || !!fallbackPlayer || (typeof userId === 'number' && userId > 0);
+  const currentUserId = getCurrentUserIdFromStorage();
+  const resolvedTargetId = profile?.userId ?? profile?.id ?? (typeof userId === 'number' ? userId : null);
+  const isSelf = !!resolvedTargetId && resolvedTargetId === currentUserId;
 
   const displayName =
     profile?.displayName || profile?.username || fallbackPlayer?.displayName || username || 'Player';
@@ -148,12 +170,13 @@ export function PublicProfileCard({
   };
 
   const handleAddFriend = async () => {
-    if (!profile?.id || friendRequestSent || friendBusy) return;
+    const targetId = resolvedTargetId;
+    if (!targetId || friendRequestSent || friendBusy) return;
     setFriendBusy(true);
     try {
-      await friendsApi.sendRequest(profile.id);
+      await friendsApi.sendRequest(targetId);
       setFriendRequestSent(true);
-      toast.success(`Friend request sent to ${profile.displayName || profile.username}!`);
+      toast.success(`Friend request sent to ${profile?.displayName || profile?.username || 'player'}!`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not send friend request';
       if (/already.*friend/i.test(msg) || /already.*sent/i.test(msg)) {
@@ -308,7 +331,7 @@ export function PublicProfileCard({
               )}
 
               {/* Add Friend action (no DM during gameplay) */}
-              {!isBot && profile && (
+              {!isBot && profile && !isSelf && (
                 <div>
                   {!isAuthenticated ? (
                     <button
@@ -338,7 +361,7 @@ export function PublicProfileCard({
                   ) : (
                     <button
                       onClick={handleAddFriend}
-                      disabled={friendBusy || !profile.id}
+                      disabled={friendBusy || !resolvedTargetId}
                       className="w-full inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-60"
                       style={{ background: 'rgba(212,175,55,0.18)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.6)' }}
                     >

@@ -564,20 +564,7 @@ router.get('/profile/favorite-games', requireAuth, async (req, res) => {
 });
 
 // Public profile (casino card) — visible to anyone who knows the username
-router.get('/profile/public/:username', async (req, res) => {
-  try {
-    const { username } = req.params;
-    const result = await query(
-      `SELECT id, username, display_name, bio, avatar, avatar_url, social_avatar_url,
-              vip_tier, total_wagered, total_won,
-              social_twitter, social_instagram, social_telegram, social_discord,
-              public_stats_visible, public_socials_visible
-       FROM users WHERE username = $1`,
-      [username]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
-
-    const u = result.rows[0];
+async function buildPublicProfileResponse(u) {
     const vipTier = getVipTier(parseInt(u.total_wagered) || 0);
 
     let gamesPlayed = 0;
@@ -621,29 +608,62 @@ router.get('/profile/public/:username', async (req, res) => {
     };
     const favMeta = favoriteGame ? (PUBLIC_GAME_META[favoriteGame] || { gameName: favoriteGame, icon: '🎮' }) : null;
 
-    res.json({
-      success: true,
-      profile: {
-        id: u.id,
-        username: u.username,
-        displayName: u.display_name || null,
-        bio: u.bio || null,
-        avatar: u.avatar,
-        avatarUrl: u.avatar_url || u.social_avatar_url || null,
-        vipTier,
-        publicStatsVisible: u.public_stats_visible !== false,
-        publicSocialsVisible: u.public_socials_visible !== false,
-        gamesPlayed: u.public_stats_visible !== false ? gamesPlayed : null,
-        winRate: u.public_stats_visible !== false ? winRate : null,
-        favoriteGame: u.public_stats_visible !== false ? favoriteGame : null,
-        favoriteGameName: u.public_stats_visible !== false ? (favMeta?.gameName || null) : null,
-        favoriteGameIcon: u.public_stats_visible !== false ? (favMeta?.icon || null) : null,
-        socialTwitter: u.public_socials_visible !== false ? (u.social_twitter || null) : null,
-        socialInstagram: u.public_socials_visible !== false ? (u.social_instagram || null) : null,
-        socialTelegram: u.public_socials_visible !== false ? (u.social_telegram || null) : null,
-        socialDiscord: u.public_socials_visible !== false ? (u.social_discord || null) : null,
-      }
-    });
+    return {
+      id: u.id,
+      userId: u.id,
+      username: u.username,
+      displayName: u.display_name || null,
+      bio: u.bio || null,
+      avatar: u.avatar,
+      avatarUrl: u.avatar_url || u.social_avatar_url || null,
+      balance: parseInt(u.balance) || 0,
+      vipTier,
+      publicStatsVisible: u.public_stats_visible !== false,
+      publicSocialsVisible: u.public_socials_visible !== false,
+      gamesPlayed: u.public_stats_visible !== false ? gamesPlayed : null,
+      winRate: u.public_stats_visible !== false ? winRate : null,
+      favoriteGame: u.public_stats_visible !== false ? favoriteGame : null,
+      favoriteGameName: u.public_stats_visible !== false ? (favMeta?.gameName || null) : null,
+      favoriteGameIcon: u.public_stats_visible !== false ? (favMeta?.icon || null) : null,
+      socialTwitter: u.public_socials_visible !== false ? (u.social_twitter || null) : null,
+      socialInstagram: u.public_socials_visible !== false ? (u.social_instagram || null) : null,
+      socialTelegram: u.public_socials_visible !== false ? (u.social_telegram || null) : null,
+      socialDiscord: u.public_socials_visible !== false ? (u.social_discord || null) : null,
+    };
+}
+
+const PUBLIC_PROFILE_COLUMNS = `id, username, display_name, bio, avatar, avatar_url, social_avatar_url,
+              balance, vip_tier, total_wagered, total_won,
+              social_twitter, social_instagram, social_telegram, social_discord,
+              public_stats_visible, public_socials_visible`;
+
+router.get('/profile/public/by-id/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Invalid user id' });
+    const result = await query(
+      `SELECT ${PUBLIC_PROFILE_COLUMNS} FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    const profile = await buildPublicProfileResponse(result.rows[0]);
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error('Public profile (by id) error:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+router.get('/profile/public/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const result = await query(
+      `SELECT ${PUBLIC_PROFILE_COLUMNS} FROM users WHERE username = $1`,
+      [username]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    const profile = await buildPublicProfileResponse(result.rows[0]);
+    res.json({ success: true, profile });
   } catch (err) {
     console.error('Public profile error:', err);
     res.status(500).json({ error: 'Failed to fetch profile' });
