@@ -20,6 +20,7 @@ import { InGameTopBar } from '@/components/InGameTopBar';
 import { useCasinoBots } from '@/hooks/useCasinoBots';
 import { GameBotBar } from '@/components/GameBotBar';
 import { PokerHandHistory } from '@/components/PokerHandHistory';
+import { PublicProfileCard } from '@/components/PublicProfileCard';
 import { gameApi } from '@/lib/api';
 import { getToken } from '@/lib/api';
 import { useServerGame } from '@/hooks/useServerGame';
@@ -231,12 +232,25 @@ function OpponentSeat({
   cardBackStyle,
   cardDirection = 'up',
   action,
+  onAvatarClick,
 }: {
   opponent: OpponentData;
   cardBackStyle?: PokerGameProps['cardBackStyle'];
   cardDirection?: 'up' | 'left' | 'right' | 'down';
   action?: { label: string; thinking: boolean } | null;
+  onAvatarClick?: () => void;
 }) {
+  const clickProps = onAvatarClick
+    ? {
+        onClick: onAvatarClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAvatarClick(); }
+        },
+        role: 'button' as const,
+        tabIndex: 0,
+        style: { cursor: 'pointer' as const },
+      }
+    : {};
   if (!opponent.active) {
     return (
       <div style={{
@@ -276,7 +290,10 @@ function OpponentSeat({
           borderRadius: 10, overflow: 'hidden', minWidth: 140, filter: 'grayscale(0.7)',
         }}>
           {isLeft && <div style={{ marginRight: 4, marginLeft: 4 }}>{foldedCards}</div>}
-          <div style={{ width: 52, height: 60, flexShrink: 0, overflow: 'hidden', borderRight: isLeft ? 'none' : '1px solid rgba(255,255,255,0.06)', borderLeft: isLeft ? '1px solid rgba(255,255,255,0.06)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            {...clickProps}
+            title={onAvatarClick ? `View ${opponent.name}` : undefined}
+            style={{ ...(clickProps.style || {}), width: 52, height: 60, flexShrink: 0, overflow: 'hidden', borderRight: isLeft ? 'none' : '1px solid rgba(255,255,255,0.06)', borderLeft: isLeft ? '1px solid rgba(255,255,255,0.06)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AvatarSprite avatar={ALL_AVATARS[opponent.avatarIdx % ALL_AVATARS.length]} size={52} style={{ borderRadius: 0 }} />
           </div>
           <div style={{ padding: '6px 10px', flex: 1 }}>
@@ -351,17 +368,23 @@ function OpponentSeat({
         {isLeft && <div style={{ marginRight: 4, marginLeft: 4 }}>{cards}</div>}
 
         {/* avatar */}
-        <div style={{
-          width: 52, height: 60, flexShrink: 0, overflow: 'hidden',
-          borderRight: isLeft ? 'none' : '1px solid rgba(255,255,255,0.08)',
-          borderLeft: isLeft ? '1px solid rgba(255,255,255,0.08)' : 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        <div
+          {...clickProps}
+          title={onAvatarClick ? `View ${opponent.name}` : undefined}
+          style={{
+            ...(clickProps.style || {}),
+            width: 52, height: 60, flexShrink: 0, overflow: 'hidden',
+            borderRight: isLeft ? 'none' : '1px solid rgba(255,255,255,0.08)',
+            borderLeft: isLeft ? '1px solid rgba(255,255,255,0.08)' : 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
           <AvatarSprite avatar={ALL_AVATARS[opponent.avatarIdx % ALL_AVATARS.length]} size={52} style={{ borderRadius: 0 }} />
         </div>
 
         {/* name & balance */}
-        <div style={{ padding: '6px 10px', flex: 1 }}>
+        <div
+          {...clickProps}
+          style={{ ...(clickProps.style || {}), padding: '6px 10px', flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>{opponent.name}</div>
           <div style={{ fontSize: 11, color: '#43A047', fontWeight: 700, marginTop: 2 }}>
             {opponent.balance.toLocaleString()}
@@ -527,6 +550,7 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
   const [potSweepToUser, setPotSweepToUser] = useState(false);
   const [dealer] = useState(() => DEALER_ROSTER[Math.floor(Math.random() * DEALER_ROSTER.length)]);
   const [oppAction, setOppAction] = useState<{ idx: number; label: string; thinking: boolean } | null>(null);
+  const [profilePopupIdx, setProfilePopupIdx] = useState<number | null>(null);
   const [opponents, setOpponents] = useState<OpponentData[]>([
     { id: 1, name: 'Taylor', balance: 1540, bet: 0, active: true, position: 'BB', avatarIdx: 1, folded: false },
     { id: 2, name: '', balance: 0, bet: 0, active: false, position: '', avatarIdx: 0, folded: false },
@@ -1237,7 +1261,13 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
                 const myAction = oppAction?.idx === idx ? { label: oppAction.label, thinking: oppAction.thinking } : null;
                 return (
                   <div key={opp.id} className="absolute z-[20]" style={pos.style}>
-                    <OpponentSeat opponent={opp} cardBackStyle={cardBackStyle} cardDirection={pos.dir} action={myAction} />
+                    <OpponentSeat
+                      opponent={opp}
+                      cardBackStyle={cardBackStyle}
+                      cardDirection={pos.dir}
+                      action={myAction}
+                      onAvatarClick={opp.active && opp.name ? () => setProfilePopupIdx(idx) : undefined}
+                    />
                   </div>
                 );
               })}
@@ -1445,6 +1475,24 @@ export function PokerGame({ balance, onBack, onBet, onWin, onAddBalance, onShowW
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* In-game public profile popup for opponent seats */}
+        <PublicProfileCard
+          username={profilePopupIdx != null ? (opponents[profilePopupIdx]?.name || null) : null}
+          onClose={() => setProfilePopupIdx(null)}
+          fallbackPlayer={profilePopupIdx != null && opponents[profilePopupIdx] ? {
+            displayName: opponents[profilePopupIdx].name,
+            isBot: true,
+            avatarDef: ALL_AVATARS[opponents[profilePopupIdx].avatarIdx % ALL_AVATARS.length],
+          } : undefined}
+          inGameContext={profilePopupIdx != null && opponents[profilePopupIdx] ? {
+            action: oppAction?.idx === profilePopupIdx && !oppAction.thinking ? oppAction.label : (opponents[profilePopupIdx].folded ? 'FOLD' : null),
+            currentBet: opponents[profilePopupIdx].bet,
+            cashAtTable: opponents[profilePopupIdx].balance,
+            cashLabel: 'Stack',
+            gameLabel: 'Poker',
+          } : undefined}
+        />
       </div>
     </CasinoEnvironment>
   );

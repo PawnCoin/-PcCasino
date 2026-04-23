@@ -11,6 +11,7 @@ import { ChipSelector, formatChipLabel } from '@/components/PokerChip';
 import { CasinoIcon } from '@/components/CasinoIcons';
 import { AvatarSprite } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
+import { PublicProfileCard } from '@/components/PublicProfileCard';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useTableSkin } from '@/hooks/useTableSkin';
 import type { TableSkinDef } from '@/hooks/useTableSkin';
@@ -879,15 +880,17 @@ function LastPlayBanner({ playerName, left, right, skinKey }: { playerName: stri
 }
 
 // ─── Player Seat (around table) ───────────────────────────────────────────────
-function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, dims, justPassed }: {
+function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, dims, justPassed, onAvatarClick }: {
   player: DomPlayer; active: boolean; tileCount: number; isHuman?: boolean;
   orientation: 'top' | 'bottom' | 'left' | 'right';
   skinKey: SkinKey; dims: { long: number; short: number; pip: number };
   justPassed?: boolean;
+  onAvatarClick?: () => void;
 }) {
   const isVertical = orientation === 'left' || orientation === 'right';
   // Tile size: w=16, h=34 — portrait/vertical standing orientation
   const tileW = 18, tileH = 38;
+  const clickable = !!onAvatarClick && !isHuman;
   return (
     <div style={{ display: 'flex', flexDirection: isVertical ? 'column' : 'row', alignItems: 'center', gap: 6, padding: isHuman ? '6px 10px' : '5px 8px', position: 'relative' }}>
       {/* Pass badge */}
@@ -899,9 +902,28 @@ function PlayerSeat({ player, active, tileCount, isHuman, orientation, skinKey, 
           {player.name} KNOCKED
         </div>
       )}
-      <AvatarSprite avatar={player.avatarDef} size={isHuman ? 40 : 32} active={active} style={{ flexShrink: 0, borderRadius: '50%' }} />
+      <div
+        onClick={clickable ? onAvatarClick : undefined}
+        onKeyDown={clickable ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAvatarClick?.(); }
+        } : undefined}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        title={clickable ? `View ${player.name}` : undefined}
+        style={{ cursor: clickable ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <AvatarSprite avatar={player.avatarDef} size={isHuman ? 40 : 32} active={active} style={{ flexShrink: 0, borderRadius: '50%' }} />
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: isVertical ? 'center' : 'flex-start', gap: 1, minWidth: 0 }}>
-        <div style={{ fontSize: isHuman ? 11 : 10, fontWeight: 700, color: active ? '#D4AF37' : '#aaa', whiteSpace: 'nowrap' }}>
+        <div
+          onClick={clickable ? onAvatarClick : undefined}
+          onKeyDown={clickable ? (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAvatarClick?.(); }
+          } : undefined}
+          role={clickable ? 'button' : undefined}
+          tabIndex={clickable ? 0 : undefined}
+          style={{ cursor: clickable ? 'pointer' : 'default', fontSize: isHuman ? 11 : 10, fontWeight: 700, color: active ? '#D4AF37' : '#aaa', whiteSpace: 'nowrap' }}
+        >
           {player.name}
           {active && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#D4AF37', marginLeft: 3, animation: 'pulse 1s infinite', verticalAlign: 'middle' }} />}
         </div>
@@ -1285,6 +1307,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
   const [showReactionPanel, setShowReactionPanel] = useState(false);
   const [propCelebrating, setPropCelebrating] = useState(false);
   const [dropZoneOver, setDropZoneOver] = useState<'left' | 'right' | 'top' | 'bottom' | 'first' | null>(null);
+  const [profilePopupPlayerId, setProfilePopupPlayerId] = useState<string | null>(null);
 
   const [chainCenterIdx, setChainCenterIdx] = useState(0);
   const prevChainRef = useRef<PlacedTile[]>([]);
@@ -1848,7 +1871,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '2px 0' }}>
               {aiPlayers[0] && (
                 <div style={{ background: gs.currentPlayer === 1 ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${gs.currentPlayer === 1 ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', animation: gs.lastPassedBy === aiPlayers[0].name ? 'knockPulse .6s ease' : 'none', position: 'relative' }}>
-                  <PlayerSeat player={aiPlayers[0]} active={gs.currentPlayer === 1} tileCount={aiPlayers[0].hand.length} orientation="top" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[0].name} />
+                  <PlayerSeat player={aiPlayers[0]} active={gs.currentPlayer === 1} tileCount={aiPlayers[0].hand.length} orientation="top" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[0].name} onAvatarClick={() => setProfilePopupPlayerId(aiPlayers[0].id)} />
                   {reactions.filter(r => r.player === aiPlayers[0].id).slice(-1).map(r => (
                     <DomReactionBubble key={r.id} reaction={r} playerColor={aiPlayers[0].color} />
                   ))}
@@ -1860,7 +1883,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             <div style={{ display: 'flex', alignItems: 'center' }}>
               {aiPlayers[1] && (
                 <div style={{ background: gs.currentPlayer === 2 ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${gs.currentPlayer === 2 ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', position: 'relative', animation: gs.lastPassedBy === aiPlayers[1].name ? 'knockPulse .6s ease' : 'none' }}>
-                  <PlayerSeat player={aiPlayers[1]} active={gs.currentPlayer === 2} tileCount={aiPlayers[1].hand.length} orientation="left" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[1].name} />
+                  <PlayerSeat player={aiPlayers[1]} active={gs.currentPlayer === 2} tileCount={aiPlayers[1].hand.length} orientation="left" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[1].name} onAvatarClick={() => setProfilePopupPlayerId(aiPlayers[1].id)} />
                   {reactions.filter(r => r.player === aiPlayers[1].id).slice(-1).map(r => (
                     <DomReactionBubble key={r.id} reaction={r} playerColor={aiPlayers[1].color} />
                   ))}
@@ -2074,7 +2097,7 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
             <div style={{ display: 'flex', alignItems: 'center' }}>
               {aiPlayers[2] && (
                 <div style={{ background: gs.currentPlayer === 3 ? 'rgba(212,175,55,.10)' : 'rgba(0,0,0,.4)', border: `1px solid ${gs.currentPlayer === 3 ? 'rgba(212,175,55,.4)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, transition: 'all .25s', position: 'relative', animation: gs.lastPassedBy === aiPlayers[2].name ? 'knockPulse .6s ease' : 'none' }}>
-                  <PlayerSeat player={aiPlayers[2]} active={gs.currentPlayer === 3} tileCount={aiPlayers[2].hand.length} orientation="right" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[2].name} />
+                  <PlayerSeat player={aiPlayers[2]} active={gs.currentPlayer === 3} tileCount={aiPlayers[2].hand.length} orientation="right" skinKey={dominoSkin} dims={dims} justPassed={gs.lastPassedBy === aiPlayers[2].name} onAvatarClick={() => setProfilePopupPlayerId(aiPlayers[2].id)} />
                   {reactions.filter(r => r.player === aiPlayers[2].id).slice(-1).map(r => (
                     <DomReactionBubble key={r.id} reaction={r} playerColor={aiPlayers[2].color} />
                   ))}
@@ -2206,6 +2229,35 @@ export function DominoesGame({ balance, onBack, onBet, onWin, onAddBalance, onSh
           </div>
         </div>
       )}
+
+      {/* In-game public profile popup for opponent seats */}
+      {(() => {
+        const popupPlayer = profilePopupPlayerId ? gs.players.find(p => p.id === profilePopupPlayerId) : null;
+        const lastAction = popupPlayer && gs.lastPassedBy === popupPlayer.name
+          ? 'KNOCKED'
+          : (popupPlayer && gs.players[gs.currentPlayer]?.id === popupPlayer.id ? 'PLAYING' : null);
+        return (
+          <PublicProfileCard
+            username={popupPlayer ? popupPlayer.name : null}
+            onClose={() => setProfilePopupPlayerId(null)}
+            fallbackPlayer={popupPlayer ? {
+              displayName: popupPlayer.name,
+              isBot: true,
+              avatarDef: popupPlayer.avatarDef,
+            } : undefined}
+            inGameContext={popupPlayer ? {
+              action: lastAction,
+              currentBet: popupPlayer.score,
+              betLabel: 'Score',
+              betUnit: 'pts',
+              cashAtTable: popupPlayer.hand.length,
+              cashLabel: 'Tiles',
+              cashUnit: '',
+              gameLabel: 'Dominoes',
+            } : undefined}
+          />
+        );
+      })()}
     </div>
   );
 }

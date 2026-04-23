@@ -624,6 +624,7 @@ router.get('/profile/public/:username', async (req, res) => {
     res.json({
       success: true,
       profile: {
+        id: u.id,
         username: u.username,
         displayName: u.display_name || null,
         bio: u.bio || null,
