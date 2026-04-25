@@ -45,10 +45,16 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
     maintenanceMode: false, maxDeposit: 0, minWithdrawal: 100, houseEdge: 2.5, welcomeBonus: 1000000000,
   });
 
-  // Demo-mode "Launch Reset" state
+  // Demo-mode "Launch Reset" state — typed-confirmation modal
+  const [resetModalOpen, setResetModalOpen] = useState(false);
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetAmount, setResetAmount] = useState('10000');
   const [resetBusy, setResetBusy] = useState(false);
+
+  const openResetModal = () => {
+    setResetConfirm('');
+    setResetModalOpen(true);
+  };
 
   const runLaunchReset = async () => {
     if (resetConfirm !== 'RESET') {
@@ -60,20 +66,18 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
       toast.error('Admin login required.');
       return;
     }
-    if (!confirm(`This will wipe ALL non-admin balances and reset them to ${parseInt(resetAmount) || 10000} $Pc. Continue?`)) {
-      return;
-    }
     setResetBusy(true);
     try {
       const res = await fetch('/api/admin/reset-balances', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ confirm: 'RESET', amount: parseInt(resetAmount) || 10000 }),
+        body: JSON.stringify({ amount: parseInt(resetAmount) || 10000 }),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success(`Reset ${data.usersReset} players to ${data.resetAmount.toLocaleString()} $Pc`);
         setResetConfirm('');
+        setResetModalOpen(false);
         loadData();
       } else {
         toast.error(data.error || 'Reset failed');
@@ -883,9 +887,9 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-sm font-bold text-red-300">Launch Reset — Wipe All Balances</div>
+                        <div className="text-sm font-bold text-red-300">Reset all balances for launch</div>
                         <div className="text-xs text-gray-400 mt-1 leading-snug">
-                          Resets every non-admin account's balance, total wagered, total won, and VIP tier. Use this once when toggling demo mode off to give every player a clean starting balance for the real launch. <span className="text-red-300 font-semibold">This cannot be undone.</span>
+                          Wipes every non-admin, non-bot, non-house account's balance, total wagered, total won, and VIP tier. Use this once when toggling demo mode off to give every player a clean starting balance for the real launch. <span className="text-red-300 font-semibold">This cannot be undone.</span>
                         </div>
                       </div>
                     </div>
@@ -903,31 +907,13 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                       />
                     </div>
 
-                    <div>
-                      <label className="text-xs text-gray-300 mb-1 block">Type <span className="font-mono text-red-300">RESET</span> to confirm</label>
-                      <input
-                        type="text"
-                        value={resetConfirm}
-                        onChange={e => setResetConfirm(e.target.value)}
-                        placeholder="RESET"
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
-                        style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(239,68,68,0.4)', color: 'white' }}
-                        data-testid="admin-reset-confirm-input"
-                      />
-                    </div>
-
                     <Button
-                      onClick={runLaunchReset}
-                      disabled={resetBusy || resetConfirm !== 'RESET'}
+                      onClick={openResetModal}
                       className="w-full"
-                      style={{
-                        background: resetConfirm === 'RESET' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.05)',
-                        color: resetConfirm === 'RESET' ? '#fecaca' : '#6b7280',
-                        border: '1px solid rgba(239,68,68,0.5)',
-                      }}
-                      data-testid="admin-reset-launch-button"
+                      style={{ background: 'rgba(239,68,68,0.25)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.5)' }}
+                      data-testid="admin-reset-open-modal-button"
                     >
-                      {resetBusy ? 'Resetting…' : 'Launch Reset — Wipe All Player Balances'}
+                      Reset all balances for launch…
                     </Button>
                   </div>
                 </div>
@@ -936,6 +922,70 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
           </ScrollArea>
         </div>
       </DialogContent>
+
+      {/* Typed-confirmation modal for "Launch Reset" */}
+      <Dialog open={resetModalOpen} onOpenChange={(o) => { if (!resetBusy) setResetModalOpen(o); }}>
+        <DialogContent
+          className="max-w-md"
+          style={{ background: 'rgba(6,6,12,0.99)', border: '1px solid rgba(239,68,68,0.5)' }}
+          data-testid="admin-reset-confirm-modal"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-red-300 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> Confirm Launch Reset
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-gray-300">
+            <p>
+              You are about to wipe every non-admin, non-bot, non-house balance and reset
+              total wagered, total won, and VIP tier. New starting balance:{' '}
+              <span className="text-amber-300 font-semibold">
+                {(parseInt(resetAmount) || 10000).toLocaleString()} $Pc
+              </span>.
+            </p>
+            <p className="text-red-300 text-xs">This cannot be undone.</p>
+            <div>
+              <label className="text-xs text-gray-300 mb-1 block">
+                Type <span className="font-mono text-red-300">RESET</span> to confirm
+              </label>
+              <input
+                type="text"
+                autoFocus
+                value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)}
+                placeholder="RESET"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(239,68,68,0.4)', color: 'white' }}
+                data-testid="admin-reset-confirm-input"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={() => setResetModalOpen(false)}
+                disabled={resetBusy}
+                className="flex-1"
+                style={{ background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.15)' }}
+                data-testid="admin-reset-cancel-button"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={runLaunchReset}
+                disabled={resetBusy || resetConfirm !== 'RESET'}
+                className="flex-1"
+                style={{
+                  background: resetConfirm === 'RESET' ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.05)',
+                  color: resetConfirm === 'RESET' ? '#fecaca' : '#6b7280',
+                  border: '1px solid rgba(239,68,68,0.5)',
+                }}
+                data-testid="admin-reset-launch-button"
+              >
+                {resetBusy ? 'Resetting…' : 'Launch Reset'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

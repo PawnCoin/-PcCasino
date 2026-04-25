@@ -68,6 +68,8 @@ export async function initDatabase() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS social_discord VARCHAR(100)`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS public_stats_visible BOOLEAN DEFAULT TRUE`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS public_socials_visible BOOLEAN DEFAULT TRUE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_house BOOLEAN DEFAULT FALSE`,
     ];
     for (const sql of alterColumns) {
       await query(sql).catch(() => {});

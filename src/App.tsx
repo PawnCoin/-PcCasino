@@ -635,6 +635,10 @@ function App() {
 
   // Deposit — submit a real deposit request
   const handleDeposit = async (amount: number, txHash?: string) => {
+    if (user?.demoMode || !user?.realTransactionsUnlocked) {
+      toast.error('Deposits are disabled while the casino is in Demo Mode.');
+      return;
+    }
     if (user) {
       if (getToken()) {
         try {
@@ -656,6 +660,10 @@ function App() {
 
   const handleWithdraw = async (amount: number) => {
     if (!user) return false;
+    if (user.demoMode || !user.realTransactionsUnlocked) {
+      toast.error('Withdrawals are disabled while the casino is in Demo Mode.');
+      return false;
+    }
     if (amount > user.balance) { toast.error('Insufficient balance!'); return false; }
 
     const withdrawAddr = (user as any).withdrawAddress;
@@ -1212,6 +1220,16 @@ function App() {
             <DialogTitle className="font-casino text-xl text-gradient-gold">Deposit $Pc</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {(user?.demoMode || !user?.realTransactionsUnlocked) && (
+              <div
+                className="p-3 rounded-lg flex items-start gap-2 text-xs"
+                style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.45)', color: '#fde68a' }}
+                data-testid="demo-mode-banner"
+              >
+                <span aria-hidden>⚠️</span>
+                <span><strong>Demo Mode Active.</strong> Real deposits are disabled until launch. Buttons below are read-only previews.</span>
+              </div>
+            )}
             <div 
               className="p-4 rounded-xl"
               style={{ 
@@ -1225,16 +1243,23 @@ function App() {
               </code>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {[100, 500, 1000].map(amount => (
-                <button
-                  key={amount}
-                  onClick={() => handleDeposit(amount)}
-                  className="p-3 rounded-lg bg-[#5D4037]/30 hover:bg-[#5D4037]/50 border border-[#5D4037]/50 text-center transition-colors"
-                >
-                  <div className="font-bold text-[#D4AF37]">{amount}</div>
-                  <div className="text-xs text-[#808080]">$Pc</div>
-                </button>
-              ))}
+              {[100, 500, 1000].map(amount => {
+                const demoLocked = user?.demoMode || !user?.realTransactionsUnlocked;
+                return (
+                  <button
+                    key={amount}
+                    onClick={() => handleDeposit(amount)}
+                    disabled={demoLocked}
+                    aria-disabled={demoLocked}
+                    title={demoLocked ? 'Disabled (Demo)' : ''}
+                    className="p-3 rounded-lg bg-[#5D4037]/30 hover:bg-[#5D4037]/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#5D4037]/30 border border-[#5D4037]/50 text-center transition-colors"
+                    data-testid={`deposit-preset-${amount}`}
+                  >
+                    <div className="font-bold text-[#D4AF37]">{amount}</div>
+                    <div className="text-xs text-[#808080]">{demoLocked ? 'Disabled (Demo)' : '$Pc'}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </DialogContent>
@@ -1254,6 +1279,16 @@ function App() {
             <DialogTitle className="font-casino text-xl text-[#EF5350]">Withdraw $Pc</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {(user?.demoMode || !user?.realTransactionsUnlocked) && (
+              <div
+                className="p-3 rounded-lg flex items-start gap-2 text-xs"
+                style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.45)', color: '#fde68a' }}
+                data-testid="demo-mode-banner"
+              >
+                <span aria-hidden>⚠️</span>
+                <span><strong>Demo Mode Active.</strong> Real withdrawals are disabled until launch. Buttons below are read-only previews.</span>
+              </div>
+            )}
             <div 
               className="p-4 rounded-xl"
               style={{ 
@@ -1267,17 +1302,24 @@ function App() {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {[100, 500, 1000].map(amount => (
-                <button
-                  key={amount}
-                  onClick={() => handleWithdraw(amount)}
-                  disabled={!user || amount > user.balance}
-                  className="p-3 rounded-lg bg-[#5D4037]/30 hover:bg-[#5D4037]/50 disabled:opacity-50 disabled:cursor-not-allowed border border-[#5D4037]/50 text-center transition-colors"
-                >
-                  <div className="font-bold text-[#D4AF37]">{amount}</div>
-                  <div className="text-xs text-[#808080]">$Pc</div>
-                </button>
-              ))}
+              {[100, 500, 1000].map(amount => {
+                const demoLocked = user?.demoMode || !user?.realTransactionsUnlocked;
+                const disabled = demoLocked || !user || amount > user.balance;
+                return (
+                  <button
+                    key={amount}
+                    onClick={() => handleWithdraw(amount)}
+                    disabled={disabled}
+                    aria-disabled={disabled}
+                    title={demoLocked ? 'Disabled (Demo)' : ''}
+                    className="p-3 rounded-lg bg-[#5D4037]/30 hover:bg-[#5D4037]/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#5D4037]/30 border border-[#5D4037]/50 text-center transition-colors"
+                    data-testid={`withdraw-preset-${amount}`}
+                  >
+                    <div className="font-bold text-[#D4AF37]">{amount}</div>
+                    <div className="text-xs text-[#808080]">{demoLocked ? 'Disabled (Demo)' : '$Pc'}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </DialogContent>

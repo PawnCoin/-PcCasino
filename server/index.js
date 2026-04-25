@@ -1374,35 +1374,52 @@ app.post('/api/admin/broadcast', (req, res) => {
 });
 
 // ---- Admin: Demo-mode "Launch Reset" ----
-// Wipes all non-admin user balances back to a fresh starting balance,
-// resets total_wagered/total_won to 0, and recomputes vip_tier to 'bronze'.
-// Admin-auth required. Body: { confirm: 'RESET', amount?: number }
+// Wipes all human, non-admin, non-bot, non-house user balances back to a fresh
+// starting balance, resets total_wagered/total_won to 0, sets vip_tier='bronze',
+// and clears their leaderboard rows — all inside a single transaction so a failure
+// rolls everything back. Admin-auth via existing requireAuth + req.user.is_admin.
+// Body: { amount?: number }   (typed-confirmation lives in the admin UI modal)
 app.post('/api/admin/reset-balances', requireAuth, async (req, res) => {
   if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
-  const { confirm, amount } = req.body || {};
-  if (confirm !== 'RESET') {
-    return res.status(400).json({ error: 'Confirmation phrase "RESET" required.', code: 'CONFIRM_REQUIRED' });
+
+  const { amount } = req.body || {};
+  const parsed = parseInt(amount);
+  const resetAmount = Number.isFinite(parsed) && parsed >= 0 ? parsed : 10000;
+
+  // Exclude admins, flagged bot accounts, and any house/treasury accounts.
+  // NOTE: is_bot / is_house must be set manually on non-human accounts —
+  // exclusion is only as good as the operator's data hygiene.
+  const EXCLUDE_WHERE = `is_admin IS NOT TRUE AND is_bot IS NOT TRUE AND is_house IS NOT TRUE`;
+
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (connErr) {
+    console.error('[admin:reset-balances] pool.connect failed:', connErr.message);
+    return res.status(500).json({ error: 'Database unavailable' });
   }
-  const resetAmount = Number.isFinite(parseInt(amount)) && parseInt(amount) >= 0
-    ? parseInt(amount)
-    : 10000;
 
   try {
-    const result = await query(
+    await client.query('BEGIN');
+    const result = await client.query(
       `UPDATE users
        SET balance = $1,
            total_wagered = 0,
            total_won = 0,
            vip_tier = 'bronze',
            updated_at = NOW()
-       WHERE is_admin IS NOT TRUE
+       WHERE ${EXCLUDE_WHERE}
        RETURNING id`,
       [resetAmount]
     );
     const usersReset = result.rowCount;
 
-    // Wipe leaderboard so totals reflect the fresh state.
-    await query(`DELETE FROM leaderboard WHERE user_id IN (SELECT id FROM users WHERE is_admin IS NOT TRUE)`).catch(() => {});
+    // Wipe leaderboard for the same set so rankings reflect the fresh state.
+    // Errors here MUST propagate so the whole transaction rolls back.
+    await client.query(
+      `DELETE FROM leaderboard WHERE user_id IN (SELECT id FROM users WHERE ${EXCLUDE_WHERE})`
+    );
+    await client.query('COMMIT');
 
     logAdmin('demo:launch-reset', {
       adminId: req.user.id,
@@ -1421,8 +1438,11 @@ app.post('/api/admin/reset-balances', requireAuth, async (req, res) => {
 
     res.json({ success: true, resetAmount, usersReset, demoMode: isDemoMode() });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('[admin:reset-balances]', err.message);
     res.status(500).json({ error: 'Reset failed', details: err.message });
+  } finally {
+    client.release();
   }
 });
 
