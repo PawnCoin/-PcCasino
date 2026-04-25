@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from './db.js';
 import { requireAuth } from './auth-routes.js';
+import { isDemoMode } from './demo-mode.js';
 
 const router = Router();
 
@@ -222,11 +223,13 @@ router.post('/:id/verify-balance', requireAuth, async (req, res) => {
 
     await query('UPDATE users SET real_transactions_unlocked = $1 WHERE id = $2', [unlock, req.user.id]);
 
+    const demo = isDemoMode();
     res.json({
       balance: balance !== null ? balance.toString() : null,
       meetsThreshold,
       walletVerified: meetsThreshold,
-      realTransactionsUnlocked: unlock,
+      realTransactionsUnlocked: demo ? false : unlock,
+      demoMode: demo,
       threshold: PC_TOKEN_THRESHOLD.toString(),
       error: balErr || null,
     });

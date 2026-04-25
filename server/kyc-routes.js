@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createHash } from 'crypto';
 import { query } from './db.js';
 import { requireAuth } from './auth-routes.js';
+import { isDemoMode } from './demo-mode.js';
 
 const router = Router();
 
@@ -27,12 +28,14 @@ router.get('/status', requireAuth, async (req, res) => {
       [req.user.id]
     );
 
+    const demo = isDemoMode();
     res.json({
       kycStatus: user.kyc_status || 'unverified',
       phoneVerified: user.phone_verified || false,
       phoneNumber: user.phone_number || null,
       emailVerified: user.email_verified || false,
-      realTransactionsUnlocked: user.real_transactions_unlocked || false,
+      demoMode: demo,
+      realTransactionsUnlocked: demo ? false : (user.real_transactions_unlocked || false),
       latestSubmission: latestSub.rows[0] || null,
     });
   } catch (err) {

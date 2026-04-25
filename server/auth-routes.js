@@ -6,6 +6,7 @@ import { sendVerificationEmail, sendWelcomeEmail, generateUnsubscribeToken } fro
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { isDemoMode } from './demo-mode.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'pcasino-secret-jwt-key-2024';
@@ -16,6 +17,7 @@ function hashPassword(password) {
 }
 
 function buildUserResponse(u) {
+  const demo = isDemoMode();
   return {
     id: u.id, username: u.username, email: u.email,
     balance: parseInt(u.balance), avatar: u.avatar,
@@ -32,7 +34,8 @@ function buildUserResponse(u) {
     kycStatus: u.kyc_status || 'unverified',
     phoneVerified: u.phone_verified || false,
     phoneNumber: u.phone_number || null,
-    realTransactionsUnlocked: u.real_transactions_unlocked || false,
+    demoMode: demo,
+    realTransactionsUnlocked: demo ? false : (u.real_transactions_unlocked || false),
     displayName: u.display_name || null,
     bio: u.bio || null,
     avatarUrl: u.avatar_url || null,

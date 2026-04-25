@@ -38,6 +38,7 @@ interface FinancialModalProps {
   withdrawAddress?: string;
   onSaveWithdrawAddress?: (address: string) => void;
   depositAddress?: string;
+  demoMode?: boolean;
 }
 
 const EXCHANGE_RATES = {
@@ -74,6 +75,7 @@ export function FinancialModal({
   withdrawAddress: savedWithdrawAddress,
   onSaveWithdrawAddress,
   depositAddress: depositAddressProp,
+  demoMode = false,
 }: FinancialModalProps) {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -194,6 +196,7 @@ export function FinancialModal({
   };
 
   const handleDeposit = (amount: number) => {
+    if (demoMode) return;
     if (amount > 0) onDeposit(amount);
   };
 
@@ -206,6 +209,7 @@ export function FinancialModal({
   };
 
   const handleWithdraw = (amount: number) => {
+    if (demoMode) return;
     if (!withdrawAddress.trim()) {
       alert('Please enter your destination wallet address before withdrawing.');
       return;
@@ -245,6 +249,25 @@ export function FinancialModal({
               Financial Center
             </DialogTitle>
           </DialogHeader>
+
+          {demoMode && (
+            <div
+              className="rounded-xl p-3 flex items-start gap-3"
+              style={{
+                background: 'linear-gradient(135deg, rgba(251,191,36,0.18), rgba(239,83,80,0.12))',
+                border: '1px solid rgba(251,191,36,0.5)',
+              }}
+              data-testid="demo-mode-banner"
+            >
+              <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+              <div className="text-xs sm:text-sm text-amber-100 leading-snug">
+                <span className="font-bold text-amber-300">Demo mode is active.</span>{' '}
+                Real-money deposits and withdrawals are disabled across the casino while we
+                finish testing. Your in-game $Pc balance is play money only and will be reset
+                when we launch.
+              </div>
+            </div>
+          )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-4 bg-[#5D4037]/20">
@@ -490,11 +513,11 @@ export function FinancialModal({
                           />
                           <button
                             onClick={() => handlePcPayCheckout(parseInt(pcpayAmount) || 0)}
-                            disabled={pcpayLoading || !pcpayAmount || parseInt(pcpayAmount) < 100}
+                            disabled={demoMode || pcpayLoading || !pcpayAmount || parseInt(pcpayAmount) < 100}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             style={{ background: 'linear-gradient(135deg, #D4AF37, #B8860B)', color: '#000' }}
                           >
-                            {pcpayLoading ? '…' : <><ExternalLink className="w-4 h-4" /> Pay</>}
+                            {pcpayLoading ? '…' : demoMode ? 'Disabled (Demo)' : <><ExternalLink className="w-4 h-4" /> Pay</>}
                           </button>
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
@@ -502,8 +525,8 @@ export function FinancialModal({
                             <button
                               key={amt}
                               onClick={() => handlePcPayCheckout(amt)}
-                              disabled={pcpayLoading}
-                              className="px-3 py-1 rounded-lg text-xs font-bold disabled:opacity-50"
+                              disabled={demoMode || pcpayLoading}
+                              className="px-3 py-1 rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                               style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}
                             >
                               {amt.toLocaleString()} $Pc
@@ -573,10 +596,10 @@ export function FinancialModal({
                         />
                         <button
                           onClick={handleCustomDeposit}
-                          disabled={!customDepositAmount || parseFloat(customDepositAmount) <= 0}
+                          disabled={demoMode || !customDepositAmount || parseFloat(customDepositAmount) <= 0}
                           className="px-4 py-3 rounded-lg bg-[#43A047] hover:bg-[#388E3C] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-colors"
                         >
-                          Deposit
+                          {demoMode ? 'Disabled (Demo)' : 'Deposit'}
                         </button>
                       </div>
                     </div>
@@ -588,7 +611,8 @@ export function FinancialModal({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => handleDeposit(amount)}
-                              className="p-3 rounded-lg bg-[#43A047]/20 hover:bg-[#43A047]/30 border border-[#43A047]/30 text-center transition-colors"
+                              disabled={demoMode}
+                              className="p-3 rounded-lg bg-[#43A047]/20 hover:bg-[#43A047]/30 disabled:opacity-40 disabled:cursor-not-allowed border border-[#43A047]/30 text-center transition-colors"
                             >
                               <div className="font-bold text-[#43A047]">{amount.toLocaleString()}</div>
                               <div className="text-xs text-[#808080]">$Pc</div>
@@ -701,10 +725,10 @@ export function FinancialModal({
                         />
                         <button
                           onClick={handleCustomWithdraw}
-                          disabled={!customWithdrawAmount || parseFloat(customWithdrawAmount) <= 0 || parseFloat(customWithdrawAmount) > balance || !withdrawAddress.trim()}
+                          disabled={demoMode || !customWithdrawAmount || parseFloat(customWithdrawAmount) <= 0 || parseFloat(customWithdrawAmount) > balance || !withdrawAddress.trim()}
                           className="px-4 py-3 rounded-lg bg-[#EF5350] hover:bg-[#D32F2F] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-colors"
                         >
-                          Withdraw
+                          {demoMode ? 'Disabled (Demo)' : 'Withdraw'}
                         </button>
                       </div>
                     </div>
@@ -716,7 +740,7 @@ export function FinancialModal({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => handleWithdraw(amount)}
-                              disabled={amount > balance || !withdrawAddress.trim()}
+                              disabled={demoMode || amount > balance || !withdrawAddress.trim()}
                               className="p-3 rounded-lg bg-[#EF5350]/20 hover:bg-[#EF5350]/30 disabled:opacity-50 disabled:cursor-not-allowed border border-[#EF5350]/30 text-center transition-colors"
                             >
                               <div className="font-bold text-[#EF5350]">{amount.toLocaleString()}</div>

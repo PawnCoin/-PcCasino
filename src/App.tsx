@@ -82,6 +82,8 @@ interface UnifiedUser {
   publicSocialsVisible?: boolean;
   dailyDepositLimit?: number;
   dailyLossLimit?: number;
+  demoMode?: boolean;
+  realTransactionsUnlocked?: boolean;
 }
 
 function buildUserFromApi(u: any): UnifiedUser {
@@ -103,6 +105,8 @@ function buildUserFromApi(u: any): UnifiedUser {
     socialDiscord: u.socialDiscord || null,
     publicStatsVisible: u.publicStatsVisible !== false,
     publicSocialsVisible: u.publicSocialsVisible !== false,
+    demoMode: u.demoMode,
+    realTransactionsUnlocked: u.realTransactionsUnlocked,
   };
 }
 
@@ -1394,6 +1398,7 @@ function App() {
         onDevReload={handleDevReload}
         withdrawAddress={user?.withdrawAddress}
         depositAddress={depositAddress}
+        demoMode={user?.demoMode}
         onSaveWithdrawAddress={(address) => {
           if (user) {
             const updated = { ...user, withdrawAddress: address };

@@ -45,6 +45,46 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
     maintenanceMode: false, maxDeposit: 0, minWithdrawal: 100, houseEdge: 2.5, welcomeBonus: 1000000000,
   });
 
+  // Demo-mode "Launch Reset" state
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetAmount, setResetAmount] = useState('10000');
+  const [resetBusy, setResetBusy] = useState(false);
+
+  const runLaunchReset = async () => {
+    if (resetConfirm !== 'RESET') {
+      toast.error('Type RESET to confirm.');
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      toast.error('Admin login required.');
+      return;
+    }
+    if (!confirm(`This will wipe ALL non-admin balances and reset them to ${parseInt(resetAmount) || 10000} $Pc. Continue?`)) {
+      return;
+    }
+    setResetBusy(true);
+    try {
+      const res = await fetch('/api/admin/reset-balances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirm: 'RESET', amount: parseInt(resetAmount) || 10000 }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Reset ${data.usersReset} players to ${data.resetAmount.toLocaleString()} $Pc`);
+        setResetConfirm('');
+        loadData();
+      } else {
+        toast.error(data.error || 'Reset failed');
+      }
+    } catch {
+      toast.error('Server unavailable');
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   const authAdmin = () => {
     toast.error('Direct admin access is disabled. Use your admin account.');
   };
@@ -828,6 +868,66 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                     ))}
                     <Button onClick={() => toast.success('Settings saved')} className="w-full" style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }}>
                       Save Settings
+                    </Button>
+                  </div>
+
+                  {/* DEMO LAUNCH RESET CARD */}
+                  <div
+                    className="p-4 rounded-xl space-y-3"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(239,68,68,0.10), rgba(251,191,36,0.06))',
+                      border: '1px solid rgba(239,68,68,0.45)',
+                    }}
+                    data-testid="admin-launch-reset-card"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-sm font-bold text-red-300">Launch Reset — Wipe All Balances</div>
+                        <div className="text-xs text-gray-400 mt-1 leading-snug">
+                          Resets every non-admin account's balance, total wagered, total won, and VIP tier. Use this once when toggling demo mode off to give every player a clean starting balance for the real launch. <span className="text-red-300 font-semibold">This cannot be undone.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-300 mb-1 block">New starting balance ($Pc)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={resetAmount}
+                        onChange={e => setResetAmount(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                        data-testid="admin-reset-amount-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-300 mb-1 block">Type <span className="font-mono text-red-300">RESET</span> to confirm</label>
+                      <input
+                        type="text"
+                        value={resetConfirm}
+                        onChange={e => setResetConfirm(e.target.value)}
+                        placeholder="RESET"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                        style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(239,68,68,0.4)', color: 'white' }}
+                        data-testid="admin-reset-confirm-input"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={runLaunchReset}
+                      disabled={resetBusy || resetConfirm !== 'RESET'}
+                      className="w-full"
+                      style={{
+                        background: resetConfirm === 'RESET' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.05)',
+                        color: resetConfirm === 'RESET' ? '#fecaca' : '#6b7280',
+                        border: '1px solid rgba(239,68,68,0.5)',
+                      }}
+                      data-testid="admin-reset-launch-button"
+                    >
+                      {resetBusy ? 'Resetting…' : 'Launch Reset — Wipe All Player Balances'}
                     </Button>
                   </div>
                 </div>

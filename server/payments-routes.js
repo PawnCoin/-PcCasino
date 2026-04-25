@@ -4,6 +4,7 @@ import { requireAuth } from './auth-routes.js';
 import { processJackpotContribution } from './jackpot.js';
 import { sendDepositConfirmationEmail, sendWithdrawEmail } from './email.js';
 import { refreshDefaultWalletVerification } from './wallet-routes.js';
+import { isDemoMode } from './demo-mode.js';
 
 const router = Router();
 // TREASURY WALLET — set DEPOSIT_WALLET_ADDRESS in environment secrets before going live
@@ -23,6 +24,15 @@ router.get('/address', requireAuth, (req, res) => {
 
 // Submit deposit request (user says "I've sent the payment")
 router.post('/deposit/request', requireAuth, async (req, res) => {
+  // DEMO MODE: real deposits are disabled site-wide
+  if (isDemoMode()) {
+    return res.status(403).json({
+      error: 'Demo mode is active. Real-money deposits are disabled.',
+      code: 'DEMO_MODE_ENABLED',
+      demoMode: true,
+    });
+  }
+
   const { amount, txHash, fromAddress, network } = req.body;
   if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
 
@@ -89,6 +99,9 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
 // Admin: approve deposit
 router.post('/deposit/:id/approve', requireAuth, async (req, res) => {
   if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  if (isDemoMode()) {
+    return res.status(403).json({ error: 'Demo mode is active. Approvals are disabled.', code: 'DEMO_MODE_ENABLED' });
+  }
 
   try {
     const dep = await query('SELECT * FROM deposit_requests WHERE id = $1', [req.params.id]);
@@ -183,6 +196,15 @@ router.post('/deposit/:id/reject', requireAuth, async (req, res) => {
 
 // Submit withdraw request
 router.post('/withdraw/request', requireAuth, async (req, res) => {
+  // DEMO MODE: real withdrawals are disabled site-wide
+  if (isDemoMode()) {
+    return res.status(403).json({
+      error: 'Demo mode is active. Real-money withdrawals are disabled.',
+      code: 'DEMO_MODE_ENABLED',
+      demoMode: true,
+    });
+  }
+
   const { amount, toAddress, network } = req.body;
   if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
   if (!toAddress) return res.status(400).json({ error: 'Destination address required' });
@@ -274,6 +296,9 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
 // Admin: approve withdraw
 router.post('/withdraw/:id/approve', requireAuth, async (req, res) => {
   if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  if (isDemoMode()) {
+    return res.status(403).json({ error: 'Demo mode is active. Approvals are disabled.', code: 'DEMO_MODE_ENABLED' });
+  }
   try {
     const wr = await query('SELECT * FROM withdraw_requests WHERE id = $1', [req.params.id]);
     if (!wr.rows.length) return res.status(404).json({ error: 'Not found' });

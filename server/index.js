@@ -18,6 +18,7 @@ import { cleanupExpiredSessions } from './auth-routes.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
 import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
 import { createGameEngines } from './game-engines/index.js';
+import { isDemoMode } from './demo-mode.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -1062,6 +1063,14 @@ app.post('/api/pcpayments/config', requireAuth, (req, res) => {
 
 // PcPay checkout initiation — calls pcpayments.online on behalf of the user
 app.post('/api/deposit/initiate', requireAuth, async (req, res) => {
+  // DEMO MODE: real PcPay checkout disabled site-wide
+  if (isDemoMode()) {
+    return res.status(403).json({
+      error: 'Demo mode is active. Real-money deposits via PcPay are disabled.',
+      code: 'DEMO_MODE_ENABLED',
+      demoMode: true,
+    });
+  }
   const apiKey = process.env.PCPAY_API_KEY || pcpaymentsConfig.apiKey;
   if (!apiKey) {
     return res.status(503).json({ error: 'PCPAY_NOT_CONFIGURED' });
@@ -1116,6 +1125,12 @@ app.get('/api/pc-token-info', (req, res) => {
 // PcPay webhook - auto-credit user balance
 // Raw body captured by the path-specific middleware registered before express.json()
 app.post('/api/pcpayments/webhook', async (req, res) => {
+  // DEMO MODE: refuse to credit balances from PcPay webhook callbacks
+  if (isDemoMode()) {
+    console.warn('[PcPay webhook] Rejected — demo mode is active');
+    return res.status(403).json({ error: 'Demo mode active — webhook ignored', code: 'DEMO_MODE_ENABLED' });
+  }
+
   // --- Signature validation (fail-closed) ---
   const webhookSecret = process.env.PCPAY_WEBHOOK_SECRET || pcpaymentsConfig.webhookSecret;
 
@@ -1356,6 +1371,64 @@ app.post('/api/admin/broadcast', (req, res) => {
   io.emit('admin:broadcast', { message, type: type || 'info', timestamp: Date.now() });
   logAdmin('broadcast', { message });
   res.json({ success: true });
+});
+
+// ---- Admin: Demo-mode "Launch Reset" ----
+// Wipes all non-admin user balances back to a fresh starting balance,
+// resets total_wagered/total_won to 0, and recomputes vip_tier to 'bronze'.
+// Admin-auth required. Body: { confirm: 'RESET', amount?: number }
+app.post('/api/admin/reset-balances', requireAuth, async (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { confirm, amount } = req.body || {};
+  if (confirm !== 'RESET') {
+    return res.status(400).json({ error: 'Confirmation phrase "RESET" required.', code: 'CONFIRM_REQUIRED' });
+  }
+  const resetAmount = Number.isFinite(parseInt(amount)) && parseInt(amount) >= 0
+    ? parseInt(amount)
+    : 10000;
+
+  try {
+    const result = await query(
+      `UPDATE users
+       SET balance = $1,
+           total_wagered = 0,
+           total_won = 0,
+           vip_tier = 'bronze',
+           updated_at = NOW()
+       WHERE is_admin IS NOT TRUE
+       RETURNING id`,
+      [resetAmount]
+    );
+    const usersReset = result.rowCount;
+
+    // Wipe leaderboard so totals reflect the fresh state.
+    await query(`DELETE FROM leaderboard WHERE user_id IN (SELECT id FROM users WHERE is_admin IS NOT TRUE)`).catch(() => {});
+
+    logAdmin('demo:launch-reset', {
+      adminId: req.user.id,
+      adminUsername: req.user.username,
+      resetAmount,
+      usersReset,
+    });
+
+    // Notify everyone — they'll see fresh balance on next /auth/me refresh.
+    io.emit('admin:broadcast', {
+      message: `🔄 Casino balances have been reset to ${resetAmount.toLocaleString()} $Pc. Reload to see your new starting balance.`,
+      type: 'warning',
+      timestamp: Date.now(),
+    });
+    io.emit('admin:balances-reset', { resetAmount, usersReset, timestamp: Date.now() });
+
+    res.json({ success: true, resetAmount, usersReset, demoMode: isDemoMode() });
+  } catch (err) {
+    console.error('[admin:reset-balances]', err.message);
+    res.status(500).json({ error: 'Reset failed', details: err.message });
+  }
+});
+
+// Public: report current demo-mode state (used by frontend banner & UI gates)
+app.get('/api/demo-mode', (_req, res) => {
+  res.json({ demoMode: isDemoMode() });
 });
 
 app.post('/api/admin/disputes/:id/resolve', (req, res) => {

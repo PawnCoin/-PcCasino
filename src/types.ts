@@ -30,6 +30,8 @@ export interface UnifiedUser {
   isAdmin?: boolean;
   twoFactorEnabled?: boolean;
   withdrawAddress?: string;
+  demoMode?: boolean;
+  realTransactionsUnlocked?: boolean;
 }
 
 export interface Transaction {
