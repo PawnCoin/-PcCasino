@@ -1,4 +1,4 @@
-import { Gift, Star, Zap, X } from 'lucide-react';
+import { Gift, Star, Zap, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ReferralWelcomeOverlayProps {
@@ -6,6 +6,7 @@ interface ReferralWelcomeOverlayProps {
   welcomeBonus: number;
   onRegister: () => void;
   onDismiss: () => void;
+  demoMode?: boolean;
 }
 
 export function ReferralWelcomeOverlay({
@@ -13,6 +14,7 @@ export function ReferralWelcomeOverlay({
   welcomeBonus,
   onRegister,
   onDismiss,
+  demoMode,
 }: ReferralWelcomeOverlayProps) {
   const formattedBonus = welcomeBonus.toLocaleString();
 
@@ -115,6 +117,24 @@ export function ReferralWelcomeOverlay({
               Credited instantly on sign-up. No deposit required.
             </p>
           </div>
+
+          {/* Demo mode notice */}
+          {demoMode && (
+            <div
+              data-testid="demo-mode-welcome-notice"
+              className="my-5 py-3 px-4 rounded-xl flex gap-2 items-start text-left"
+              style={{
+                background: 'rgba(245,158,11,0.1)',
+                border: '1px solid rgba(245,158,11,0.45)',
+              }}
+            >
+              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#fbbf24]" />
+              <p className="text-xs text-[#fde68a] leading-relaxed">
+                <strong className="text-[#fcd34d]">Demo Mode —</strong> $Pc balances are play money for now.
+                No real $Pc deposits or withdrawals yet. Balances may be reset before launch.
+              </p>
+            </div>
+          )}
 
           {/* CTA */}
           <Button

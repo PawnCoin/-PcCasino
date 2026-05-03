@@ -432,6 +432,15 @@ export async function initDatabase() {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_encounters_user ON game_encounters(user_id, encountered_at DESC)`);
 
+    // System-wide flags (idempotent migrations / backfills tracking)
+    await query(`
+      CREATE TABLE IF NOT EXISTS system_flags (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     console.log('[DB] All tables initialized successfully');
   } catch (err) {
     console.error('[DB] Table initialization error:', err.message);

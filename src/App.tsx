@@ -45,6 +45,7 @@ import { LobbyChat } from '@/components/LobbyChat';
 import { PublicProfileCard } from '@/components/PublicProfileCard';
 import { ProvablyFairPage } from '@/components/ProvablyFairPage';
 import { ReferralWelcomeOverlay } from '@/components/ReferralWelcomeOverlay';
+import { DemoModeBanner } from '@/components/DemoModeBanner';
 import { JackpotCelebration } from '@/components/JackpotCelebration';
 import { PokerHandSharePage } from '@/components/PokerHandSharePage';
 import { PcTokenModal } from '@/components/PcTokenModal';
@@ -113,6 +114,12 @@ function buildUserFromApi(u: any): UnifiedUser {
 function App() {
   const [user, setUser] = useState<UnifiedUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [serverDemoMode, setServerDemoMode] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch('/api/demo-mode').then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setServerDemoMode(!!d.demoMode);
+    }).catch(() => {});
+  }, []);
   const [userAvatarDef, setUserAvatarDef] = useState<AvatarDef>(() => {
     try {
       const stored = localStorage.getItem('pcasino_user_avatar_def');
@@ -1125,6 +1132,7 @@ function App() {
   return (
     <GlobalGameProvider balance={user?.balance || 0}>
     <div className="min-h-screen">
+      <DemoModeBanner demoMode={user?.demoMode ?? serverDemoMode ?? undefined} />
       <CasinoBackground />
       <Toaster 
         position="top-right" 
@@ -1181,6 +1189,7 @@ function App() {
             setShowAuth(true);
           }}
           onDismiss={() => setReferralOverlay(null)}
+          demoMode={!!serverDemoMode}
         />
       )}
 

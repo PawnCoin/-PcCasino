@@ -10,6 +10,7 @@ import { authApi, kycApi, walletApi, friendsApi, getToken } from '@/lib/api';
 import { AvatarSprite, ALL_AVATARS } from '@/components/AvatarSprite';
 import type { AvatarDef } from '@/components/AvatarSprite';
 import { DirectMessageModal } from '@/components/DirectMessageModal';
+import { DemoModeProfileCard } from '@/components/DemoModeProfileCard';
 import { VipBadge } from '@/components/VipBadge';
 import { useAccessControl } from '@/hooks/useAccessControl';
 
@@ -33,6 +34,7 @@ interface UserProfileProps {
     phoneVerified?: boolean;
     phoneNumber?: string;
     realTransactionsUnlocked?: boolean;
+    demoMode?: boolean;
     displayName?: string;
     bio?: string;
     avatarUrl?: string;
@@ -1075,6 +1077,7 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
               {/* OVERVIEW */}
               {activeTab === 'overview' && (
                 <div className="space-y-4">
+                  <DemoModeProfileCard demoMode={user?.demoMode} />
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-white text-lg">Account Overview</h3>
                     {!editMode ? (

@@ -203,6 +203,14 @@ router.post('/register', async (req, res) => {
       [user.id, `Welcome ${username}! You've received 1,000,000,000 $Pc to start playing. Check your email to verify your account.`]
     );
 
+    // Demo-mode reminder notification (only when demo mode is active)
+    if (isDemoMode()) {
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'demo_mode', '⚠️ Demo Mode Reminder', $2)",
+        [user.id, `$Pc Casino is currently in DEMO MODE. All balances are play money — no real $Pc can be deposited or withdrawn yet, and balances will be reset before launch.`]
+      );
+    }
+
     const userResp = buildUserResponse(user);
     userResp.balance = finalBalance;
     res.json({
@@ -288,6 +296,12 @@ router.post('/social', async (req, res) => {
         "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
         [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]
       );
+      if (isDemoMode()) {
+        await query(
+          "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'demo_mode', '⚠️ Demo Mode Reminder', $2)",
+          [user.id, `$Pc Casino is currently in DEMO MODE. All balances are play money — no real $Pc can be deposited or withdrawn yet, and balances will be reset before launch.`]
+        );
+      }
     }
 
     const token = generateToken(user.id);

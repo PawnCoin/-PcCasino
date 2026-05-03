@@ -2267,5 +2267,31 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     loadJackpotFromDB();
     cleanupExpiredSessions();
     setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+    backfillDemoModeNotifications().catch(e => console.error('[DemoBackfill]', e.message));
   });
 });
+
+async function backfillDemoModeNotifications() {
+  if (!isDemoMode()) return;
+  const FLAG_KEY = 'demo_mode_notification_backfill_v1';
+  try {
+    const flag = await query('SELECT key FROM system_flags WHERE key = $1', [FLAG_KEY]);
+    if (flag.rows.length) return;
+    const result = await query(
+      `INSERT INTO notifications (user_id, type, title, message)
+       SELECT u.id, 'demo_mode', '⚠️ Demo Mode Reminder',
+         '$Pc Casino is currently in DEMO MODE. All balances are play money — no real $Pc can be deposited or withdrawn yet, and balances will be reset before launch.'
+       FROM users u
+       WHERE NOT EXISTS (
+         SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.type = 'demo_mode'
+       )`
+    );
+    await query(
+      "INSERT INTO system_flags (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING",
+      [FLAG_KEY, String(result.rowCount || 0)]
+    );
+    console.log(`[DemoBackfill] Inserted ${result.rowCount || 0} demo-mode notifications`);
+  } catch (e) {
+    console.error('[DemoBackfill] Failed:', e.message);
+  }
+}
