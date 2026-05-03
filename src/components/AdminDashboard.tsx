@@ -991,10 +991,33 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   );
 }
 
+interface EmailStatusCounters { day: string | null; sent: number; failed: number }
+interface EmailStatus {
+  ready: boolean;
+  reason: string;
+  from: string;
+  replyTo: string | null;
+  counters?: EmailStatusCounters;
+}
+interface EmailTestResponse {
+  success?: boolean;
+  messageId?: string;
+  response?: string;
+  error?: string;
+  code?: string | number;
+  status?: EmailStatus;
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return 'unknown';
+}
+
 function EmailTestPanel({ getToken }: { getToken: () => string | null }) {
   const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<EmailStatus | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const loadStatus = async () => {
@@ -1002,7 +1025,10 @@ function EmailTestPanel({ getToken }: { getToken: () => string | null }) {
     if (!token) return;
     try {
       const res = await fetch('/api/admin/email/status', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setStatus(await res.json());
+      if (res.ok) {
+        const data: EmailStatus = await res.json();
+        setStatus(data);
+      }
     } catch { /* ignore */ }
   };
   useEffect(() => { loadStatus(); }, []);
@@ -1022,7 +1048,7 @@ function EmailTestPanel({ getToken }: { getToken: () => string | null }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ to: to.trim() }),
       });
-      const data = await res.json();
+      const data: EmailTestResponse = await res.json();
       if (res.ok && data.success) {
         setResult({ ok: true, text: `Sent. messageId=${data.messageId || '-'}  response=${(data.response || '').slice(0, 120)}` });
         toast.success('Test email sent');
@@ -1031,8 +1057,8 @@ function EmailTestPanel({ getToken }: { getToken: () => string | null }) {
         toast.error(data.error || 'Send failed');
       }
       if (data.status) setStatus(data.status);
-    } catch (e: any) {
-      setResult({ ok: false, text: `Network error: ${e?.message || 'unknown'}` });
+    } catch (e: unknown) {
+      setResult({ ok: false, text: `Network error: ${errorMessage(e)}` });
       toast.error('Server unavailable');
     } finally {
       setBusy(false);

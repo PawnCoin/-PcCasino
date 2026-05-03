@@ -16,7 +16,7 @@ import friendsRoutes, { setFriendsIO } from './friends-routes.js';
 import { initDatabase, query, pool } from './db.js';
 import { cleanupExpiredSessions } from './auth-routes.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
-import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, getEmailCounters } from './email.js';
+import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, flushDailyCounters } from './email.js';
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
 
@@ -2309,8 +2309,10 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     ));
     const delay = Math.max(60_000, next.getTime() - now.getTime());
     setTimeout(() => {
-      const c = getEmailCounters();
-      console.log(`[Email] Nightly counters: day=${c.day} sent=${c.sent} failed=${c.failed}`);
+      // Snapshot + log the previous day's totals BEFORE the rotation, then
+      // reset so the new day starts at zero. Always emits one nightly line
+      // even on zero-traffic days.
+      flushDailyCounters();
       scheduleNightlyEmailCounterLog();
     }, delay).unref?.();
   };

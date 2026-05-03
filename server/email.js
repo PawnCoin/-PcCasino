@@ -47,6 +47,20 @@ export function getEmailCounters() {
   return { day: counterDay, sent: sentCount, failed: failedCount };
 }
 
+// Snapshot the current (about-to-end) day's counters, log them as the
+// authoritative "previous day" line, and reset for the new day. Called by
+// the nightly scheduler in server/index.js.
+export function flushDailyCounters() {
+  const day = counterDay || todayUTC();
+  const sent = sentCount;
+  const failed = failedCount;
+  console.log(`[Email] Nightly counters: day=${day} sent=${sent} failed=${failed}`);
+  sentCount = 0;
+  failedCount = 0;
+  counterDay = todayUTC();
+  return { day, sent, failed };
+}
+
 export function getEmailStatus() {
   return {
     ready: smtpReady,

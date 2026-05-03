@@ -164,7 +164,8 @@ router.post('/deposit/:id/approve', requireAuth, async (req, res) => {
     // Send email
     const user = await query('SELECT email, username, email_unsubscribed FROM users WHERE id = $1', [d.user_id]);
     if (user.rows[0]?.email && !user.rows[0].email_unsubscribed) {
-      sendDepositConfirmationEmail(user.rows[0].email, user.rows[0].username, d.amount).catch(() => {});
+      sendDepositConfirmationEmail(user.rows[0].email, user.rows[0].username, d.amount)
+        .catch(e => console.error(`[Email:deposit] dispatch error to=${user.rows[0].email} reason="${e?.message || 'unknown'}"`));
     }
 
     // Add notification
@@ -276,7 +277,8 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
 
     // Send email
     if (user.email && !user.email_unsubscribed) {
-      sendWithdrawEmail(user.email, user.username, amount, toAddress).catch(() => {});
+      sendWithdrawEmail(user.email, user.username, amount, toAddress)
+        .catch(e => console.error(`[Email:withdraw] dispatch error to=${user.email} reason="${e?.message || 'unknown'}"`));
     }
 
     // Add notification
