@@ -395,6 +395,72 @@ export async function sendTournamentReminderEmail(to, username, tournament) {
   return sendMail({ to, subject: `Reminder: ${tournament.name} starts in 1 hour!`, html: emailWrapper(content, to), label: 'tournament' });
 }
 
+// Sent to every admin the moment the payout circuit breaker trips, and again
+// once if the breaker is still tripped one hour later. `followup` toggles the
+// subject/copy so admins can tell the two messages apart at a glance.
+//
+// Intentionally bypasses the user-facing unsubscribe footer: this is an
+// operational alert tied to the admin role, not a marketing message. Admins
+// who want to stop these alerts should remove their is_admin flag.
+export async function sendPayoutBreakerTrippedEmail(to, {
+  reason,
+  hotPcBalance = null,
+  hotEthBalance = null,
+  trippedAt = null,
+  followup = false,
+} = {}) {
+  const fmtPc = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return BigInt(s).toLocaleString() + ' $Pc'; } catch { return String(s); }
+  };
+  const fmtEth = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return (Number(BigInt(s)) / 1e18).toFixed(4) + ' ETH'; } catch { return String(s); }
+  };
+  const trippedLine = trippedAt
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Tripped at</td><td style="color:#fff;text-align:right;border-top:1px solid #222;">${new Date(trippedAt).toUTCString()}</td></tr>`
+    : '';
+  const heading = followup
+    ? '⏰ Payout Breaker STILL Tripped (1h)'
+    : '🚨 Payout Breaker TRIPPED';
+  const intro = followup
+    ? `It's been an hour and auto-payouts are <strong>still paused</strong>. Queued withdrawals are sitting in the Awaiting Send queue. Please investigate and reset the breaker once the underlying issue is resolved.`
+    : `Auto-payouts have been <strong>paused</strong> by the circuit breaker. Queued withdrawals will sit in the Awaiting Send queue until an admin investigates and resets the breaker.`;
+  const content = `
+    <h2 style="color:#fca5a5;margin:0 0 16px;">${heading}</h2>
+    <p style="color:#ccc;line-height:1.6;">${intro}</p>
+    <div style="background:#111;border:1px solid #ef4444;border-radius:8px;padding:20px;margin:24px 0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;">Reason</td>
+          <td style="color:#fca5a5;font-weight:bold;text-align:right;">${reason || 'unknown'}</td>
+        </tr>
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Hot wallet $Pc</td>
+          <td style="color:#D4AF37;font-weight:bold;text-align:right;border-top:1px solid #222;">${fmtPc(hotPcBalance)}</td>
+        </tr>
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Hot wallet ETH</td>
+          <td style="color:#fff;text-align:right;border-top:1px solid #222;">${fmtEth(hotEthBalance)}</td>
+        </tr>
+        ${trippedLine}
+      </table>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${SITE_URL}/admin" style="background:#ef4444;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+        Open Payout Health Panel
+      </a>
+    </div>
+    <p style="color:#888;font-size:12px;line-height:1.6;">Refill the hot wallet (or address the underlying limit/failure) and click <em>Reset Breaker</em> in Admin → Payments → Payout System Health to resume auto-payouts.</p>
+  `;
+  const subject = followup
+    ? `[$Pc Casino] Payout breaker STILL tripped after 1h — ${reason || 'unknown'}`
+    : `[$Pc Casino] Payout breaker tripped — ${reason || 'unknown'}`;
+  // Pass `null` as the 2nd emailWrapper arg to suppress the user-style
+  // unsubscribe footer on these operational alerts.
+  return sendMail({ to, subject, html: emailWrapper(content, null), label: followup ? 'breaker-tripped-1h' : 'breaker-tripped' });
+}
+
 // Admin debug helper — sends a tiny "is the pipe alive?" email and returns the
 // raw nodemailer result (or error) so the admin dashboard can show it.
 export async function sendTestEmail(to) {

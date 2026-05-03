@@ -12,12 +12,20 @@
 // restarts. Daily / hourly windows are recomputed live from `payout_log`.
 
 import { query } from './db.js';
-import { getOnChainPcBalance, getPayoutAddress } from './payout-signer.js';
+import { getOnChainPcBalance, getNativeBalance, getPayoutAddress } from './payout-signer.js';
+import { sendPayoutBreakerTrippedEmail } from './email.js';
 
-const FLAG_TRIPPED = 'payout_breaker_tripped';
-const FLAG_REASON  = 'payout_breaker_reason';
-const FLAG_FAILS   = 'payout_breaker_consecutive_failures';
-const FLAG_RESET   = 'payout_breaker_last_reset_at';
+const FLAG_TRIPPED   = 'payout_breaker_tripped';
+const FLAG_REASON    = 'payout_breaker_reason';
+const FLAG_FAILS     = 'payout_breaker_consecutive_failures';
+const FLAG_RESET     = 'payout_breaker_last_reset_at';
+// Wall-clock timestamp the *current* trip event happened (cleared on reset).
+// Used to (a) dedupe the initial alert email so we send at most one per trip,
+// and (b) decide when the 1h follow-up alert is due.
+const FLAG_TRIPPED_AT       = 'payout_breaker_tripped_at';
+const FLAG_FOLLOWUP_SENT_AT = 'payout_breaker_followup_sent_at';
+
+const FOLLOWUP_DELAY_MS = parseInt(process.env.PAYOUT_BREAKER_FOLLOWUP_MS || String(60 * 60 * 1000), 10);
 
 // Read first non-empty env var from a list of names. Lets us honor the
 // task-spec env names (PAYOUT_*_PC) while still accepting older BREAKER_*
@@ -85,31 +93,99 @@ export async function tripBreaker(reason) {
   await _setFlag(FLAG_REASON, reason || 'Manual trip');
   console.warn('[PayoutBreaker] TRIPPED:', reason);
   if (!wasAlreadyTripped) {
-    await _notifyAdminsOfTrip(reason).catch(e => console.error('[PayoutBreaker] admin notify failed:', e.message));
+    // Stamp the trip timestamp + clear any prior follow-up marker so the
+    // 1h re-alert checker treats this as a fresh event.
+    const trippedAt = new Date().toISOString();
+    await _setFlag(FLAG_TRIPPED_AT, trippedAt);
+    await _setFlag(FLAG_FOLLOWUP_SENT_AT, null);
+    await _notifyAdminsOfTrip(reason, { trippedAt, followup: false })
+      .catch(e => console.error('[PayoutBreaker] admin notify failed:', e.message));
   }
 }
 
+// Best-effort hot-wallet snapshot for the alert email. Returns nulls on RPC
+// outage rather than throwing — the alert must always go out.
+async function _safeWalletSnapshot() {
+  let pc = null, eth = null;
+  if (getPayoutAddress()) {
+    try { pc = (await getOnChainPcBalance()).toString(); } catch (_) {}
+    try { eth = (await getNativeBalance()).toString(); } catch (_) {}
+  }
+  return { pc, eth };
+}
+
 // High-priority dashboard notification + email-to-admins broadcast when the
-// breaker first trips. Notifications appear in the bell icon for every admin
-// account; emails are best-effort. Never throws — failure here must not
-// block subsequent breaker bookkeeping.
-async function _notifyAdminsOfTrip(reason) {
+// breaker trips (or remains tripped 1h later). Notifications appear in the
+// bell icon for every admin account; emails are best-effort. Never throws —
+// failure here must not block subsequent breaker bookkeeping.
+async function _notifyAdminsOfTrip(reason, { trippedAt = null, followup = false } = {}) {
   const admins = await query(
     `SELECT id, email, username, email_unsubscribed FROM users WHERE is_admin = TRUE`,
   ).catch(() => ({ rows: [] }));
-  const title = '🚨 Payout Breaker TRIPPED';
-  const message = `Auto-payouts are PAUSED. Reason: ${reason || 'unknown'}. Visit Admin → Payments → Payout System Health to investigate and reset.`;
+  // Snapshot hot-wallet balances up front so both the in-app notification
+  // and the email carry the same numbers (admins need the balance to decide
+  // whether to refill, not just the reason — see task #92 acceptance).
+  const snap = await _safeWalletSnapshot();
+  const fmtPc = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return BigInt(s).toLocaleString() + ' $Pc'; } catch { return String(s); }
+  };
+  const fmtEth = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return (Number(BigInt(s)) / 1e18).toFixed(4) + ' ETH'; } catch { return String(s); }
+  };
+  const balanceLine = `Hot wallet: ${fmtPc(snap.pc)} / ${fmtEth(snap.eth)}.`;
+  const title = followup
+    ? '⏰ Payout Breaker still tripped (1h)'
+    : '🚨 Payout Breaker TRIPPED';
+  const lead = followup
+    ? `Auto-payouts have been PAUSED for 1 hour.`
+    : `Auto-payouts are PAUSED.`;
+  const message = `${lead} Reason: ${reason || 'unknown'}. ${balanceLine} Visit Admin → Payments → Payout System Health to investigate and reset.`;
   for (const a of admins.rows) {
     await query(
       `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'admin_alert', $2, $3)`,
       [a.id, title, message],
     ).catch(() => {});
   }
-  // High-visibility server log so on-call engineers see this even without
-  // the dashboard. The dashboard notifications above are the primary
-  // user-facing channel; email is intentionally omitted to keep this module
-  // dependency-free and avoid SMTP rate-limit blowback during incidents.
-  console.error(`[PayoutBreaker] ALERT broadcast to ${admins.rows.length} admin(s): ${reason}`);
+  // Email — fire-and-forget per admin so a slow SMTP server doesn't stall
+  // the trip path. We deliberately ignore email_unsubscribed here: this is
+  // an operational alert tied to the admin role, not a marketing message.
+  for (const a of admins.rows) {
+    if (!a.email) continue;
+    sendPayoutBreakerTrippedEmail(a.email, {
+      reason, hotPcBalance: snap.pc, hotEthBalance: snap.eth, trippedAt, followup,
+    }).catch(e => console.error(`[PayoutBreaker] email to ${a.email} failed:`, e?.message));
+  }
+  console.error(`[PayoutBreaker] ALERT broadcast (${followup ? 'followup' : 'initial'}) to ${admins.rows.length} admin(s): ${reason}`);
+}
+
+// Periodic checker: if the breaker has been tripped for >= FOLLOWUP_DELAY_MS
+// and we haven't already sent the follow-up, fire the second alert. Idempotent
+// across invocations and process restarts thanks to FLAG_FOLLOWUP_SENT_AT.
+// Safe to call frequently (every few minutes) — does nothing once the
+// follow-up has fired or the breaker is reset.
+export async function checkBreakerFollowupAlert() {
+  if (!(await isTripped())) return { skipped: 'not_tripped' };
+  const trippedAtRaw = await _getFlag(FLAG_TRIPPED_AT);
+  if (!trippedAtRaw) return { skipped: 'no_trip_timestamp' };
+  if (await _getFlag(FLAG_FOLLOWUP_SENT_AT)) return { skipped: 'followup_already_sent' };
+  const trippedAtMs = Date.parse(trippedAtRaw);
+  if (!Number.isFinite(trippedAtMs)) return { skipped: 'bad_trip_timestamp' };
+  if (Date.now() - trippedAtMs < FOLLOWUP_DELAY_MS) return { skipped: 'too_early' };
+  const reason = await _getFlag(FLAG_REASON);
+  // Only mark FLAG_FOLLOWUP_SENT_AT *after* the notification path resolves —
+  // if user-lookup or notification insertion throws, we leave the flag clear
+  // so the next 5-minute tick retries. Otherwise a transient DB blip during
+  // the 1h tick would permanently suppress the second alert for this trip.
+  try {
+    await _notifyAdminsOfTrip(reason, { trippedAt: trippedAtRaw, followup: true });
+  } catch (e) {
+    console.error('[PayoutBreaker] followup notify failed (will retry next tick):', e.message);
+    return { error: e.message, willRetry: true };
+  }
+  await _setFlag(FLAG_FOLLOWUP_SENT_AT, new Date().toISOString());
+  return { sent: true };
 }
 
 export async function resetBreaker(adminUsername = null) {
@@ -117,6 +193,10 @@ export async function resetBreaker(adminUsername = null) {
   await _setFlag(FLAG_REASON, null);
   await _setFlag(FLAG_FAILS, '0');
   await _setFlag(FLAG_RESET, new Date().toISOString());
+  // Clear trip-event markers so the next trip is treated as a fresh event
+  // (initial alert fires + 1h followup window restarts).
+  await _setFlag(FLAG_TRIPPED_AT, null);
+  await _setFlag(FLAG_FOLLOWUP_SENT_AT, null);
   console.log(`[PayoutBreaker] reset by ${adminUsername || 'system'}`);
 }
 

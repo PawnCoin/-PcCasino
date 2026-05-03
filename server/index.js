@@ -20,6 +20,7 @@ import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmai
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
 import { reconcileStaleSendingPayouts } from './payout-engine.js';
+import { checkBreakerFollowupAlert } from './payout-breaker.js';
 import { getPcPrice, getRequiredPcThreshold } from './pc-pricing.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -2396,6 +2397,13 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     reconcileStaleSendingPayouts()
       .then(r => { if (r?.resumed) console.log(`[payout reconcile] resumed ${r.resumed} stale 'sending' payouts on boot`); })
       .catch(e => console.error('[payout reconcile]', e.message));
+    // Periodic check for the payout-breaker 1h follow-up alert. Cheap (one
+    // system_flags read when not tripped) so a 5-minute cadence is fine.
+    // Idempotent across restarts — `checkBreakerFollowupAlert` short-circuits
+    // once the follow-up email has been sent for the current trip.
+    setInterval(() => {
+      checkBreakerFollowupAlert().catch(e => console.error('[PayoutBreaker followup]', e.message));
+    }, 5 * 60 * 1000);
   });
   initEmail().catch(e => console.error('[Email] init failed:', e.message));
 
