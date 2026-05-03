@@ -48,6 +48,40 @@ const EXCHANGE_RATES = {
   SOL: 0.000000011,
 };
 
+// Live withdrawal status pill (Task #94). Maps the server-side
+// withdraw_requests.status to a player-friendly label + Tailwind classes.
+// Pulse=true triggers an animated dot for in-flight states.
+function describeWithdrawStatus(tx: Transaction): { label: string; tone: string; pulse: boolean } | null {
+  const ws = tx.withdrawStatus;
+  if (!ws) return null;
+  switch (ws) {
+    case 'pending':
+    case 'approved':
+      return { label: 'Queued', tone: 'bg-[#1E88E5]/15 text-[#64B5F6] border-[#1E88E5]/40', pulse: true };
+    case 'sending':
+      return tx.txHash
+        ? { label: 'Confirming on-chain', tone: 'bg-[#FFA726]/15 text-[#FFB74D] border-[#FFA726]/40', pulse: true }
+        : { label: 'Sending', tone: 'bg-[#FFA726]/15 text-[#FFB74D] border-[#FFA726]/40', pulse: true };
+    case 'completed':
+      return { label: 'Completed', tone: 'bg-[#43A047]/15 text-[#66BB6A] border-[#43A047]/40', pulse: false };
+    case 'rejected':
+      return { label: 'Rejected', tone: 'bg-[#EF5350]/15 text-[#EF5350] border-[#EF5350]/40', pulse: false };
+    default:
+      return null;
+  }
+}
+
+// Best-effort explorer URL. Network strings come from withdraw_requests.network
+// (default 'ERC-20'). Today the payout engine only broadcasts on Ethereum
+// mainnet so we link to etherscan.io; if/when other chains are added, extend
+// this map (BSC -> bscscan, Polygon -> polygonscan, etc.).
+function etherscanUrl(txHash: string, network?: string): string {
+  const n = (network || 'ERC-20').toUpperCase();
+  if (n.includes('BSC') || n.includes('BEP')) return `https://bscscan.com/tx/${txHash}`;
+  if (n.includes('POLYGON') || n.includes('MATIC')) return `https://polygonscan.com/tx/${txHash}`;
+  return `https://etherscan.io/tx/${txHash}`;
+}
+
 function ExchangeRateBar({ amount }: { amount: number }) {
   return (
     <div className="grid grid-cols-4 gap-2 p-3 rounded-xl bg-black/40 border border-[#5D4037]/30">
@@ -822,48 +856,87 @@ export function FinancialModal({
                       <p className="text-sm">Try adjusting your filters</p>
                     </div>
                   ) : (
-                    filteredHistory.map((tx) => (
+                    filteredHistory.map((tx) => {
+                      const liveStatus = tx.type === 'withdraw' ? describeWithdrawStatus(tx) : null;
+                      const explorerUrl = tx.type === 'withdraw' && tx.txHash ? etherscanUrl(tx.txHash, tx.withdrawNetwork) : null;
+                      return (
                       <Tooltip key={tx.id}>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-[#5D4037]/20 border border-[#5D4037]/30 hover:bg-[#5D4037]/30 transition-colors cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                tx.type === 'win' || tx.type === 'deposit' ? 'bg-[#43A047]/20' : 
-                                tx.type === 'bet' ? 'bg-[#1E88E5]/20' : 'bg-[#EF5350]/20'
-                              }`}>
-                                {tx.type === 'win' && <Award className="w-5 h-5 text-[#43A047]" />}
-                                {tx.type === 'deposit' && <ArrowDownRight className="w-5 h-5 text-[#43A047]" />}
-                                {tx.type === 'withdraw' && <ArrowUpRight className="w-5 h-5 text-[#EF5350]" />}
-                                {tx.type === 'bet' && <Target className="w-5 h-5 text-[#1E88E5]" />}
-                                {tx.type === 'bonus' && <Award className="w-5 h-5 text-[#D4AF37]" />}
+                          <div className="flex flex-col gap-2 p-3 rounded-lg bg-[#5D4037]/20 border border-[#5D4037]/30 hover:bg-[#5D4037]/30 transition-colors cursor-pointer">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                  tx.type === 'win' || tx.type === 'deposit' ? 'bg-[#43A047]/20' :
+                                  tx.type === 'bet' ? 'bg-[#1E88E5]/20' : 'bg-[#EF5350]/20'
+                                }`}>
+                                  {tx.type === 'win' && <Award className="w-5 h-5 text-[#43A047]" />}
+                                  {tx.type === 'deposit' && <ArrowDownRight className="w-5 h-5 text-[#43A047]" />}
+                                  {tx.type === 'withdraw' && <ArrowUpRight className="w-5 h-5 text-[#EF5350]" />}
+                                  {tx.type === 'bet' && <Target className="w-5 h-5 text-[#1E88E5]" />}
+                                  {tx.type === 'bonus' && <Award className="w-5 h-5 text-[#D4AF37]" />}
+                                </div>
+                                <div>
+                                  <div className="font-bold capitalize text-white">{tx.type}</div>
+                                  <div className="text-xs text-[#808080]">
+                                    {tx.game && <span className="capitalize">{tx.game} • </span>}
+                                    {new Date(tx.timestamp).toLocaleString()}
+                                  </div>
+                                </div>
                               </div>
                               <div>
-                                <div className="font-bold capitalize text-white">{tx.type}</div>
-                                <div className="text-xs text-[#808080]">
-                                  {tx.game && <span className="capitalize">{tx.game} • </span>}
-                                  {new Date(tx.timestamp).toLocaleString()}
+                                <div className={`font-bold text-right ${
+                                  tx.type === 'win' || tx.type === 'deposit' || tx.type === 'bonus' ? 'text-[#43A047]' : 'text-[#EF5350]'
+                                }`}>
+                                  {tx.type === 'win' || tx.type === 'deposit' || tx.type === 'bonus' ? '+' : '-'}
+                                  {tx.amount.toLocaleString()} $Pc
+                                </div>
+                                <div className="text-xs text-[#606060] text-right">
+                                  ≈ ${(tx.amount * EXCHANGE_RATES.USD).toFixed(4)}
                                 </div>
                               </div>
                             </div>
-                            <div>
-                              <div className={`font-bold text-right ${
-                                tx.type === 'win' || tx.type === 'deposit' || tx.type === 'bonus' ? 'text-[#43A047]' : 'text-[#EF5350]'
-                              }`}>
-                                {tx.type === 'win' || tx.type === 'deposit' || tx.type === 'bonus' ? '+' : '-'}
-                                {tx.amount.toLocaleString()} $Pc
+                            {liveStatus && (
+                              <div className="flex items-center justify-between gap-2 pl-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${liveStatus.tone}`}>
+                                    {liveStatus.pulse && (
+                                      <span className="relative flex h-1.5 w-1.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-current" />
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current" />
+                                      </span>
+                                    )}
+                                    {liveStatus.label}
+                                  </span>
+                                  {tx.txHash && (
+                                    <span className="text-[11px] text-[#808080] font-mono">
+                                      {tx.txHash.slice(0, 10)}…{tx.txHash.slice(-6)}
+                                    </span>
+                                  )}
+                                </div>
+                                {explorerUrl && (
+                                  <a
+                                    href={explorerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#D4AF37] hover:text-[#F4D03F] transition-colors"
+                                  >
+                                    Etherscan <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
                               </div>
-                              <div className="text-xs text-[#606060] text-right">
-                                ≈ ${(tx.amount * EXCHANGE_RATES.USD).toFixed(4)}
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Transaction ID: {tx.id}</p>
-                          <p>Status: {tx.status}</p>
+                          <p>Status: {liveStatus?.label || tx.status}</p>
+                          {tx.withdrawToAddress && <p>To: {tx.withdrawToAddress}</p>}
+                          {tx.txHash && <p>Tx: {tx.txHash}</p>}
                         </TooltipContent>
                       </Tooltip>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>

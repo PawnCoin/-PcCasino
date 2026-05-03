@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Toaster, toast } from 'sonner';
 import { getSocket } from '@/lib/socket';
 import { authApi, paymentsApi, gameApi, friendsApi, setToken, clearToken, getToken, setSessionExpiredHandler } from '@/lib/api';
@@ -203,6 +203,32 @@ function App() {
   const [sessionLosses, setSessionLosses] = useState(0);
   const [sessionWins, setSessionWins] = useState(0);
 
+  // Fetch user transactions and map server fields -> Transaction type.
+  // Includes live withdraw_requests state (status, tx_hash, to_address)
+  // for the player-facing live withdrawal status (Task #94).
+  const loadTransactions = useCallback(async () => {
+    try {
+      const txData = await paymentsApi.getTransactions({ limit: 100 });
+      if (txData.transactions) {
+        setTransactions(txData.transactions.map((t: any) => ({
+          id: t.id,
+          type: t.type,
+          amount: t.amount,
+          game: t.game,
+          timestamp: new Date(t.created_at),
+          status: t.status || 'confirmed',
+          txHash: t.withdraw_tx_hash || t.tx_hash || undefined,
+          withdrawStatus: t.withdraw_status || undefined,
+          withdrawToAddress: t.withdraw_to_address || undefined,
+          withdrawNetwork: t.withdraw_network || undefined,
+        })));
+      }
+    } catch {
+      const storedTxs = localStorage.getItem('pcasino_transactions');
+      if (storedTxs) setTransactions(JSON.parse(storedTxs));
+    }
+  }, []);
+
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     if (!getToken()) return;
@@ -332,21 +358,7 @@ function App() {
         if (data.user) {
           setUser(buildUserFromApi(data.user));
           setIsAuthenticated(true);
-          paymentsApi.getTransactions({ limit: 100 }).then(txData => {
-            if (txData.transactions) {
-              setTransactions(txData.transactions.map((t: any) => ({
-                id: t.id,
-                type: t.type,
-                amount: t.amount,
-                game: t.game,
-                timestamp: new Date(t.created_at),
-                status: t.status || 'confirmed',
-              })));
-            }
-          }).catch(() => {
-            const storedTxs = localStorage.getItem('pcasino_transactions');
-            if (storedTxs) setTransactions(JSON.parse(storedTxs));
-          });
+          loadTransactions();
           fetchNotifications();
         }
       }).catch((err: any) => {
@@ -365,6 +377,24 @@ function App() {
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchNotifications]);
+
+  // Live withdrawal status polling (Task #94). When the user has any
+  // in-flight withdrawals (approved/queued or sending), refresh the
+  // transaction list every 5s so the player sees Queued -> Sending ->
+  // Completed transitions + tx hash without a manual refresh. Stops as
+  // soon as nothing is in flight to avoid unnecessary load.
+  const hasInFlightWithdraw = useMemo(
+    () => transactions.some(t =>
+      t.type === 'withdraw' &&
+      (t.withdrawStatus === 'approved' || t.withdrawStatus === 'sending' || t.withdrawStatus === 'pending')
+    ),
+    [transactions]
+  );
+  useEffect(() => {
+    if (!isAuthenticated || !hasInFlightWithdraw) return;
+    const interval = setInterval(loadTransactions, 5000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, hasInFlightWithdraw, loadTransactions]);
 
   // Fetch + poll unread DM count; listen for real-time updates
   useEffect(() => {

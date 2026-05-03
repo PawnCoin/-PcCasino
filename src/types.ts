@@ -42,6 +42,12 @@ export interface Transaction {
   timestamp: Date;
   status: 'pending' | 'confirmed' | 'failed';
   txHash?: string;
+  // Live withdrawal state (only present for type === 'withdraw'). Mirrors
+  // withdraw_requests.status: 'approved' (queued) -> 'sending' (broadcast in
+  // flight) -> 'completed' (on-chain confirmed) | 'rejected'.
+  withdrawStatus?: 'approved' | 'sending' | 'completed' | 'rejected' | 'pending';
+  withdrawToAddress?: string;
+  withdrawNetwork?: string;
 }
 
 export interface GameTable {

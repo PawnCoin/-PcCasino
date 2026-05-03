@@ -801,23 +801,37 @@ router.post('/transaction', requireAuth, async (req, res) => {
 });
 
 // Get user transactions
+// LEFT JOINs withdraw_requests so each withdraw row carries live payout
+// state (status, tx_hash, to_address, network) — this powers the player-
+// facing live status bar (queued / sending / completed) + Etherscan link
+// without needing a separate endpoint or a socket push (Task #94).
 router.get('/transactions', requireAuth, async (req, res) => {
   const { type, limit = 100, offset = 0 } = req.query;
-  let queryText = 'SELECT * FROM transactions WHERE user_id = $1';
+  let queryText = `
+    SELECT t.*,
+           w.status     AS withdraw_status,
+           w.tx_hash    AS withdraw_tx_hash,
+           w.to_address AS withdraw_to_address,
+           w.network    AS withdraw_network,
+           w.updated_at AS withdraw_updated_at
+      FROM transactions t
+      LEFT JOIN withdraw_requests w ON t.withdraw_request_id = w.id
+     WHERE t.user_id = $1`;
   const params = [req.user.id];
 
   if (type && type !== 'all') {
-    queryText += ` AND type = $${params.length + 1}`;
+    queryText += ` AND t.type = $${params.length + 1}`;
     params.push(type);
   }
 
-  queryText += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  queryText += ` ORDER BY t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(parseInt(limit), parseInt(offset));
 
   try {
     const result = await query(queryText, params);
     res.json({ transactions: result.rows.map(t => ({ ...t, amount: parseInt(t.amount) })) });
   } catch (err) {
+    console.error('[GET /transactions]', err.message);
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
