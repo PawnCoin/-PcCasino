@@ -521,6 +521,54 @@ export async function sendPayoutBreakerAutoRecoveredEmail(to, {
   return sendMail({ to, subject, html: emailWrapper(content, null), label: 'breaker-auto-recovered' });
 }
 
+// Sent to every admin when an admin manually resets the payout circuit
+// breaker from the dashboard. Closes the loop on the "TRIPPED" / "STILL
+// TRIPPED" alerts so the on-call team has positive confirmation that the
+// incident is over and auto-payouts have resumed. Counterpart to
+// sendPayoutBreakerTrippedEmail (manual reset path) and
+// sendPayoutBreakerAutoRecoveredEmail (auto path).
+//
+// Like the other breaker emails, this bypasses the user-style unsubscribe
+// footer: it's an operational alert tied to the admin role.
+export async function sendPayoutBreakerResolvedEmail(to, {
+  resetBy = null,
+  resetAt = null,
+  priorReason = null,
+  trippedAt = null,
+} = {}) {
+  const resetAtLine = resetAt
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Reset at</td><td style="color:#fff;text-align:right;border-top:1px solid #222;">${new Date(resetAt).toUTCString()}</td></tr>`
+    : '';
+  const trippedLine = trippedAt
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Originally tripped at</td><td style="color:#fff;text-align:right;border-top:1px solid #222;">${new Date(trippedAt).toUTCString()}</td></tr>`
+    : '';
+  const priorLine = priorReason
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Original trip reason</td><td style="color:#fca5a5;text-align:right;border-top:1px solid #222;">${priorReason}</td></tr>`
+    : '';
+  const content = `
+    <h2 style="color:#86efac;margin:0 0 16px;">✅ Payouts Resumed</h2>
+    <p style="color:#ccc;line-height:1.6;">The payout circuit breaker has been <strong>manually reset</strong> by an admin and auto-payouts have <strong>resumed</strong>. Queued withdrawals in the Awaiting Send queue will begin processing on the next engine tick. No further action is required.</p>
+    <div style="background:#111;border:1px solid #22c55e;border-radius:8px;padding:20px;margin:24px 0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;">Reset by</td>
+          <td style="color:#86efac;font-weight:bold;text-align:right;">${resetBy || 'unknown admin'}</td>
+        </tr>
+        ${resetAtLine}
+        ${priorLine}
+        ${trippedLine}
+      </table>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${SITE_URL}/admin" style="background:#22c55e;color:#000;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+        Open Payout Health Panel
+      </a>
+    </div>
+  `;
+  const subject = `[$Pc Casino] Payouts resumed — breaker reset by ${resetBy || 'admin'}`;
+  return sendMail({ to, subject, html: emailWrapper(content, null), label: 'breaker-resolved' });
+}
+
 // Admin debug helper — sends a tiny "is the pipe alive?" email and returns the
 // raw nodemailer result (or error) so the admin dashboard can show it.
 export async function sendTestEmail(to) {

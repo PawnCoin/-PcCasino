@@ -13,7 +13,7 @@
 
 import { query } from './db.js';
 import { getOnChainPcBalance, getNativeBalance, getPayoutAddress } from './payout-signer.js';
-import { sendPayoutBreakerTrippedEmail, sendPayoutBreakerAutoRecoveredEmail } from './email.js';
+import { sendPayoutBreakerTrippedEmail, sendPayoutBreakerAutoRecoveredEmail, sendPayoutBreakerResolvedEmail } from './email.js';
 
 const FLAG_TRIPPED   = 'payout_breaker_tripped';
 const FLAG_REASON    = 'payout_breaker_reason';
@@ -269,15 +269,62 @@ async function _notifyAdminsOfAutoRecover({ priorReason, balance, floor, tripped
 }
 
 export async function resetBreaker(adminUsername = null) {
+  // Snapshot prior state BEFORE we clear the flags so the "Payouts resumed"
+  // notification can show the original trip reason and trip timestamp.
+  // Also gates the notification: if the breaker wasn't actually tripped
+  // (e.g. an admin double-clicks Reset, or the auto-recover path beat the
+  // admin to it) we skip the broadcast entirely — no spam.
+  const wasTripped = await isTripped();
+  const priorReason = wasTripped ? await _getFlag(FLAG_REASON) : null;
+  const trippedAt   = wasTripped ? await _getFlag(FLAG_TRIPPED_AT) : null;
+
   await _setFlag(FLAG_TRIPPED, '0');
   await _setFlag(FLAG_REASON, null);
   await _setFlag(FLAG_FAILS, '0');
-  await _setFlag(FLAG_RESET, new Date().toISOString());
+  const resetAt = new Date().toISOString();
+  await _setFlag(FLAG_RESET, resetAt);
   // Clear trip-event markers so the next trip is treated as a fresh event
   // (initial alert fires + 1h followup window restarts).
   await _setFlag(FLAG_TRIPPED_AT, null);
   await _setFlag(FLAG_FOLLOWUP_SENT_AT, null);
   console.log(`[PayoutBreaker] reset by ${adminUsername || 'system'}`);
+
+  // The auto-recover path calls resetBreaker('auto-recover') and then sends
+  // its own dedicated "auto-recovered" email/notification — don't double up.
+  // Only the manual admin reset path triggers the "Payouts resumed" closing
+  // notification (Task #96).
+  if (wasTripped && adminUsername !== 'auto-recover') {
+    await _notifyAdminsOfResolved({
+      resetBy: adminUsername || 'system',
+      resetAt,
+      priorReason,
+      trippedAt,
+    }).catch(e => console.error('[PayoutBreaker] resolved notify failed:', e.message));
+  }
+}
+
+// Dashboard notification + email broadcast when an admin manually resets
+// the breaker. Mirrors `_notifyAdminsOfTrip` so admins see a matching
+// "good news" entry alongside the original alert. Never throws.
+async function _notifyAdminsOfResolved({ resetBy, resetAt, priorReason, trippedAt }) {
+  const admins = await query(
+    `SELECT id, email FROM users WHERE is_admin = TRUE`,
+  ).catch(() => ({ rows: [] }));
+  const whenStr = resetAt ? new Date(resetAt).toUTCString() : 'just now';
+  const title = '✅ Payouts resumed';
+  const message = `Payout breaker reset by ${resetBy || 'admin'} at ${whenStr}. Auto-payouts have RESUMED.${priorReason ? ` Original trip: ${priorReason}.` : ''}`;
+  for (const a of admins.rows) {
+    await query(
+      `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'admin_alert', $2, $3)`,
+      [a.id, title, message],
+    ).catch(() => {});
+  }
+  for (const a of admins.rows) {
+    if (!a.email) continue;
+    sendPayoutBreakerResolvedEmail(a.email, { resetBy, resetAt, priorReason, trippedAt })
+      .catch(e => console.error(`[PayoutBreaker] resolved email to ${a.email} failed:`, e?.message));
+  }
+  console.log(`[PayoutBreaker] RESOLVED broadcast to ${admins.rows.length} admin(s) by ${resetBy}`);
 }
 
 export async function recordSuccess() {
