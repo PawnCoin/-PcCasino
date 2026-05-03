@@ -307,6 +307,32 @@ export async function sendWithdrawEmail(to, username, amount, address) {
   return sendMail({ to, subject: `Withdrawal request for ${parseInt(amount).toLocaleString()} $Pc submitted`, html: emailWrapper(content, to), label: 'withdraw' });
 }
 
+// Sent at admin "mark as sent" time — confirms the on-chain payout has gone out.
+export async function sendWithdrawSentEmail(to, username, amount, address, txHash) {
+  const txLine = txHash
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Transaction</td><td style="color:#ccc;font-size:12px;text-align:right;word-break:break-all;border-top:1px solid #222;">${txHash}</td></tr>`
+    : '';
+  const content = `
+    <h2 style="color:#fff;margin:0 0 16px;">Withdrawal Sent ✅</h2>
+    <p style="color:#ccc;line-height:1.6;">Hi ${username}, your withdrawal has been sent on-chain. Funds should appear in your wallet shortly, depending on network confirmations.</p>
+    <div style="background:#111;border:1px solid #444;border-radius:8px;padding:20px;margin:24px 0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;">Amount</td>
+          <td style="color:#D4AF37;font-weight:bold;text-align:right;">${parseInt(amount).toLocaleString()} $Pc</td>
+        </tr>
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Destination</td>
+          <td style="color:#ccc;font-size:12px;text-align:right;word-break:break-all;border-top:1px solid #222;">${address}</td>
+        </tr>
+        ${txLine}
+      </table>
+    </div>
+    <p style="color:#ccc;line-height:1.6;">If you didn't authorize this withdrawal, contact support immediately.</p>
+  `;
+  return sendMail({ to, subject: `Withdrawal of ${parseInt(amount).toLocaleString()} $Pc sent`, html: emailWrapper(content, to), label: 'withdraw-sent' });
+}
+
 export async function sendCashbackEmail(to, username, amount, tier) {
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
   const tierColors = { silver: '#C0C0C0', gold: '#D4AF37', platinum: '#E5E4E2', diamond: '#b9f2ff' };

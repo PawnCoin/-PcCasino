@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { ALL_AVATARS } from '@/components/AvatarSprite';
+import { walletApi } from '@/lib/api';
 
 export interface GameSettings {
   displayName: string;
@@ -20,6 +21,9 @@ export interface PcMembership {
   isMember: boolean;
   tier: 'guest' | 'player' | 'member';
   requiredBalance: number;
+  usdBasis: number | null;
+  pricePerPc: number | null;
+  thresholdUnavailable: boolean;
 }
 
 interface GlobalGameContextValue {
@@ -33,7 +37,8 @@ interface GlobalGameContextValue {
   QUICK_BETS: number[];
 }
 
-const MEMBER_THRESHOLD = 100_000_000;
+// Fallback while the live USD-based threshold is fetched / if the API is offline.
+const MEMBER_THRESHOLD_FALLBACK = 100_000_000;
 
 const DEFAULT_SETTINGS: GameSettings = {
   displayName: 'Player',
@@ -79,14 +84,41 @@ export function GlobalGameProvider({ children, balance }: { children: ReactNode;
     });
   }, []);
 
+  // Live USD-based wallet threshold (refreshed on mount + every 5 min).
+  const [memberThreshold, setMemberThreshold] = useState<number>(MEMBER_THRESHOLD_FALLBACK);
+  const [usdBasis, setUsdBasis] = useState<number | null>(null);
+  const [pricePerPc, setPricePerPc] = useState<number | null>(null);
+  const [thresholdUnavailable, setThresholdUnavailable] = useState<boolean>(false);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const data = await walletApi.getThreshold();
+        if (!alive) return;
+        const n = data.pcAmount != null ? parseInt(data.pcAmount, 10) : NaN;
+        if (Number.isFinite(n) && n > 0) setMemberThreshold(n);
+        if (typeof data.usdBasis === 'number') setUsdBasis(data.usdBasis);
+        if (typeof data.pricePerPc === 'number') setPricePerPc(data.pricePerPc);
+        setThresholdUnavailable(!!data.unavailable);
+      } catch { /* fallback already set */ }
+    };
+    load();
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
   const checkMembership = useCallback((bal: number): PcMembership => {
-    const isMember = bal >= MEMBER_THRESHOLD;
+    const isMember = bal >= memberThreshold;
     return {
       isMember,
       tier: isMember ? 'member' : bal > 0 ? 'player' : 'guest',
-      requiredBalance: MEMBER_THRESHOLD,
+      requiredBalance: memberThreshold,
+      usdBasis,
+      pricePerPc,
+      thresholdUnavailable,
     };
-  }, []);
+  }, [memberThreshold, usdBasis, pricePerPc, thresholdUnavailable]);
 
   const membership = checkMembership(balance);
 

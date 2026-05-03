@@ -210,6 +210,23 @@ export const walletApi = {
 
   verifyBalance: (id: number) =>
     apiFetch(`/wallets/${id}/verify-balance`, { method: 'POST' }),
+
+  getThreshold: () => apiFetch('/wallet-threshold'),
+};
+
+// Admin payments
+export const adminPaymentsApi = {
+  listDeposits: () => apiFetch('/payments/admin/deposits'),
+  listWithdrawals: () => apiFetch('/payments/admin/withdrawals'),
+  approveDeposit: (id: number) => apiFetch(`/payments/deposit/${id}/approve`, { method: 'POST' }),
+  rejectDeposit: (id: number, note?: string) =>
+    apiFetch(`/payments/deposit/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+  approveWithdraw: (id: number) =>
+    apiFetch(`/payments/withdraw/${id}/approve`, { method: 'POST' }),
+  markWithdrawSent: (id: number, txHash?: string) =>
+    apiFetch(`/payments/withdraw/${id}/mark-sent`, { method: 'POST', body: JSON.stringify({ txHash }) }),
+  rejectWithdraw: (id: number, note?: string) =>
+    apiFetch(`/payments/withdraw/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
 };
 
 // VIP

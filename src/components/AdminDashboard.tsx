@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { CasinoIcon } from '@/components/CasinoIcons';
+import { adminPaymentsApi } from '@/lib/api';
 
 const ADMIN_KEY = 'pcasino_admin_auth';
 
@@ -763,33 +764,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
 
               {/* PAYMENTS */}
               {activeTab === 'payments' && (
-                <div className="space-y-4">
-                  <h3 className="font-bold text-white">Financial Controls</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'Total Deposits', value: '12.4B $Pc', color: '#60a5fa' },
-                      { label: 'Total Withdrawals', value: '8.2B $Pc', color: '#f87171' },
-                      { label: 'Net Revenue', value: '4.2B $Pc', color: '#4ade80' },
-                      { label: 'Pending Refunds', value: '0 $Pc', color: '#fbbf24' },
-                    ].map(stat => (
-                      <div key={stat.label} className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        <div className="font-bold text-xl" style={{ color: stat.color }}>{stat.value}</div>
-                        <div className="text-xs text-gray-400">{stat.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <h4 className="font-bold text-white text-sm">Financial Actions</h4>
-                    <div className="space-y-2">
-                      {['Process Pending Withdrawals', 'Review Flagged Transactions', 'Export Payment Report', 'Manual Refund'].map(action => (
-                        <Button key={action} onClick={() => toast.info('Requires production payment gateway')} className="w-full text-left justify-start" size="sm"
-                          style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', fontSize: 11 }}>
-                          {action}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <PaymentsAdminTab />
               )}
 
               {/* BROADCAST */}
@@ -1341,6 +1316,279 @@ function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
   return 'unknown';
+}
+
+type DepositRow = {
+  id: number; user_id: number; username: string; email?: string;
+  amount: string; tx_hash: string | null; from_address: string | null;
+  network: string; status: string; admin_note: string | null;
+  created_at: string; processed_at: string | null;
+};
+type WithdrawRow = {
+  id: number; user_id: number; username: string; email?: string;
+  amount: string; to_address: string; network: string; status: string;
+  tx_hash: string | null; admin_note: string | null;
+  created_at: string; processed_at: string | null;
+};
+
+function PaymentsAdminTab() {
+  const [deposits, setDeposits] = useState<DepositRow[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [d, w] = await Promise.all([
+        adminPaymentsApi.listDeposits(),
+        adminPaymentsApi.listWithdrawals(),
+      ]);
+      setDeposits(d.deposits || []);
+      setWithdrawals(w.withdrawals || []);
+    } catch (err) {
+      toast.error(errorMessage(err) || 'Failed to load payments');
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const markSent = async (id: number) => {
+    const txHash = window.prompt('Optional: paste the on-chain tx hash for this withdrawal (leave blank to skip)') || undefined;
+    setBusyId(`w-sent-${id}`);
+    try {
+      await adminPaymentsApi.markWithdrawSent(id, txHash);
+      toast.success('Withdrawal marked as sent');
+      await load();
+    } catch (err) { toast.error(errorMessage(err)); }
+    setBusyId(null);
+  };
+
+  const rejectWithdraw = async (id: number) => {
+    const note = window.prompt('Reason for rejection (sent to user):') || '';
+    if (!note) return;
+    setBusyId(`w-rej-${id}`);
+    try {
+      await adminPaymentsApi.rejectWithdraw(id, note);
+      toast.success('Withdrawal rejected and balance refunded');
+      await load();
+    } catch (err) { toast.error(errorMessage(err)); }
+    setBusyId(null);
+  };
+
+  const approveDeposit = async (id: number) => {
+    setBusyId(`d-app-${id}`);
+    try {
+      await adminPaymentsApi.approveDeposit(id);
+      toast.success('Deposit approved & credited');
+      await load();
+    } catch (err) { toast.error(errorMessage(err)); }
+    setBusyId(null);
+  };
+
+  const rejectDeposit = async (id: number) => {
+    const note = window.prompt('Reason for rejection:') || '';
+    if (!note) return;
+    setBusyId(`d-rej-${id}`);
+    try {
+      await adminPaymentsApi.rejectDeposit(id, note);
+      toast.success('Deposit rejected');
+      await load();
+    } catch (err) { toast.error(errorMessage(err)); }
+    setBusyId(null);
+  };
+
+  const pendingChecks = withdrawals.filter(w => w.status === 'pending');
+  const awaitingSend = withdrawals.filter(w => w.status === 'approved');
+  const completedW = withdrawals.filter(w => w.status === 'completed').slice(0, 10);
+  const rejectedW = withdrawals.filter(w => w.status === 'rejected').slice(0, 5);
+
+  const approveWithdraw = async (id: number) => {
+    setBusyId(`w-app-${id}`);
+    try {
+      await adminPaymentsApi.approveWithdraw(id);
+      toast.success('Withdrawal approved — awaiting send');
+      await load();
+    } catch (err) { toast.error(errorMessage(err)); }
+    setBusyId(null);
+  };
+  const pendingDeposits = deposits.filter(d => ['pending', 'needs_review'].includes(d.status));
+  const recentDeposits = deposits.filter(d => !['pending', 'needs_review'].includes(d.status)).slice(0, 10);
+
+  const statusColor = (s: string) => {
+    if (s === 'approved') return { bg: 'rgba(212,175,55,0.15)', fg: '#D4AF37', border: 'rgba(212,175,55,0.4)' };
+    if (s === 'completed' || s === 'auto_credited') return { bg: 'rgba(74,222,128,0.15)', fg: '#4ade80', border: 'rgba(74,222,128,0.3)' };
+    if (s === 'rejected' || s === 'auto_rejected') return { bg: 'rgba(239,68,68,0.15)', fg: '#f87171', border: 'rgba(239,68,68,0.3)' };
+    if (s === 'needs_review') return { bg: 'rgba(251,191,36,0.15)', fg: '#fbbf24', border: 'rgba(251,191,36,0.3)' };
+    return { bg: 'rgba(255,255,255,0.05)', fg: '#9ca3af', border: 'rgba(255,255,255,0.1)' };
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-white">Financials</h3>
+        <Button onClick={load} disabled={loading} size="sm"
+          style={{ background: 'rgba(255,255,255,0.05)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)', fontSize: 11 }}>
+          <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </Button>
+      </div>
+
+      {/* Pending checks queue — manual review withdrawals (e.g. needs-review,
+          paused safety checks). Admin must approve or reject before they can
+          move into the awaiting-send queue. */}
+      <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.3)' }}>
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-white text-sm">Pending Checks — Needs Manual Approval</h4>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
+            {pendingChecks.length} pending
+          </span>
+        </div>
+        {pendingChecks.length === 0 ? (
+          <div className="text-xs text-gray-500 py-3 text-center">No withdrawals awaiting manual review.</div>
+        ) : pendingChecks.map(w => (
+          <div key={w.id} className="p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(251,191,36,0.2)' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-white text-sm">{w.username}</span>
+                  <span className="text-xs text-gray-500">#{w.id}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>PENDING</span>
+                </div>
+                <div className="text-lg font-bold" style={{ color: '#D4AF37' }}>
+                  {parseInt(w.amount).toLocaleString()} $Pc
+                </div>
+                <div className="text-xs text-gray-400 break-all mt-1">→ {w.to_address}</div>
+                <div className="text-xs text-gray-500 mt-1">{w.network} • {new Date(w.created_at).toLocaleString()}</div>
+              </div>
+              <div className="flex flex-col gap-2 flex-shrink-0">
+                <Button onClick={() => approveWithdraw(w.id)} disabled={busyId !== null} size="sm"
+                  style={{ background: 'rgba(212,175,55,0.2)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)', fontSize: 11 }}>
+                  <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                </Button>
+                <Button onClick={() => rejectWithdraw(w.id)} disabled={busyId !== null} size="sm"
+                  style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}>
+                  <XCircle className="w-3 h-3 mr-1" /> Reject (refund)
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Awaiting send queue (auto-approved withdrawals) */}
+      <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.3)' }}>
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-white text-sm">Approved — Awaiting Send</h4>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37' }}>
+            {awaitingSend.length} queued
+          </span>
+        </div>
+        {awaitingSend.length === 0 ? (
+          <div className="text-xs text-gray-500 py-3 text-center">No pending sends — all withdrawals up to date.</div>
+        ) : awaitingSend.map(w => (
+          <div key={w.id} className="p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(212,175,55,0.2)' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-white text-sm">{w.username}</span>
+                  <span className="text-xs text-gray-500">#{w.id}</span>
+                </div>
+                <div className="text-lg font-bold" style={{ color: '#D4AF37' }}>
+                  {parseInt(w.amount).toLocaleString()} $Pc
+                </div>
+                <div className="text-xs text-gray-400 break-all mt-1">→ {w.to_address}</div>
+                <div className="text-xs text-gray-500 mt-1">{w.network} • {new Date(w.created_at).toLocaleString()}</div>
+              </div>
+              <div className="flex flex-col gap-2 flex-shrink-0">
+                <Button onClick={() => markSent(w.id)} disabled={busyId !== null} size="sm"
+                  style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)', fontSize: 11 }}>
+                  <CheckCircle className="w-3 h-3 mr-1" /> Mark sent
+                </Button>
+                <Button onClick={() => rejectWithdraw(w.id)} disabled={busyId !== null} size="sm"
+                  style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}>
+                  <XCircle className="w-3 h-3 mr-1" /> Reject (refund)
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pending deposits (no tx hash / needs review) */}
+      <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-white text-sm">Deposits Needing Review</h4>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
+            {pendingDeposits.length} pending
+          </span>
+        </div>
+        {pendingDeposits.length === 0 ? (
+          <div className="text-xs text-gray-500 py-3 text-center">No deposits awaiting review.</div>
+        ) : pendingDeposits.map(d => {
+          const c = statusColor(d.status);
+          return (
+            <div key={d.id} className="p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-white text-sm">{d.username}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.fg, border: `1px solid ${c.border}` }}>
+                      {d.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="text-lg font-bold" style={{ color: '#D4AF37' }}>
+                    {parseInt(d.amount).toLocaleString()} $Pc
+                  </div>
+                  {d.tx_hash && <div className="text-xs text-gray-400 break-all mt-1">tx: {d.tx_hash}</div>}
+                  {d.admin_note && <div className="text-xs text-yellow-400 mt-1">{d.admin_note}</div>}
+                  <div className="text-xs text-gray-500 mt-1">{new Date(d.created_at).toLocaleString()}</div>
+                </div>
+                <div className="flex flex-col gap-2 flex-shrink-0">
+                  <Button onClick={() => approveDeposit(d.id)} disabled={busyId !== null} size="sm"
+                    style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)', fontSize: 11 }}>
+                    <CheckCircle className="w-3 h-3 mr-1" /> Credit
+                  </Button>
+                  <Button onClick={() => rejectDeposit(d.id)} disabled={busyId !== null} size="sm"
+                    style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}>
+                    <XCircle className="w-3 h-3 mr-1" /> Reject
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Recent history */}
+      <div className="grid grid-cols-1 gap-4">
+        <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h4 className="font-bold text-white text-sm">Recent Deposits</h4>
+          {recentDeposits.length === 0 ? <div className="text-xs text-gray-500">None</div> : recentDeposits.map(d => {
+            const c = statusColor(d.status);
+            return (
+              <div key={d.id} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-0">
+                <span className="text-gray-300 truncate flex-1">{d.username} • {parseInt(d.amount).toLocaleString()} $Pc</span>
+                <span className="px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.fg }}>{d.status}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h4 className="font-bold text-white text-sm">Recent Sent / Rejected Withdrawals</h4>
+          {[...completedW, ...rejectedW].length === 0 ? <div className="text-xs text-gray-500">None</div> : [...completedW, ...rejectedW].map(w => {
+            const c = statusColor(w.status);
+            return (
+              <div key={w.id} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-0">
+                <span className="text-gray-300 truncate flex-1">{w.username} • {parseInt(w.amount).toLocaleString()} $Pc{w.tx_hash ? ` • ${w.tx_hash.slice(0, 10)}…` : ''}</span>
+                <span className="px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.fg }}>{w.status}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EmailTestPanel({ getToken }: { getToken: () => string | null }) {

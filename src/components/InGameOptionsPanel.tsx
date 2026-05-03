@@ -39,7 +39,14 @@ const RARITY_CONFIG = {
 };
 
 export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: InGameOptionsPanelProps) {
-  const { settings, updateSettings } = useGlobalGame();
+  const { settings, updateSettings, membership: optsMembership } = useGlobalGame();
+  const optsThresholdLabel = optsMembership.requiredBalance >= 1_000_000_000
+    ? `${(optsMembership.requiredBalance / 1_000_000_000).toFixed(2)}B`
+    : `${(optsMembership.requiredBalance / 1_000_000).toFixed(0)}M`;
+  const optsUsdLabel = typeof optsMembership.usdBasis === 'number'
+    ? `$${optsMembership.usdBasis.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : null;
+  const optsThresholdFull = `${optsMembership.requiredBalance.toLocaleString()} $Pc${optsUsdLabel ? ` (≈ ${optsUsdLabel})` : ''}`;
   const { selectedDeck, selectDeck, allDecks, addCustomDeck } = useCardDeck();
   const { activeSkin, selectSkin } = useTableSkin();
   const { activePreset: activeBallPreset, selectPreset: selectBallPreset } = usePoolBallSkin();
@@ -221,7 +228,7 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                       <span style={{ color: '#4b5563' }}><Tv size={13} /></span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>VappTV Overlay</div>
-                        <div style={{ fontSize: 10, color: '#374151' }}>Hold 100M $Pc to unlock</div>
+                        <div style={{ fontSize: 10, color: '#374151' }}>Hold {optsThresholdLabel} $Pc{optsUsdLabel ? ` (≈ ${optsUsdLabel})` : ''} to unlock</div>
                       </div>
                       <div style={{ fontSize: 9, fontWeight: 700, color: '#4b5563', padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>LOCKED</div>
                     </div>
@@ -236,8 +243,8 @@ export function InGameOptionsPanel({ isOpen, onClose, isMember, activeGame }: In
                   </div>
                   <div style={{ fontSize: 10, color: '#4b5563', lineHeight: 1.6 }}>
                     {isMember
-                      ? 'You hold 100M+ $Pc. All features unlocked including VappTV overlay and premium skins.'
-                      : 'Hold 100,000,000 $Pc to unlock Casino Membership — VappTV, premium skins & more.'}
+                      ? `You hold ${optsThresholdLabel}+ $Pc${optsUsdLabel ? ` (≈ ${optsUsdLabel})` : ''}. All features unlocked including VappTV overlay and premium skins.`
+                      : `Hold ${optsThresholdFull} to unlock Casino Membership — VappTV, premium skins & more.`}
                   </div>
                 </div>
               </section>

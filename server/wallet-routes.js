@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { query } from './db.js';
 import { requireAuth } from './auth-routes.js';
 import { isDemoMode } from './demo-mode.js';
+import { getRequiredPcThreshold } from './pc-pricing.js';
 
 const router = Router();
 
 const MAX_WALLETS = 5;
-const PC_TOKEN_THRESHOLD = 100_000_000n; // 100 million $Pc tokens
 
 // Helper: check on-chain $Pc balance for an address
 export async function checkOnChainPcBalance(walletAddress) {
@@ -50,8 +50,24 @@ export async function checkOnChainPcBalance(walletAddress) {
 }
 
 // Perform live balance check on the user's default wallet; update wallet_verified + real_transactions_unlocked
-// Returns { meetsThreshold, walletAddress, error }
+// Returns { meetsThreshold, walletAddress, currentBalance, requiredBalance, usdBasis, pricePerPc, error }
 export async function refreshDefaultWalletVerification(userId, kycStatus) {
+  const threshold = await getRequiredPcThreshold();
+
+  // Fail-closed when the threshold cannot be computed (no live or cached price).
+  if (threshold.unavailable) {
+    await query('UPDATE users SET real_transactions_unlocked = FALSE WHERE id = $1', [userId]);
+    return {
+      meetsThreshold: false,
+      walletAddress: null,
+      requiredBalance: null,
+      usdBasis: threshold.usdBasis,
+      pricePerPc: null,
+      priceUnavailable: true,
+      error: threshold.error || 'Wallet eligibility threshold temporarily unavailable',
+    };
+  }
+
   const walletResult = await query(
     'SELECT id, wallet_address FROM user_wallets WHERE user_id = $1 AND is_default = TRUE LIMIT 1',
     [userId]
@@ -60,15 +76,21 @@ export async function refreshDefaultWalletVerification(userId, kycStatus) {
   if (!walletResult.rows.length) {
     // No wallet linked — ensure unlock is false
     await query('UPDATE users SET real_transactions_unlocked = FALSE WHERE id = $1', [userId]);
-    return { meetsThreshold: false, walletAddress: null, error: 'No default wallet linked' };
+    return {
+      meetsThreshold: false,
+      walletAddress: null,
+      requiredBalance: threshold.pcAmount.toString(),
+      usdBasis: threshold.usdBasis,
+      pricePerPc: threshold.pricePerPc,
+      error: 'No default wallet linked',
+    };
   }
 
   const wallet = walletResult.rows[0];
   const { balance, error: balErr } = await checkOnChainPcBalance(wallet.wallet_address);
 
-  const meetsThreshold = balance !== null && balance >= PC_TOKEN_THRESHOLD;
+  const meetsThreshold = balance !== null && balance >= threshold.pcAmount;
 
-  // Always update wallet_verified to reflect current on-chain state (true OR false)
   await query(
     `UPDATE user_wallets SET wallet_verified = $1, wallet_verified_at = CASE WHEN $1 THEN NOW() ELSE wallet_verified_at END WHERE id = $2`,
     [meetsThreshold, wallet.id]
@@ -82,7 +104,10 @@ export async function refreshDefaultWalletVerification(userId, kycStatus) {
     meetsThreshold,
     walletAddress: wallet.wallet_address,
     currentBalance: balance !== null ? balance.toString() : null,
-    requiredBalance: PC_TOKEN_THRESHOLD.toString(),
+    requiredBalance: threshold.pcAmount.toString(),
+    usdBasis: threshold.usdBasis,
+    pricePerPc: threshold.pricePerPc,
+    priceStale: threshold.stale,
     error: balErr,
   };
 }
@@ -208,10 +233,18 @@ router.post('/:id/verify-balance', requireAuth, async (req, res) => {
     );
     if (!wallet.rows.length) return res.status(404).json({ error: 'Wallet not found' });
 
+    const threshold = await getRequiredPcThreshold();
+    if (threshold.unavailable) {
+      await query('UPDATE users SET real_transactions_unlocked = FALSE WHERE id = $1', [req.user.id]);
+      return res.status(503).json({
+        error: threshold.error || 'Price feed unavailable; cannot compute wallet threshold. Please retry shortly.',
+        code: 'PRICE_FEED_UNAVAILABLE',
+        priceUnavailable: true,
+      });
+    }
     const { balance, error: balErr } = await checkOnChainPcBalance(wallet.rows[0].wallet_address);
-    const meetsThreshold = balance !== null && balance >= PC_TOKEN_THRESHOLD;
+    const meetsThreshold = balance !== null && balance >= threshold.pcAmount;
 
-    // Always update to reflect live state (reset to false if below threshold)
     await query(
       `UPDATE user_wallets SET wallet_verified = $1, wallet_verified_at = CASE WHEN $1 THEN NOW() ELSE wallet_verified_at END WHERE id = $2`,
       [meetsThreshold, walletId]
@@ -230,7 +263,10 @@ router.post('/:id/verify-balance', requireAuth, async (req, res) => {
       walletVerified: meetsThreshold,
       realTransactionsUnlocked: demo ? false : unlock,
       demoMode: demo,
-      threshold: PC_TOKEN_THRESHOLD.toString(),
+      threshold: threshold.pcAmount.toString(),
+      thresholdUsd: threshold.usdBasis,
+      pricePerPc: threshold.pricePerPc,
+      priceStale: threshold.stale,
       error: balErr || null,
     });
   } catch (err) {

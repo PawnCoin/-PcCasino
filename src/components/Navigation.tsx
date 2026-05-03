@@ -9,6 +9,7 @@ import type { AvatarDef } from '@/components/AvatarSprite';
 import type { UnifiedUser } from '@/types';
 import { PcPriceTicker } from '@/components/PcPriceTicker';
 import { formatPcAmount } from '@/utils/formatPc';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 
 interface NavigationProps {
   user: UnifiedUser | null;
@@ -67,6 +68,14 @@ export function Navigation({
 }: NavigationProps) {
   const displayAvatar = avatarDef || ALL_AVATARS[0];
   const resolvedAvatarUrl = avatarUrl || user?.avatarUrl || null;
+  // Live USD-based VIP threshold (sourced from /api/wallet-threshold via context).
+  const { membership: navMembership } = useGlobalGame();
+  const navThresholdLabel = navMembership.requiredBalance >= 1_000_000_000
+    ? `${(navMembership.requiredBalance / 1_000_000_000).toFixed(2)}B`
+    : `${(navMembership.requiredBalance / 1_000_000).toFixed(0)}M`;
+  const navUsdLabel = typeof navMembership.usdBasis === 'number'
+    ? `$${navMembership.usdBasis.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : null;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showWeparlayConfirm, setShowWeparlayConfirm] = useState(false);
@@ -214,19 +223,19 @@ export function Navigation({
                         onClick={onShowFinancial}
                         className="hidden sm:flex items-center gap-2 px-3 md:px-4 py-2 rounded-full hover:scale-105 transition-all group"
                         style={{ 
-                          background: balance >= 100_000_000
+                          background: navMembership.isMember
                             ? 'linear-gradient(90deg, rgba(40,20,0,0.7), rgba(80,40,0,0.5))'
                             : 'linear-gradient(90deg, rgba(27,94,32,0.5), rgba(46,125,50,0.3))',
-                          border: balance >= 100_000_000
+                          border: navMembership.isMember
                             ? '1px solid rgba(212,175,55,0.7)'
                             : '1px solid rgba(67,160,71,0.4)',
-                          boxShadow: balance >= 100_000_000
+                          boxShadow: navMembership.isMember
                             ? '0 0 20px rgba(212,175,55,0.4), 0 0 40px rgba(212,175,55,0.15)'
                             : '0 0 15px rgba(67,160,71,0.2), 0 0 30px rgba(212,175,55,0.1)',
                           animation: 'pulse-gold 2s ease-in-out infinite'
                         }}
                       >
-                        {balance >= 100_000_000 && (
+                        {navMembership.isMember && (
                           <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
                         )}
                         <img src="/logos/pc-logo.png" alt="$Pc" className="w-5 h-5 group-hover:rotate-12 transition-transform" />
@@ -238,23 +247,23 @@ export function Navigation({
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      {balance >= 100_000_000 ? (
+                      {navMembership.isMember ? (
                         <div className="text-center">
                           <p className="font-bold text-yellow-400"><CasinoIcon name="crown" size={14} /> VIP Member</p>
-                          <p className="text-xs">100M+ $Pc — Bet with fiat, crypto & commodities</p>
+                          <p className="text-xs">Holding {navThresholdLabel}+ $Pc{navUsdLabel ? ` (≈ ${navUsdLabel})` : ''} — Bet with fiat, crypto & commodities</p>
                           <p className="text-xs text-gray-400">Click for financial options</p>
                         </div>
                       ) : (
                         <div className="text-center">
                           <p>Click for financial options & statistics</p>
-                          <p className="text-xs text-gray-400">Hold 100M+ $Pc to unlock VIP betting</p>
+                          <p className="text-xs text-gray-400">Hold {navThresholdLabel}+ $Pc{navUsdLabel ? ` (≈ ${navUsdLabel})` : ''} to unlock VIP betting</p>
                         </div>
                       )}
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* VIP badge — shown when balance >= 100M */}
-                  {balance >= 100_000_000 && (
+                  {/* VIP badge — shown when balance crosses dynamic USD-based threshold */}
+                  {navMembership.isMember && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button

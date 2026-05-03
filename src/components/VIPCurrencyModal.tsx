@@ -4,6 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Crown, AlertTriangle, Info, Lock, CheckCircle } from 'lucide-react';
 import { CasinoIcon } from '@/components/CasinoIcons';
+import { useGlobalGame } from '@/contexts/GlobalGameContext';
 
 interface VIPCurrencyModalProps {
   isOpen: boolean;
@@ -65,7 +66,24 @@ const COMMODITIES = [
 
 export function VIPCurrencyModal({ isOpen, onClose, balance, walletVerified, onOpenDeposit }: VIPCurrencyModalProps) {
   const [activeTab, setActiveTab] = useState<'fiat' | 'crypto' | 'commodity'>('fiat');
-  const isVIP = balance >= 100_000_000;
+  // Use the live USD-based threshold from GlobalGameContext (which polls
+  // /api/wallet-threshold). Falls back to 100M only while loading or offline.
+  const { membership } = useGlobalGame();
+  const requiredPc = membership.requiredBalance;
+  const isVIP = balance >= requiredPc;
+  const usdBasisLabel = typeof membership.usdBasis === 'number'
+    ? `$${membership.usdBasis.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : null;
+  const pricePerPcLabel = typeof membership.pricePerPc === 'number' && membership.pricePerPc > 0
+    ? `$${membership.pricePerPc.toExponential(3)}`
+    : null;
+  const requiredPcDisplay = requiredPc >= 1_000_000_000
+    ? `${(requiredPc / 1_000_000_000).toFixed(2)}B`
+    : `${(requiredPc / 1_000_000).toFixed(1)}M`;
+  const deficit = Math.max(0, requiredPc - balance);
+  const deficitDisplay = deficit >= 1_000_000_000
+    ? `${(deficit / 1_000_000_000).toFixed(2)}B`
+    : `${(deficit / 1_000_000).toFixed(1)}M`;
 
   const TabBtn = ({ id, label }: { id: typeof activeTab; label: string }) => (
     <button
@@ -117,7 +135,7 @@ export function VIPCurrencyModal({ isOpen, onClose, balance, walletVerified, onO
                   <Lock className="w-8 h-8 text-[#D4AF37]" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">VIP Access Required</h3>
-                <p className="text-gray-400 mb-2">Hold at least <span className="text-[#D4AF37] font-bold">100,000,000 $Pc</span> in your wallet to unlock:</p>
+                <p className="text-gray-400 mb-2">Hold at least <span className="text-[#D4AF37] font-bold">{requiredPc.toLocaleString()} $Pc</span>{usdBasisLabel ? <> (≈ <span className="text-[#D4AF37] font-bold">{usdBasisLabel} USD</span>{pricePerPcLabel ? <> at {pricePerPcLabel}/$Pc</> : null})</> : null} in your wallet to unlock:</p>
                 <ul className="text-sm text-gray-300 space-y-1 mb-6 max-w-xs mx-auto text-left">
                   <li className="flex items-center gap-2"><span className="text-[#D4AF37]">•</span> Betting with USD, EUR, GBP & 7 more fiat currencies</li>
                   <li className="flex items-center gap-2"><span className="text-[#D4AF37]">•</span> Top 25 cryptocurrencies at live market rates</li>
@@ -127,7 +145,7 @@ export function VIPCurrencyModal({ isOpen, onClose, balance, walletVerified, onO
                 </ul>
                 <div className="text-sm text-gray-500 mb-4">
                   Your balance: <span className="text-white font-bold">{(balance / 1_000_000).toFixed(1)}M $Pc</span>
-                  {' '}— Need {((100_000_000 - balance) / 1_000_000).toFixed(1)}M more
+                  {' '}— Need {deficitDisplay} more (target {requiredPcDisplay})
                 </div>
                 <button
                   onClick={() => { onClose(); onOpenDeposit(); }}

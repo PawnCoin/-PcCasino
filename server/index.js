@@ -19,6 +19,7 @@ import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadca
 import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, flushDailyCounters } from './email.js';
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
+import { getPcPrice, getRequiredPcThreshold } from './pc-pricing.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -403,121 +404,28 @@ app.get('/api/jackpot/history', async (req, res) => {
 
 
 // Live $Pc price — proxies GeckoTerminal + DexScreener (no CORS issues for browser)
-// Server-side 60s cache to avoid GeckoTerminal free-tier rate limits
-const _pcPriceCache = { data: null, ts: 0 };
-const PC_PRICE_CACHE_TTL = 60_000;
-
-async function _fetchLivePcPriceFromSources() {
-  const contractAddress = process.env.PC_TOKEN_CONTRACT;
-  const pairAddress = process.env.PC_TOKEN_PAIR;
-  const network = process.env.PC_TOKEN_NETWORK === 'Etherscan.io' ? 'eth' : (process.env.PC_TOKEN_NETWORK || 'eth');
-
-  if (!contractAddress) {
-    return { price: null, priceChange24h: null, volume24h: null, liquidity: null, marketCap: null, dex: null, chain: null, url: null, source: null, error: 'PC_TOKEN_CONTRACT not configured' };
-  }
-
-  // Source 1: GeckoTerminal pool endpoint (most reliable for Uniswap V3 pools)
-  if (pairAddress) {
-    try {
-      const r = await fetch(
-        `https://api.geckoterminal.com/api/v2/networks/${network}/pools/${pairAddress}`,
-        { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) }
-      );
-      if (r.ok) {
-        const data = await r.json();
-        const attrs = data.data?.attributes;
-        const price = attrs?.base_token_price_usd ? parseFloat(attrs.base_token_price_usd) : null;
-        if (price) {
-          return {
-            price,
-            priceChange24h: attrs.price_change_percentage?.h24 ? parseFloat(attrs.price_change_percentage.h24) : null,
-            volume24h: attrs.volume_usd?.h24 ? parseFloat(attrs.volume_usd.h24) : null,
-            liquidity: attrs.reserve_in_usd ? parseFloat(attrs.reserve_in_usd) : null,
-            marketCap: null, dex: 'uniswap', chain: network,
-            url: `https://www.geckoterminal.com/${network}/pools/${pairAddress}`,
-            source: 'geckoterminal',
-          };
-        }
-      }
-    } catch (e) { console.error('[PcPrice] GeckoTerminal pool error:', e.message); }
-  }
-
-  // Source 2: DexScreener by token address
-  try {
-    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`, {
-      headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000),
-    });
-    if (r.ok) {
-      const data = await r.json();
-      if (data.pairs?.length) {
-        const pair = [...data.pairs].sort((a, b) => (parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0)))[0];
-        return {
-          price: parseFloat(pair.priceUsd || 0),
-          priceChange24h: parseFloat(pair.priceChange?.h24 || 0),
-          volume24h: parseFloat(pair.volume?.h24 || 0),
-          liquidity: parseFloat(pair.liquidity?.usd || 0),
-          marketCap: pair.fdv ? parseFloat(pair.fdv) : null,
-          dex: pair.dexId, chain: pair.chainId, url: pair.url, source: 'dexscreener',
-        };
-      }
-    }
-  } catch (e) { console.error('[PcPrice] DexScreener error:', e.message); }
-
-  // Source 3: DexScreener by pair address
-  if (pairAddress) {
-    try {
-      const r = await fetch(`https://api.dexscreener.com/latest/dex/pairs/${network}/${pairAddress}`, {
-        headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000),
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const pair = data.pair || data.pairs?.[0];
-        if (pair?.priceUsd) {
-          return {
-            price: parseFloat(pair.priceUsd),
-            priceChange24h: parseFloat(pair.priceChange?.h24 || 0),
-            volume24h: parseFloat(pair.volume?.h24 || 0),
-            liquidity: parseFloat(pair.liquidity?.usd || 0),
-            marketCap: pair.fdv ? parseFloat(pair.fdv) : null,
-            dex: pair.dexId, chain: pair.chainId, url: pair.url, source: 'dexscreener',
-          };
-        }
-      }
-    } catch (e) { console.error('[PcPrice] DexScreener pair error:', e.message); }
-  }
-
-  // Source 4: GeckoTerminal token endpoint
-  try {
-    const r = await fetch(
-      `https://api.geckoterminal.com/api/v2/networks/${network}/tokens/${contractAddress}`,
-      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
-    );
-    if (r.ok) {
-      const data = await r.json();
-      const attrs = data.data?.attributes;
-      if (attrs?.price_usd) {
-        return {
-          price: parseFloat(attrs.price_usd),
-          priceChange24h: attrs.price_change_percentage?.h24 ? parseFloat(attrs.price_change_percentage.h24) : null,
-          volume24h: attrs.volume_usd?.h24 ? parseFloat(attrs.volume_usd.h24) : null,
-          liquidity: null, marketCap: null, dex: null, chain: network,
-          url: pairAddress ? `https://www.geckoterminal.com/${network}/pools/${pairAddress}` : null,
-          source: 'geckoterminal',
-        };
-      }
-    }
-  } catch (e) { console.error('[PcPrice] GeckoTerminal token error:', e.message); }
-
-  return { price: null, source: null, error: 'Price data unavailable from all sources' };
-}
-
+// Implementation lives in ./pc-pricing.js so the wallet-eligibility threshold
+// can share the same 60s cache.
 app.get('/api/pc-price', async (req, res) => {
-  if (_pcPriceCache.data && Date.now() - _pcPriceCache.ts < PC_PRICE_CACHE_TTL) {
-    return res.json(_pcPriceCache.data);
-  }
-  const result = await _fetchLivePcPriceFromSources();
-  if (result.price) { _pcPriceCache.data = result; _pcPriceCache.ts = Date.now(); }
-  res.json(result);
+  const { data, stale, error } = await getPcPrice();
+  if (!data) return res.json({ price: null, source: null, error: error || 'unavailable', stale: true });
+  res.json({ ...data, stale });
+});
+
+// Wallet-eligibility threshold: how many $Pc the user's default wallet must
+// hold on-chain to unlock real-money flows. Computed live from a USD basis
+// (default $10k, env WALLET_THRESHOLD_USD) divided by the current $Pc price.
+app.get('/api/wallet-threshold', async (req, res) => {
+  const t = await getRequiredPcThreshold();
+  res.json({
+    pcAmount: t.pcAmount !== null ? t.pcAmount.toString() : null,
+    usdBasis: t.usdBasis,
+    pricePerPc: t.pricePerPc,
+    stale: t.stale,
+    source: t.source,
+    unavailable: t.unavailable,
+    error: t.error,
+  });
 });
 
 // Disputes

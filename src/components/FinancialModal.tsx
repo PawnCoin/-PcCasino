@@ -322,7 +322,7 @@ export function FinancialModal({
                     <ExchangeRateBar amount={1000} />
                   </div>
 
-                  {onDevReload && (
+                  {onDevReload && import.meta.env.DEV && (
                     <div 
                       className="p-4 rounded-xl"
                       style={{ 

@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { query, pool } from './db.js';
 import { requireAuth } from './auth-routes.js';
 import { processJackpotContribution } from './jackpot.js';
-import { sendDepositConfirmationEmail, sendWithdrawEmail } from './email.js';
+import { sendDepositConfirmationEmail, sendWithdrawEmail, sendWithdrawSentEmail } from './email.js';
 import { refreshDefaultWalletVerification } from './wallet-routes.js';
 import { isDemoMode } from './demo-mode.js';
+import { verifyOnChainDeposit } from './pc-pricing.js';
 
 const router = Router();
 // TREASURY WALLET — set DEPOSIT_WALLET_ADDRESS in environment secrets before going live
@@ -22,9 +23,100 @@ router.get('/address', requireAuth, (req, res) => {
   res.json({ address: DEPOSIT_ADDRESS });
 });
 
+// Internal helper: credit a deposit, update leaderboard, fire referral commission,
+// send email + notification. Marks the row with the supplied status (default 'approved').
+// Returns { ok: true } or throws.
+async function _creditDepositRow(depositRow, { status = 'approved', descriptionPrefix = 'Deposit approved' } = {}) {
+  const d = depositRow;
+  // Atomic, idempotent state transition on a single connection. The
+  // state-guarded UPDATE prevents double-credit if two callers (manual
+  // approve + auto-recheck, or two recheck ticks) race on the same row.
+  // Only the caller whose UPDATE flips a still-creditable row gets to
+  // touch balance / transactions / leaderboard.
+  const client = await pool.connect();
+  let credited = false;
+  try {
+    await client.query('BEGIN');
+    const upd = await client.query(
+      `UPDATE deposit_requests SET status = $1, processed_at = NOW()
+       WHERE id = $2 AND status IN ('pending','needs_review')
+       RETURNING *`,
+      [status, d.id]
+    );
+    if (!upd.rows.length) {
+      await client.query('ROLLBACK');
+      console.warn(`[deposit credit] skip id=${d.id} — already in non-creditable state`);
+      return { ok: false, alreadyProcessed: true };
+    }
+    const row = upd.rows[0];
+    await client.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [row.amount, row.user_id]);
+    await client.query(
+      'INSERT INTO transactions (user_id, type, amount, description, deposit_request_id) VALUES ($1, $2, $3, $4, $5)',
+      [row.user_id, 'deposit', row.amount, `${descriptionPrefix} - ${row.network}${row.tx_hash ? ` (${row.tx_hash.slice(0, 12)}...)` : ''}`, row.id]
+    );
+    await client.query(
+      `INSERT INTO leaderboard (user_id, username, balance)
+       SELECT id, username, balance FROM users WHERE id = $1
+       ON CONFLICT (user_id) DO UPDATE SET balance = EXCLUDED.balance`,
+      [row.user_id]
+    );
+    await client.query('COMMIT');
+    credited = true;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
+    throw err;
+  }
+  client.release();
+  if (!credited) return { ok: false, alreadyProcessed: true };
+
+  // First-deposit referral commission (atomic)
+  const commClient = await pool.connect();
+  try {
+    await commClient.query('BEGIN');
+    const ref = await commClient.query(
+      `UPDATE referrals SET commission_paid = TRUE
+       WHERE referred_id = $1 AND commission_paid = FALSE
+       RETURNING referrer_id`,
+      [d.user_id]
+    );
+    if (ref.rows.length) {
+      const referrerId = ref.rows[0].referrer_id;
+      const commission = Math.floor(parseInt(d.amount) * 0.1);
+      await commClient.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [commission, referrerId]);
+      await commClient.query(
+        'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
+        [referrerId, 'referral_commission', commission, `Referral commission from user #${d.user_id} first deposit`]
+      );
+      await commClient.query('COMMIT');
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
+        [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
+      );
+    } else {
+      await commClient.query('ROLLBACK');
+    }
+  } catch (commErr) {
+    await commClient.query('ROLLBACK').catch(() => {});
+    console.error('[referral commission]', commErr.message);
+  } finally {
+    commClient.release();
+  }
+
+  // Email + notification (non-fatal)
+  const user = await query('SELECT email, username, email_unsubscribed FROM users WHERE id = $1', [d.user_id]);
+  if (user.rows[0]?.email && !user.rows[0].email_unsubscribed) {
+    sendDepositConfirmationEmail(user.rows[0].email, user.rows[0].username, d.amount)
+      .catch(e => console.error(`[Email:deposit] dispatch error to=${user.rows[0].email} reason="${e?.message || 'unknown'}"`));
+  }
+  await query(
+    "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Approved! ✅', $2)",
+    [d.user_id, `Your deposit of ${parseInt(d.amount).toLocaleString()} $Pc has been credited to your account.`]
+  );
+}
+
 // Submit deposit request (user says "I've sent the payment")
 router.post('/deposit/request', requireAuth, async (req, res) => {
-  // DEMO MODE: real deposits are disabled site-wide
   if (isDemoMode()) {
     return res.status(403).json({
       error: 'Demo mode is active. Real-money deposits are disabled.',
@@ -38,7 +130,6 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
 
   const user = req.user;
 
-  // KYC gate: deposits require approved KYC
   if (user.kyc_status !== 'approved') {
     return res.status(403).json({
       error: 'KYC verification required before deposits. Please complete identity verification in your profile.',
@@ -46,28 +137,36 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
     });
   }
 
-  // Live on-chain wallet check: fail-closed (block if check cannot complete)
+  // Live wallet-eligibility check (USD-based threshold). Fail-closed.
   const walletCheck = await refreshDefaultWalletVerification(user.id, user.kyc_status).catch(err => {
     console.error('[deposit/wallet-check]', err.message);
     return { meetsThreshold: false, walletAddress: null, error: 'Wallet verification service unavailable. Please try again.' };
   });
+  if (walletCheck.priceUnavailable) {
+    return res.status(503).json({
+      error: walletCheck.error || 'Wallet eligibility threshold temporarily unavailable. Please retry shortly.',
+      code: 'PRICE_FEED_UNAVAILABLE',
+    });
+  }
   if (!walletCheck.meetsThreshold) {
     return res.status(403).json({
       error: walletCheck.error === 'No default wallet linked'
-        ? 'No verified wallet linked. Please add a wallet holding at least 100M $Pc in your profile.'
-        : walletCheck.error || 'Your linked wallet does not hold the required 100M $Pc.',
+        ? `No verified wallet linked. Please add a wallet holding at least ${walletCheck.requiredBalance || ''} $Pc (≈ $${walletCheck.usdBasis || ''}) in your profile.`
+        : walletCheck.error || 'Your linked wallet does not meet the $Pc holdings threshold for real transactions.',
       code: 'WALLET_THRESHOLD_NOT_MET',
       kycStatus: user.kyc_status,
       currentWalletBalance: walletCheck.currentBalance || null,
-      requiredBalance: '100000000',
+      requiredBalance: walletCheck.requiredBalance || null,
+      usdBasis: walletCheck.usdBasis || null,
+      pricePerPc: walletCheck.pricePerPc || null,
     });
   }
 
-  // Check daily deposit limit
+  // Daily deposit limit
   if (parseInt(user.daily_deposit_limit) > 0) {
     const todayDeposits = await query(
       `SELECT COALESCE(SUM(amount), 0) as total FROM deposit_requests
-       WHERE user_id = $1 AND status = 'approved' AND created_at > NOW() - INTERVAL '24 hours'`,
+       WHERE user_id = $1 AND status IN ('approved', 'auto_credited', 'confirmed') AND created_at > NOW() - INTERVAL '24 hours'`,
       [user.id]
     );
     const todayTotal = parseInt(todayDeposits.rows[0].total);
@@ -76,24 +175,155 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
     }
   }
 
+  // Normalize tx hashes — Ethereum hashes are case-insensitive; storing
+  // and comparing them lowercased prevents trivial casing-bypass replays.
+  const txHashNorm = txHash ? String(txHash).trim().toLowerCase() : null;
+
+  // Dedupe by normalized txHash if provided — prevents replay/double-credit.
+  if (txHashNorm) {
+    const dup = await query(
+      `SELECT id, status FROM deposit_requests WHERE LOWER(tx_hash) = $1 LIMIT 1`,
+      [txHashNorm]
+    );
+    if (dup.rows.length) {
+      return res.status(409).json({
+        error: 'This transaction hash has already been submitted.',
+        code: 'DUPLICATE_TX_HASH',
+        existingStatus: dup.rows[0].status,
+      });
+    }
+  }
+
+  let createdRow;
   try {
     const result = await query(
-      `INSERT INTO deposit_requests (user_id, amount, tx_hash, from_address, network)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [user.id, amount, txHash || null, fromAddress || null, network || 'ERC-20']
+      `INSERT INTO deposit_requests (user_id, amount, tx_hash, from_address, network, status)
+       VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING *`,
+      [user.id, amount, txHashNorm, fromAddress || null, network || 'ERC-20']
     );
-
-    // Add notification
-    await query(
-      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Request Submitted', $2)",
-      [user.id, `Your deposit of ${parseInt(amount).toLocaleString()} $Pc is pending review. It will be credited within 24 hours.`]
-    );
-
-    res.json({ success: true, request: result.rows[0] });
+    createdRow = result.rows[0];
   } catch (err) {
     console.error('Deposit request error:', err);
-    res.status(500).json({ error: 'Deposit request failed' });
+    return res.status(500).json({ error: 'Deposit request failed' });
   }
+
+  // If a tx hash was supplied, attempt automatic on-chain verification + credit.
+  // No tx hash → leave pending for admin review (unchanged legacy behavior).
+  if (txHashNorm) {
+    try {
+      const verdict = await verifyOnChainDeposit({
+        txHash: txHashNorm,
+        expectedTokens: amount,
+        treasury: DEPOSIT_ADDRESS,
+        contract: process.env.PC_TOKEN_CONTRACT,
+      });
+
+      // Ownership binding: even if the tx is a valid treasury-bound transfer,
+      // we must confirm the *sender* is one of THIS user's linked wallets.
+      // Otherwise a malicious user could claim someone else's pending tx.
+      const ownershipOk = await _verifyDepositOwnership(user.id, verdict.fromAddress);
+
+      if (verdict.status === 'confirmed' && !ownershipOk) {
+        await query(
+          `UPDATE deposit_requests SET status = 'needs_review', from_address = $1,
+                 admin_note = $2, processed_at = NOW() WHERE id = $3`,
+          [verdict.fromAddress || null, `On-chain tx confirmed but sender ${verdict.fromAddress} is not a linked/verified wallet for this user — admin review required.`, createdRow.id]
+        );
+        await query(
+          "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Needs Review', $2)",
+          [user.id, 'Your deposit was found on-chain but the sender wallet is not linked to your account. An admin will review.']
+        );
+        return res.json({
+          success: true,
+          needsReview: true,
+          reason: 'sender_not_linked',
+          request: { ...createdRow, status: 'needs_review' },
+        });
+      }
+
+      if (verdict.status === 'confirmed') {
+        await _creditDepositRow(createdRow, {
+          status: 'auto_credited',
+          descriptionPrefix: 'Auto-credited on-chain deposit',
+        });
+        return res.json({
+          success: true,
+          autoCredited: true,
+          confirmations: verdict.confirmations,
+          request: { ...createdRow, status: 'auto_credited' },
+        });
+      }
+
+      if (verdict.status === 'rejected') {
+        await query(
+          `UPDATE deposit_requests SET status = 'auto_rejected', admin_note = $1, processed_at = NOW() WHERE id = $2`,
+          [verdict.reason, createdRow.id]
+        );
+        await query(
+          "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Rejected', $2)",
+          [user.id, `Your deposit could not be verified on-chain: ${verdict.reason}`]
+        );
+        return res.status(400).json({
+          error: `Deposit rejected: ${verdict.reason}`,
+          code: 'DEPOSIT_VERIFICATION_FAILED',
+          request: { ...createdRow, status: 'auto_rejected' },
+        });
+      }
+
+      if (verdict.status === 'pending') {
+        await query(
+          `UPDATE deposit_requests SET admin_note = $1 WHERE id = $2`,
+          [`Awaiting confirmations (${verdict.confirmations}/${verdict.required})`, createdRow.id]
+        );
+        await query(
+          "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Pending Confirmations', $2)",
+          [user.id, `Your deposit is on-chain but awaiting ${verdict.required} confirmations (${verdict.confirmations}/${verdict.required}). It will auto-credit once confirmed.`]
+        );
+        return res.json({
+          success: true,
+          pending: true,
+          confirmations: verdict.confirmations,
+          required: verdict.required,
+          request: createdRow,
+        });
+      }
+
+      // needs_review
+      await query(
+        `UPDATE deposit_requests SET status = 'needs_review', admin_note = $1 WHERE id = $2`,
+        [verdict.reason, createdRow.id]
+      );
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Pending Review', $2)",
+        [user.id, `Your deposit needs manual review: ${verdict.reason}. An admin will look at it shortly.`]
+      );
+      return res.json({
+        success: true,
+        needsReview: true,
+        reason: verdict.reason,
+        request: { ...createdRow, status: 'needs_review' },
+      });
+    } catch (err) {
+      console.error('[deposit auto-verify]', err);
+      await query(
+        `UPDATE deposit_requests SET status = 'needs_review', admin_note = $1 WHERE id = $2`,
+        [`Auto-verify error: ${err.message}`, createdRow.id]
+      ).catch(() => {});
+      return res.json({
+        success: true,
+        needsReview: true,
+        reason: 'Verification service error; flagged for admin review',
+        request: { ...createdRow, status: 'needs_review' },
+      });
+    }
+  }
+
+  // No tx hash supplied — legacy "I've sent it" path, queued for admin review.
+  await query(
+    "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Request Submitted', $2)",
+    [user.id, `Your deposit of ${parseInt(amount).toLocaleString()} $Pc is pending review. It will be credited within 24 hours.`]
+  );
+  return res.json({ success: true, request: createdRow });
 });
 
 // Admin: approve deposit
@@ -107,73 +337,10 @@ router.post('/deposit/:id/approve', requireAuth, async (req, res) => {
     const dep = await query('SELECT * FROM deposit_requests WHERE id = $1', [req.params.id]);
     if (!dep.rows.length) return res.status(404).json({ error: 'Not found' });
     const d = dep.rows[0];
-    if (d.status !== 'pending') return res.status(400).json({ error: 'Already processed' });
-
-    await query('BEGIN');
-    await query('UPDATE deposit_requests SET status = $1, processed_at = NOW() WHERE id = $2', ['approved', d.id]);
-    await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [d.amount, d.user_id]);
-    await query(
-      'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
-      [d.user_id, 'deposit', d.amount, `Deposit approved - ${d.network}`]
-    );
-
-    // Leaderboard update
-    await query(
-      `INSERT INTO leaderboard (user_id, username, balance) 
-       SELECT id, username, balance FROM users WHERE id = $1
-       ON CONFLICT (user_id) DO UPDATE SET balance = EXCLUDED.balance`,
-      [d.user_id]
-    );
-    await query('COMMIT');
-
-    // First-deposit referral commission: single DB client transaction for true atomicity
-    // commission_paid flips only if balance credit + transaction record both succeed
-    const commClient = await pool.connect();
-    try {
-      await commClient.query('BEGIN');
-      const ref = await commClient.query(
-        `UPDATE referrals SET commission_paid = TRUE
-         WHERE referred_id = $1 AND commission_paid = FALSE
-         RETURNING referrer_id`,
-        [d.user_id]
-      );
-      if (ref.rows.length) {
-        const referrerId = ref.rows[0].referrer_id;
-        const commission = Math.floor(parseInt(d.amount) * 0.1);
-        await commClient.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [commission, referrerId]);
-        await commClient.query(
-          'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
-          [referrerId, 'referral_commission', commission, `Referral commission from user #${d.user_id} first deposit`]
-        );
-        await commClient.query('COMMIT');
-        // Notification is outside the transaction — non-fatal side effect
-        await query(
-          "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'referral', 'Referral Commission! 🎉', $2)",
-          [referrerId, `You earned ${commission.toLocaleString()} $Pc (10%) referral commission from your friend's first deposit!`]
-        );
-      } else {
-        await commClient.query('ROLLBACK');
-      }
-    } catch (commErr) {
-      await commClient.query('ROLLBACK').catch(() => {});
-      console.error('[referral commission]', commErr.message);
-    } finally {
-      commClient.release();
+    if (!['pending', 'needs_review'].includes(d.status)) {
+      return res.status(400).json({ error: 'Already processed' });
     }
-
-    // Send email
-    const user = await query('SELECT email, username, email_unsubscribed FROM users WHERE id = $1', [d.user_id]);
-    if (user.rows[0]?.email && !user.rows[0].email_unsubscribed) {
-      sendDepositConfirmationEmail(user.rows[0].email, user.rows[0].username, d.amount)
-        .catch(e => console.error(`[Email:deposit] dispatch error to=${user.rows[0].email} reason="${e?.message || 'unknown'}"`));
-    }
-
-    // Add notification
-    await query(
-      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Approved! ✅', $2)",
-      [d.user_id, `Your deposit of ${parseInt(d.amount).toLocaleString()} $Pc has been credited to your account.`]
-    );
-
+    await _creditDepositRow(d, { status: 'approved', descriptionPrefix: 'Deposit approved' });
     res.json({ success: true });
   } catch (err) {
     await query('ROLLBACK').catch(() => {});
@@ -195,9 +362,9 @@ router.post('/deposit/:id/reject', requireAuth, async (req, res) => {
   }
 });
 
-// Submit withdraw request
+// Submit withdraw request — auto-approves after safety checks (admin still
+// physically sends funds and marks 'completed' afterwards).
 router.post('/withdraw/request', requireAuth, async (req, res) => {
-  // DEMO MODE: real withdrawals are disabled site-wide
   if (isDemoMode()) {
     return res.status(403).json({
       error: 'Demo mode is active. Real-money withdrawals are disabled.',
@@ -212,7 +379,6 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
 
   const user = req.user;
 
-  // KYC gate: withdrawals require approved KYC
   if (user.kyc_status !== 'approved') {
     return res.status(403).json({
       error: 'KYC verification required before withdrawals. Please complete identity verification in your profile.',
@@ -220,28 +386,35 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
     });
   }
 
-  // Live on-chain wallet check: fail-closed at withdrawal time
+  // Live on-chain wallet check (USD-based threshold). Fail-closed.
   const withdrawWalletCheck = await refreshDefaultWalletVerification(user.id, user.kyc_status).catch(err => {
     console.error('[withdraw/wallet-check]', err.message);
     return { meetsThreshold: false, walletAddress: null, error: 'Wallet verification service unavailable. Please try again.' };
   });
+  if (withdrawWalletCheck.priceUnavailable) {
+    return res.status(503).json({
+      error: withdrawWalletCheck.error || 'Wallet eligibility threshold temporarily unavailable. Please retry shortly.',
+      code: 'PRICE_FEED_UNAVAILABLE',
+    });
+  }
   if (!withdrawWalletCheck.meetsThreshold) {
     return res.status(403).json({
       error: withdrawWalletCheck.error === 'No default wallet linked'
-        ? 'No verified wallet linked. Please add a wallet holding at least 100M $Pc.'
-        : withdrawWalletCheck.error || 'Your linked wallet does not hold the required 100M $Pc. Withdrawal requires a verified wallet.',
+        ? `No verified wallet linked. Please add a wallet holding at least ${withdrawWalletCheck.requiredBalance || ''} $Pc.`
+        : withdrawWalletCheck.error || 'Your linked wallet does not meet the $Pc holdings threshold for withdrawals.',
       code: 'WALLET_THRESHOLD_NOT_MET',
       kycStatus: user.kyc_status,
       currentWalletBalance: withdrawWalletCheck.currentBalance || null,
-      requiredBalance: '100000000',
+      requiredBalance: withdrawWalletCheck.requiredBalance || null,
+      usdBasis: withdrawWalletCheck.usdBasis || null,
+      pricePerPc: withdrawWalletCheck.pricePerPc || null,
     });
   }
 
   const balance = parseInt(user.balance);
-
   if (amount > balance) return res.status(400).json({ error: 'Insufficient balance' });
 
-  // Check daily loss limit
+  // Daily loss limit
   if (parseInt(user.daily_loss_limit) > 0) {
     const todayLoss = await query(
       `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
@@ -261,33 +434,34 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
 
   try {
     await query('BEGIN');
-    // Reserve balance
     await query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, user.id]);
 
+    // Auto-approve immediately. Status flow: 'approved' (queued for admin to
+    // physically send) -> 'completed' (admin marks sent).
     const result = await query(
-      `INSERT INTO withdraw_requests (user_id, amount, to_address, network)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
+      `INSERT INTO withdraw_requests (user_id, amount, to_address, network, status, processed_at)
+       VALUES ($1, $2, $3, $4, 'approved', NOW()) RETURNING *`,
       [user.id, amount, toAddress, network || 'ERC-20']
     );
+    // Link the transaction row to this specific withdraw_request so later
+    // mark-sent / reject only updates THIS row (not all pending withdraws).
     await query(
-      'INSERT INTO transactions (user_id, type, amount, description, status) VALUES ($1, $2, $3, $4, $5)',
-      [user.id, 'withdraw', amount, `Withdrawal request to ${toAddress.slice(0, 10)}...`, 'pending']
+      'INSERT INTO transactions (user_id, type, amount, description, status, withdraw_request_id) VALUES ($1, $2, $3, $4, $5, $6)',
+      [user.id, 'withdraw', amount, `Withdrawal approved to ${toAddress.slice(0, 10)}... — awaiting send`, 'pending', result.rows[0].id]
     );
     await query('COMMIT');
 
-    // Send email
     if (user.email && !user.email_unsubscribed) {
       sendWithdrawEmail(user.email, user.username, amount, toAddress)
         .catch(e => console.error(`[Email:withdraw] dispatch error to=${user.email} reason="${e?.message || 'unknown'}"`));
     }
 
-    // Add notification
     await query(
-      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'withdraw', 'Withdrawal Requested', $2)",
-      [user.id, `Withdrawal of ${parseInt(amount).toLocaleString()} $Pc to ${toAddress.slice(0, 16)}... is pending. Processing within 24-48 hours.`]
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'withdraw', 'Withdrawal Approved', $2)",
+      [user.id, `Your withdrawal of ${parseInt(amount).toLocaleString()} $Pc to ${toAddress.slice(0, 16)}... was auto-approved and is queued for sending.`]
     );
 
-    res.json({ success: true, request: result.rows[0] });
+    res.json({ success: true, autoApproved: true, request: result.rows[0] });
   } catch (err) {
     await query('ROLLBACK').catch(() => {});
     console.error('Withdraw request error:', err);
@@ -295,7 +469,9 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
   }
 });
 
-// Admin: approve withdraw
+// Admin: manual approve — transitions a 'pending' (needs-review/manual-check)
+// withdrawal to 'approved' (awaiting send). Does NOT finalize. The admin must
+// still call /mark-sent after physically sending the funds.
 router.post('/withdraw/:id/approve', requireAuth, async (req, res) => {
   if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
   if (isDemoMode()) {
@@ -305,15 +481,148 @@ router.post('/withdraw/:id/approve', requireAuth, async (req, res) => {
     const wr = await query('SELECT * FROM withdraw_requests WHERE id = $1', [req.params.id]);
     if (!wr.rows.length) return res.status(404).json({ error: 'Not found' });
     const w = wr.rows[0];
-    if (w.status !== 'pending') return res.status(400).json({ error: 'Already processed' });
-
-    await query('UPDATE withdraw_requests SET status = $1, processed_at = NOW() WHERE id = $2', ['approved', w.id]);
-    await query("UPDATE transactions SET status = 'completed' WHERE user_id = $1 AND type = 'withdraw' AND status = 'pending'", [w.user_id]);
-    await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'withdraw', 'Withdrawal Sent ✅', $2)",
-      [w.user_id, `Your withdrawal of ${parseInt(w.amount).toLocaleString()} $Pc has been sent to ${w.to_address.slice(0, 16)}...`]);
+    if (w.status === 'approved') return res.json({ success: true, alreadyApproved: true });
+    if (w.status !== 'pending') {
+      return res.status(400).json({ error: `Cannot approve a ${w.status} withdrawal` });
+    }
+    await query(
+      `UPDATE withdraw_requests SET status = 'approved', processed_at = NOW() WHERE id = $1`,
+      [w.id]
+    );
+    await query(
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'withdraw', 'Withdrawal Approved', $2)",
+      [w.user_id, `Your withdrawal of ${parseInt(w.amount).toLocaleString()} $Pc was approved and is queued for sending.`]
+    );
+    await query(
+      `INSERT INTO admin_actions (admin_id, admin_username, action, target_type, target_id, details)
+       VALUES ($1, $2, 'withdraw_approve', 'withdraw_request', $3, $4)`,
+      [req.user.id, req.user.username, w.id, JSON.stringify({ amount: parseInt(w.amount), toAddress: w.to_address, recipientUserId: w.user_id })]
+    ).catch(e => console.error('[admin_actions log]', e.message));
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Approval failed' });
+    console.error('[withdraw approve]', err);
+    res.status(500).json({ error: 'Approve failed' });
+  }
+});
+
+// Admin: mark withdrawal as physically sent. Flips status -> 'completed' and
+// finalizes the transaction row + notifies the user.
+router.post('/withdraw/:id/mark-sent', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  if (isDemoMode()) {
+    return res.status(403).json({ error: 'Demo mode is active. Sends are disabled.', code: 'DEMO_MODE_ENABLED' });
+  }
+  return _markWithdrawSent(req, res);
+});
+
+async function _markWithdrawSent(req, res) {
+  const { txHash } = req.body || {};
+  try {
+    const wr = await query('SELECT * FROM withdraw_requests WHERE id = $1', [req.params.id]);
+    if (!wr.rows.length) return res.status(404).json({ error: 'Not found' });
+    const w = wr.rows[0];
+    // Strict state-machine: only an 'approved' (awaiting-send) row may be
+    // marked sent. 'pending' rows must first be manually approved via
+    // /withdraw/:id/approve to enforce the audit-friendly two-step flow.
+    if (w.status !== 'approved') {
+      return res.status(400).json({
+        error: w.status === 'pending'
+          ? 'Withdrawal is still pending manual approval. Approve it first.'
+          : `Cannot mark ${w.status} withdrawal as sent`,
+      });
+    }
+
+    await query(
+      `UPDATE withdraw_requests SET status = 'completed', tx_hash = COALESCE($1, tx_hash), processed_at = NOW() WHERE id = $2`,
+      [txHash || null, w.id]
+    );
+    // Scope the transaction-row update to THIS specific withdraw_request only.
+    await query(
+      "UPDATE transactions SET status = 'completed' WHERE withdraw_request_id = $1 AND status = 'pending'",
+      [w.id]
+    );
+    await query(
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'withdraw', 'Withdrawal Sent ✅', $2)",
+      [w.user_id, `Your withdrawal of ${parseInt(w.amount).toLocaleString()} $Pc has been sent to ${w.to_address.slice(0, 16)}...${txHash ? ` (tx: ${txHash.slice(0, 12)}...)` : ''}`]
+    );
+
+    // Email confirmation to the recipient (best-effort).
+    try {
+      const u = await query('SELECT email, username, email_unsubscribed FROM users WHERE id = $1', [w.user_id]);
+      const row = u.rows[0];
+      if (row?.email && !row.email_unsubscribed) {
+        sendWithdrawSentEmail(row.email, row.username, parseInt(w.amount), w.to_address, txHash || w.tx_hash || null)
+          .catch(e => console.error(`[Email:withdraw-sent] dispatch error to=${row.email} reason="${e?.message || 'unknown'}"`));
+      }
+    } catch (emailErr) {
+      console.error('[withdraw mark-sent email lookup]', emailErr.message);
+    }
+
+    // Audit log entry — admin id, withdrawal id, tx hash, timestamp.
+    await query(
+      `INSERT INTO admin_actions (admin_id, admin_username, action, target_type, target_id, details)
+       VALUES ($1, $2, 'withdraw_mark_sent', 'withdraw_request', $3, $4)`,
+      [
+        req.user.id,
+        req.user.username,
+        w.id,
+        JSON.stringify({
+          txHash: txHash || w.tx_hash || null,
+          amount: parseInt(w.amount),
+          toAddress: w.to_address,
+          recipientUserId: w.user_id,
+        }),
+      ]
+    ).catch(e => console.error('[admin_actions log]', e.message));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[withdraw mark-sent]', err);
+    res.status(500).json({ error: 'Mark-sent failed' });
+  }
+}
+
+// Admin: reject withdraw — refund balance, mark rejected.
+router.post('/withdraw/:id/reject', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { note } = req.body || {};
+  try {
+    const wr = await query('SELECT * FROM withdraw_requests WHERE id = $1', [req.params.id]);
+    if (!wr.rows.length) return res.status(404).json({ error: 'Not found' });
+    const w = wr.rows[0];
+    // Idempotent guard: only refund withdrawals still in a refundable state.
+    // Re-rejecting an already-rejected/completed row would double-refund.
+    if (!['pending', 'approved'].includes(w.status)) {
+      return res.status(400).json({
+        error: `Cannot reject a ${w.status} withdrawal`,
+        code: w.status === 'rejected' ? 'ALREADY_REJECTED' : 'NOT_REFUNDABLE',
+      });
+    }
+
+    await query('BEGIN');
+    await query(
+      `UPDATE withdraw_requests SET status = 'rejected', admin_note = $1, processed_at = NOW() WHERE id = $2`,
+      [note || null, w.id]
+    );
+    // Refund the reserved balance
+    await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [w.amount, w.user_id]);
+    await query(
+      "INSERT INTO transactions (user_id, type, amount, description, status) VALUES ($1, $2, $3, $4, $5)",
+      [w.user_id, 'refund', w.amount, `Withdrawal #${w.id} rejected — refunded`, 'completed']
+    );
+    // Scope the transaction-row update to THIS specific withdraw_request only.
+    await query("UPDATE transactions SET status = 'rejected' WHERE withdraw_request_id = $1 AND status = 'pending'", [w.id]);
+    await query('COMMIT');
+
+    await query(
+      "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'withdraw', 'Withdrawal Rejected', $2)",
+      [w.user_id, `Your withdrawal of ${parseInt(w.amount).toLocaleString()} $Pc was rejected and the balance refunded.${note ? ' Reason: ' + note : ''}`]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    await query('ROLLBACK').catch(() => {});
+    console.error('[withdraw reject]', err);
+    res.status(500).json({ error: 'Rejection failed' });
   }
 });
 
@@ -328,7 +637,6 @@ router.post('/transaction', requireAuth, async (req, res) => {
     if (type === 'bet') {
       if (parseInt(user.balance) < amount) return res.status(400).json({ error: 'Insufficient balance' });
 
-      // Check responsible gambling - daily loss limit
       if (parseInt(user.daily_loss_limit) > 0) {
         const todayBets = await query(
           `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
@@ -347,12 +655,10 @@ router.post('/transaction', requireAuth, async (req, res) => {
       }
 
       await query('UPDATE users SET balance = balance - $1, total_wagered = total_wagered + $1 WHERE id = $2', [amount, user.id]);
-      // Jackpot contribution: fire-and-forget, non-blocking, server-authoritative
       processJackpotContribution(user.id, user.username, amount).catch(() => {});
     } else if (type === 'win') {
       await query('UPDATE users SET balance = balance + $1, total_won = total_won + $1 WHERE id = $2', [amount, user.id]);
 
-      // Update VIP tier
       const updated = await query('SELECT total_wagered, username, balance FROM users WHERE id = $1', [user.id]);
       const totalWagered = parseInt(updated.rows[0].total_wagered);
       let tier = 'bronze';
@@ -362,7 +668,6 @@ router.post('/transaction', requireAuth, async (req, res) => {
       else if (totalWagered >= 10_000_000) tier = 'silver';
       await query('UPDATE users SET vip_tier = $1 WHERE id = $2', [tier, user.id]);
 
-      // Update leaderboard
       await query(
         `INSERT INTO leaderboard (user_id, username, total_won, balance, games_played, favorite_game)
          SELECT id, username, total_won, balance, 1, $2 FROM users WHERE id = $1
@@ -410,6 +715,91 @@ router.get('/transactions', requireAuth, async (req, res) => {
   }
 });
 
+// Confirms that `senderAddress` (the on-chain tx 'from') belongs to the user.
+// Matches against any wallet linked to the user (case-insensitive). Returns
+// false when no wallets are linked or the sender doesn't match — in which case
+// the deposit must be routed to manual admin review, never auto-credited.
+async function _verifyDepositOwnership(userId, senderAddress) {
+  if (!senderAddress) return false;
+  try {
+    const r = await query(
+      'SELECT wallet_address FROM user_wallets WHERE user_id = $1',
+      [userId]
+    );
+    if (!r.rows.length) return false;
+    const sender = senderAddress.toLowerCase();
+    return r.rows.some(row => (row.wallet_address || '').toLowerCase() === sender);
+  } catch (err) {
+    console.error('[deposit ownership check]', err.message);
+    return false;
+  }
+}
+
+// ---- Background re-verification of pending deposits ----
+// Deposits that arrived on-chain but were under MIN_CONFIRMATIONS at submit
+// time stay status='pending' with a tx_hash. This worker rescans them every
+// minute so they auto-credit once confirmed without admin intervention.
+async function _recheckPendingDeposits() {
+  if (!DEPOSIT_ADDRESS || !process.env.PC_TOKEN_CONTRACT || isDemoMode()) return;
+  try {
+    const rows = await query(
+      `SELECT * FROM deposit_requests
+       WHERE status = 'pending' AND tx_hash IS NOT NULL
+         AND created_at > NOW() - INTERVAL '7 days'
+       ORDER BY created_at ASC LIMIT 25`
+    );
+    for (const d of rows.rows) {
+      try {
+        const verdict = await verifyOnChainDeposit({
+          txHash: d.tx_hash,
+          expectedTokens: d.amount,
+          treasury: DEPOSIT_ADDRESS,
+          contract: process.env.PC_TOKEN_CONTRACT,
+        });
+        if (verdict.status === 'confirmed') {
+          // Same ownership binding as the sync path — never auto-credit a
+          // sender that isn't a linked wallet for this user.
+          const ownershipOk = await _verifyDepositOwnership(d.user_id, verdict.fromAddress);
+          if (!ownershipOk) {
+            await query(
+              `UPDATE deposit_requests SET status = 'needs_review', from_address = $1,
+                     admin_note = $2, processed_at = NOW() WHERE id = $3`,
+              [verdict.fromAddress || null, `Sender ${verdict.fromAddress} is not a linked wallet — admin review required.`, d.id]
+            );
+            await query(
+              "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Needs Review', $2)",
+              [d.user_id, 'On-chain tx confirmed but sender wallet is not linked to your account. Admin review pending.']
+            );
+          } else {
+            await _creditDepositRow(d, { status: 'auto_credited', descriptionPrefix: 'Auto-credited (recheck)' });
+          }
+        } else if (verdict.status === 'rejected') {
+          await query(
+            `UPDATE deposit_requests SET status = 'auto_rejected', admin_note = $1, processed_at = NOW() WHERE id = $2`,
+            [verdict.reason, d.id]
+          );
+          await query(
+            "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Rejected', $2)",
+            [d.user_id, `Your deposit was rejected on rescan: ${verdict.reason}`]
+          );
+        } else if (verdict.status === 'pending') {
+          await query(
+            `UPDATE deposit_requests SET admin_note = $1, updated_at = NOW() WHERE id = $2`,
+            [`Awaiting confirmations (${verdict.confirmations}/${verdict.required})`, d.id]
+          );
+        }
+        // 'needs_review' → leave as-is for admin attention
+      } catch (innerErr) {
+        console.error('[deposit recheck row]', d.id, innerErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('[deposit recheck]', err.message);
+  }
+}
+// Kick off interval — non-blocking, swallows its own errors.
+setInterval(() => { _recheckPendingDeposits().catch(() => {}); }, 60_000);
+
 // Get pending deposit/withdraw requests (admin)
 router.get('/admin/deposits', requireAuth, async (req, res) => {
   if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
@@ -426,7 +816,10 @@ router.get('/admin/withdrawals', requireAuth, async (req, res) => {
   const result = await query(
     `SELECT w.*, u.username, u.email FROM withdraw_requests w
      JOIN users u ON w.user_id = u.id
-     ORDER BY w.created_at DESC LIMIT 50`
+     ORDER BY
+       CASE w.status WHEN 'approved' THEN 0 WHEN 'pending' THEN 1 WHEN 'completed' THEN 2 ELSE 3 END,
+       w.created_at DESC
+     LIMIT 100`
   );
   res.json({ withdrawals: result.rows });
 });

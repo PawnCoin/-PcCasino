@@ -104,6 +104,14 @@ export async function initDatabase() {
       )
     `);
     await query(`ALTER TABLE deposit_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP`).catch(() => {});
+    // Backfill: lowercase any existing tx_hash values so the case-insensitive
+    // unique index below can be created without collisions on legacy data.
+    await query(`UPDATE deposit_requests SET tx_hash = LOWER(tx_hash) WHERE tx_hash IS NOT NULL AND tx_hash <> LOWER(tx_hash)`).catch(() => {});
+    // Functional unique index on lowercased tx_hash — hard guarantee against
+    // replay/double-credit even if dedupe logic is bypassed somewhere.
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_deposit_tx_hash_lower ON deposit_requests (LOWER(tx_hash)) WHERE tx_hash IS NOT NULL`).catch((e) => {
+      console.warn('[DB] uq_deposit_tx_hash_lower not created:', e.message);
+    });
 
     await query(`
       CREATE TABLE IF NOT EXISTS withdraw_requests (
@@ -136,6 +144,30 @@ export async function initDatabase() {
       )
     `);
     await query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT`).catch(() => {});
+    // Link transaction rows to specific deposit/withdraw requests so admin
+    // status updates only touch the correct row (avoids fan-out across all
+    // pending withdrawals for a user).
+    await query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS withdraw_request_id INTEGER`).catch(() => {});
+    await query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS deposit_request_id INTEGER`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_tx_withdraw_request ON transactions(withdraw_request_id)`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_tx_deposit_request ON transactions(deposit_request_id)`).catch(() => {});
+
+    // Admin audit log — append-only record of admin actions on payment flows
+    // (mark-sent, reject, manual credit). Used for accountability + later
+    // reconciliation.
+    await query(`
+      CREATE TABLE IF NOT EXISTS admin_actions (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        admin_username VARCHAR(100),
+        action VARCHAR(50) NOT NULL,
+        target_type VARCHAR(40),
+        target_id INTEGER,
+        details JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id)`).catch(() => {});
 
     await query(`
       CREATE TABLE IF NOT EXISTS game_history (

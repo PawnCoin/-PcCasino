@@ -449,7 +449,7 @@ function KycFlow({ user, onComplete }: { user: NonNullable<UserProfileProps['use
         <h4 className="text-xs font-bold text-[#D4AF37] mb-2">Your Access Tiers</h4>
         {[
           { label: 'KYC Verified', desc: 'Email + Phone + Documents approved', done: user.kycStatus === 'approved' },
-          { label: 'Wallet Verified (100M+ $Pc)', desc: 'Default wallet holds ≥100M $Pc on-chain', done: walletVerified },
+          { label: 'Wallet Verified', desc: 'Default wallet holds the required $Pc balance on-chain (USD-equivalent threshold)', done: walletVerified },
           { label: 'Full Access Unlocked', desc: 'Real crypto deposits & withdrawals enabled', done: user.realTransactionsUnlocked || false },
         ].map((tier, i) => (
           <div key={i} className="flex items-center gap-3 text-sm">
@@ -530,11 +530,13 @@ function WalletManager({ userId }: { userId: string }) {
     setVerifyingId(id);
     try {
       const result = await walletApi.verifyBalance(id);
+      const reqStr = result.threshold ? `${parseInt(result.threshold).toLocaleString()} $Pc` : '$Pc holdings threshold';
+      const usdStr = result.thresholdUsd ? ` (≈ $${result.thresholdUsd.toLocaleString()})` : '';
       if (result.meetsThreshold) {
         toast.success(`Wallet verified! Balance: ${result.balance} $Pc — threshold met!`);
       } else {
         const bal = result.balance ? `${result.balance} $Pc` : 'unknown';
-        toast.error(`Balance (${bal}) below 100M $Pc threshold.${result.error ? ' ' + result.error : ''}`);
+        toast.error(`Balance (${bal}) below ${reqStr}${usdStr}.${result.error ? ' ' + result.error : ''}`);
       }
       await fetchWallets();
     } catch (err: any) {
@@ -665,7 +667,7 @@ function WalletManager({ userId }: { userId: string }) {
         </div>
       )}
 
-      <p className="text-xs text-gray-600">Click the refresh icon on any wallet to check your on-chain $Pc balance. A balance of 100M+ $Pc is required to unlock real transactions.</p>
+      <p className="text-xs text-gray-600">Click the refresh icon on any wallet to check your on-chain $Pc balance. A USD-equivalent $Pc balance (default ≈ $10,000 worth, computed from the live $Pc/USD price) is required to unlock real transactions.</p>
     </div>
   );
 }
