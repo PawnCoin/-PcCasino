@@ -133,6 +133,11 @@ export async function initDatabase() {
     // withdraw-request creation; protects against double-broadcast races.
     await query(`ALTER TABLE withdraw_requests ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64)`).catch(() => {});
     await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_withdraw_idempotency_key ON withdraw_requests (idempotency_key) WHERE idempotency_key IS NOT NULL`).catch(() => {});
+    // Tracks the last time the post-timeout reconciler (Task #93) re-checked
+    // a 'sending' row's on-chain receipt. Used by recheckTimedOutPayouts to
+    // rotate fairly through the queue (NULLS FIRST for never-rechecked rows)
+    // so a backlog of >25 stuck payouts can't starve newer arrivals.
+    await query(`ALTER TABLE withdraw_requests ADD COLUMN IF NOT EXISTS last_rechecked_at TIMESTAMP`).catch(() => {});
 
     // Payout audit log — every send attempt (sent / confirmed / reverted /
     // breaker_blocked / send_failed). Used by the admin "Payout System
