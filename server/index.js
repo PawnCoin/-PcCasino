@@ -1564,6 +1564,10 @@ app.get('/api/auth/oauth/google/callback', async (req, res) => {
       user = result.rows[0];
       await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
         [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]);
+      if (isDemoMode()) {
+        await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'demo_mode', '⚠️ Demo Mode Reminder', $2)",
+          [user.id, `$Pc Casino is currently in DEMO MODE. All balances are play money — no real $Pc can be deposited or withdrawn yet, and balances will be reset before launch.`]);
+      }
     }
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
     await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);
@@ -1641,6 +1645,10 @@ app.get('/api/auth/oauth/discord/callback', async (req, res) => {
       user = result.rows[0];
       await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'welcome', 'Welcome to $Pc Casino!', $2)",
         [user.id, `Welcome ${user.username}! You've received 1,000,000,000 $Pc to start playing.`]);
+      if (isDemoMode()) {
+        await query("INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'demo_mode', '⚠️ Demo Mode Reminder', $2)",
+          [user.id, `$Pc Casino is currently in DEMO MODE. All balances are play money — no real $Pc can be deposited or withdrawn yet, and balances will be reset before launch.`]);
+      }
     }
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
     await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);

@@ -1074,10 +1074,15 @@ export function UserProfile({ isOpen, onClose, user, transactions, avatarDef, on
           {/* Content */}
           <ScrollArea className="flex-1">
             <div className="p-5">
+              {/* Demo-mode warning — visible at top of profile regardless of active tab */}
+              {user?.demoMode && (
+                <div className="mb-4">
+                  <DemoModeProfileCard demoMode={user?.demoMode} />
+                </div>
+              )}
               {/* OVERVIEW */}
               {activeTab === 'overview' && (
                 <div className="space-y-4">
-                  <DemoModeProfileCard demoMode={user?.demoMode} />
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-white text-lg">Account Overview</h3>
                     {!editMode ? (

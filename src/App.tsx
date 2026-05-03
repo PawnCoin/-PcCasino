@@ -1114,6 +1114,7 @@ function App() {
     return (
       <GlobalGameProvider balance={0}>
         <div className="min-h-screen">
+          <DemoModeBanner demoMode={user?.demoMode ?? serverDemoMode ?? undefined} />
           <CasinoBackground />
           <Toaster position="top-right" toastOptions={{ style: { background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(212,175,55,0.5)', color: 'white' } }} />
           <PokerHandSharePage
