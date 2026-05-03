@@ -1344,12 +1344,15 @@ app.get('/api/admin/users/excluded-count', requireAuth, async (req, res) => {
   if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
   try {
     const result = await query(
+      // Use IS TRUE / IS NOT TRUE everywhere so NULLs are treated identically
+      // to FALSE — keeps this preview perfectly aligned with the reset
+      // endpoint's WHERE clause even if any flag column is ever NULLable.
       `SELECT
-         COUNT(*) FILTER (WHERE is_admin) AS admins,
-         COUNT(*) FILTER (WHERE is_bot) AS bots,
-         COUNT(*) FILTER (WHERE is_house) AS house,
-         COUNT(*) FILTER (WHERE is_admin OR is_bot OR is_house) AS excluded,
-         COUNT(*) FILTER (WHERE NOT is_admin AND NOT is_bot AND NOT is_house) AS resettable,
+         COUNT(*) FILTER (WHERE is_admin IS TRUE) AS admins,
+         COUNT(*) FILTER (WHERE is_bot IS TRUE) AS bots,
+         COUNT(*) FILTER (WHERE is_house IS TRUE) AS house,
+         COUNT(*) FILTER (WHERE is_admin IS TRUE OR is_bot IS TRUE OR is_house IS TRUE) AS excluded,
+         COUNT(*) FILTER (WHERE is_admin IS NOT TRUE AND is_bot IS NOT TRUE AND is_house IS NOT TRUE) AS resettable,
          COUNT(*) AS total
        FROM users`
     );
