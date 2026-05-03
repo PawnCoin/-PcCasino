@@ -1295,6 +1295,136 @@ app.get('/api/admin/users', (req, res) => {
   res.json({ users: list, total: list.length });
 });
 
+// Admin: DB-backed user list with flag columns. Used by the Users tab to
+// surface Bot/House toggles for accounts that may not currently be online.
+app.get('/api/admin/users/list', requireAuth, async (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+  const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+  try {
+    const params = [];
+    let where = '';
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      where = `WHERE LOWER(username) LIKE $1 OR LOWER(COALESCE(email, '')) LIKE $1`;
+    }
+    params.push(limit);
+    const result = await query(
+      `SELECT id, username, email, balance, vip_tier,
+              is_admin, is_bot, is_house, created_at, last_seen
+         FROM users
+         ${where}
+         ORDER BY id ASC
+         LIMIT $${params.length}`,
+      params
+    );
+    res.json({
+      users: result.rows.map(r => ({
+        id: r.id,
+        username: r.username,
+        email: r.email,
+        balance: r.balance ? parseInt(r.balance) : 0,
+        vipTier: r.vip_tier,
+        isAdmin: !!r.is_admin,
+        isBot: !!r.is_bot,
+        isHouse: !!r.is_house,
+        createdAt: r.created_at,
+        lastSeen: r.last_seen,
+      })),
+    });
+  } catch (err) {
+    console.error('[admin:users:list]', err.message);
+    res.status(500).json({ error: 'Failed to load users' });
+  }
+});
+
+// Admin: how many accounts will be SKIPPED by Launch Reset (admins + bots +
+// house). Returned as a small breakdown so the confirm modal can show context.
+app.get('/api/admin/users/excluded-count', requireAuth, async (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const result = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE is_admin) AS admins,
+         COUNT(*) FILTER (WHERE is_bot) AS bots,
+         COUNT(*) FILTER (WHERE is_house) AS house,
+         COUNT(*) FILTER (WHERE is_admin OR is_bot OR is_house) AS excluded,
+         COUNT(*) FILTER (WHERE NOT is_admin AND NOT is_bot AND NOT is_house) AS resettable,
+         COUNT(*) AS total
+       FROM users`
+    );
+    const row = result.rows[0] || {};
+    res.json({
+      admins: parseInt(row.admins || 0),
+      bots: parseInt(row.bots || 0),
+      house: parseInt(row.house || 0),
+      excluded: parseInt(row.excluded || 0),
+      resettable: parseInt(row.resettable || 0),
+      total: parseInt(row.total || 0),
+    });
+  } catch (err) {
+    console.error('[admin:users:excluded-count]', err.message);
+    res.status(500).json({ error: 'Failed to load count' });
+  }
+});
+
+// Admin: flag a user as bot or house (or clear those flags). Body accepts
+// `isBot` and/or `isHouse` as booleans; only provided keys are updated.
+app.patch('/api/admin/users/:id/flags', requireAuth, async (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const userId = parseInt(req.params.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+  const { isBot, isHouse } = req.body || {};
+  const sets = [];
+  const params = [];
+  if (typeof isBot === 'boolean') {
+    params.push(isBot);
+    sets.push(`is_bot = $${params.length}`);
+  }
+  if (typeof isHouse === 'boolean') {
+    params.push(isHouse);
+    sets.push(`is_house = $${params.length}`);
+  }
+  if (sets.length === 0) {
+    return res.status(400).json({ error: 'Provide isBot and/or isHouse boolean' });
+  }
+  params.push(userId);
+  try {
+    const result = await query(
+      `UPDATE users
+          SET ${sets.join(', ')}, updated_at = NOW()
+        WHERE id = $${params.length}
+        RETURNING id, username, is_admin, is_bot, is_house`,
+      params
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+    const row = result.rows[0];
+    logAdmin('user:flags', {
+      adminId: req.user.id,
+      adminUsername: req.user.username,
+      targetId: row.id,
+      targetUsername: row.username,
+      isBot: row.is_bot,
+      isHouse: row.is_house,
+    });
+    res.json({
+      success: true,
+      user: {
+        id: row.id,
+        username: row.username,
+        isAdmin: !!row.is_admin,
+        isBot: !!row.is_bot,
+        isHouse: !!row.is_house,
+      },
+    });
+  } catch (err) {
+    console.error('[admin:users:flags]', err.message);
+    res.status(500).json({ error: 'Failed to update flags' });
+  }
+});
+
 app.get('/api/admin/stats', (req, res) => {
   res.json({
     playersOnline: players.size,

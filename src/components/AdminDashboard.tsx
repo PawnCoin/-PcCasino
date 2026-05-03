@@ -50,10 +50,69 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetAmount, setResetAmount] = useState('10000');
   const [resetBusy, setResetBusy] = useState(false);
+  const [resetExcluded, setResetExcluded] = useState<ExcludedCount | null>(null);
 
-  const openResetModal = () => {
+  // DB-backed user list (with bot/house flag columns) used by the Users tab.
+  const [dbUsers, setDbUsers] = useState<DbUser[]>([]);
+  const [dbUsersLoading, setDbUsersLoading] = useState(false);
+  const [flagBusy, setFlagBusy] = useState<Record<number, boolean>>({});
+
+  const loadDbUsers = async () => {
+    const token = getToken();
+    if (!token) return;
+    setDbUsersLoading(true);
+    try {
+      const res = await fetch('/api/admin/users/list', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data: { users: DbUser[] } = await res.json();
+        setDbUsers(data.users || []);
+      }
+    } catch { /* ignore */ }
+    setDbUsersLoading(false);
+  };
+
+  const toggleUserFlag = async (userId: number, key: 'isBot' | 'isHouse', value: boolean) => {
+    const token = getToken();
+    if (!token) { toast.error('Admin login required'); return; }
+    setFlagBusy(prev => ({ ...prev, [userId]: true }));
+    setDbUsers(prev => prev.map(u => u.id === userId ? { ...u, [key]: value } : u));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/flags`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || 'Failed to update flag');
+        setDbUsers(prev => prev.map(u => u.id === userId ? { ...u, [key]: !value } : u));
+      } else {
+        toast.success(`${key === 'isBot' ? 'Bot' : 'House'} flag ${value ? 'set' : 'cleared'}`);
+      }
+    } catch {
+      toast.error('Server unavailable');
+      setDbUsers(prev => prev.map(u => u.id === userId ? { ...u, [key]: !value } : u));
+    } finally {
+      setFlagBusy(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const fetchExcludedCount = async (): Promise<ExcludedCount | null> => {
+    const token = getToken();
+    if (!token) return null;
+    try {
+      const res = await fetch('/api/admin/users/excluded-count', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) return await res.json();
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  const openResetModal = async () => {
     setResetConfirm('');
+    setResetExcluded(null);
     setResetModalOpen(true);
+    const counts = await fetchExcludedCount();
+    if (counts) setResetExcluded(counts);
   };
 
   const runLaunchReset = async () => {
@@ -178,6 +237,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   };
 
   useEffect(() => { if (isOpen && isAuthed) loadData(); }, [isOpen, isAuthed]);
+  useEffect(() => { if (isOpen && isAuthed && activeTab === 'users') loadDbUsers(); }, [isOpen, isAuthed, activeTab]);
 
   const resolveDispute = async (id: string, status: string, refundAmount: number, resolution: string) => {
     try {
@@ -383,25 +443,58 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
               {/* USERS */}
               {activeTab === 'users' && (
                 <div className="space-y-4">
-                  <h3 className="font-bold text-white">User Management</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white">User Management</h3>
+                    <Button onClick={loadDbUsers} size="sm" style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <RefreshCw className={`w-3.5 h-3.5 ${dbUsersLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500" data-testid="admin-users-summary">
+                    {dbUsers.length} accounts • bots: {dbUsers.filter(u => u.isBot).length} • house: {dbUsers.filter(u => u.isHouse).length} • admins: {dbUsers.filter(u => u.isAdmin).length}
+                  </div>
                   <div className="space-y-2">
-                    {users.length === 0 ? (
-                      <div className="text-center py-8 text-gray-400 text-sm">No users currently online. Connect to the multiplayer server.</div>
-                    ) : users.map((u: any) => (
-                      <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    {dbUsers.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 text-sm">{dbUsersLoading ? 'Loading users…' : 'No users found.'}</div>
+                    ) : dbUsers.map(u => (
+                      <div
+                        key={u.id}
+                        className="flex items-center gap-3 p-3 rounded-xl"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                        data-testid={`admin-user-row-${u.id}`}
+                      >
                         <div className="w-8 h-8 rounded-full bg-purple-600/30 flex items-center justify-center text-sm">
                           {u.username?.[0]?.toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-white">{u.username}</div>
-                          <div className="text-xs text-gray-400">{u.id?.slice(0, 16)}...</div>
+                          <div className="text-sm font-medium text-white flex items-center gap-2">
+                            <span className="truncate">{u.username}</span>
+                            {u.isAdmin && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>ADMIN</span>}
+                            {u.isBot && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>BOT</span>}
+                            {u.isHouse && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37' }}>HOUSE</span>}
+                          </div>
+                          <div className="text-xs text-gray-400 truncate">#{u.id} • {u.email || 'no email'}</div>
                         </div>
-                        <div className="text-xs text-green-400">{u.balance ? `${(u.balance / 1_000_000).toFixed(0)}M $Pc` : '-'}</div>
-                        <div className="text-xs text-gray-500">{u.roomId ? 'In room' : 'Lobby'}</div>
-                        <Button size="sm" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontSize: 10 }}
-                          onClick={() => toast.info('User management requires production backend')}>
-                          Manage
-                        </Button>
+                        <div className="text-xs text-green-400 hidden md:block">{u.balance ? `${(u.balance / 1_000_000).toFixed(1)}M $Pc` : '0'}</div>
+                        <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer select-none" data-testid={`admin-user-${u.id}-bot-toggle`}>
+                          <input
+                            type="checkbox"
+                            checked={u.isBot}
+                            disabled={!!flagBusy[u.id]}
+                            onChange={e => toggleUserFlag(u.id, 'isBot', e.target.checked)}
+                            className="accent-blue-500"
+                          />
+                          Bot
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer select-none" data-testid={`admin-user-${u.id}-house-toggle`}>
+                          <input
+                            type="checkbox"
+                            checked={u.isHouse}
+                            disabled={!!flagBusy[u.id]}
+                            onChange={e => toggleUserFlag(u.id, 'isHouse', e.target.checked)}
+                            className="accent-yellow-500"
+                          />
+                          House
+                        </label>
                       </div>
                     ))}
                   </div>
@@ -944,6 +1037,24 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                 {(parseInt(resetAmount) || 10000).toLocaleString()} $Pc
               </span>.
             </p>
+            <div
+              className="text-xs px-3 py-2 rounded-lg"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+              data-testid="admin-reset-excluded-summary"
+            >
+              {resetExcluded ? (
+                <>
+                  <div>
+                    <span className="text-amber-300 font-semibold">{resetExcluded.resettable.toLocaleString()}</span> account(s) will be reset.
+                  </div>
+                  <div className="text-gray-400 mt-0.5">
+                    <span className="text-gray-200 font-semibold">{resetExcluded.excluded.toLocaleString()}</span> will be skipped — admins: {resetExcluded.admins}, bots: {resetExcluded.bots}, house: {resetExcluded.house}.
+                  </div>
+                </>
+              ) : (
+                <span className="text-gray-400">Loading exclusion preview…</span>
+              )}
+            </div>
             <p className="text-red-300 text-xs">This cannot be undone.</p>
             <div>
               <label className="text-xs text-gray-300 mb-1 block">
@@ -989,6 +1100,28 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
       </Dialog>
     </Dialog>
   );
+}
+
+interface DbUser {
+  id: number;
+  username: string;
+  email: string | null;
+  balance: number;
+  vipTier: string | null;
+  isAdmin: boolean;
+  isBot: boolean;
+  isHouse: boolean;
+  createdAt: string | null;
+  lastSeen: string | null;
+}
+
+interface ExcludedCount {
+  admins: number;
+  bots: number;
+  house: number;
+  excluded: number;
+  resettable: number;
+  total: number;
 }
 
 interface EmailStatusCounters { day: string | null; sent: number; failed: number }

@@ -70,6 +70,16 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 - **Admin debug**: `POST /api/admin/email/test { to }` (admin-only) sends a test message and returns the SMTP result. Wired in the admin dashboard's Broadcast tab as "SMTP Diagnostics".
 - **Graceful signup fallback**: If SMTP is not ready at registration time, the user gets an in-app notification with the verification link instead of relying on email arriving.
 
+### Admin: Bot / House Account Flagging
+
+- `users.is_bot` and `users.is_house` are boolean columns set per-account by an
+  operator. The Demo "Launch Reset" excludes admins + bots + house accounts
+  (`is_admin OR is_bot OR is_house`) so non-human balances are never wiped.
+- Admin endpoints (all require `requireAuth` + `req.user.is_admin`):
+  - `GET /api/admin/users/list` — DB-backed user list with `isAdmin/isBot/isHouse` flags. Used by the admin Users tab.
+  - `PATCH /api/admin/users/:id/flags` — body `{ isBot?: boolean, isHouse?: boolean }`. Only provided keys are updated. Logs to `admin:user:flags`.
+  - `GET /api/admin/users/excluded-count` — returns `{ admins, bots, house, excluded, resettable, total }`. The Launch Reset confirm modal renders this preview before the operator types `RESET`.
+
 ### External Dependencies
 
 - **PostgreSQL**: Primary database for all persistent data.
