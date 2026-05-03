@@ -13,7 +13,7 @@
 
 import { query } from './db.js';
 import { getOnChainPcBalance, getNativeBalance, getPayoutAddress } from './payout-signer.js';
-import { sendPayoutBreakerTrippedEmail } from './email.js';
+import { sendPayoutBreakerTrippedEmail, sendPayoutBreakerAutoRecoveredEmail } from './email.js';
 
 const FLAG_TRIPPED   = 'payout_breaker_tripped';
 const FLAG_REASON    = 'payout_breaker_reason';
@@ -186,6 +186,86 @@ export async function checkBreakerFollowupAlert() {
   }
   await _setFlag(FLAG_FOLLOWUP_SENT_AT, new Date().toISOString());
   return { sent: true };
+}
+
+// Auto-recover checker: if the breaker tripped solely on a balance/floor
+// condition and the hot wallet has since been refilled comfortably above the
+// floor (with a safety margin to avoid flapping), AND there are no recent
+// consecutive send failures, reset the breaker automatically and notify
+// admins. Trips for non-balance reasons (consecutive failures, single payout
+// limit, 1h burst, 24h cap) are intentionally NOT auto-resettable — those
+// represent decisions that need a human review before resuming.
+//
+// Idempotent and cheap when the breaker is clear (one system_flags read).
+// Safe to call from the same scheduler tick as the followup checker.
+export async function checkBreakerAutoRecover() {
+  if (!(await isTripped())) return { skipped: 'not_tripped' };
+  const reason = await _getFlag(FLAG_REASON);
+  // Both BELOW_FLOOR and INSUFFICIENT_HOT_WALLET trips stamp the reason
+  // with a "Hot-wallet balance ..." prefix in tripBreaker callsites above.
+  if (!reason || !/^Hot-wallet balance /.test(reason)) {
+    return { skipped: 'non_balance_reason', reason };
+  }
+  // Require a clean failure counter — task spec says "no recent failures",
+  // not just "below the trip threshold". Any pending failure means the last
+  // send attempt didn't succeed, so a human should look before we resume.
+  const fails = parseInt((await _getFlag(FLAG_FAILS)) || '0', 10);
+  const limits = breakerLimits();
+  if (fails > 0) {
+    return { skipped: 'recent_failures', fails };
+  }
+  if (!getPayoutAddress()) return { skipped: 'no_payout_address' };
+  let balance;
+  try {
+    balance = await getOnChainPcBalance();
+  } catch (e) {
+    return { skipped: 'balance_check_failed', error: e.message };
+  }
+  // Require the balance to be at least 10% above the floor so a wallet
+  // sitting *exactly* at the floor doesn't repeatedly auto-reset and
+  // re-trip on the next preflight.
+  const safeFloor = limits.floor + (limits.floor / 10n);
+  if (balance < safeFloor) {
+    return { skipped: 'below_safe_floor', balance: balance.toString(), safeFloor: safeFloor.toString() };
+  }
+  const trippedAtRaw = await _getFlag(FLAG_TRIPPED_AT);
+  await resetBreaker('auto-recover');
+  await _notifyAdminsOfAutoRecover({
+    priorReason: reason,
+    balance: balance.toString(),
+    floor: limits.floor.toString(),
+    trippedAt: trippedAtRaw,
+  }).catch(e => console.error('[PayoutBreaker] auto-recover notify failed:', e.message));
+  return { recovered: true, balance: balance.toString(), priorReason: reason };
+}
+
+// Dashboard notification + email broadcast when the breaker auto-resets after
+// the hot wallet is refilled. Mirrors `_notifyAdminsOfTrip` so admins see a
+// matching "good news" entry alongside the original alert.
+async function _notifyAdminsOfAutoRecover({ priorReason, balance, floor, trippedAt }) {
+  const admins = await query(
+    `SELECT id, email FROM users WHERE is_admin = TRUE`,
+  ).catch(() => ({ rows: [] }));
+  const ethSnap = await _safeWalletSnapshot();
+  const fmtPc = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return BigInt(s).toLocaleString() + ' $Pc'; } catch { return String(s); }
+  };
+  const title = '✅ Payout Breaker auto-recovered';
+  const message = `Hot wallet refilled to ${fmtPc(balance)} (floor ${fmtPc(floor)}). Auto-payouts have RESUMED. Original trip: ${priorReason || 'unknown'}.`;
+  for (const a of admins.rows) {
+    await query(
+      `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'admin_alert', $2, $3)`,
+      [a.id, title, message],
+    ).catch(() => {});
+  }
+  for (const a of admins.rows) {
+    if (!a.email) continue;
+    sendPayoutBreakerAutoRecoveredEmail(a.email, {
+      priorReason, hotPcBalance: balance, hotEthBalance: ethSnap.eth, floor, trippedAt,
+    }).catch(e => console.error(`[PayoutBreaker] auto-recover email to ${a.email} failed:`, e?.message));
+  }
+  console.log(`[PayoutBreaker] AUTO-RECOVERED, broadcast to ${admins.rows.length} admin(s). Balance ${balance}, prior reason: ${priorReason}`);
 }
 
 export async function resetBreaker(adminUsername = null) {

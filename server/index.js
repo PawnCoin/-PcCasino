@@ -20,7 +20,7 @@ import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmai
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
 import { reconcileStaleSendingPayouts } from './payout-engine.js';
-import { checkBreakerFollowupAlert } from './payout-breaker.js';
+import { checkBreakerFollowupAlert, checkBreakerAutoRecover } from './payout-breaker.js';
 import { getPcPrice, getRequiredPcThreshold } from './pc-pricing.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -2401,8 +2401,15 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     // system_flags read when not tripped) so a 5-minute cadence is fine.
     // Idempotent across restarts — `checkBreakerFollowupAlert` short-circuits
     // once the follow-up email has been sent for the current trip.
-    setInterval(() => {
-      checkBreakerFollowupAlert().catch(e => console.error('[PayoutBreaker followup]', e.message));
+    setInterval(async () => {
+      // Run auto-recover FIRST so a refilled hot wallet resets the breaker
+      // before the followup checker fires — otherwise admins could receive
+      // a contradictory "still tripped" alert in the same tick that the
+      // breaker actually recovered.
+      try { await checkBreakerAutoRecover(); }
+      catch (e) { console.error('[PayoutBreaker auto-recover]', e.message); }
+      try { await checkBreakerFollowupAlert(); }
+      catch (e) { console.error('[PayoutBreaker followup]', e.message); }
     }, 5 * 60 * 1000);
   });
   initEmail().catch(e => console.error('[Email] init failed:', e.message));

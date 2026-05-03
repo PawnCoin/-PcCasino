@@ -461,6 +461,66 @@ export async function sendPayoutBreakerTrippedEmail(to, {
   return sendMail({ to, subject, html: emailWrapper(content, null), label: followup ? 'breaker-tripped-1h' : 'breaker-tripped' });
 }
 
+// Sent to every admin when the payout circuit breaker auto-resets after the
+// hot wallet has been refilled comfortably above the floor. Counterpart to
+// sendPayoutBreakerTrippedEmail — admins who got the "TRIPPED" alert deserve
+// the matching "RESUMED" follow-up so they know they don't need to act.
+//
+// Like the trip email, this bypasses the user-style unsubscribe footer: it's
+// an operational alert tied to the admin role, not a marketing message.
+export async function sendPayoutBreakerAutoRecoveredEmail(to, {
+  priorReason,
+  hotPcBalance = null,
+  hotEthBalance = null,
+  floor = null,
+  trippedAt = null,
+} = {}) {
+  const fmtPc = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return BigInt(s).toLocaleString() + ' $Pc'; } catch { return String(s); }
+  };
+  const fmtEth = (s) => {
+    if (s === null || s === undefined || s === '') return 'unknown';
+    try { return (Number(BigInt(s)) / 1e18).toFixed(4) + ' ETH'; } catch { return String(s); }
+  };
+  const trippedLine = trippedAt
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Originally tripped at</td><td style="color:#fff;text-align:right;border-top:1px solid #222;">${new Date(trippedAt).toUTCString()}</td></tr>`
+    : '';
+  const floorLine = floor
+    ? `<tr><td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Floor</td><td style="color:#fff;text-align:right;border-top:1px solid #222;">${fmtPc(floor)}</td></tr>`
+    : '';
+  const content = `
+    <h2 style="color:#86efac;margin:0 0 16px;">✅ Payout Breaker Auto-Recovered</h2>
+    <p style="color:#ccc;line-height:1.6;">The hot wallet has been refilled comfortably above the floor and the payout circuit breaker has <strong>auto-reset</strong>. Auto-payouts have resumed — no admin action is required. Queued withdrawals in the Awaiting Send queue will begin processing on the next engine tick.</p>
+    <div style="background:#111;border:1px solid #22c55e;border-radius:8px;padding:20px;margin:24px 0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;">Original trip reason</td>
+          <td style="color:#fca5a5;text-align:right;">${priorReason || 'unknown'}</td>
+        </tr>
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Hot wallet $Pc</td>
+          <td style="color:#86efac;font-weight:bold;text-align:right;border-top:1px solid #222;">${fmtPc(hotPcBalance)}</td>
+        </tr>
+        <tr>
+          <td style="color:#888;padding:8px 0;font-size:14px;border-top:1px solid #222;">Hot wallet ETH</td>
+          <td style="color:#fff;text-align:right;border-top:1px solid #222;">${fmtEth(hotEthBalance)}</td>
+        </tr>
+        ${floorLine}
+        ${trippedLine}
+      </table>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${SITE_URL}/admin" style="background:#22c55e;color:#000;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+        Open Payout Health Panel
+      </a>
+    </div>
+    <p style="color:#888;font-size:12px;line-height:1.6;">Auto-recovery only fires for balance/floor trips. Trips for consecutive failures, single-payout limits, or 1h/24h volume caps still require a manual reset by an admin.</p>
+  `;
+  const subject = `[$Pc Casino] Payout breaker auto-recovered — hot wallet refilled`;
+  return sendMail({ to, subject, html: emailWrapper(content, null), label: 'breaker-auto-recovered' });
+}
+
 // Admin debug helper — sends a tiny "is the pipe alive?" email and returns the
 // raw nodemailer result (or error) so the admin dashboard can show it.
 export async function sendTestEmail(to) {
