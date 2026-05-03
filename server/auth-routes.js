@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { createHash, randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from './db.js';
-import { sendVerificationEmail, sendWelcomeEmail, generateUnsubscribeToken } from './email.js';
+import { sendVerificationEmail, sendWelcomeEmail, generateUnsubscribeToken, isEmailReady } from './email.js';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
@@ -186,13 +186,24 @@ router.post('/register', async (req, res) => {
     const freshUser = await query('SELECT balance FROM users WHERE id = $1', [user.id]);
     const finalBalance = freshUser.rows.length ? parseInt(freshUser.rows[0].balance) : parseInt(user.balance);
 
-    // Send verification email + welcome email on registration
-    try {
-      await sendVerificationEmail(email, username, verifyToken);
-    } catch (e) {
-      console.error('[Email] Verification email failed:', e.message);
+    // Send verification email + welcome email on registration. The email
+    // helpers swallow errors internally and log structured success/failure
+    // lines, so we don't need try/catch here. If SMTP is not configured or
+    // verify() failed at boot, drop an in-app verification notification so
+    // the user is never left in the dark waiting for an email that won't come.
+    const emailUp = isEmailReady();
+    if (emailUp) {
+      sendVerificationEmail(email, username, verifyToken)
+        .catch(e => console.error('[Email] verify dispatch error:', e.message));
+      sendWelcomeEmail(email, username)
+        .catch(e => console.error('[Email] welcome dispatch error:', e.message));
+    } else {
+      const verifyUrl = `/api/auth/verify-email?token=${verifyToken}`;
+      await query(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'email', 'Email confirmation could not be sent', $2)",
+        [user.id, `Our email service is currently unavailable. Use this in-app verification link to confirm your account: ${verifyUrl}`]
+      );
     }
-    sendWelcomeEmail(email, username).catch(e => console.error('[Email] Welcome email failed:', e.message));
 
     const token = generateToken(user.id);
     await query('INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'30 days\')', [user.id, token]);

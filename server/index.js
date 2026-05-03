@@ -16,7 +16,7 @@ import friendsRoutes, { setFriendsIO } from './friends-routes.js';
 import { initDatabase, query, pool } from './db.js';
 import { cleanupExpiredSessions } from './auth-routes.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
-import { sendCashbackEmail, sendTournamentReminderEmail } from './email.js';
+import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, isEmailReady } from './email.js';
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
 
@@ -1366,6 +1366,26 @@ app.get('/api/admin/cashback-log', async (req, res) => {
   }
 });
 
+// Admin: send a test email so we can debug live SMTP delivery
+app.post('/api/admin/email/test', requireAuth, async (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { to } = req.body || {};
+  if (!to || typeof to !== 'string' || !to.includes('@')) {
+    return res.status(400).json({ error: 'Provide a valid `to` email address' });
+  }
+  const result = await sendTestEmail(to);
+  logAdmin('email:test', { to, ok: result.ok, code: result.code, reason: result.reason });
+  if (result.ok) {
+    return res.json({ success: true, messageId: result.messageId, response: result.response, status: getEmailStatus() });
+  }
+  return res.status(502).json({ success: false, error: result.reason || 'send failed', code: result.code, skipped: !!result.skipped, status: getEmailStatus() });
+});
+
+app.get('/api/admin/email/status', requireAuth, (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  res.json(getEmailStatus());
+});
+
 app.post('/api/admin/broadcast', (req, res) => {
   const { message, type } = req.body;
   io.emit('admin:broadcast', { message, type: type || 'info', timestamp: Date.now() });
@@ -2277,6 +2297,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
     backfillDemoModeNotifications().catch(e => console.error('[DemoBackfill]', e.message));
   });
+  initEmail().catch(e => console.error('[Email] init failed:', e.message));
 });
 
 async function backfillDemoModeNotifications() {

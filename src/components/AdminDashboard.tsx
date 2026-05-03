@@ -652,6 +652,7 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                       <Send className="w-4 h-4 mr-2" /> Broadcast to All Users
                     </Button>
                   </div>
+                  <EmailTestPanel getToken={getToken} />
                 </div>
               )}
 
@@ -987,5 +988,101 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
         </DialogContent>
       </Dialog>
     </Dialog>
+  );
+}
+
+function EmailTestPanel({ getToken }: { getToken: () => string | null }) {
+  const [to, setTo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<any>(null);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const loadStatus = async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin/email/status', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setStatus(await res.json());
+    } catch { /* ignore */ }
+  };
+  useEffect(() => { loadStatus(); }, []);
+
+  const sendTest = async () => {
+    if (!to.trim() || !to.includes('@')) {
+      toast.error('Enter a valid recipient email');
+      return;
+    }
+    const token = getToken();
+    if (!token) { toast.error('Admin login required'); return; }
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await fetch('/api/admin/email/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ to: to.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResult({ ok: true, text: `Sent. messageId=${data.messageId || '-'}  response=${(data.response || '').slice(0, 120)}` });
+        toast.success('Test email sent');
+      } else {
+        setResult({ ok: false, text: `Failed: ${data.error || 'unknown'}${data.code ? ` (code=${data.code})` : ''}` });
+        toast.error(data.error || 'Send failed');
+      }
+      if (data.status) setStatus(data.status);
+    } catch (e: any) {
+      setResult({ ok: false, text: `Network error: ${e?.message || 'unknown'}` });
+      toast.error('Server unavailable');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }} data-testid="admin-email-test-panel">
+      <div className="flex items-center justify-between">
+        <h4 className="font-bold text-white text-sm">SMTP Diagnostics</h4>
+        <Button size="sm" onClick={loadStatus} style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', fontSize: 11 }}>
+          Refresh
+        </Button>
+      </div>
+      {status && (
+        <div className="text-xs space-y-1" style={{ color: '#9ca3af' }}>
+          <div>Status: <span style={{ color: status.ready ? '#4ade80' : '#f87171' }}>{status.ready ? 'READY' : 'DISABLED'}</span> — {status.reason}</div>
+          <div>From: <span className="text-white">{status.from}</span></div>
+          {status.replyTo && <div>Reply-To: <span className="text-white">{status.replyTo}</span></div>}
+          {status.counters && (
+            <div>Today ({status.counters.day}): sent={status.counters.sent}, failed={status.counters.failed}</div>
+          )}
+        </div>
+      )}
+      <div>
+        <label className="text-sm text-gray-300 mb-2 block">Send a test email</label>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={to}
+            onChange={e => setTo(e.target.value)}
+            placeholder="recipient@example.com"
+            className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+            data-testid="admin-email-test-to"
+          />
+          <Button onClick={sendTest} disabled={busy} style={{ background: 'rgba(212,175,55,0.2)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' }} data-testid="admin-email-test-send">
+            {busy ? 'Sending…' : 'Send Test'}
+          </Button>
+        </div>
+      </div>
+      {result && (
+        <div className="text-xs px-3 py-2 rounded-lg" style={{
+          background: result.ok ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)',
+          border: `1px solid ${result.ok ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}`,
+          color: result.ok ? '#4ade80' : '#f87171',
+        }}>
+          {result.text}
+        </div>
+      )}
+    </div>
   );
 }

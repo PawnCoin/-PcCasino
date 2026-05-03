@@ -60,6 +60,16 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
 ### LiveOne Music Integration
 - Embedded as an iframe within the MusicPlayer panel (no external tab redirect). Users can stream LiveOne without leaving the casino.
 
+### Email / SMTP
+
+- **Canonical operator domain**: `pccasino.online` (not `pcasino.com` — that's a legacy typo that bounced every welcome email).
+- **Required env vars**: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (display + address). Optional: `UNSUBSCRIBE_SECRET` (HMAC for unsubscribe links), `SITE_URL`.
+- **From-domain rule**: `SMTP_FROM`'s domain MUST match `SMTP_USER`'s domain or the SMTP relay (e.g. Hostinger) will SPF/DKIM-reject the message and bounce it back as a "mail daemon" failure. If the two don't align, the server automatically swaps `From:` to `SMTP_USER` and puts the friendly `noreply@pccasino.online` in `Reply-To` (logged once at boot).
+- **Boot verification**: `initEmail()` runs `transporter.verify()` on startup and logs a single `[Email] READY` or `[Email] DISABLED` line. Cached state is exposed via `getEmailStatus()` and the `GET /api/admin/email/status` endpoint.
+- **Per-send logging + counters**: Every outbound email logs `[Email:<label>] SENT|FAILED|SKIPPED to=… messageId=…|code=…|reason=…`. Daily sent/failed counters roll over at UTC midnight.
+- **Admin debug**: `POST /api/admin/email/test { to }` (admin-only) sends a test message and returns the SMTP result. Wired in the admin dashboard's Broadcast tab as "SMTP Diagnostics".
+- **Graceful signup fallback**: If SMTP is not ready at registration time, the user gets an in-app notification with the verification link instead of relying on email arriving.
+
 ### External Dependencies
 
 - **PostgreSQL**: Primary database for all persistent data.
