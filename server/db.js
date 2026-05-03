@@ -129,6 +129,42 @@ export async function initDatabase() {
       )
     `);
     await query(`ALTER TABLE withdraw_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP`).catch(() => {});
+    // Idempotency key for withdrawal auto-payouts (Task #91). Generated at
+    // withdraw-request creation; protects against double-broadcast races.
+    await query(`ALTER TABLE withdraw_requests ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64)`).catch(() => {});
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_withdraw_idempotency_key ON withdraw_requests (idempotency_key) WHERE idempotency_key IS NOT NULL`).catch(() => {});
+
+    // Payout audit log — every send attempt (sent / confirmed / reverted /
+    // breaker_blocked / send_failed). Used by the admin "Payout System
+    // Health" panel and by the breaker to compute rolling 1h / 24h windows.
+    await query(`
+      CREATE TABLE IF NOT EXISTS payout_log (
+        id SERIAL PRIMARY KEY,
+        withdraw_id INTEGER REFERENCES withdraw_requests(id) ON DELETE SET NULL,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        idempotency_key VARCHAR(64),
+        status VARCHAR(30) NOT NULL,
+        tx_hash VARCHAR(255),
+        amount BIGINT NOT NULL,
+        to_address VARCHAR(255),
+        error_message TEXT,
+        gas_price VARCHAR(64),
+        gas_limit VARCHAR(64),
+        gas_used VARCHAR(64),
+        wallet_balance_after VARCHAR(80),
+        nonce INTEGER,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    // Idempotent migrations for environments that already have payout_log.
+    await query(`ALTER TABLE payout_log ADD COLUMN IF NOT EXISTS user_id INTEGER`).catch(() => {});
+    await query(`ALTER TABLE payout_log ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64)`).catch(() => {});
+    await query(`ALTER TABLE payout_log ADD COLUMN IF NOT EXISTS gas_used VARCHAR(64)`).catch(() => {});
+    await query(`ALTER TABLE payout_log ADD COLUMN IF NOT EXISTS wallet_balance_after VARCHAR(80)`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_payout_log_created ON payout_log(created_at DESC)`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_payout_log_withdraw ON payout_log(withdraw_id)`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_payout_log_status_created ON payout_log(status, created_at DESC)`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_payout_log_idem_key ON payout_log(idempotency_key) WHERE idempotency_key IS NOT NULL`).catch(() => {});
 
     await query(`
       CREATE TABLE IF NOT EXISTS transactions (

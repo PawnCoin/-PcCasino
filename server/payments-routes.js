@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomBytes } from 'crypto';
 import { query, pool } from './db.js';
 import { requireAuth } from './auth-routes.js';
 import { processJackpotContribution } from './jackpot.js';
@@ -6,6 +7,7 @@ import { sendDepositConfirmationEmail, sendWithdrawEmail, sendWithdrawSentEmail 
 import { refreshDefaultWalletVerification } from './wallet-routes.js';
 import { isDemoMode } from './demo-mode.js';
 import { verifyOnChainDeposit } from './pc-pricing.js';
+import { attemptAutoPayout, getPayoutHealth, resetBreaker } from './payout-engine.js';
 
 const router = Router();
 // TREASURY WALLET — set DEPOSIT_WALLET_ADDRESS in environment secrets before going live
@@ -436,12 +438,14 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
     await query('BEGIN');
     await query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, user.id]);
 
-    // Auto-approve immediately. Status flow: 'approved' (queued for admin to
-    // physically send) -> 'completed' (admin marks sent).
+    // Auto-approve immediately. Status flow: 'approved' (queued for send) ->
+    // 'sending' (broadcast in flight) -> 'completed' (on-chain confirmed) OR
+    // back to 'approved' on broadcast failure for admin retry/manual send.
+    const idempotencyKey = randomBytes(16).toString('hex');
     const result = await query(
-      `INSERT INTO withdraw_requests (user_id, amount, to_address, network, status, processed_at)
-       VALUES ($1, $2, $3, $4, 'approved', NOW()) RETURNING *`,
-      [user.id, amount, toAddress, network || 'ERC-20']
+      `INSERT INTO withdraw_requests (user_id, amount, to_address, network, status, idempotency_key, processed_at)
+       VALUES ($1, $2, $3, $4, 'approved', $5, NOW()) RETURNING *`,
+      [user.id, amount, toAddress, network || 'ERC-20', idempotencyKey]
     );
     // Link the transaction row to this specific withdraw_request so later
     // mark-sent / reject only updates THIS row (not all pending withdraws).
@@ -461,11 +465,100 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
       [user.id, `Your withdrawal of ${parseInt(amount).toLocaleString()} $Pc to ${toAddress.slice(0, 16)}... was auto-approved and is queued for sending.`]
     );
 
+    // Fire-and-forget automatic on-chain payout (Task #91). Errors are
+    // surfaced to the user via notifications + the admin "Awaiting Send"
+    // queue (the row rolls back to status='approved' on failure).
+    attemptAutoPayout(result.rows[0].id)
+      .then(r => {
+        if (r?.broadcast) console.log(`[auto-payout] withdraw #${result.rows[0].id} broadcast ${r.txHash}`);
+        else if (r?.skipped) console.log(`[auto-payout] withdraw #${result.rows[0].id} skipped: ${r.reason}`);
+      })
+      .catch(e => console.error(`[auto-payout] withdraw #${result.rows[0].id} error:`, e.message));
+
     res.json({ success: true, autoApproved: true, request: result.rows[0] });
   } catch (err) {
     await query('ROLLBACK').catch(() => {});
     console.error('Withdraw request error:', err);
     res.status(500).json({ error: 'Withdrawal request failed' });
+  }
+});
+
+// Admin: payout system health snapshot (Task #91).
+router.get('/admin/payouts/health', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const health = await getPayoutHealth();
+    res.json(health);
+  } catch (err) {
+    console.error('[payouts/health]', err);
+    res.status(500).json({ error: 'Failed to load payout health' });
+  }
+});
+
+// Admin: manually reset the payout circuit breaker (Task #91).
+router.post('/admin/payouts/reset-breaker', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    await resetBreaker(req.user.username);
+    await query(
+      `INSERT INTO admin_actions (admin_id, admin_username, action, target_type, target_id, details)
+       VALUES ($1, $2, 'payout_breaker_reset', 'system', 0, $3)`,
+      [req.user.id, req.user.username, JSON.stringify({ at: new Date().toISOString() })],
+    ).catch(() => {});
+    res.json({ success: true, breaker: (await getPayoutHealth()).breaker });
+  } catch (err) {
+    console.error('[payouts/reset-breaker]', err);
+    res.status(500).json({ error: 'Reset failed' });
+  }
+});
+
+// Admin: retry an auto-payout that failed (row should be back at 'approved').
+router.post('/admin/payouts/:id/retry', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const r = await attemptAutoPayout(parseInt(req.params.id, 10));
+    res.json(r);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: rollback a 'sending' row whose receipt poll timed out, after the
+// admin has manually verified on-chain that the broadcast tx will never
+// confirm (e.g. dropped from mempool, replaced by speedup, etc.). Flips
+// the row back to 'approved' so the standard awaiting-send queue can
+// retry the auto-send or refund the user. Refuses if the row is in any
+// other state — operators must never blindly rollback a still-pending tx.
+router.post('/admin/payouts/:id/rollback-sending', requireAuth, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' });
+  if (isDemoMode()) {
+    return res.status(403).json({ error: 'Demo mode is active.', code: 'DEMO_MODE_ENABLED' });
+  }
+  const id = parseInt(req.params.id, 10);
+  try {
+    const wr = await query('SELECT * FROM withdraw_requests WHERE id = $1', [id]);
+    if (!wr.rows.length) return res.status(404).json({ error: 'Not found' });
+    const w = wr.rows[0];
+    if (w.status !== 'sending') {
+      return res.status(400).json({ error: `Cannot rollback a ${w.status} withdrawal` });
+    }
+    const note = `Rolled back from 'sending' by admin ${req.user.username}` +
+      (w.tx_hash ? ` (prior tx ${w.tx_hash} confirmed unrecoverable).` : '.');
+    await query(
+      `UPDATE withdraw_requests
+          SET status = 'approved', tx_hash = NULL, admin_note = $1
+        WHERE id = $2 AND status = 'sending'`,
+      [note, id],
+    );
+    await query(
+      `INSERT INTO admin_actions (admin_id, admin_username, action, target_type, target_id, details)
+       VALUES ($1, $2, 'payout_rollback_sending', 'withdraw_request', $3, $4)`,
+      [req.user.id, req.user.username, id, JSON.stringify({ priorTxHash: w.tx_hash })],
+    ).catch(() => {});
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[payout rollback-sending]', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -498,6 +591,12 @@ router.post('/withdraw/:id/approve', requireAuth, async (req, res) => {
        VALUES ($1, $2, 'withdraw_approve', 'withdraw_request', $3, $4)`,
       [req.user.id, req.user.username, w.id, JSON.stringify({ amount: parseInt(w.amount), toAddress: w.to_address, recipientUserId: w.user_id })]
     ).catch(e => console.error('[admin_actions log]', e.message));
+    // Hand off to the auto-payout engine the same way the auto-approval path
+    // (POST /withdraw/request) does. Manual approvals must reach the signer
+    // automatically — admins should never have to take a second action to
+    // physically broadcast the on-chain transfer.
+    attemptAutoPayout(w.id)
+      .catch(e => console.error(`[auto-payout #${w.id} after manual approve]`, e?.message));
     res.json({ success: true });
   } catch (err) {
     console.error('[withdraw approve]', err);
@@ -524,7 +623,7 @@ async function _markWithdrawSent(req, res) {
     // Strict state-machine: only an 'approved' (awaiting-send) row may be
     // marked sent. 'pending' rows must first be manually approved via
     // /withdraw/:id/approve to enforce the audit-friendly two-step flow.
-    if (w.status !== 'approved') {
+    if (!['approved', 'sending'].includes(w.status)) {
       return res.status(400).json({
         error: w.status === 'pending'
           ? 'Withdrawal is still pending manual approval. Approve it first.'
@@ -592,9 +691,17 @@ router.post('/withdraw/:id/reject', requireAuth, async (req, res) => {
     const w = wr.rows[0];
     // Idempotent guard: only refund withdrawals still in a refundable state.
     // Re-rejecting an already-rejected/completed row would double-refund.
+    // 'sending' is NEVER directly refundable: even if tx_hash is null in the
+    // DB, the broadcast may have succeeded just before a DB-write fault —
+    // refunding here would risk double-pay if the tx later confirms. Admins
+    // must first call /admin/payouts/:id/rollback-sending after verifying
+    // on-chain that no tx is pending; that endpoint moves the row back to
+    // 'approved', which is then refundable through this route.
     if (!['pending', 'approved'].includes(w.status)) {
       return res.status(400).json({
-        error: `Cannot reject a ${w.status} withdrawal`,
+        error: w.status === 'sending'
+          ? 'Cannot refund a sending withdrawal directly. Verify on-chain and use rollback-sending first.'
+          : `Cannot reject a ${w.status} withdrawal`,
         code: w.status === 'rejected' ? 'ALREADY_REJECTED' : 'NOT_REFUNDABLE',
       });
     }

@@ -1331,6 +1331,168 @@ type WithdrawRow = {
   created_at: string; processed_at: string | null;
 };
 
+type PayoutHealth = {
+  configured: boolean;
+  demoMode: boolean;
+  address: string | null;
+  pcBalance: string | null;
+  ethBalance: string | null;
+  balanceError: string | null;
+  breaker: {
+    tripped: boolean;
+    reason: string | null;
+    consecutiveFailures: number;
+    lastResetAt: string | null;
+    limits: Record<string, string | number>;
+  };
+  totals: { burst1h: string; sent24h: string; count24h: number };
+  explorerBase?: string;
+  recent: Array<{
+    id: number; withdraw_id: number | null; status: string; tx_hash: string | null;
+    amount: string; to_address: string | null; error_message: string | null;
+    nonce: number | null; created_at: string; username: string | null;
+  }>;
+};
+
+function PayoutHealthPanel() {
+  const [data, setData] = useState<PayoutHealth | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const h = await adminPaymentsApi.payoutHealth();
+      setData(h);
+    } catch (err) { toast.error(errorMessage(err)); }
+    setLoading(false);
+  };
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const reset = async () => {
+    if (!window.confirm('Reset the payout circuit breaker? Auto-payouts will resume immediately.')) return;
+    setResetting(true);
+    try {
+      await adminPaymentsApi.resetPayoutBreaker();
+      toast.success('Circuit breaker reset');
+      await load();
+    } catch (err) { toast.error(errorMessage(err)); }
+    setResetting(false);
+  };
+
+  // Safe BigInt formatter — returns '—' for null/empty/non-numeric inputs so
+  // the panel never crashes while data is still loading.
+  const fmtPc = (s: string | number | null | undefined) => {
+    if (s === null || s === undefined || s === '') return '—';
+    try { return BigInt(s).toLocaleString() + ' $Pc'; } catch { return '—'; }
+  };
+  const tripped = data?.breaker.tripped;
+
+  return (
+    <div className="p-4 rounded-xl space-y-3" data-testid="admin-payout-health"
+      style={{ background: tripped ? 'rgba(239,68,68,0.06)' : 'rgba(74,222,128,0.04)', border: `1px solid ${tripped ? 'rgba(239,68,68,0.4)' : 'rgba(74,222,128,0.3)'}` }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="font-bold text-white text-sm">Payout System Health</h4>
+          <div className="text-xs text-gray-400 mt-0.5">
+            {data?.configured
+              ? <>Hot wallet: <span className="font-mono text-gray-300">{data.address || '—'}</span></>
+              : <span className="text-yellow-400">PAYOUT_WALLET_PRIVATE_KEY / PC_TOKEN_CONTRACT not configured — auto-send disabled.</span>}
+            {data?.demoMode && <span className="ml-2 text-yellow-400">• DEMO_MODE active</span>}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={load} disabled={loading} size="sm"
+            style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', fontSize: 11 }}>
+            <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </Button>
+          {tripped && (
+            <Button onClick={reset} disabled={resetting} size="sm" data-testid="admin-payout-reset-breaker"
+              style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)', fontSize: 11 }}>
+              {resetting ? 'Resetting…' : 'Reset Breaker'}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {tripped && (
+        <div className="p-2 rounded text-xs" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
+          <strong>BREAKER TRIPPED</strong> — auto-payouts are paused. Reason: {data?.breaker.reason || 'unknown'}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+        <div className="p-2 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="text-gray-500">Hot $Pc Balance</div>
+          <div className="text-white font-bold mt-0.5">{fmtPc(data?.pcBalance ?? null)}</div>
+          {data?.balanceError && <div className="text-red-400 text-[10px] mt-0.5">{data.balanceError}</div>}
+        </div>
+        <div className="p-2 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="text-gray-500">Hot ETH Balance</div>
+          <div className="text-white font-bold mt-0.5">
+            {data?.ethBalance ? `${(Number(BigInt(data.ethBalance)) / 1e18).toFixed(4)} ETH` : '—'}
+          </div>
+        </div>
+        <div className="p-2 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="text-gray-500">1h Burst</div>
+          <div className="text-white font-bold mt-0.5">{fmtPc(data?.totals.burst1h)}</div>
+          <div className="text-gray-500 text-[10px]">limit {fmtPc(data?.breaker.limits.burst1h)}</div>
+        </div>
+        <div className="p-2 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="text-gray-500">24h Sent ({data?.totals.count24h ?? 0})</div>
+          <div className="text-white font-bold mt-0.5">{fmtPc(data?.totals.sent24h)}</div>
+          <div className="text-gray-500 text-[10px]">limit {fmtPc(data?.breaker.limits.limit24h)}</div>
+        </div>
+      </div>
+
+      <div className="text-xs text-gray-500">
+        Floor {fmtPc(data?.breaker.limits.floor)} • Single-max {fmtPc(data?.breaker.limits.singleMax)} • Consecutive failures: {data?.breaker.consecutiveFailures ?? 0} / {data?.breaker.limits.maxConsecutiveFailures ?? 3}
+        {data?.breaker.lastResetAt && <> • Last reset: {new Date(data.breaker.lastResetAt).toLocaleString()}</>}
+      </div>
+
+      <div>
+        <div className="text-xs font-bold text-gray-400 mb-1">Recent payout activity</div>
+        <div className="rounded-lg max-h-56 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          {(data?.recent || []).length === 0 ? (
+            <div className="text-xs text-gray-500 p-3 text-center">No payout activity yet.</div>
+          ) : (data?.recent || []).map(r => {
+            const ok = r.status === 'confirmed' || r.status === 'sent';
+            const bad = r.status === 'send_failed' || r.status === 'reverted' || r.status === 'breaker_blocked';
+            const fg = ok ? '#4ade80' : bad ? '#f87171' : '#fbbf24';
+            // Backend supplies explorerBase from PAYOUT_EXPLORER_BASE_URL
+            // (chain-aware); fall back to Etherscan mainnet so links still
+            // work in dev/local without env config.
+            const explorerBase = data?.explorerBase || 'https://etherscan.io/tx/';
+            return (
+              <div key={r.id} className="flex items-center gap-2 text-xs px-2 py-1.5 border-b border-white/5 last:border-0">
+                <span style={{ color: fg, minWidth: 110 }}>{r.status}</span>
+                <span className="text-gray-300 truncate flex-1">
+                  #{r.withdraw_id ?? '—'} {r.username ? `(${r.username})` : ''} → {(r.to_address || '').slice(0, 12)}…
+                  {' '}• {parseInt(r.amount).toLocaleString()} $Pc
+                  {r.tx_hash && (
+                    <a href={`${explorerBase}${r.tx_hash}`} target="_blank" rel="noopener noreferrer"
+                       className="text-blue-300 hover:text-blue-200 underline ml-1"
+                       data-testid={`payout-explorer-${r.id}`}>
+                      tx {r.tx_hash.slice(0, 10)}…
+                    </a>
+                  )}
+                  {r.error_message && <span className="text-red-400"> • {r.error_message.slice(0, 60)}</span>}
+                </span>
+                <span className="text-gray-600 text-[10px]">{new Date(r.created_at).toLocaleTimeString()}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PaymentsAdminTab() {
   const [deposits, setDeposits] = useState<DepositRow[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawRow[]>([]);
@@ -1400,7 +1562,9 @@ function PaymentsAdminTab() {
   };
 
   const pendingChecks = withdrawals.filter(w => w.status === 'pending');
-  const awaitingSend = withdrawals.filter(w => w.status === 'approved');
+  // Includes 'sending' so admins can see and recover any auto-payout that
+  // crashed mid-broadcast or timed out waiting for confirmation.
+  const awaitingSend = withdrawals.filter(w => w.status === 'approved' || w.status === 'sending');
   const completedW = withdrawals.filter(w => w.status === 'completed').slice(0, 10);
   const rejectedW = withdrawals.filter(w => w.status === 'rejected').slice(0, 5);
 
@@ -1433,6 +1597,9 @@ function PaymentsAdminTab() {
           <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </Button>
       </div>
+
+      {/* Payout System Health — Task #91 (auto-send + circuit breaker) */}
+      <PayoutHealthPanel />
 
       {/* Pending checks queue — manual review withdrawals (e.g. needs-review,
           paused safety checks). Admin must approve or reject before they can
@@ -1486,33 +1653,56 @@ function PaymentsAdminTab() {
         </div>
         {awaitingSend.length === 0 ? (
           <div className="text-xs text-gray-500 py-3 text-center">No pending sends — all withdrawals up to date.</div>
-        ) : awaitingSend.map(w => (
-          <div key={w.id} className="p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(212,175,55,0.2)' }}>
+        ) : awaitingSend.map(w => {
+          const isSending = w.status === 'sending';
+          return (
+          <div key={w.id} className="p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${isSending ? 'rgba(96,165,250,0.3)' : 'rgba(212,175,55,0.2)'}` }}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-white text-sm">{w.username}</span>
                   <span className="text-xs text-gray-500">#{w.id}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
+                    style={{ background: isSending ? 'rgba(96,165,250,0.15)' : 'rgba(212,175,55,0.15)',
+                             color: isSending ? '#60a5fa' : '#D4AF37' }}>
+                    {w.status}
+                  </span>
                 </div>
                 <div className="text-lg font-bold" style={{ color: '#D4AF37' }}>
                   {parseInt(w.amount).toLocaleString()} $Pc
                 </div>
                 <div className="text-xs text-gray-400 break-all mt-1">→ {w.to_address}</div>
+                {w.tx_hash && <div className="text-xs text-blue-300 break-all mt-1 font-mono">tx: {w.tx_hash}</div>}
+                {w.admin_note && <div className="text-xs text-yellow-300 mt-1">{w.admin_note}</div>}
                 <div className="text-xs text-gray-500 mt-1">{w.network} • {new Date(w.created_at).toLocaleString()}</div>
               </div>
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <Button onClick={() => markSent(w.id)} disabled={busyId !== null} size="sm"
                   style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)', fontSize: 11 }}>
-                  <CheckCircle className="w-3 h-3 mr-1" /> Mark sent
+                  <CheckCircle className="w-3 h-3 mr-1" /> {isSending ? 'Finalize' : 'Mark sent'}
                 </Button>
-                <Button onClick={() => rejectWithdraw(w.id)} disabled={busyId !== null} size="sm"
-                  style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}>
-                  <XCircle className="w-3 h-3 mr-1" /> Reject (refund)
-                </Button>
+                {!isSending && (
+                  <Button onClick={async () => {
+                    setBusyId(`retry-${w.id}`);
+                    try { const r = await adminPaymentsApi.retryPayout(w.id); toast.success(r?.broadcast ? `Re-broadcast: ${r.txHash?.slice(0, 12)}…` : `Skipped: ${r?.reason}`); load(); }
+                    catch (err) { toast.error(errorMessage(err)); }
+                    setBusyId(null);
+                  }} disabled={busyId !== null} size="sm" data-testid={`admin-payout-retry-${w.id}`}
+                    style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)', fontSize: 11 }}>
+                    <RefreshCw className="w-3 h-3 mr-1" /> Retry auto-send
+                  </Button>
+                )}
+                {!isSending && (
+                  <Button onClick={() => rejectWithdraw(w.id)} disabled={busyId !== null} size="sm"
+                    style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}>
+                    <XCircle className="w-3 h-3 mr-1" /> Reject (refund)
+                  </Button>
+                )}
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Pending deposits (no tx hash / needs review) */}

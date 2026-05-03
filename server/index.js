@@ -19,6 +19,7 @@ import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadca
 import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, flushDailyCounters } from './email.js';
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
+import { reconcileStaleSendingPayouts } from './payout-engine.js';
 import { getPcPrice, getRequiredPcThreshold } from './pc-pricing.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -2389,6 +2390,12 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     cleanupExpiredSessions();
     setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
     backfillDemoModeNotifications().catch(e => console.error('[DemoBackfill]', e.message));
+    // Resume any auto-payout receipt watchers that were killed mid-flight by
+    // a previous process exit. Runs after DB init so the engine has a live
+    // pool to query payout_log/withdraw_requests.
+    reconcileStaleSendingPayouts()
+      .then(r => { if (r?.resumed) console.log(`[payout reconcile] resumed ${r.resumed} stale 'sending' payouts on boot`); })
+      .catch(e => console.error('[payout reconcile]', e.message));
   });
   initEmail().catch(e => console.error('[Email] init failed:', e.message));
 

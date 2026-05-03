@@ -227,6 +227,9 @@ export const adminPaymentsApi = {
     apiFetch(`/payments/withdraw/${id}/mark-sent`, { method: 'POST', body: JSON.stringify({ txHash }) }),
   rejectWithdraw: (id: number, note?: string) =>
     apiFetch(`/payments/withdraw/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+  payoutHealth: () => apiFetch('/payments/admin/payouts/health'),
+  resetPayoutBreaker: () => apiFetch('/payments/admin/payouts/reset-breaker', { method: 'POST' }),
+  retryPayout: (id: number) => apiFetch(`/payments/admin/payouts/${id}/retry`, { method: 'POST' }),
 };
 
 // VIP
