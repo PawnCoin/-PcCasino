@@ -8,6 +8,23 @@ import { CasinoIcon } from '@/components/CasinoIcons';
 
 const ADMIN_KEY = 'pcasino_admin_auth';
 
+// Known AI/seed seat usernames used across the casino (poker AI seats,
+// dominoes AI opponents, and the shared bingo/casino bot profile pool).
+// Operators use this allowlist to pre-select rows in the bulk-flag picker so
+// they can flip every existing AI account to is_bot in one click.
+const AI_SEAT_NAMES = [
+  // Poker AI seats
+  'Taylor', 'Morgan', 'Jordan', 'Riley', 'Casey',
+  // Dominoes AI opponents
+  'Carlos', 'Maya', 'Zara',
+  // Shared bingo/casino bot profile names
+  'Jessica', 'Marcus', 'Priya', 'Tyler', 'Sofia', 'Derek', 'Aaliyah',
+  'Cameron', 'Luna', 'Naomi', 'Ethan', 'Chloe', 'Ryan', 'Isabelle',
+  'Nathan', 'Leo', 'Harper', 'Kevin', 'Brandon', 'Olivia', 'Dylan',
+  'Aria', 'Trevor', 'Stella', 'Kai',
+];
+const AI_SEAT_ALLOWLIST = new Set(AI_SEAT_NAMES.map(n => n.toLowerCase()));
+
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
@@ -57,18 +74,74 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
   const [dbUsersLoading, setDbUsersLoading] = useState(false);
   const [flagBusy, setFlagBusy] = useState<Record<number, boolean>>({});
 
-  const loadDbUsers = async () => {
+  // Bulk-flag modal state
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Record<number, boolean>>({});
+  const [bulkPrefix, setBulkPrefix] = useState('');
+  const [bulkSetBot, setBulkSetBot] = useState(true);
+  const [bulkSetHouse, setBulkSetHouse] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const loadDbUsers = async (): Promise<DbUser[]> => {
     const token = getToken();
-    if (!token) return;
+    if (!token) return [];
     setDbUsersLoading(true);
+    let users: DbUser[] = [];
     try {
       const res = await fetch('/api/admin/users/list', { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data: { users: DbUser[] } = await res.json();
-        setDbUsers(data.users || []);
+        users = data.users || [];
+        setDbUsers(users);
       }
     } catch { /* ignore */ }
     setDbUsersLoading(false);
+    return users;
+  };
+
+  const openBulkModal = async () => {
+    const list = dbUsers.length === 0 ? await loadDbUsers() : dbUsers;
+    const preselected: Record<number, boolean> = {};
+    list.forEach(u => {
+      if (!u.isBot && AI_SEAT_ALLOWLIST.has(u.username.toLowerCase())) preselected[u.id] = true;
+    });
+    setBulkSelected(preselected);
+    setBulkPrefix('');
+    setBulkSetBot(true);
+    setBulkSetHouse(false);
+    setBulkOpen(true);
+  };
+
+  const submitBulkFlags = async () => {
+    const ids = Object.entries(bulkSelected).filter(([, v]) => v).map(([k]) => parseInt(k));
+    if (ids.length === 0) { toast.error('Select at least one account'); return; }
+    if (!bulkSetBot && !bulkSetHouse) { toast.error('Choose Bot and/or House to apply'); return; }
+    const token = getToken();
+    if (!token) { toast.error('Admin login required'); return; }
+    const body: { userIds: number[]; isBot?: boolean; isHouse?: boolean } = { userIds: ids };
+    if (bulkSetBot) body.isBot = true;
+    if (bulkSetHouse) body.isHouse = true;
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/admin/users/flags-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Bulk update failed');
+      } else {
+        const n = data.updatedCount ?? 0;
+        toast.success(`Updated ${n} account${n === 1 ? '' : 's'}`);
+        setBulkOpen(false);
+        await loadDbUsers();
+      }
+    } catch {
+      toast.error('Server unavailable');
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const toggleUserFlag = async (userId: number, key: 'isBot' | 'isHouse', value: boolean) => {
@@ -445,9 +518,19 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-white">User Management</h3>
-                    <Button onClick={loadDbUsers} size="sm" style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <RefreshCw className={`w-3.5 h-3.5 ${dbUsersLoading ? 'animate-spin' : ''}`} />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={openBulkModal}
+                        size="sm"
+                        data-testid="admin-bulk-flag-bots-btn"
+                        style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.35)', fontSize: 12 }}
+                      >
+                        Bulk flag bot accounts
+                      </Button>
+                      <Button onClick={loadDbUsers} size="sm" style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <RefreshCw className={`w-3.5 h-3.5 ${dbUsersLoading ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-500" data-testid="admin-users-summary">
                     {dbUsers.length} accounts • bots: {dbUsers.filter(u => u.isBot).length} • house: {dbUsers.filter(u => u.isHouse).length} • admins: {dbUsers.filter(u => u.isAdmin).length}
@@ -1093,6 +1176,119 @@ export function AdminDashboard({ isOpen, onClose, isAdmin }: AdminDashboardProps
                 data-testid="admin-reset-launch-button"
               >
                 {resetBusy ? 'Resetting…' : 'Launch Reset'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk-flag picker — used for the one-click "mark all AI seat accounts as bots" workflow */}
+      <Dialog open={bulkOpen} onOpenChange={(o) => { if (!bulkBusy) setBulkOpen(o); }}>
+        <DialogContent
+          className="max-w-lg"
+          style={{ background: 'rgba(6,6,12,0.99)', border: '1px solid rgba(96,165,250,0.4)' }}
+          data-testid="admin-bulk-flag-modal"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-blue-300">Bulk flag bot accounts</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-gray-300">
+            <p className="text-xs text-gray-400">
+              Pre-selected: every account whose username matches a known AI-seat name and that
+              isn't already flagged. Refine with a username prefix and adjust the checkboxes
+              below before applying.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={bulkPrefix}
+                onChange={(e) => setBulkPrefix(e.target.value)}
+                placeholder="Username prefix filter (e.g. ai_, bot_, taylor)"
+                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                data-testid="admin-bulk-prefix-input"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  const pfx = bulkPrefix.trim().toLowerCase();
+                  if (!pfx) { toast.error('Enter a prefix first'); return; }
+                  setBulkSelected(prev => {
+                    const next = { ...prev };
+                    dbUsers.forEach(u => {
+                      if (u.username.toLowerCase().startsWith(pfx)) next[u.id] = true;
+                    });
+                    return next;
+                  });
+                }}
+                style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.35)', fontSize: 11 }}
+                data-testid="admin-bulk-prefix-apply"
+              >
+                Add matches
+              </Button>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input type="checkbox" checked={bulkSetBot} onChange={e => setBulkSetBot(e.target.checked)} className="accent-blue-500" data-testid="admin-bulk-set-bot" />
+                Set Bot = true
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input type="checkbox" checked={bulkSetHouse} onChange={e => setBulkSetHouse(e.target.checked)} className="accent-yellow-500" data-testid="admin-bulk-set-house" />
+                Set House = true
+              </label>
+              <span className="ml-auto text-gray-400" data-testid="admin-bulk-selected-count">
+                {Object.values(bulkSelected).filter(Boolean).length} selected
+              </span>
+            </div>
+            <div
+              className="rounded-lg max-h-72 overflow-y-auto p-2 space-y-1"
+              style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}
+              data-testid="admin-bulk-user-list"
+            >
+              {dbUsers.length === 0 ? (
+                <div className="text-xs text-gray-500 py-4 text-center">No users loaded.</div>
+              ) : dbUsers.map(u => {
+                const known = AI_SEAT_ALLOWLIST.has(u.username.toLowerCase());
+                return (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs hover:bg-white/5"
+                    data-testid={`admin-bulk-row-${u.id}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!bulkSelected[u.id]}
+                      onChange={(e) => setBulkSelected(prev => ({ ...prev, [u.id]: e.target.checked }))}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-white truncate flex-1">{u.username}</span>
+                    {known && <span className="text-[10px] text-blue-300">AI seat</span>}
+                    {u.isBot && <span className="text-[10px] px-1 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>BOT</span>}
+                    {u.isHouse && <span className="text-[10px] px-1 rounded" style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37' }}>HOUSE</span>}
+                    {u.isAdmin && <span className="text-[10px] px-1 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>ADMIN</span>}
+                    <span className="text-gray-500">#{u.id}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={() => setBulkOpen(false)}
+                disabled={bulkBusy}
+                className="flex-1"
+                style={{ background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.15)' }}
+                data-testid="admin-bulk-cancel"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={submitBulkFlags}
+                disabled={bulkBusy || Object.values(bulkSelected).filter(Boolean).length === 0}
+                className="flex-1"
+                style={{ background: 'rgba(96,165,250,0.25)', color: '#bfdbfe', border: '1px solid rgba(96,165,250,0.5)' }}
+                data-testid="admin-bulk-apply"
+              >
+                {bulkBusy ? 'Applying…' : 'Apply flags'}
               </Button>
             </div>
           </div>

@@ -1428,6 +1428,58 @@ app.patch('/api/admin/users/:id/flags', requireAuth, async (req, res) => {
   }
 });
 
+// Admin: bulk-flag a list of users as bot/house in a single transaction.
+// Body: { userIds: number[], isBot?: boolean, isHouse?: boolean }
+app.post('/api/admin/users/flags-bulk', requireAuth, async (req, res) => {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin only' });
+  const { userIds, isBot, isHouse } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds must be a non-empty array' });
+  }
+  const ids = Array.from(new Set(userIds.map(n => parseInt(n)).filter(n => Number.isFinite(n) && n > 0)));
+  if (ids.length === 0) return res.status(400).json({ error: 'No valid user ids supplied' });
+  if (ids.length > 500) return res.status(400).json({ error: 'Too many ids (max 500)' });
+  const sets = [];
+  const params = [];
+  if (typeof isBot === 'boolean') { params.push(isBot); sets.push(`is_bot = $${params.length}`); }
+  if (typeof isHouse === 'boolean') { params.push(isHouse); sets.push(`is_house = $${params.length}`); }
+  if (sets.length === 0) {
+    return res.status(400).json({ error: 'Provide isBot and/or isHouse boolean' });
+  }
+  params.push(ids);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE users
+          SET ${sets.join(', ')}, updated_at = NOW()
+        WHERE id = ANY($${params.length}::int[])
+        RETURNING id, username, is_bot, is_house`,
+      params
+    );
+    await client.query('COMMIT');
+    const updated = result.rows.map(r => ({
+      id: r.id, username: r.username, isBot: !!r.is_bot, isHouse: !!r.is_house,
+    }));
+    logAdmin('admin:user:flags-bulk', {
+      adminId: req.user.id,
+      adminUsername: req.user.username,
+      requestedIds: ids,
+      updatedCount: updated.length,
+      isBot: typeof isBot === 'boolean' ? isBot : null,
+      isHouse: typeof isHouse === 'boolean' ? isHouse : null,
+      updatedUsernames: updated.map(u => u.username),
+    });
+    res.json({ success: true, updatedCount: updated.length, users: updated });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    console.error('[admin:users:flags-bulk]', err.message);
+    res.status(500).json({ error: 'Failed to bulk-update flags' });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/admin/stats', (req, res) => {
   res.json({
     playersOnline: players.size,
