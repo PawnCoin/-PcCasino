@@ -200,8 +200,8 @@ router.post('/register', async (req, res) => {
     } else {
       const verifyUrl = `/api/auth/verify-email?token=${verifyToken}`;
       await query(
-        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'email', 'Email confirmation could not be sent', $2)",
-        [user.id, `Our email service is currently unavailable. Use this in-app verification link to confirm your account: ${verifyUrl}`]
+        "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'email', 'Verification email not sent', $2)",
+        [user.id, `Our email service is currently unavailable, so no confirmation email was sent. Use this in-app verification link to confirm your account: ${verifyUrl}`]
       );
     }
 

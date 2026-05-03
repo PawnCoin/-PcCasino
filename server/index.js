@@ -16,7 +16,7 @@ import friendsRoutes, { setFriendsIO } from './friends-routes.js';
 import { initDatabase, query, pool } from './db.js';
 import { cleanupExpiredSessions } from './auth-routes.js';
 import { loadJackpotFromDB, getJackpot, getJackpotLastWon, setJackpotIO, broadcastJackpot } from './jackpot.js';
-import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, isEmailReady } from './email.js';
+import { sendCashbackEmail, sendTournamentReminderEmail, sendTestEmail, initEmail, getEmailStatus, getEmailCounters } from './email.js';
 import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
 
@@ -2298,6 +2298,23 @@ httpServer.listen(PORT, '0.0.0.0', () => {
     backfillDemoModeNotifications().catch(e => console.error('[DemoBackfill]', e.message));
   });
   initEmail().catch(e => console.error('[Email] init failed:', e.message));
+
+  // Nightly counter log: emit yesterday's sent/failed totals at ~00:05 UTC
+  // every day, even on days with zero traffic. Self-scheduling timeout so the
+  // first tick fires at the next midnight rather than 24h after boot.
+  const scheduleNightlyEmailCounterLog = () => {
+    const now = new Date();
+    const next = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 5, 0, 0
+    ));
+    const delay = Math.max(60_000, next.getTime() - now.getTime());
+    setTimeout(() => {
+      const c = getEmailCounters();
+      console.log(`[Email] Nightly counters: day=${c.day} sent=${c.sent} failed=${c.failed}`);
+      scheduleNightlyEmailCounterLog();
+    }, delay).unref?.();
+  };
+  scheduleNightlyEmailCounterLog();
 });
 
 async function backfillDemoModeNotifications() {
