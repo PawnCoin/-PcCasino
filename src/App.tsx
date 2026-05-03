@@ -635,8 +635,12 @@ function App() {
 
   // Deposit — submit a real deposit request
   const handleDeposit = async (amount: number, txHash?: string) => {
-    if (user?.demoMode || !user?.realTransactionsUnlocked) {
+    if (user?.demoMode) {
       toast.error('Deposits are disabled while the casino is in Demo Mode.');
+      return;
+    }
+    if (!user?.realTransactionsUnlocked) {
+      toast.error('Deposits are locked. Complete KYC and wallet verification to enable real transactions.');
       return;
     }
     if (user) {
@@ -660,8 +664,12 @@ function App() {
 
   const handleWithdraw = async (amount: number) => {
     if (!user) return false;
-    if (user.demoMode || !user.realTransactionsUnlocked) {
+    if (user.demoMode) {
       toast.error('Withdrawals are disabled while the casino is in Demo Mode.');
+      return false;
+    }
+    if (!user.realTransactionsUnlocked) {
+      toast.error('Withdrawals are locked. Complete KYC and wallet verification to enable real transactions.');
       return false;
     }
     if (amount > user.balance) { toast.error('Insufficient balance!'); return false; }

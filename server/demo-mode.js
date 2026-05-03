@@ -7,9 +7,15 @@
 //     realTransactionsUnlocked=false and surface demoMode=true.
 //   - Admin "Launch Reset" can wipe & reset all non-admin balances.
 
-export function isDemoMode() {
+// Read DEMO_MODE once at module load so the flag is stable for the whole
+// process lifetime (per spec). Operator must restart the server to flip it.
+const DEMO_MODE_AT_BOOT = (() => {
   const v = (process.env.DEMO_MODE ?? 'true').toString().toLowerCase().trim();
   return v !== 'false' && v !== '0' && v !== 'off' && v !== 'no';
+})();
+
+export function isDemoMode() {
+  return DEMO_MODE_AT_BOOT;
 }
 
 export const DEMO_MODE_ERROR = {
