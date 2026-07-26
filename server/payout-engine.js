@@ -27,6 +27,16 @@ import {
 } from './payout-breaker.js';
 import { sendWithdrawSentEmail } from './email.js';
 import { isDemoMode } from './demo-mode.js';
+import {
+  isSolanaNetwork, isSolanaPayoutConfigured, sendSplTransfer,
+  waitForSolanaReceipt, checkSolanaSignatureOnce,
+  getSolanaPayoutAddress, getSolanaPcBalance, getSolanaNativeBalance,
+} from './solana.js';
+
+// True when at least one payout rail (Ethereum or Solana) is configured.
+function anyPayoutConfigured() {
+  return isPayoutConfigured() || isSolanaPayoutConfigured();
+}
 
 const CONFIRMATIONS = parseInt(process.env.PAYOUT_CONFIRMATIONS || '2', 10);
 const RECEIPT_TIMEOUT_MS = parseInt(process.env.PAYOUT_RECEIPT_TIMEOUT_MS || '300000', 10);
@@ -79,7 +89,7 @@ async function _rollbackToApproved(withdrawId, note) {
 // Returns { skipped, reason } or { broadcast: true, txHash }.
 export async function attemptAutoPayout(withdrawId) {
   if (isDemoMode()) return { skipped: true, reason: 'demo_mode' };
-  if (!isPayoutConfigured()) return { skipped: true, reason: 'payout_wallet_not_configured' };
+  if (!anyPayoutConfigured()) return { skipped: true, reason: 'payout_wallet_not_configured' };
 
   // Idempotent claim — only the caller whose UPDATE flips an approved row
   // (with no tx_hash yet) gets to broadcast.
@@ -120,6 +130,15 @@ export async function attemptAutoPayout(withdrawId) {
   }
   const w = claim.rows[0];
   const amountPc = BigInt(w.amount);
+  const useSol = isSolanaNetwork(w.network);
+
+  // Rail-specific configuration gate — a Solana withdrawal must never fall
+  // through to the ERC-20 signer (and vice versa). Roll back to 'approved'
+  // so the admin queue keeps visibility.
+  if (useSol ? !isSolanaPayoutConfigured() : !isPayoutConfigured()) {
+    await _rollbackToApproved(w.id, `${useSol ? 'Solana' : 'Ethereum'} payout wallet not configured`);
+    return { skipped: true, reason: 'rail_not_configured', network: w.network };
+  }
 
   // Pre-broadcast idempotency check — if a send for this key already
   // succeeded (e.g. prior process crashed between broadcast and DB update),
@@ -150,7 +169,7 @@ export async function attemptAutoPayout(withdrawId) {
   }
 
   // Circuit breaker
-  const pre = await breakerPreflight({ amount: amountPc });
+  const pre = await breakerPreflight({ amount: amountPc, network: w.network });
   if (!pre.ok) {
     await _rollbackToApproved(w.id, `breaker:${pre.code}`);
     await _logPayout({
@@ -163,7 +182,9 @@ export async function attemptAutoPayout(withdrawId) {
   // Broadcast
   let send;
   try {
-    send = await sendErc20Transfer({ to: w.to_address, amountTokens: amountPc });
+    send = useSol
+      ? await sendSplTransfer({ to: w.to_address, amountTokens: amountPc })
+      : await sendErc20Transfer({ to: w.to_address, amountTokens: amountPc });
   } catch (err) {
     const fails = await recordFailure(err.message);
     await _rollbackToApproved(w.id, `broadcast:${err.message}`);
@@ -255,7 +276,8 @@ async function _handleRevertedReceipt(w, txHash, gasUsed) {
 // Single-shot receipt check. Returns the same shape as waitForReceipt but
 // performs exactly one RPC roundtrip pair (no polling). Used by the
 // post-timeout reconciler so we don't tie up workers waiting for slow chains.
-async function _checkReceiptOnce(txHash, confirmations = CONFIRMATIONS) {
+async function _checkReceiptOnce(txHash, confirmations = CONFIRMATIONS, network = null) {
+  if (isSolanaNetwork(network)) return checkSolanaSignatureOnce(txHash);
   const r = await ethRpc('eth_getTransactionReceipt', [txHash]);
   if (!r) return { status: 'pending', confirmations: 0, gasUsed: null };
   const head = BigInt(await ethRpc('eth_blockNumber', []));
@@ -277,7 +299,9 @@ async function _checkReceiptOnce(txHash, confirmations = CONFIRMATIONS) {
 function _finalizeReceiptInBackground(w, txHash) {
   (async () => {
     try {
-      const receipt = await waitForReceipt(txHash, { confirmations: CONFIRMATIONS, timeoutMs: RECEIPT_TIMEOUT_MS });
+      const receipt = isSolanaNetwork(w.network)
+        ? await waitForSolanaReceipt(txHash, { timeoutMs: RECEIPT_TIMEOUT_MS })
+        : await waitForReceipt(txHash, { confirmations: CONFIRMATIONS, timeoutMs: RECEIPT_TIMEOUT_MS });
       if (receipt.status === 'confirmed') {
         await _handleConfirmedReceipt(w, txHash, receipt.gasUsed);
       } else if (receipt.status === 'failed') {
@@ -333,16 +357,32 @@ export async function getPayoutHealth() {
   // we default to mainnet Etherscan so links remain functional out of the box.
   const explorerBase = process.env.PAYOUT_EXPLORER_BASE_URL || 'https://etherscan.io/tx/';
 
+  // Solana rail snapshot (best-effort; null when unconfigured).
+  const solAddress = getSolanaPayoutAddress();
+  let solPcBalance = null, solNativeBalance = null, solBalanceError = null;
+  if (solAddress) {
+    try { solPcBalance = (await getSolanaPcBalance())?.toString() ?? null; }
+    catch (e) { solBalanceError = e.message; }
+    try { solNativeBalance = (await getSolanaNativeBalance())?.toString() ?? null; }
+    catch (_) {}
+  }
+
   return {
     configured: isPayoutConfigured(),
+    solConfigured: isSolanaPayoutConfigured(),
     demoMode: isDemoMode(),
     address,
     pcBalance,
     ethBalance,
     balanceError,
+    solAddress,
+    solPcBalance,
+    solNativeBalance,
+    solBalanceError,
     breaker,
     totals,
     explorerBase,
+    solExplorerBase: 'https://solscan.io/tx/',
     recent: recent.rows.map(r => ({ ...r, amount: r.amount?.toString?.() ?? r.amount })),
   };
 }
@@ -358,9 +398,9 @@ export { resetBreaker };
 // suppressed by tx_hash, and the SQL UPDATE on revert is gated on
 // status='sending').
 export async function reconcileStaleSendingPayouts() {
-  if (isDemoMode() || !isPayoutConfigured()) return { resumed: 0, skipped: 'not_configured_or_demo' };
+  if (isDemoMode() || !anyPayoutConfigured()) return { resumed: 0, skipped: 'not_configured_or_demo' };
   const stale = await query(
-    `SELECT id, user_id, amount, to_address, tx_hash, idempotency_key, status
+    `SELECT id, user_id, amount, to_address, tx_hash, idempotency_key, status, network
        FROM withdraw_requests
       WHERE status = 'sending' AND tx_hash IS NOT NULL`,
   ).catch(e => { console.error('[payout reconcile] query failed:', e.message); return { rows: [] }; });
@@ -385,7 +425,7 @@ export async function reconcileStaleSendingPayouts() {
 //
 // Safe to call repeatedly. Never throws. Returns counts for observability.
 export async function recheckTimedOutPayouts() {
-  if (isDemoMode() || !isPayoutConfigured()) return { rechecked: 0, skipped: 'not_configured_or_demo' };
+  if (isDemoMode() || !anyPayoutConfigured()) return { rechecked: 0, skipped: 'not_configured_or_demo' };
   // Only consider rows older than the receipt timeout — younger ones are
   // still being polled by the in-process watcher and don't need our help.
   // Fair-rotation: ORDER BY last_rechecked_at NULLS FIRST so never-checked
@@ -394,7 +434,7 @@ export async function recheckTimedOutPayouts() {
   // timed-out payouts (the LIMIT 25 cap matters for slow chains).
   const graceSec = Math.max(30, Math.ceil(RECEIPT_TIMEOUT_MS / 1000));
   const stale = await query(
-    `SELECT id, user_id, amount, to_address, tx_hash, idempotency_key, status
+    `SELECT id, user_id, amount, to_address, tx_hash, idempotency_key, status, network
        FROM withdraw_requests
       WHERE status = 'sending' AND tx_hash IS NOT NULL
         AND updated_at < NOW() - ($1 || ' seconds')::interval
@@ -406,7 +446,7 @@ export async function recheckTimedOutPayouts() {
   let confirmed = 0, reverted = 0, pending = 0, errored = 0;
   for (const w of stale.rows) {
     try {
-      const r = await _checkReceiptOnce(w.tx_hash);
+      const r = await _checkReceiptOnce(w.tx_hash, CONFIRMATIONS, w.network);
       if (r.status === 'confirmed') {
         await _handleConfirmedReceipt(w, w.tx_hash, r.gasUsed, { source: 'recheck' });
         confirmed++;

@@ -32,7 +32,7 @@ interface FinancialModalProps {
   onClose: () => void;
   balance: number;
   transactions: Transaction[];
-  onDeposit: (amount: number) => void;
+  onDeposit: (amount: number, txHash?: string, network?: string) => void;
   onWithdraw: (amount: number) => void;
   onDevReload?: (amount: number) => void;
   withdrawAddress?: string;
@@ -76,6 +76,8 @@ function describeWithdrawStatus(tx: Transaction): { label: string; tone: string;
 // mainnet so we link to etherscan.io; if/when other chains are added, extend
 // this map (BSC -> bscscan, Polygon -> polygonscan, etc.).
 function etherscanUrl(txHash: string, network?: string): string {
+  const sol = (network || '').toUpperCase();
+  if (sol.includes('SOL')) return `https://solscan.io/tx/${txHash}`;
   const n = (network || 'ERC-20').toUpperCase();
   if (n.includes('BSC') || n.includes('BEP')) return `https://bscscan.com/tx/${txHash}`;
   if (n.includes('POLYGON') || n.includes('MATIC')) return `https://polygonscan.com/tx/${txHash}`;
@@ -121,6 +123,9 @@ export function FinancialModal({
   const [historySearch, setHistorySearch] = useState('');
   const [showQR, setShowQR] = useState(false);
   const [depositAddressFetched, setDepositAddressFetched] = useState('');
+  const [solDepositAddress, setSolDepositAddress] = useState('');
+  const [depositNetwork, setDepositNetwork] = useState<'SOL' | 'ERC-20'>('SOL');
+  const [depositTxHash, setDepositTxHash] = useState('');
   const [pcpayEnabled, setPcpayEnabled] = useState(false);
   const [pcpayLoading, setPcpayLoading] = useState(false);
   const [pcpayError, setPcpayError] = useState('');
@@ -152,14 +157,21 @@ export function FinancialModal({
   };
 
   useEffect(() => {
-    if (!depositAddressProp && isOpen) {
+    if (isOpen) {
       paymentsApi.getDepositAddress()
-        .then(d => { if (d?.address) setDepositAddressFetched(d.address); })
+        .then(d => {
+          if (d?.eth || d?.address) setDepositAddressFetched(d.eth || d.address);
+          if (d?.sol) setSolDepositAddress(d.sol);
+          if (!d?.sol) setDepositNetwork('ERC-20');
+        })
         .catch(() => {});
     }
-  }, [isOpen, depositAddressProp]);
+  }, [isOpen]);
 
-  const depositAddress = depositAddressProp || depositAddressFetched || 'Loading deposit address…';
+  const ethDepositAddress = depositAddressFetched || depositAddressProp || '';
+  const depositAddress = depositNetwork === 'SOL'
+    ? (solDepositAddress || 'Solana deposits unavailable — switch to Ethereum')
+    : (ethDepositAddress || 'Loading deposit address…');
 
   const stats = useMemo(() => {
     const deposits = transactions.filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0);
@@ -231,7 +243,7 @@ export function FinancialModal({
 
   const handleDeposit = (amount: number) => {
     if (demoMode) return;
-    if (amount > 0) onDeposit(amount);
+    if (amount > 0) onDeposit(amount, depositTxHash.trim() || undefined, depositNetwork);
   };
 
   const handleCustomDeposit = () => {
@@ -239,6 +251,7 @@ export function FinancialModal({
     if (!isNaN(amount) && amount > 0) {
       handleDeposit(amount);
       setCustomDepositAmount('');
+      setDepositTxHash('');
     }
   };
 
@@ -575,9 +588,28 @@ export function FinancialModal({
                       </div>
                     )}
 
+                    {/* Network selector — Solana featured/default */}
+                    <div className="flex gap-2 mb-3">
+                      {(['SOL', 'ERC-20'] as const).map(net => (
+                        <button
+                          key={net}
+                          onClick={() => setDepositNetwork(net)}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-bold border transition-colors ${
+                            depositNetwork === net
+                              ? 'bg-[#43A047]/25 border-[#43A047] text-[#43A047]'
+                              : 'bg-black/40 border-[#5D4037]/40 text-[#808080] hover:border-[#5D4037]'
+                          }`}
+                        >
+                          {net === 'SOL' ? '◎ Solana (recommended)' : '⟠ Ethereum (ERC-20)'}
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="p-4 rounded-xl bg-black/50 border border-[#5D4037]/30 mb-3">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="text-sm text-[#808080]">Your Deposit Address (ERC-20 / $Pc)</div>
+                        <div className="text-sm text-[#808080]">
+                          Your Deposit Address ({depositNetwork === 'SOL' ? 'Solana / $Pc' : 'ERC-20 / $Pc'})
+                        </div>
                         <button
                           onClick={() => setShowQR(!showQR)}
                           className="flex items-center gap-1 text-xs text-[#D4AF37] hover:text-[#FFD700] transition-colors"
@@ -635,6 +667,23 @@ export function FinancialModal({
                         >
                           {demoMode ? 'Disabled (Demo)' : 'Deposit'}
                         </button>
+                      </div>
+                    </div>
+
+                    {/* On-chain tx hash / signature for instant verification */}
+                    <div className="mb-4">
+                      <div className="text-sm text-[#808080] mb-2">
+                        Transaction {depositNetwork === 'SOL' ? 'Signature' : 'Hash'} <span className="text-[#606060]">(paste after sending for instant on-chain verification)</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={depositTxHash}
+                        onChange={e => setDepositTxHash(e.target.value)}
+                        placeholder={depositNetwork === 'SOL' ? 'Solana transaction signature (base58)…' : '0x… transaction hash'}
+                        className="w-full p-3 rounded-lg bg-black/50 border border-[#43A047]/40 text-white placeholder-[#606060] focus:outline-none focus:border-[#43A047] text-sm font-mono"
+                      />
+                      <div className="text-xs text-[#606060] mt-1">
+                        With a {depositNetwork === 'SOL' ? 'signature' : 'tx hash'}, your deposit auto-credits once confirmed on-chain. Without one, it goes to manual review.
                       </div>
                     </div>
 

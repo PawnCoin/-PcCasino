@@ -106,7 +106,11 @@ export async function initDatabase() {
     await query(`ALTER TABLE deposit_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP`).catch(() => {});
     // Backfill: lowercase any existing tx_hash values so the case-insensitive
     // unique index below can be created without collisions on legacy data.
-    await query(`UPDATE deposit_requests SET tx_hash = LOWER(tx_hash) WHERE tx_hash IS NOT NULL AND tx_hash <> LOWER(tx_hash)`).catch(() => {});
+    // Backfill lowercasing applies ONLY to Ethereum-style 0x… hashes.
+    // Solana signatures are base58 and case-SENSITIVE — lowercasing them
+    // would make them permanently unverifiable on-chain. The functional
+    // unique index below still provides case-insensitive dedupe for all rails.
+    await query(`UPDATE deposit_requests SET tx_hash = LOWER(tx_hash) WHERE tx_hash IS NOT NULL AND tx_hash <> LOWER(tx_hash) AND tx_hash ~* '^0x[0-9a-f]+$'`).catch(() => {});
     // Functional unique index on lowercased tx_hash — hard guarantee against
     // replay/double-credit even if dedupe logic is bypassed somewhere.
     await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_deposit_tx_hash_lower ON deposit_requests (LOWER(tx_hash)) WHERE tx_hash IS NOT NULL`).catch((e) => {

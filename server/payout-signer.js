@@ -23,7 +23,7 @@ const ERC20_TRANSFER_SELECTOR = 'a9059cbb';
 const DEFAULT_GAS_LIMIT = 90_000n;
 const MIN_GAS_PRICE = 1_000_000_000n; // 1 gwei floor
 
-function ethRpcUrl() { return process.env.ETH_RPC_URL || 'https://cloudflare-eth.com'; }
+import { ethRpcUrls } from './pc-pricing.js';
 function chainId() { return BigInt(parseInt(process.env.PAYOUT_CHAIN_ID || '1', 10)); }
 function pcContract() { return process.env.PC_TOKEN_CONTRACT || null; }
 
@@ -60,16 +60,22 @@ export function isPayoutConfigured() {
 }
 
 export async function ethRpc(method, params) {
-  const r = await fetch(ethRpcUrl(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', method, params, id: Date.now() }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
-  const j = await r.json();
-  if (j.error) throw new Error(j.error.message || 'RPC error');
-  return j.result;
+  let lastErr = null;
+  for (const url of ethRpcUrls()) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method, params, id: Date.now() }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message || 'RPC error');
+      return j.result;
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error(lastErr?.message || 'All Ethereum RPCs failed');
 }
 
 export async function getOnChainPcBalance(address) {

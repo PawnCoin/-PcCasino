@@ -13,6 +13,7 @@
 
 import { query } from './db.js';
 import { getOnChainPcBalance, getNativeBalance, getPayoutAddress } from './payout-signer.js';
+import { getSolanaPcBalance, getSolanaPayoutAddress, isSolanaNetwork } from './solana.js';
 import { sendPayoutBreakerTrippedEmail, sendPayoutBreakerAutoRecoveredEmail, sendPayoutBreakerResolvedEmail } from './email.js';
 
 const FLAG_TRIPPED   = 'payout_breaker_tripped';
@@ -214,13 +215,24 @@ export async function checkBreakerAutoRecover() {
   if (fails > 0) {
     return { skipped: 'recent_failures', fails };
   }
-  if (!getPayoutAddress()) return { skipped: 'no_payout_address' };
+  // Recover against the rail that actually tripped: the trip reason is
+  // stamped with "[SOL]"/"[ETH]" by preflight. Legacy reasons without a
+  // rail tag fall back to whichever rail is configured (ETH first).
+  const railTag = /\[(SOL|ETH)\]/.exec(reason || '')?.[1] || null;
+  const useSolRail = railTag === 'SOL'
+    ? true
+    : railTag === 'ETH'
+      ? false
+      : (!getPayoutAddress() && !!getSolanaPayoutAddress());
+  if (useSolRail && !getSolanaPayoutAddress()) return { skipped: 'no_payout_address' };
+  if (!getPayoutAddress() && !getSolanaPayoutAddress()) return { skipped: 'no_payout_address' };
   let balance;
   try {
-    balance = await getOnChainPcBalance();
+    balance = useSolRail ? await getSolanaPcBalance() : await getOnChainPcBalance();
   } catch (e) {
     return { skipped: 'balance_check_failed', error: e.message };
   }
+  if (balance === null) return { skipped: 'balance_check_failed', error: 'balance unavailable' };
   // Require the balance to be at least 10% above the floor so a wallet
   // sitting *exactly* at the floor doesn't repeatedly auto-reset and
   // re-trip on the next preflight.
@@ -344,9 +356,10 @@ export async function recordFailure(reason) {
 
 // Returns { ok: true } if allowed, otherwise { ok: false, reason, code }.
 // Performs amount/window/floor checks; auto-trips the breaker on hard violations.
-export async function preflight({ amount }) {
+export async function preflight({ amount, network = null }) {
   const amt = typeof amount === 'bigint' ? amount : BigInt(amount);
   const limits = breakerLimits();
+  const useSol = isSolanaNetwork(network);
 
   if (await isTripped()) {
     const reason = await _getFlag(FLAG_REASON);
@@ -358,17 +371,20 @@ export async function preflight({ amount }) {
     return { ok: false, code: 'SINGLE_MAX_EXCEEDED', reason: `Single payout exceeds limit (${limits.singleMax.toString()} $Pc)` };
   }
 
-  // Hot-wallet floor check (live RPC). Fail-closed on RPC outage.
-  if (getPayoutAddress()) {
+  // Hot-wallet floor check on the rail this payout will use (live RPC).
+  // Fail-closed on RPC outage.
+  const railAddress = useSol ? getSolanaPayoutAddress() : getPayoutAddress();
+  if (railAddress) {
     let balance = null;
-    try { balance = await getOnChainPcBalance(); } catch (e) { return { ok: false, code: 'BALANCE_CHECK_FAILED', reason: e.message }; }
+    try { balance = useSol ? await getSolanaPcBalance() : await getOnChainPcBalance(); }
+    catch (e) { return { ok: false, code: 'BALANCE_CHECK_FAILED', reason: e.message }; }
     if (balance === null) return { ok: false, code: 'BALANCE_UNAVAILABLE', reason: 'Could not read hot-wallet balance' };
     if (balance < limits.floor) {
-      await tripBreaker(`Hot-wallet balance ${balance.toString()} below floor ${limits.floor.toString()}`);
+      await tripBreaker(`Hot-wallet balance [${useSol ? 'SOL' : 'ETH'}] ${balance.toString()} below floor ${limits.floor.toString()}`);
       return { ok: false, code: 'BELOW_FLOOR', reason: `Hot-wallet balance ${balance.toString()} below floor` };
     }
     if (balance < amt) {
-      await tripBreaker(`Hot-wallet balance ${balance.toString()} insufficient for payout ${amt.toString()}`);
+      await tripBreaker(`Hot-wallet balance [${useSol ? 'SOL' : 'ETH'}] ${balance.toString()} insufficient for payout ${amt.toString()}`);
       return { ok: false, code: 'INSUFFICIENT_HOT_WALLET', reason: 'Hot-wallet balance insufficient' };
     }
   }

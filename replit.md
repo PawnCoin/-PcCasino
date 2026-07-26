@@ -80,6 +80,17 @@ The $Pc Casino is a React + Vite + TypeScript web application offering a rich co
   - `PATCH /api/admin/users/:id/flags` — body `{ isBot?: boolean, isHouse?: boolean }`. Only provided keys are updated. Logs to `admin:user:flags`.
   - `GET /api/admin/users/excluded-count` — returns `{ admins, bots, house, excluded, resettable, total }`. The Launch Reset confirm modal renders this preview before the operator types `RESET`.
 
+### Payments: Dual-Rail $Pc (Solana primary + Ethereum)
+
+- **Networks**: `deposit_requests.network` / `withdraw_requests.network` store `'SOL'` or `'ERC-20'`. Solana is the featured/default rail in the UI; Ethereum remains fully supported. When callers omit `network`, the server infers it from the address/tx format (`0x…` → ERC-20, base58 → SOL).
+- **Solana module** (`server/solana.js`): SPL deposit verification (`verifySolanaDeposit` — token-balance deltas, requires `finalized` commitment before crediting), SPL payouts (`sendSplTransfer` with idempotent ATA creation, serialized sends), signature status checks, hot-wallet balances. RPC failover via `SOLANA_RPC_URL` + `SOLANA_RPC_FALLBACK_URLS`.
+- **Ethereum RPC failover**: `ETH_RPC_URL` + `ETH_RPC_FALLBACK_URLS` (comma-separated), shared by pricing, deposit verification, and the payout signer.
+- **Tx hash normalization rule**: Ethereum hashes are lowercased before store/compare; **Solana signatures are base58 and case-SENSITIVE — never lowercase them**. Dedupe is case-insensitive across both rails (a case-variant of a valid Solana sig can never verify on-chain, so blocking it is safe).
+- **Anti-abuse**: deposit claims are rate-limited (5 per user per 10 min → 429 + admin alert); auto-rejected deposits alert all admins; tx hash format validated per rail before any DB row is created; withdraw destination address format validated per rail before debit.
+- **Payout engine** is network-aware: rail-specific config gates (a SOL withdrawal never falls to the ERC-20 signer), breaker preflight checks the hot wallet of the rail in use, reconcilers pass `network` through to the right receipt checker. `GET` payout health includes `solConfigured`, `solAddress`, `solPcBalance`, `solExplorerBase`.
+- **Required env for Solana rail**: `SOL_DEPOSIT_WALLET` (deposit treasury owner), `PC_SPL_MINT` ($Pc mint address), `SOLANA_PAYOUT_PRIVATE_KEY` (hot wallet, base58 or JSON byte array). Missing config fails closed (deposits 503/needs_review, payouts roll back to approved).
+- `GET /api/payments/address` returns `{ address (legacy eth), eth, sol, defaultNetwork }`.
+
 ### External Dependencies
 
 - **PostgreSQL**: Primary database for all persistent data.

@@ -7,9 +7,42 @@ import { sendDepositConfirmationEmail, sendWithdrawEmail, sendWithdrawSentEmail 
 import { refreshDefaultWalletVerification } from './wallet-routes.js';
 import { isDemoMode } from './demo-mode.js';
 import { verifyOnChainDeposit } from './pc-pricing.js';
+import {
+  isSolanaNetwork, isSolanaDepositConfigured, verifySolanaDeposit,
+  isValidSolanaAddress, isValidSolanaSignature,
+} from './solana.js';
 import { attemptAutoPayout, getPayoutHealth, resetBreaker } from './payout-engine.js';
 
 const router = Router();
+
+// Canonical network labels stored on deposit_requests / withdraw_requests.
+const NET_SOL = 'SOL';
+const NET_ETH = 'ERC-20';
+function normalizeNetwork(network, { address = null, txHash = null } = {}) {
+  if (network) return isSolanaNetwork(network) ? NET_SOL : NET_ETH;
+  // No explicit network — infer from address/tx format so legacy callers
+  // (saved profile addresses) keep working on either rail.
+  const probe = String(address || txHash || '').trim();
+  if (/^0x[0-9a-fA-F]+$/.test(probe)) return NET_ETH;
+  if (probe && /^[1-9A-HJ-NP-Za-km-z]+$/.test(probe)) return NET_SOL;
+  return NET_ETH;
+}
+
+// Broadcast an operational alert to all admins (bell notifications).
+// Best-effort — never throws.
+async function _alertAdmins(title, message) {
+  try {
+    const admins = await query('SELECT id FROM users WHERE is_admin = TRUE');
+    for (const a of admins.rows) {
+      await query(
+        `INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'admin_alert', $2, $3)`,
+        [a.id, title, message],
+      ).catch(() => {});
+    }
+  } catch (e) {
+    console.error('[admin alert]', e.message);
+  }
+}
 // TREASURY WALLET — set DEPOSIT_WALLET_ADDRESS in environment secrets before going live
 // This is where all player deposits are received on-chain
 const DEPOSIT_ADDRESS = process.env.DEPOSIT_WALLET_ADDRESS;
@@ -17,12 +50,20 @@ if (!DEPOSIT_ADDRESS) {
   console.warn('[PAYMENTS] WARNING: DEPOSIT_WALLET_ADDRESS is not set. Deposits will be rejected until configured.');
 }
 
-// Get deposit address
+const SOL_DEPOSIT_ADDRESS = process.env.SOL_DEPOSIT_WALLET || null;
+
+// Get deposit addresses for both rails. `address` kept for legacy callers
+// (Ethereum). Solana is the featured/default network in the UI.
 router.get('/address', requireAuth, (req, res) => {
-  if (!DEPOSIT_ADDRESS) {
+  if (!DEPOSIT_ADDRESS && !SOL_DEPOSIT_ADDRESS) {
     return res.status(503).json({ error: 'Deposit address not configured. Please contact support.' });
   }
-  res.json({ address: DEPOSIT_ADDRESS });
+  res.json({
+    address: DEPOSIT_ADDRESS || null,
+    eth: DEPOSIT_ADDRESS || null,
+    sol: SOL_DEPOSIT_ADDRESS,
+    defaultNetwork: SOL_DEPOSIT_ADDRESS ? NET_SOL : NET_ETH,
+  });
 });
 
 // Internal helper: credit a deposit, update leaderboard, fire referral commission,
@@ -177,14 +218,55 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
     }
   }
 
-  // Normalize tx hashes — Ethereum hashes are case-insensitive; storing
-  // and comparing them lowercased prevents trivial casing-bypass replays.
-  const txHashNorm = txHash ? String(txHash).trim().toLowerCase() : null;
+  // Rate-limit claim attempts: repeated submissions are the signature of
+  // someone probing for a tx hash they can steal. Cap requests per user.
+  const recentCount = await query(
+    `SELECT COUNT(*)::int AS cnt FROM deposit_requests
+     WHERE user_id = $1 AND created_at > NOW() - INTERVAL '10 minutes'`,
+    [user.id]
+  ).catch(() => null);
+  if ((recentCount?.rows?.[0]?.cnt ?? 0) >= 5) {
+    await _alertAdmins(
+      '⚠️ Deposit rate limit hit',
+      `User #${user.id} (${user.username}) exceeded 5 deposit requests in 10 minutes — possible tx-claim probing.`
+    );
+    return res.status(429).json({
+      error: 'Too many deposit requests. Please wait a few minutes and try again.',
+      code: 'RATE_LIMITED',
+    });
+  }
 
-  // Dedupe by normalized txHash if provided — prevents replay/double-credit.
+  // Resolve network first — hash normalization is network-specific.
+  const net = normalizeNetwork(network, { txHash });
+
+  // Normalize tx hashes. Ethereum hashes are case-insensitive → store
+  // lowercased to prevent trivial casing-bypass replays. Solana signatures
+  // are base58 (case-SENSITIVE) → preserve case; a case-variant of a valid
+  // signature can never verify on-chain, and the case-insensitive dedupe
+  // below still blocks casing-replay attempts across both rails.
+  const txHashRaw = txHash ? String(txHash).trim() : null;
+  const txHashNorm = txHashRaw ? (net === NET_SOL ? txHashRaw : txHashRaw.toLowerCase()) : null;
+
+  // Early format rejection — cheap, and prevents junk rows.
+  if (txHashNorm) {
+    const okFormat = net === NET_SOL
+      ? isValidSolanaSignature(txHashNorm)
+      : /^0x[0-9a-fA-F]{64}$/.test(txHashNorm);
+    if (!okFormat) {
+      return res.status(400).json({
+        error: net === NET_SOL
+          ? 'Invalid Solana transaction signature format.'
+          : 'Invalid Ethereum transaction hash format.',
+        code: 'INVALID_TX_HASH',
+      });
+    }
+  }
+
+  // Dedupe by tx hash across ALL networks (case-insensitive) — prevents
+  // replay/double-credit, including cross-user and cross-network reuse.
   if (txHashNorm) {
     const dup = await query(
-      `SELECT id, status FROM deposit_requests WHERE LOWER(tx_hash) = $1 LIMIT 1`,
+      `SELECT id, status FROM deposit_requests WHERE LOWER(tx_hash) = LOWER($1) LIMIT 1`,
       [txHashNorm]
     );
     if (dup.rows.length) {
@@ -196,12 +278,21 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
     }
   }
 
+  // Refuse Solana deposits when the Solana rail isn't configured — no
+  // silent fallback to admin review with an unverifiable signature.
+  if (net === NET_SOL && txHashNorm && !isSolanaDepositConfigured()) {
+    return res.status(503).json({
+      error: 'Solana deposits are temporarily unavailable. Please use Ethereum or try again later.',
+      code: 'SOLANA_NOT_CONFIGURED',
+    });
+  }
+
   let createdRow;
   try {
     const result = await query(
       `INSERT INTO deposit_requests (user_id, amount, tx_hash, from_address, network, status)
        VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING *`,
-      [user.id, amount, txHashNorm, fromAddress || null, network || 'ERC-20']
+      [user.id, amount, txHashNorm, fromAddress || null, net]
     );
     createdRow = result.rows[0];
   } catch (err) {
@@ -213,12 +304,14 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
   // No tx hash → leave pending for admin review (unchanged legacy behavior).
   if (txHashNorm) {
     try {
-      const verdict = await verifyOnChainDeposit({
-        txHash: txHashNorm,
-        expectedTokens: amount,
-        treasury: DEPOSIT_ADDRESS,
-        contract: process.env.PC_TOKEN_CONTRACT,
-      });
+      const verdict = net === NET_SOL
+        ? await verifySolanaDeposit({ signature: txHashNorm, expectedTokens: amount })
+        : await verifyOnChainDeposit({
+            txHash: txHashNorm,
+            expectedTokens: amount,
+            treasury: DEPOSIT_ADDRESS,
+            contract: process.env.PC_TOKEN_CONTRACT,
+          });
 
       // Ownership binding: even if the tx is a valid treasury-bound transfer,
       // we must confirm the *sender* is one of THIS user's linked wallets.
@@ -264,6 +357,10 @@ router.post('/deposit/request', requireAuth, async (req, res) => {
         await query(
           "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, 'deposit', 'Deposit Rejected', $2)",
           [user.id, `Your deposit could not be verified on-chain: ${verdict.reason}`]
+        );
+        await _alertAdmins(
+          '⚠️ Deposit auto-rejected',
+          `Deposit #${createdRow.id} by ${user.username} (${net}, ${parseInt(amount).toLocaleString()} $Pc) rejected: ${verdict.reason}`
         );
         return res.status(400).json({
           error: `Deposit rejected: ${verdict.reason}`,
@@ -379,6 +476,19 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
   if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
   if (!toAddress) return res.status(400).json({ error: 'Destination address required' });
 
+  // Resolve rail + validate the destination address format for that rail
+  // BEFORE debiting anything. Mis-typed addresses must never enter the
+  // payout queue.
+  const withdrawNet = normalizeNetwork(network, { address: toAddress });
+  const addrTrimmed = String(toAddress).trim();
+  if (withdrawNet === NET_SOL) {
+    if (!isValidSolanaAddress(addrTrimmed)) {
+      return res.status(400).json({ error: 'Invalid Solana destination address.', code: 'INVALID_ADDRESS' });
+    }
+  } else if (!/^0x[0-9a-fA-F]{40}$/.test(addrTrimmed)) {
+    return res.status(400).json({ error: 'Invalid Ethereum (ERC-20) destination address.', code: 'INVALID_ADDRESS' });
+  }
+
   const user = req.user;
 
   if (user.kyc_status !== 'approved') {
@@ -445,7 +555,7 @@ router.post('/withdraw/request', requireAuth, async (req, res) => {
     const result = await query(
       `INSERT INTO withdraw_requests (user_id, amount, to_address, network, status, idempotency_key, processed_at)
        VALUES ($1, $2, $3, $4, 'approved', $5, NOW()) RETURNING *`,
-      [user.id, amount, toAddress, network || 'ERC-20', idempotencyKey]
+      [user.id, amount, addrTrimmed, withdrawNet, idempotencyKey]
     );
     // Link the transaction row to this specific withdraw_request so later
     // mark-sent / reject only updates THIS row (not all pending withdraws).
@@ -861,7 +971,10 @@ async function _verifyDepositOwnership(userId, senderAddress) {
 // time stay status='pending' with a tx_hash. This worker rescans them every
 // minute so they auto-credit once confirmed without admin intervention.
 async function _recheckPendingDeposits() {
-  if (!DEPOSIT_ADDRESS || !process.env.PC_TOKEN_CONTRACT || isDemoMode()) return;
+  if (isDemoMode()) return;
+  const ethConfigured = !!(DEPOSIT_ADDRESS && process.env.PC_TOKEN_CONTRACT);
+  const solConfigured = isSolanaDepositConfigured();
+  if (!ethConfigured && !solConfigured) return;
   try {
     const rows = await query(
       `SELECT * FROM deposit_requests
@@ -871,12 +984,18 @@ async function _recheckPendingDeposits() {
     );
     for (const d of rows.rows) {
       try {
-        const verdict = await verifyOnChainDeposit({
-          txHash: d.tx_hash,
-          expectedTokens: d.amount,
-          treasury: DEPOSIT_ADDRESS,
-          contract: process.env.PC_TOKEN_CONTRACT,
-        });
+        const rowIsSol = isSolanaNetwork(d.network);
+        // Skip rows whose rail isn't configured — they stay pending for
+        // admin attention rather than being silently rejected.
+        if (rowIsSol ? !solConfigured : !ethConfigured) continue;
+        const verdict = rowIsSol
+          ? await verifySolanaDeposit({ signature: d.tx_hash, expectedTokens: d.amount })
+          : await verifyOnChainDeposit({
+              txHash: d.tx_hash,
+              expectedTokens: d.amount,
+              treasury: DEPOSIT_ADDRESS,
+              contract: process.env.PC_TOKEN_CONTRACT,
+            });
         if (verdict.status === 'confirmed') {
           // Same ownership binding as the sync path — never auto-credit a
           // sender that isn't a linked wallet for this user.

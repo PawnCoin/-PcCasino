@@ -20,21 +20,35 @@ export const WALLET_THRESHOLD_USD = (() => {
 const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const MIN_CONFIRMATIONS = parseInt(process.env.DEPOSIT_MIN_CONFIRMATIONS || '12', 10);
 
-function ethRpcUrl() {
-  return process.env.ETH_RPC_URL || 'https://cloudflare-eth.com';
+// Primary + failover RPC endpoints. Operators can add redundancy with
+// ETH_RPC_FALLBACK_URLS (comma-separated); we always keep a public default
+// last so verification degrades gracefully instead of hard-failing.
+export function ethRpcUrls() {
+  const urls = [process.env.ETH_RPC_URL || 'https://cloudflare-eth.com'];
+  for (const u of (process.env.ETH_RPC_FALLBACK_URLS || '').split(',').map(s => s.trim()).filter(Boolean)) {
+    if (!urls.includes(u)) urls.push(u);
+  }
+  if (!urls.includes('https://eth.llamarpc.com')) urls.push('https://eth.llamarpc.com');
+  return urls;
 }
 
 async function ethCall(method, params) {
-  const r = await fetch(ethRpcUrl(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
-  const json = await r.json();
-  if (json.error) throw new Error(json.error.message || 'RPC error');
-  return json.result;
+  let lastErr = null;
+  for (const url of ethRpcUrls()) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
+      const json = await r.json();
+      if (json.error) throw new Error(json.error.message || 'RPC error');
+      return json.result;
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error(lastErr?.message || 'All Ethereum RPCs failed');
 }
 
 async function _fetchLivePcPriceFromSources() {

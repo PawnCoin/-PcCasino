@@ -671,7 +671,7 @@ function App() {
   }, [user, sessionLosses]);
 
   // Deposit — submit a real deposit request
-  const handleDeposit = async (amount: number, txHash?: string) => {
+  const handleDeposit = async (amount: number, txHash?: string, network?: string) => {
     if (user?.demoMode) {
       toast.error('Deposits are disabled while the casino is in Demo Mode.');
       return;
@@ -683,7 +683,7 @@ function App() {
     if (user) {
       if (getToken()) {
         try {
-          await paymentsApi.requestDeposit({ amount, txHash });
+          await paymentsApi.requestDeposit({ amount, txHash, network });
           addTransaction('deposit', amount);
           toast.success(`Deposit request for ${amount.toLocaleString()} $Pc submitted! Pending review.`, { duration: 5000 });
           fetchNotifications();
