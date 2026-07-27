@@ -21,7 +21,7 @@ import { createGameEngines } from './game-engines/index.js';
 import { isDemoMode } from './demo-mode.js';
 import { reconcileStaleSendingPayouts } from './payout-engine.js';
 import { checkBreakerFollowupAlert, checkBreakerAutoRecover } from './payout-breaker.js';
-import { getPcPrice, getRequiredPcThreshold } from './pc-pricing.js';
+import { getPcPrice, getSolPcPrice, getRequiredPcThreshold } from './pc-pricing.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, '..', 'public');
@@ -409,9 +409,15 @@ app.get('/api/jackpot/history', async (req, res) => {
 // Implementation lives in ./pc-pricing.js so the wallet-eligibility threshold
 // can share the same 60s cache.
 app.get('/api/pc-price', async (req, res) => {
-  const { data, stale, error } = await getPcPrice();
-  if (!data) return res.json({ price: null, source: null, error: error || 'unavailable', stale: true });
-  res.json({ ...data, stale });
+  const [eth, sol] = await Promise.all([getPcPrice(), getSolPcPrice()]);
+  const base = eth.data
+    ? { ...eth.data, stale: eth.stale }
+    : { price: null, source: null, error: eth.error || 'unavailable', stale: true };
+  // Solana feed rides alongside; its failure never breaks the ETH payload.
+  base.solana = sol.data
+    ? { ...sol.data, stale: sol.stale }
+    : { price: null, source: null, error: sol.error || 'unavailable', stale: true };
+  res.json(base);
 });
 
 // Wallet-eligibility threshold: how many $Pc the user's default wallet must

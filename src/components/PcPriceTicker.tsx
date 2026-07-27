@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Activity, ExternalLink } from 'lucide-react';
 
-interface PcPriceData {
+interface ChainPriceData {
   price: number | null;
   priceChange24h: number | null;
   volume24h: number | null;
@@ -11,7 +11,12 @@ interface PcPriceData {
   chain: string | null;
   url: string | null;
   source: string | null;
+  stale?: boolean;
   error?: string;
+}
+
+interface PcPriceData extends ChainPriceData {
+  solana?: ChainPriceData | null;
 }
 
 function formatUSD(n: number | null): string {
@@ -36,6 +41,7 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
   const [data, setData] = useState<PcPriceData | null>(null);
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const [solFlash, setSolFlash] = useState<'up' | 'down' | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -56,6 +62,15 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
           }
           setPrevPrice(prev.price);
         }
+        if (prev?.solana?.price && incoming.solana?.price) {
+          if (incoming.solana.price > prev.solana.price) {
+            setSolFlash('up');
+            setTimeout(() => setSolFlash(null), 1500);
+          } else if (incoming.solana.price < prev.solana.price) {
+            setSolFlash('down');
+            setTimeout(() => setSolFlash(null), 1500);
+          }
+        }
         return incoming;
       });
       setLoading(false);
@@ -71,6 +86,13 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
   }, []);
 
   const up = (data?.priceChange24h ?? 0) >= 0;
+  const sol = data?.solana ?? null;
+  const solUp = (sol?.priceChange24h ?? 0) >= 0;
+  const solColor =
+    solFlash === 'up' ? '#4caf50' :
+    solFlash === 'down' ? '#ef5350' :
+    sol?.price == null ? '#666' :
+    solUp ? '#4caf50' : '#ef5350';
   const notConfigured = data?.error === 'PC_TOKEN_CONTRACT not configured';
   const noData = !loading && (data?.price == null) && !notConfigured;
 
@@ -164,6 +186,11 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
     >
       <img src="/logos/pc-logo.png" alt="$Pc" style={{ width: compact ? 14 : 16, height: compact ? 14 : 16, borderRadius: '50%' }} />
       <span style={{ fontSize: compact ? 10 : 11, color: '#D4AF37', fontWeight: 900, letterSpacing: '0.05em' }}>$Pc</span>
+      <span style={{
+        fontSize: compact ? 8 : 9, fontWeight: 900, letterSpacing: '0.06em',
+        color: '#8ab4f8', background: 'rgba(98,126,234,0.15)',
+        border: '1px solid rgba(98,126,234,0.35)', borderRadius: 6, padding: '1px 4px',
+      }}>ETH</span>
       <span style={{ fontSize: compact ? 10 : 11, color: priceColor, fontWeight: 700, transition: 'color 0.4s' }}>
         {formatUSD(data?.price ?? null)}
       </span>
@@ -176,6 +203,29 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
         }}>
           {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
           {up ? '+' : ''}{data.priceChange24h.toFixed(2)}%
+        </span>
+      )}
+      <span style={{ width: 1, alignSelf: 'stretch', background: 'rgba(212,175,55,0.25)', margin: '0 2px' }} />
+      <span style={{
+        fontSize: compact ? 8 : 9, fontWeight: 900, letterSpacing: '0.06em',
+        color: '#c99bf7', background: 'rgba(153,69,255,0.15)',
+        border: '1px solid rgba(153,69,255,0.35)', borderRadius: 6, padding: '1px 4px',
+      }}>SOL</span>
+      <span
+        title={sol?.price == null ? (sol?.error || 'Solana price unavailable') : undefined}
+        style={{ fontSize: compact ? 10 : 11, color: solColor, fontWeight: 700, transition: 'color 0.4s' }}
+      >
+        {formatUSD(sol?.price ?? null)}
+      </span>
+      {sol?.priceChange24h != null && !compact && (
+        <span style={{
+          display: 'flex', alignItems: 'center', gap: 2,
+          fontSize: 10,
+          color: solUp ? '#4caf50' : '#ef5350',
+          fontWeight: 700,
+        }}>
+          {solUp ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+          {solUp ? '+' : ''}{sol.priceChange24h.toFixed(2)}%
         </span>
       )}
       <div style={{
@@ -226,6 +276,28 @@ export function PcPriceTicker({ compact = false, onFullInfo }: { compact?: boole
                 </span>
               </div>
             )}
+          </div>
+
+          <div style={{ marginBottom: 10, padding: '6px 8px', borderRadius: 8, background: 'rgba(153,69,255,0.08)', border: '1px solid rgba(153,69,255,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 9, color: '#c99bf7', fontWeight: 900, letterSpacing: '0.08em' }}>ON SOLANA</span>
+              {sol?.url && (
+                <a href={sol.url} target="_blank" rel="noopener noreferrer" style={{ color: '#c99bf7', display: 'flex' }}>
+                  <ExternalLink size={10} />
+                </a>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+              <span style={{ fontSize: 14, fontWeight: 900, color: solColor }}>{formatUSD(sol?.price ?? null)}</span>
+              {sol?.priceChange24h != null && (
+                <span style={{ fontSize: 11, color: solUp ? '#4caf50' : '#ef5350', fontWeight: 700 }}>
+                  {solUp ? '+' : ''}{sol.priceChange24h.toFixed(2)}% (24h)
+                </span>
+              )}
+              {sol?.price == null && (
+                <span style={{ fontSize: 9, color: '#666' }}>{'unavailable'}</span>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', marginBottom: 10 }}>

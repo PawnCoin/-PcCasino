@@ -151,6 +151,79 @@ async function _fetchLivePcPriceFromSources() {
   return { price: null, source: null, error: 'Price data unavailable from all sources' };
 }
 
+// ---- Solana $Pc price (SPL mint) ----
+// Separate cache from the ETH feed; the wallet-threshold math keeps using
+// getPcPrice() (ETH) and is unaffected.
+const _solPriceCache = { data: null, ts: 0 };
+
+async function _fetchLiveSolPcPriceFromSources() {
+  const mint = process.env.PC_SPL_MINT;
+  if (!mint) return { price: null, source: null, error: 'PC_SPL_MINT not configured' };
+
+  // Primary: DexScreener token lookup by mint.
+  try {
+    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, {
+      headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const solPairs = (data.pairs || []).filter(p => p.chainId === 'solana');
+      if (solPairs.length) {
+        const pair = [...solPairs].sort((a, b) => (parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0)))[0];
+        return {
+          price: parseFloat(pair.priceUsd || 0) || null,
+          priceChange24h: pair.priceChange?.h24 != null ? parseFloat(pair.priceChange.h24) : null,
+          volume24h: pair.volume?.h24 != null ? parseFloat(pair.volume.h24) : null,
+          liquidity: pair.liquidity?.usd != null ? parseFloat(pair.liquidity.usd) : null,
+          marketCap: pair.fdv ? parseFloat(pair.fdv) : null,
+          dex: pair.dexId, chain: 'solana', url: pair.url, source: 'dexscreener',
+        };
+      }
+    }
+  } catch (e) { console.error('[PcPrice SOL] DexScreener error:', e.message); }
+
+  // Fallback: GeckoTerminal token endpoint on the solana network.
+  try {
+    const r = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) }
+    );
+    if (r.ok) {
+      const data = await r.json();
+      const attrs = data.data?.attributes;
+      if (attrs?.price_usd) {
+        return {
+          price: parseFloat(attrs.price_usd),
+          priceChange24h: attrs.price_change_percentage?.h24 ? parseFloat(attrs.price_change_percentage.h24) : null,
+          volume24h: attrs.volume_usd?.h24 ? parseFloat(attrs.volume_usd.h24) : null,
+          liquidity: null, marketCap: null, dex: null, chain: 'solana',
+          url: `https://www.geckoterminal.com/solana/tokens/${mint}`,
+          source: 'geckoterminal',
+        };
+      }
+    }
+  } catch (e) { console.error('[PcPrice SOL] GeckoTerminal error:', e.message); }
+
+  return { price: null, source: null, error: 'Solana price data unavailable from all sources' };
+}
+
+// Cached Solana $Pc price. Same contract as getPcPrice(): { data, stale, error }.
+export async function getSolPcPrice() {
+  if (_solPriceCache.data && Date.now() - _solPriceCache.ts < PC_PRICE_CACHE_TTL) {
+    return { data: _solPriceCache.data, stale: false };
+  }
+  const fresh = await _fetchLiveSolPcPriceFromSources();
+  if (fresh.price) {
+    _solPriceCache.data = fresh;
+    _solPriceCache.ts = Date.now();
+    return { data: fresh, stale: false };
+  }
+  if (_solPriceCache.data) {
+    return { data: _solPriceCache.data, stale: true, error: fresh.error };
+  }
+  return { data: null, stale: true, error: fresh.error };
+}
+
 // Returns the cached price payload, refreshing in the background if stale.
 // Always returns { data, stale } where data may be null only if no price has
 // ever been observed.
