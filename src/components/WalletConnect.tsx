@@ -34,6 +34,11 @@ declare global {
       ethereum?: {
         request: (args: { method: string }) => Promise<any>;
       };
+      solana?: {
+        isPhantom?: boolean;
+        connect: () => Promise<{ publicKey: { toString: () => string } }>;
+        signMessage: (message: Uint8Array, display?: string) => Promise<{ signature: Uint8Array }>;
+      };
     };
   }
 }
@@ -85,6 +90,20 @@ export function WalletConnect({
       }
 
       if (walletId === 'phantom') {
+        // Prefer Phantom's native Solana provider so users connect with their
+        // Solana address (needed for verified $Pc deposits on Solana).
+        const solProvider = window.phantom?.solana;
+        if (solProvider?.isPhantom) {
+          const conn = await solProvider.connect();
+          const address = conn?.publicKey?.toString();
+          if (address) {
+            onConnect(walletId, address);
+            setShowWalletModal(false);
+            setConnecting(null);
+            return;
+          }
+        }
+        // Fall back to Phantom's Ethereum provider if Solana isn't available.
         const provider = window.phantom?.ethereum || (window.ethereum?.isPhantom ? window.ethereum : null);
         if (provider) {
           const accounts = await provider.request({ method: 'eth_requestAccounts' });
@@ -95,6 +114,12 @@ export function WalletConnect({
             return;
           }
         }
+        toast.error('Phantom not detected. Please install the Phantom extension.', {
+          action: { label: 'Install', onClick: () => window.open('https://phantom.app/download', '_blank') },
+          duration: 6000,
+        });
+        setConnecting(null);
+        return;
       }
 
       // Coinbase Wallet — look for injected provider

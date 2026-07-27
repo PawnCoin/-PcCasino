@@ -477,6 +477,37 @@ function WalletManager({ userId }: { userId: string }) {
   const [newLabel, setNewLabel] = useState('');
   const [adding, setAdding] = useState(false);
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const [linkingPhantom, setLinkingPhantom] = useState(false);
+
+  const handleLinkPhantom = async () => {
+    const provider = (window as any).phantom?.solana;
+    if (!provider?.isPhantom) {
+      toast.error('Phantom wallet not detected. Install the Phantom extension to link a Solana wallet.', {
+        action: { label: 'Install', onClick: () => window.open('https://phantom.app/download', '_blank') },
+        duration: 7000,
+      });
+      return;
+    }
+    setLinkingPhantom(true);
+    try {
+      const conn = await provider.connect();
+      const walletAddress: string = conn.publicKey.toString();
+      const { message } = await walletApi.solanaNonce(walletAddress);
+      const encoded = new TextEncoder().encode(message);
+      const signed = await provider.signMessage(encoded, 'utf8');
+      const sigBytes: Uint8Array = signed.signature;
+      const signature = btoa(String.fromCharCode(...Array.from(sigBytes)));
+      const result = await walletApi.solanaVerify({ walletAddress, signature, label: 'Phantom' });
+      toast.success(result.alreadyLinked
+        ? 'Solana wallet ownership verified!'
+        : 'Solana wallet linked and ownership verified!');
+      await fetchWallets();
+    } catch (err: any) {
+      if (err?.code === 4001) toast.error('Phantom request rejected');
+      else toast.error(err?.message || 'Failed to link Solana wallet');
+    }
+    setLinkingPhantom(false);
+  };
 
   const CHAINS = ['ERC-20', 'BEP-20', 'Polygon', 'Arbitrum', 'Optimism', 'Solana', 'Avalanche'];
 
@@ -557,10 +588,16 @@ function WalletManager({ userId }: { userId: string }) {
           Linked Wallets ({wallets.length}/5)
         </h4>
         {wallets.length < 5 && (
-          <button onClick={() => setShowAdd(!showAdd)} className="text-xs px-3 py-1 rounded-lg flex items-center gap-1"
-            style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}>
-            <Plus className="w-3 h-3" /> Add Wallet
-          </button>
+          <div className="flex gap-2">
+            <button onClick={handleLinkPhantom} disabled={linkingPhantom} className="text-xs px-3 py-1 rounded-lg flex items-center gap-1"
+              style={{ background: 'rgba(171,159,242,0.15)', color: '#AB9FF2', border: '1px solid rgba(171,159,242,0.35)' }}>
+              {linkingPhantom ? 'Check Phantom...' : 'Link Solana (Phantom)'}
+            </button>
+            <button onClick={() => setShowAdd(!showAdd)} className="text-xs px-3 py-1 rounded-lg flex items-center gap-1"
+              style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}>
+              <Plus className="w-3 h-3" /> Add Wallet
+            </button>
+          </div>
         )}
       </div>
 
@@ -627,6 +664,16 @@ function WalletManager({ userId }: { userId: string }) {
                     {w.wallet_verified && (
                       <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}>
                         Verified
+                      </span>
+                    )}
+                    {(w as any).ownership_verified && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" title="You proved ownership of this wallet by signing a message" style={{ background: 'rgba(171,159,242,0.12)', color: '#AB9FF2', border: '1px solid rgba(171,159,242,0.3)' }}>
+                        Ownership Proven
+                      </span>
+                    )}
+                    {!(w as any).ownership_verified && !w.wallet_address.startsWith('0x') && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" title="Sign with Phantom to prove ownership — required for automatic deposit crediting" style={{ background: 'rgba(248,113,113,0.08)', color: '#f8a5a5', border: '1px solid rgba(248,113,113,0.25)' }}>
+                        Signature Needed
                       </span>
                     )}
                   </div>

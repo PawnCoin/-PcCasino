@@ -212,6 +212,12 @@ export const walletApi = {
     apiFetch(`/wallets/${id}/verify-balance`, { method: 'POST' }),
 
   getThreshold: () => apiFetch('/wallet-threshold'),
+
+  solanaNonce: (walletAddress: string) =>
+    apiFetch('/wallets/solana/nonce', { method: 'POST', body: JSON.stringify({ walletAddress }) }),
+
+  solanaVerify: (body: { walletAddress: string; signature: string; label?: string }) =>
+    apiFetch('/wallets/solana/verify', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Admin payments

@@ -10,5 +10,9 @@ description: Non-obvious rules for the SOL + ERC-20 $Pc payment rails
 - **Rule**: Every rail is fail-closed. Missing Solana config (`PC_SPL_MINT`, `SOL_DEPOSIT_WALLET`, `SOLANA_PAYOUT_PRIVATE_KEY`) must produce a 503/needs_review/rollback-to-approved, never a silent fallback to the other rail's verifier or signer.
   **Why:** cross-rail fallback would let unverifiable claims reach admin review or the wrong signer.
 
+- **Rule**: Solana wallets only satisfy the deposit-ownership check when `ownership_verified = TRUE` (proven via Phantom signMessage ed25519 nonce flow). Manually pasted Solana addresses never auto-credit — they fall to admin review.
+  **Why:** a pasted-in address is unauthenticated; an attacker could paste a victim's address and claim their deposit.
+  **How to apply:** any new auto-credit path must check ownership_verified for non-0x senders; the nonce is server-issued, single-use, 5-min TTL.
+
 - Solana deposit crediting requires `finalized` commitment (equivalent of ETH's 12 confirmations); `confirmed` can still be reorged.
 - Deposit claims are rate-limited (5/user/10min) as an anti-probing measure; hitting it alerts admins.

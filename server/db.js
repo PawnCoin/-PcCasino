@@ -457,6 +457,9 @@ export async function initDatabase() {
       )
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_user_wallets_user ON user_wallets(user_id)`);
+    // Cryptographic proof-of-ownership (e.g. Phantom signMessage for Solana wallets)
+    await query(`ALTER TABLE user_wallets ADD COLUMN IF NOT EXISTS ownership_verified BOOLEAN DEFAULT FALSE`).catch(() => {});
+    await query(`ALTER TABLE user_wallets ADD COLUMN IF NOT EXISTS ownership_verified_at TIMESTAMP`).catch(() => {});
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS real_transactions_unlocked BOOLEAN DEFAULT FALSE`).catch(() => {});
 
     // OTP store for phone verification (in-memory handled server side, but store for audit)

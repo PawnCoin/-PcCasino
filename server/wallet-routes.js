@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import crypto from 'crypto';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 import { query } from './db.js';
 import { requireAuth } from './auth-routes.js';
 import { isDemoMode } from './demo-mode.js';
@@ -130,11 +133,109 @@ export async function refreshDefaultWalletVerification(userId, kycStatus) {
   };
 }
 
+// ---- Solana wallet linking via Phantom signMessage (ed25519) ----
+// In-memory nonce store: userId -> { nonce, walletAddress, expiresAt }.
+// Nonces are single-use and short-lived; server-side storage prevents a
+// client from supplying its own (replayable) nonce.
+const solanaLinkNonces = new Map();
+const NONCE_TTL_MS = 5 * 60 * 1000;
+
+export function buildSolanaLinkMessage(walletAddress, nonce) {
+  return `Pc Casino wallet link\nWallet: ${walletAddress}\nNonce: ${nonce}\n\nSign this message to prove you own this Solana wallet. This does not cost anything or approve any transaction.`;
+}
+
+// POST /api/wallets/solana/nonce — issue a one-time nonce to sign
+router.post('/solana/nonce', requireAuth, async (req, res) => {
+  const addr = String(req.body?.walletAddress || '').trim();
+  if (!isValidSolanaAddress(addr)) {
+    return res.status(400).json({ error: 'Valid Solana wallet address required' });
+  }
+  const nonce = crypto.randomBytes(24).toString('hex');
+  solanaLinkNonces.set(req.user.id, { nonce, walletAddress: addr, expiresAt: Date.now() + NONCE_TTL_MS });
+  res.json({ nonce, message: buildSolanaLinkMessage(addr, nonce) });
+});
+
+// POST /api/wallets/solana/verify — verify ed25519 signature and link wallet
+router.post('/solana/verify', requireAuth, async (req, res) => {
+  const addr = String(req.body?.walletAddress || '').trim();
+  const signatureB64 = String(req.body?.signature || '').trim();
+  if (!isValidSolanaAddress(addr) || !signatureB64) {
+    return res.status(400).json({ error: 'walletAddress and signature required' });
+  }
+
+  const entry = solanaLinkNonces.get(req.user.id);
+  if (!entry || entry.expiresAt < Date.now()) {
+    solanaLinkNonces.delete(req.user.id);
+    return res.status(400).json({ error: 'No active linking nonce. Please restart the linking flow.' });
+  }
+  if (entry.walletAddress !== addr) {
+    return res.status(400).json({ error: 'Wallet address does not match the nonce request.' });
+  }
+
+  let signature;
+  try {
+    signature = Buffer.from(signatureB64, 'base64');
+  } catch {
+    return res.status(400).json({ error: 'Invalid signature encoding' });
+  }
+  if (signature.length !== 64) {
+    return res.status(400).json({ error: 'Invalid signature length' });
+  }
+
+  let verified = false;
+  try {
+    const message = Buffer.from(buildSolanaLinkMessage(addr, entry.nonce), 'utf8');
+    const pubkey = bs58.decode(addr);
+    verified = nacl.sign.detached.verify(new Uint8Array(message), new Uint8Array(signature), new Uint8Array(pubkey));
+  } catch (err) {
+    console.error('[solana verify]', err.message);
+    return res.status(400).json({ error: 'Signature verification failed' });
+  }
+  if (!verified) {
+    return res.status(400).json({ error: 'Signature does not match this wallet. Make sure you signed with the selected Phantom account.' });
+  }
+
+  // Single-use: consume the nonce only after a successful verification so a
+  // fat-fingered wrong-account signature can be retried within the TTL.
+  solanaLinkNonces.delete(req.user.id);
+
+  try {
+    // Already linked (case-sensitive base58 compare)? Just mark ownership verified.
+    const existing = await query(
+      'SELECT id FROM user_wallets WHERE user_id = $1 AND wallet_address = $2',
+      [req.user.id, addr]
+    );
+    if (existing.rows.length) {
+      const upd = await query(
+        `UPDATE user_wallets SET ownership_verified = TRUE, ownership_verified_at = NOW()
+         WHERE id = $1 RETURNING *`,
+        [existing.rows[0].id]
+      );
+      return res.json({ success: true, wallet: upd.rows[0], alreadyLinked: true });
+    }
+
+    const countResult = await query('SELECT COUNT(*) as cnt FROM user_wallets WHERE user_id = $1', [req.user.id]);
+    if (parseInt(countResult.rows[0].cnt) >= MAX_WALLETS) {
+      return res.status(400).json({ error: `Maximum of ${MAX_WALLETS} wallets allowed.` });
+    }
+    const isDefault = parseInt(countResult.rows[0].cnt) === 0;
+    const result = await query(
+      `INSERT INTO user_wallets (user_id, wallet_address, chain_label, label, is_default, ownership_verified, ownership_verified_at)
+       VALUES ($1, $2, 'SOL', $3, $4, TRUE, NOW()) RETURNING *`,
+      [req.user.id, addr, (String(req.body?.label || '').trim().slice(0, 100)) || 'Phantom', isDefault]
+    );
+    res.json({ success: true, wallet: result.rows[0] });
+  } catch (err) {
+    console.error('[solana verify link]', err.message);
+    res.status(500).json({ error: 'Failed to link wallet' });
+  }
+});
+
 // GET /api/wallets
 router.get('/', requireAuth, async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, wallet_address, chain_label, label, is_default, wallet_verified, wallet_verified_at, created_at
+      `SELECT id, wallet_address, chain_label, label, is_default, wallet_verified, wallet_verified_at, ownership_verified, ownership_verified_at, created_at
        FROM user_wallets WHERE user_id = $1 ORDER BY is_default DESC, created_at ASC`,
       [req.user.id]
     );

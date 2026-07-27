@@ -951,14 +951,17 @@ router.get('/transactions', requireAuth, async (req, res) => {
 // Ethereum (0x...) addresses are case-insensitive hex, so they compare
 // lowercased; Solana base58 addresses are CASE-SENSITIVE, so they must match
 // exactly (lowercasing base58 would let a crafted wallet string collide with
-// another user's address). Returns false when no wallets are linked or the
-// sender doesn't match — in which case the deposit must be routed to manual
+// another user's address). Solana wallets additionally require cryptographic
+// proof of ownership (ownership_verified via Phantom signMessage) — a merely
+// pasted-in address must NOT auto-credit, otherwise an attacker could paste
+// someone else's Solana address and claim their deposit. Returns false when
+// no wallets match — in which case the deposit must be routed to manual
 // admin review, never auto-credited.
 async function _verifyDepositOwnership(userId, senderAddress) {
   if (!senderAddress) return false;
   try {
     const r = await query(
-      'SELECT wallet_address FROM user_wallets WHERE user_id = $1',
+      'SELECT wallet_address, ownership_verified FROM user_wallets WHERE user_id = $1',
       [userId]
     );
     if (!r.rows.length) return false;
@@ -968,8 +971,8 @@ async function _verifyDepositOwnership(userId, senderAddress) {
       const w = String(row.wallet_address || '').trim();
       if (!w) return false;
       if (isEth) return /^0x/i.test(w) && w.toLowerCase() === sender.toLowerCase();
-      // Solana: exact, case-sensitive match only.
-      return w === sender;
+      // Solana: exact, case-sensitive match AND signature-proven ownership.
+      return w === sender && row.ownership_verified === true;
     });
   } catch (err) {
     console.error('[deposit ownership check]', err.message);
