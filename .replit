@@ -63,3 +63,9 @@ timeoutMs = 120000
 [userenv.shared]
 ADMIN_EMAIL = "service@pccasino.online"
 PC_TOKEN_PAIR = "0x258a6dbf50ffd6ea8bad563d12806c5c851b8966"
+
+[userenv.development]
+DEMO_MODE = "false"
+
+[userenv.production]
+DEMO_MODE = "false"
