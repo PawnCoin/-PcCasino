@@ -3,6 +3,7 @@ import { query } from './db.js';
 import { requireAuth } from './auth-routes.js';
 import { isDemoMode } from './demo-mode.js';
 import { getRequiredPcThreshold } from './pc-pricing.js';
+import { isValidSolanaAddress, getSolanaPcBalance } from './solana.js';
 
 const router = Router();
 
@@ -49,6 +50,23 @@ export async function checkOnChainPcBalance(walletAddress) {
   }
 }
 
+// Rail-aware $Pc balance check: Ethereum (0x...) wallets query the ERC-20
+// contract; Solana wallets query SPL token accounts for PC_SPL_MINT. Both
+// fail closed (balance null => not verified) on RPC/config errors.
+export async function checkPcBalanceForAddress(walletAddress) {
+  const addr = String(walletAddress || '').trim();
+  if (/^0x/i.test(addr)) return checkOnChainPcBalance(addr);
+  try {
+    if (!process.env.PC_SPL_MINT) return { balance: null, error: 'PC_SPL_MINT not configured' };
+    const balance = await getSolanaPcBalance(addr);
+    if (balance === null) return { balance: null, error: 'Could not read Solana $Pc balance' };
+    return { balance, error: null };
+  } catch (err) {
+    console.error('[WalletBalance SOL]', err.message);
+    return { balance: null, error: err.message };
+  }
+}
+
 // Perform live balance check on the user's default wallet; update wallet_verified + real_transactions_unlocked
 // Returns { meetsThreshold, walletAddress, currentBalance, requiredBalance, usdBasis, pricePerPc, error }
 export async function refreshDefaultWalletVerification(userId, kycStatus) {
@@ -87,7 +105,7 @@ export async function refreshDefaultWalletVerification(userId, kycStatus) {
   }
 
   const wallet = walletResult.rows[0];
-  const { balance, error: balErr } = await checkOnChainPcBalance(wallet.wallet_address);
+  const { balance, error: balErr } = await checkPcBalanceForAddress(wallet.wallet_address);
 
   const meetsThreshold = balance !== null && balance >= threshold.pcAmount;
 
@@ -135,7 +153,15 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   const addr = walletAddress.trim();
-  const chain = (chainLabel || 'ERC-20').trim().slice(0, 50);
+  // Rail-aware format enforcement: only well-formed EVM (0x + 40 hex) or
+  // Solana base58 addresses may be stored. This blocks crafted strings that
+  // could collide with real addresses under normalization.
+  const isEvmAddr = /^0x[0-9a-fA-F]{40}$/.test(addr);
+  const isSolAddr = isValidSolanaAddress(addr);
+  if (!isEvmAddr && !isSolAddr) {
+    return res.status(400).json({ error: 'Address must be a valid Ethereum (0x...) or Solana address.' });
+  }
+  const chain = (chainLabel || (isSolAddr && !isEvmAddr ? 'SOL' : 'ERC-20')).trim().slice(0, 50);
   const lbl = (label || '').trim().slice(0, 100) || null;
 
   try {
@@ -242,7 +268,7 @@ router.post('/:id/verify-balance', requireAuth, async (req, res) => {
         priceUnavailable: true,
       });
     }
-    const { balance, error: balErr } = await checkOnChainPcBalance(wallet.rows[0].wallet_address);
+    const { balance, error: balErr } = await checkPcBalanceForAddress(wallet.rows[0].wallet_address);
     const meetsThreshold = balance !== null && balance >= threshold.pcAmount;
 
     await query(

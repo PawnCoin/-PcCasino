@@ -947,9 +947,13 @@ router.get('/transactions', requireAuth, async (req, res) => {
 });
 
 // Confirms that `senderAddress` (the on-chain tx 'from') belongs to the user.
-// Matches against any wallet linked to the user (case-insensitive). Returns
-// false when no wallets are linked or the sender doesn't match — in which case
-// the deposit must be routed to manual admin review, never auto-credited.
+// Matches against any wallet linked to the user. Comparison is rail-aware:
+// Ethereum (0x...) addresses are case-insensitive hex, so they compare
+// lowercased; Solana base58 addresses are CASE-SENSITIVE, so they must match
+// exactly (lowercasing base58 would let a crafted wallet string collide with
+// another user's address). Returns false when no wallets are linked or the
+// sender doesn't match — in which case the deposit must be routed to manual
+// admin review, never auto-credited.
 async function _verifyDepositOwnership(userId, senderAddress) {
   if (!senderAddress) return false;
   try {
@@ -958,8 +962,15 @@ async function _verifyDepositOwnership(userId, senderAddress) {
       [userId]
     );
     if (!r.rows.length) return false;
-    const sender = senderAddress.toLowerCase();
-    return r.rows.some(row => (row.wallet_address || '').toLowerCase() === sender);
+    const sender = String(senderAddress).trim();
+    const isEth = /^0x/i.test(sender);
+    return r.rows.some(row => {
+      const w = String(row.wallet_address || '').trim();
+      if (!w) return false;
+      if (isEth) return /^0x/i.test(w) && w.toLowerCase() === sender.toLowerCase();
+      // Solana: exact, case-sensitive match only.
+      return w === sender;
+    });
   } catch (err) {
     console.error('[deposit ownership check]', err.message);
     return false;

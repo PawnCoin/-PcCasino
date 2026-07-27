@@ -200,10 +200,6 @@ export function isSolanaPayoutConfigured() {
   try { return !!(_loadKeypair() && pcMint()); } catch { return false; }
 }
 
-function _connection() {
-  return new Connection(rpcUrls()[0], { commitment: 'confirmed' });
-}
-
 let _mintDecimalsCache = null;
 async function _getMintDecimals() {
   if (_mintDecimalsCache !== null) return _mintDecimalsCache;
@@ -257,7 +253,6 @@ export async function sendSplTransfer({ to, amountTokens }) {
 
   return _withSendLock(async () => {
     const kp = _loadKeypair();
-    const conn = _connection();
     const mintPk = new PublicKey(pcMint());
     const destOwner = new PublicKey(String(to).trim());
     const decimals = await _getMintDecimals();
@@ -276,7 +271,17 @@ export async function sendSplTransfer({ to, amountTokens }) {
       fromAta, mintPk, destAta, kp.publicKey, rawAmount, decimals,
     ));
 
-    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+    // Blockhash acquisition with failover across all RPCs (a primary-RPC
+    // outage must not block payout signing when a fallback is healthy).
+    let blockhash = null, lastValidBlockHeight = null, bhErr = null;
+    for (const url of rpcUrls()) {
+      try {
+        const c = new Connection(url, { commitment: 'confirmed' });
+        ({ blockhash, lastValidBlockHeight } = await c.getLatestBlockhash('confirmed'));
+        break;
+      } catch (e) { bhErr = e; }
+    }
+    if (!blockhash) throw new Error(`Solana blockhash fetch failed: ${bhErr?.message || 'unknown'}`);
     tx.recentBlockhash = blockhash;
     tx.lastValidBlockHeight = lastValidBlockHeight;
     tx.feePayer = kp.publicKey;
